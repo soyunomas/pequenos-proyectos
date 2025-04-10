@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Interactivo de VLANs</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        /* CSS (Idéntico a la versión anterior) */
+        body { background-color: #f0f2f5; }
+        .container { max-width: 1140px; }
+        #network-area {
+            background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 8px;
+            min-height: 550px; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #controls { gap: 0.5rem; }
+        #explanation, #step-description { min-height: 80px; transition: background-color 0.3s ease; }
+        #step-description { font-weight: bold; color: #495057; min-height: 25px; }
+
+        .pc rect { stroke-width: 1.5; rx: 5; }
+        .pc text { font-size: 10px; font-family: sans-serif; fill: #333; text-anchor: middle; dominant-baseline: middle; }
+        .pc.vlan10 rect { fill: #cff4fc; stroke: #087990; }
+        .pc.vlan20 rect { fill: #ffe5d0; stroke: #a0530d; }
+        .pc.vlan-native rect { fill: #d1e7dd; stroke: #0f5132; }
+
+        .switch rect { fill: #e9ecef; stroke: #6c757d; stroke-width: 2; rx: 10; }
+        .switch text { font-size: 12px; font-weight: bold; font-family: sans-serif; fill: #212529; text-anchor: middle; dominant-baseline: middle; }
+
+        .cable { stroke-width: 2; stroke-linecap: round; }
+        .access-link.vlan10 { stroke: #087990; }
+        .access-link.vlan20 { stroke: #a0530d; }
+        .access-link.vlan-native { stroke: #0f5132; }
+        .trunk-link { stroke: #212529; stroke-width: 4; stroke-dasharray: 8, 5; }
+
+        #dataFrame {
+            stroke-width: 1.5; rx: 3;
+            transition: transform 0.3s ease-in-out, fill 0.4s ease, stroke 0.4s ease, opacity 0.4s ease;
+            opacity: 0; visibility: hidden;
+        }
+        #dataFrame.visible { opacity: 1; visibility: visible; }
+        #dataFrame.untagged { fill: #fff3cd; stroke: #b88a0a; }
+        #dataFrame.tagged-vlan10 { fill: #cff4fc; stroke: #087990; }
+        #dataFrame.tagged-vlan20 { fill: #ffe5d0; stroke: #a0530d; }
+        #dataFrame.tagged-vlan-native { fill: #d1e7dd; stroke: #0f5132; }
+        #dataFrame.blocked { fill: #f8d7da; stroke: #842029; }
+        #dataFrame.broadcast-received { fill: #cfe2ff; stroke: #0a58ca; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4 mb-5">
+        <h1 class="mb-3 text-center">Visualizador Interactivo de VLANs</h1>
+        <p class="text-center text-muted mb-4">Simulación del flujo de tramas Ethernet y etiquetado 802.1Q</p>
+
+        <!-- Selección de Escenario -->
+        <div class="row justify-content-center mb-3">
+            <div class="col-md-6">
+                <label for="scenarioSelect" class="form-label">Selecciona un Escenario:</label>
+                <select class="form-select" id="scenarioSelect">
+                    <option value="vlan10-intra" selected>1. Comunicación VLAN 10 (PC1 a PC5)</option>
+                    <option value="vlan20-intra">2. Comunicación VLAN 20 (PC9 a PC13)</option>
+                    <option value="vlan-inter-fail">3. Fallo Comunicación Inter-VLAN (PC1 a PC9)</option>
+                    <option value="vlan10-broadcast">4. Broadcast en VLAN 10 (desde PC1)</option>
+                    <option value="native-vlan">5. Tráfico VLAN Nativa (PCN1 a PCN2 - VLAN 99)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Área del Diagrama SVG -->
+        <div id="network-area" class="border p-3 mb-3 overflow-hidden">
+            <svg id="networkDiagram" viewBox="0 0 900 500" width="100%" preserveAspectRatio="xMidYMid meet">
+                <!-- SVG Content (Idéntico) -->
+                <g id="cables"> <line class="cable access-link vlan10" x1="100" y1="80" x2="280" y2="180"/> <line class="cable access-link vlan10" x1="100" y1="160" x2="280" y2="190"/> <line class="cable access-link vlan10" x1="100" y1="240" x2="280" y2="200"/> <line class="cable access-link vlan10" x1="100" y1="320" x2="280" y2="210"/> <line class="cable access-link vlan10" x1="800" y1="80" x2="620" y2="180"/> <line class="cable access-link vlan10" x1="800" y1="160" x2="620" y2="190"/> <line class="cable access-link vlan10" x1="800" y1="240" x2="620" y2="200"/> <line class="cable access-link vlan10" x1="800" y1="320" x2="620" y2="210"/> <line class="cable access-link vlan20" x1="100" y1="400" x2="280" y2="290"/> <line class="cable access-link vlan20" x1="100" y1="480" x2="280" y2="300"/> <line class="cable access-link vlan20" x1="800" y1="400" x2="620" y2="290"/> <line class="cable access-link vlan20" x1="800" y1="480" x2="620" y2="300"/> <line class="cable access-link vlan-native" x1="330" y1="70" x2="330" y2="150"/> <line class="cable access-link vlan-native" x1="570" y1="70" x2="570" y2="150"/> <line class="cable trunk-link" x1="380" y1="240" x2="520" y2="240"/> </g>
+                <g id="pcs-vlan10"> <g class="pc vlan10" id="pc1"><rect x="50" y="60" width="50" height="40"/><text x="75" y="80">PC1</text><text x="75" y="92" style="font-size:9px;">VLAN 10</text></g> <g class="pc vlan10" id="pc2"><rect x="50" y="140" width="50" height="40"/><text x="75" y="160">PC2</text><text x="75" y="172" style="font-size:9px;">VLAN 10</text></g> <g class="pc vlan10" id="pc3"><rect x="50" y="220" width="50" height="40"/><text x="75" y="240">PC3</text><text x="75" y="252" style="font-size:9px;">VLAN 10</text></g> <g class="pc vlan10" id="pc4"><rect x="50" y="300" width="50" height="40"/><text x="75" y="320">PC4</text><text x="75" y="332" style="font-size:9px;">VLAN 10</text></g> <g class="pc vlan10" id="pc5"><rect x="800" y="60" width="50" height="40"/><text x="825" y="80">PC5</text><text x="825" y="92" style="font-size:9px;">VLAN 10</text></g> <g class="pc vlan10" id="pc6"><rect x="800" y="140" width="50" height="40"/><text x="825" y="160">PC6</text><text x="825" y="172" style="font-size:9px;">VLAN 10</text></g> <g class="pc vlan10" id="pc7"><rect x="800" y="220" width="50" height="40"/><text x="825" y="240">PC7</text><text x="75" y="252" style="font-size:9px;">VLAN 10</text></g> <g class="pc vlan10" id="pc8"><rect x="800" y="300" width="50" height="40"/><text x="825" y="320">PC8</text><text x="825" y="332" style="font-size:9px;">VLAN 10</text></g> </g>
+                 <g id="pcs-vlan20"> <g class="pc vlan20" id="pc9"><rect x="800" y="380" width="50" height="40"/><text x="825" y="400">PC9</text><text x="825" y="412" style="font-size:9px;">VLAN 20</text></g> <g class="pc vlan20" id="pc10"><rect x="800" y="460" width="50" height="40"/><text x="825" y="480">PC10</text><text x="825" y="492" style="font-size:9px;">VLAN 20</text></g> <g class="pc vlan20" id="pc13"><rect x="50" y="380" width="50" height="40"/><text x="75" y="400">PC13</text><text x="75" y="412" style="font-size:9px;">VLAN 20</text></g> <g class="pc vlan20" id="pc14"><rect x="50" y="460" width="50" height="40"/><text x="75" y="480">PC14</text><text x="75" y="492" style="font-size:9px;">VLAN 20</text></g> </g>
+                <g id="pcs-vlan-native"> <g class="pc vlan-native" id="pcn1"><rect x="280" y="20" width="50" height="40"/><text x="305" y="40">PCN1</text><text x="305" y="52" style="font-size:9px;">VLAN 99</text></g> <g class="pc vlan-native" id="pcn2"><rect x="570" y="20" width="50" height="40"/><text x="595" y="40">PCN2</text><text x="595" y="52" style="font-size:9px;">VLAN 99</text></g> </g>
+                 <g id="switches"> <g class="switch" id="switch1"><rect x="280" y="150" width="100" height="180"/><text x="330" y="240">Switch 1</text></g> <g class="switch" id="switch2"><rect x="520" y="150" width="100" height="180"/><text x="570" y="240">Switch 2</text></g> </g>
+                 <g id="frame-container"> <rect id="dataFrame" x="0" y="0" width="40" height="20" transform="translate(-50, -50)" /> </g>
+            </svg>
+        </div>
+
+        <!-- Área de Descripción del Paso Actual -->
+        <div id="step-description" class="text-center mb-2"></div>
+
+        <!-- Área de Explicación Detallada -->
+        <div id="explanation" class="alert alert-info" role="alert">
+           Selecciona un escenario para comenzar. La simulación iniciará en el primer paso.
+        </div>
+
+        <!-- Área de Controles (con botón de Paso Anterior) -->
+        <div id="controls" class="mt-3 d-flex flex-wrap justify-content-center">
+            <button id="btn-prev-step" class="btn btn-secondary btn-lg" disabled>Paso Anterior</button> <!-- NUEVO BOTÓN -->
+            <button id="btn-next-step" class="btn btn-primary btn-lg">Siguiente Paso</button>
+            <button id="btn-reset" class="btn btn-danger btn-lg">Reiniciar Escenario</button>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Elementos del DOM ---
+            const scenarioSelect = document.getElementById('scenarioSelect');
+            const btnPrevStep = document.getElementById('btn-prev-step'); // Nuevo
+            const btnNextStep = document.getElementById('btn-next-step');
+            const btnReset = document.getElementById('btn-reset');
+            const dataFrame = document.getElementById('dataFrame');
+            const stepDescription = document.getElementById('step-description');
+            const explanation = document.getElementById('explanation');
+
+            // --- Estado de la Simulación ---
+            let currentScenario = scenarioSelect.value;
+            let currentStep = 0; // Índice del paso actual (0 es el primer paso)
+            let scenarioSteps = {};
+            let isAnimating = false;
+            const FLASH_DELAY = 200;
+
+            // --- Coordenadas Clave (Sin Cambios) ---
+            const POS_HIDDEN = { x: -50, y: -50 }; const POS_PC1_START = { x: 110, y: 70 }; const POS_PC2_RECV = { x: 110, y: 150 }; const POS_PC3_RECV = { x: 110, y: 230 }; const POS_PC4_RECV = { x: 110, y: 310 }; const POS_PCN1_START = { x: 310, y: 70 }; const POS_SW1_ACCESS_VLAN10 = { x: 270, y: 190 }; const POS_SW1_ACCESS_VLAN20 = { x: 270, y: 290 }; const POS_SW1_ACCESS_NATIVE = { x: 310, y: 140 }; const POS_SW1_TRUNK = { x: 385, y: 230 }; const POS_SW2_TRUNK = { x: 510, y: 230 }; const POS_SW2_ACCESS_VLAN10 = { x: 630, y: 190 }; const POS_SW2_ACCESS_VLAN20 = { x: 630, y: 290 }; const POS_SW2_ACCESS_NATIVE = { x: 590, y: 140 }; const POS_PC5_END = { x: 790, y: 70 }; const POS_PC5_RECV = { x: 790, y: 70 }; const POS_PC6_RECV = { x: 790, y: 150 }; const POS_PC7_RECV = { x: 790, y: 230 }; const POS_PC8_RECV = { x: 790, y: 310 }; const POS_PC9_END = { x: 790, y: 390 }; const POS_PC13_END = { x: 110, y: 390 }; const POS_PCN2_END = { x: 600, y: 70 };
+
+            // --- Funciones Auxiliares ---
+            function updateText(element, text, alertClass = null) {
+                if (element.id === 'explanation') { element.innerHTML = text; }
+                else { element.textContent = text; }
+                if (alertClass && element.classList.contains('alert')) { element.className = `alert alert-${alertClass}`; }
+            }
+            function moveFrame(pos) { dataFrame.setAttribute('transform', `translate(${pos.x}, ${pos.y})`); }
+            function updateFrameClass(classesToAdd = [], classesToRemove = []) { const allPossibleClasses = ['untagged', 'tagged-vlan10', 'tagged-vlan20', 'tagged-vlan-native', 'broadcast-received', 'blocked', 'visible']; classesToRemove.forEach(cls => dataFrame.classList.remove(cls)); allPossibleClasses.forEach(cls => { if (!classesToAdd.includes(cls) && !classesToRemove.includes(cls)) { dataFrame.classList.remove(cls); } }); classesToAdd.forEach(cls => dataFrame.classList.add(cls)); }
+            function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+            async function animateFlood(targets = [], finalPos, finalClass = []) {
+                isAnimating = true;
+                btnPrevStep.disabled = true; // Deshabilitar botones durante flood
+                btnNextStep.disabled = true;
+                updateFrameClass(['visible', 'broadcast-received']);
+                for (const target of targets) {
+                    moveFrame(target);
+                    await sleep(FLASH_DELAY);
+                }
+                moveFrame(finalPos);
+                updateFrameClass(finalClass, ['broadcast-received']);
+                isAnimating = false; // Se re-habilitan botones en la función que llamó
+            }
+
+            // --- NUEVA: Aplica el estado visual y textual de un paso específico ---
+            function applyStepState(stepIndex) {
+                const steps = scenarioSteps[currentScenario];
+                if (stepIndex < 0 || stepIndex >= steps.length) return; // Índice inválido
+
+                const stepData = steps[stepIndex];
+                const displayStepNumber = stepIndex + 1; // Para mostrar al usuario (1-based)
+
+                // Aplicar estado visual (Frame)
+                // Al retroceder a/desde un flood, simplemente mostramos el estado final definido para ese paso
+                let targetPos = stepData.framePos;
+                let targetClass = stepData.frameClass;
+                let classesToRemove = [];
+                const allClasses = ['untagged', 'tagged-vlan10', 'tagged-vlan20', 'tagged-vlan-native', 'broadcast-received', 'blocked', 'visible'];
+
+                if (stepData.isFloodStep) {
+                    targetPos = stepData.finalPos; // Mostrar la posición final del flood
+                    targetClass = stepData.finalClass; // Mostrar la clase final del flood
+                }
+
+                if (targetPos) {
+                    moveFrame(targetPos);
+                } else {
+                    // Si no hay posición definida (poco probable), ocultar
+                     moveFrame(POS_HIDDEN);
+                     targetClass = []; // Asegurar que no se vean clases viejas
+                }
+
+                if (targetClass) {
+                    classesToRemove = allClasses.filter(cls => !targetClass.includes(cls));
+                    updateFrameClass(targetClass, classesToRemove);
+                } else {
+                     updateFrameClass([], allClasses); // Quitar todas las clases si no se define ninguna
+                }
+
+
+                // Aplicar estado textual
+                updateText(stepDescription, `${displayStepNumber}. ${stepData.description || ''}`);
+                updateText(explanation, stepData.explanation || '', 'info');
+
+                // Actualizar estado de botones
+                btnPrevStep.disabled = (stepIndex <= 0); // Deshabilitar si estamos en el primer paso
+                btnNextStep.disabled = stepData.isLastStep; // Deshabilitar si es el último paso
+                if (stepData.isLastStep) {
+                    btnNextStep.textContent = "Fin Escenario";
+                    // Añadir texto de fin solo si realmente es el último paso
+                    if (!explanation.innerHTML.includes("(Fin del escenario)")) {
+                        updateText(explanation, explanation.innerHTML + "<br><strong>(Fin del escenario)</strong>", 'success');
+                    }
+                } else {
+                    btnNextStep.textContent = "Siguiente Paso";
+                     // Limpiar texto de fin si retrocedemos del último paso
+                     if (explanation.innerHTML.includes("(Fin del escenario)")) {
+                         updateText(explanation, explanation.innerHTML.replace("<br><strong>(Fin del escenario)</strong>", ""), 'info');
+                     }
+                }
+            }
+
+            // --- MODIFICADA: Inicia directamente en el paso 0 ---
+            function resetVisualization() {
+                currentStep = 0; // El índice del primer paso REAL
+                isAnimating = false;
+                currentScenario = scenarioSelect.value;
+
+                // Aplicar directamente el estado del primer paso (índice 0)
+                applyStepState(currentStep);
+
+                // El estado de los botones se maneja dentro de applyStepState
+                // Asegurar que la alerta no sea de éxito al reiniciar
+                explanation.className = 'alert alert-info';
+            }
+
+            // --- Definición de Pasos (Quitando el paso 0 de explicación inicial) ---
+            function defineScenarioSteps() {
+                 scenarioSteps = {
+                    'vlan10-intra': [
+                        // Ya no hay paso 0
+                        { description: 'PC1 envía trama', explanation: '<strong>Intención:</strong> PC1 quiere enviar datos a PC5.<br><strong>Acción:</strong> Genera una trama Ethernet estándar.<br><strong>Estado:</strong> La trama <strong>NO</strong> lleva etiqueta VLAN inicialmente. Contiene MAC Origen (PC1) y MAC Destino (PC5).<br><strong>Concepto:</strong> Los PCs operan transparentemente dentro de su VLAN.', framePos: POS_PC1_START, frameClass: ['visible', 'untagged'] },
+                        { description: 'Trama viaja a Switch 1', explanation: '<strong>Transporte:</strong> La trama viaja hacia el puerto Access (VLAN 10) de Switch 1.', framePos: POS_SW1_ACCESS_VLAN10, frameClass: ['visible', 'untagged'] },
+                        { description: 'Switch 1 recibe y etiqueta', explanation: '<strong>Recepción:</strong> SW1 recibe en puerto Access (VLAN 10).<br><strong>Decisión (Tabla MAC):</strong> Destino vía Trunk.<br><strong>Mecanismo (802.1Q):</strong> <strong>Inserta etiqueta VLAN 10</strong> para preservar info en el Trunk.<br><strong>Estado:</strong> Trama <strong>ETIQUETADA (VLAN 10)</strong>.', framePos: POS_SW1_ACCESS_VLAN10, frameClass: ['visible', 'tagged-vlan10'] },
+                        { description: 'Trama viaja por Trunk', explanation: '<strong>Transporte Trunk:</strong> Trama etiquetada (VLAN 10) viaja por el enlace compartido.<br><strong>Concepto (Trunk):</strong> Permite pasar múltiples VLANs; la etiqueta es clave.', framePos: POS_SW2_TRUNK, frameClass: ['visible', 'tagged-vlan10'] },
+                        { description: 'Switch 2 recibe y des-etiqueta', explanation: '<strong>Recepción Trunk:</strong> SW2 recibe trama etiquetada.<br><strong>Lectura Tag:</strong> Identifica VLAN 10.<br><strong>Decisión:</strong> Destino en puerto Access (VLAN 10).<br><strong>Mecanismo (Untag):</strong> <strong>Elimina etiqueta</strong> antes de enviar al PC.<br><strong>Razón:</strong> PCs esperan tramas estándar.', framePos: POS_SW2_TRUNK, frameClass: ['visible', 'untagged'] },
+                        { description: 'Trama viaja a PC5', explanation: '<strong>Envío Final:</strong> SW2 reenvía la trama estándar (sin etiqueta) a PC5.', framePos: POS_PC5_END, frameClass: ['visible', 'untagged'] },
+                        { description: 'PC5 recibe la trama', explanation: '<strong>Recepción Final:</strong> PC5 recibe la trama.<br><strong>Resultado:</strong> ¡Comunicación Intra-VLAN exitosa!', framePos: POS_PC5_END, frameClass: ['visible', 'untagged'], isLastStep: true }
+                    ],
+                    'vlan20-intra': [
+                        { description: 'PC9 envía trama', explanation: '<strong>Intención:</strong> PC9 (VLAN 20) envía datos a PC13.<br><strong>Estado:</strong> Trama estándar, <strong>sin etiqueta</strong>.', framePos: { x: 790, y: 390 }, frameClass: ['visible', 'untagged'] },
+                        { description: 'Trama viaja a Switch 2', explanation: '<strong>Transporte:</strong> Trama viaja a puerto Access (VLAN 20) de SW2.', framePos: POS_SW2_ACCESS_VLAN20, frameClass: ['visible', 'untagged'] },
+                        { description: 'Switch 2 recibe y etiqueta', explanation: '<strong>Recepción:</strong> SW2 recibe en puerto Access (VLAN 20).<br><strong>Decisión:</strong> Destino vía Trunk.<br><strong>Mecanismo:</strong> Inserta etiqueta <strong>VLAN ID 20</strong>.<br><strong>Estado:</strong> Trama <strong>ETIQUETADA (VLAN 20)</strong>.', framePos: POS_SW2_ACCESS_VLAN20, frameClass: ['visible', 'tagged-vlan20'] },
+                        { description: 'Trama viaja por Trunk', explanation: '<strong>Transporte Trunk:</strong> Trama etiquetada (VLAN 20) viaja hacia SW1.', framePos: POS_SW1_TRUNK, frameClass: ['visible', 'tagged-vlan20'] },
+                        { description: 'Switch 1 recibe y des-etiqueta', explanation: '<strong>Recepción Trunk:</strong> SW1 recibe.<br><strong>Lectura Tag:</strong> Identifica VLAN 20.<br><strong>Decisión:</strong> Destino en puerto Access (VLAN 20).<br><strong>Mecanismo:</strong> <strong>Elimina etiqueta</strong>.<br><strong>Estado:</strong> Trama <strong>SIN etiqueta</strong>.', framePos: POS_SW1_TRUNK, frameClass: ['visible', 'untagged'] },
+                        { description: 'Trama viaja a PC13', explanation: '<strong>Envío Final:</strong> SW1 reenvía la trama estándar a PC13.', framePos: POS_PC13_END, frameClass: ['visible', 'untagged'] },
+                        { description: 'PC13 recibe la trama', explanation: '<strong>Recepción Final:</strong> PC13 recibe.<br><strong>Resultado:</strong> ¡Comunicación VLAN 20 exitosa!', framePos: POS_PC13_END, frameClass: ['visible', 'untagged'], isLastStep: true }
+                    ],
+                     'vlan-inter-fail': [
+                        { description: 'PC1 envía trama', explanation: '<strong>Intención:</strong> PC1 (VLAN 10) intenta enviar a PC9 (VLAN 20).<br><strong>Estado:</strong> Trama estándar, <strong>sin etiqueta</strong>.', framePos: POS_PC1_START, frameClass: ['visible', 'untagged'] },
+                        { description: 'Trama viaja a Switch 1', explanation: '<strong>Transporte:</strong> Trama llega a SW1 (Puerto Access VLAN 10).', framePos: POS_SW1_ACCESS_VLAN10, frameClass: ['visible', 'untagged'] },
+                        { description: 'Switch 1 recibe y bloquea', explanation: '<strong>Recepción:</strong> SW1 recibe (VLAN 10).<br><strong>Decisión (Comparación VLAN):</strong> Destino pertenece a VLAN 20 (distinta).<br><strong>Concepto (Aislamiento L2):</strong> Switch L2 <strong>NO</strong> reenvía entre VLANs.<br><strong>Acción:</strong> Trama <strong>DESCARTADA</strong>.<br><strong>Nota:</strong> Se necesita enrutamiento (L3).', framePos: POS_SW1_ACCESS_VLAN10, frameClass: ['visible', 'blocked'] },
+                        { description: 'Comunicación Fallida', explanation: '<strong>Resultado:</strong> Comunicación falla por aislamiento L2 de VLANs.', framePos: POS_SW1_ACCESS_VLAN10, frameClass: ['visible', 'blocked'], isLastStep: true }
+                    ],
+                     'vlan10-broadcast': [
+                        { description: 'PC1 envía Broadcast', explanation: '<strong>Intención:</strong> PC1 envía broadcast (ej. ARP Req).<br><strong>Acción:</strong> MAC Destino FF:FF:FF:FF:FF:FF.<br><strong>Estado:</strong> Trama <strong>sin etiqueta</strong>.', framePos: POS_PC1_START, frameClass: ['visible', 'untagged'] },
+                        { description: 'Broadcast llega a Switch 1', explanation: '<strong>Recepción:</strong> SW1 recibe broadcast en puerto Access (VLAN 10).', framePos: POS_SW1_ACCESS_VLAN10, frameClass: ['visible', 'untagged'] },
+                        { description: 'Switch 1 INUNDA localmente y etiqueta para Trunk', explanation: '<strong>Concepto (Dominio Broadcast):</strong> Switch inunda broadcast dentro de la misma VLAN.<br><strong>Acción Local (Flooding):</strong> Envía copias (sin tag) a PC2, PC3, PC4.<br><strong>Acción Trunk (Tagging):</strong> Inserta <strong>etiqueta VLAN 10</strong> para enviar por Trunk.<br><strong>Segmentación:</strong> No se envía a otras VLANs.', isFloodStep: true, floodTargets: [POS_PC2_RECV, POS_PC3_RECV, POS_PC4_RECV], finalPos: POS_SW1_TRUNK, finalClass: ['visible', 'tagged-vlan10'] },
+                        { description: 'Broadcast viaja por Trunk', explanation: '<strong>Transporte Trunk:</strong> Broadcast etiquetado (VLAN 10) cruza a SW2.', framePos: POS_SW2_TRUNK, frameClass: ['visible', 'tagged-vlan10'] },
+                        { description: 'Switch 2 recibe y des-etiqueta', explanation: '<strong>Recepción Trunk:</strong> SW2 recibe.<br><strong>Acción:</strong> Lee tag (VLAN 10) y lo <strong>elimina</strong>.', framePos: POS_SW2_TRUNK, frameClass: ['visible', 'untagged'] },
+                        { description: 'Switch 2 INUNDA localmente (VLAN 10)', explanation: '<strong>Concepto (Propagación):</strong> SW2 también debe inundar en su segmento VLAN 10.<br><strong>Acción Local (Flooding):</strong> Envía copias (sin tag) a PC5, PC6, PC7, PC8.<br><strong>Aislamiento:</strong> Broadcast contenido en VLAN 10.', isFloodStep: true, floodTargets: [POS_PC5_RECV, POS_PC6_RECV, POS_PC7_RECV, POS_PC8_RECV], finalPos: POS_PC8_RECV, finalClass: ['visible', 'broadcast-received'], isLastStep: true }
+                    ],
+                    'native-vlan': [
+                        { description: 'PCN1 envía trama', explanation: '<strong>Intención:</strong> PCN1 (VLAN 99 Nativa) envía a PCN2.<br><strong>Estado:</strong> Trama estándar, <strong>sin etiqueta</strong>.', framePos: POS_PCN1_START, frameClass: ['visible', 'untagged'] },
+                        { description: 'Trama viaja a Switch 1', explanation: '<strong>Transporte:</strong> Trama llega a SW1 (Puerto Access VLAN 99).', framePos: POS_SW1_ACCESS_NATIVE, frameClass: ['visible', 'untagged'] },
+                        { description: 'Switch 1 envía por Trunk (SIN etiqueta)', explanation: '<strong>Decisión Trunking:</strong> Destino vía Trunk.<br><strong>Concepto (VLAN Nativa):</strong> Tráfico de VLAN Nativa cruza el trunk <strong>SIN etiqueta</strong>.<br><strong>Acción:</strong> SW1 envía trama estándar por Trunk.', framePos: POS_SW2_TRUNK, frameClass: ['visible', 'untagged'] },
+                        { description: 'Switch 2 recibe trama SIN etiqueta', explanation: '<strong>Recepción Trunk:</strong> SW2 recibe trama <strong>sin etiqueta</strong>.<br><strong>Interpretación:</strong> Asocia trama a su VLAN Nativa configurada (VLAN 99).<br><strong>Importante:</strong> ¡Ambos switches deben coincidir en VLAN Nativa!', framePos: POS_SW2_TRUNK, frameClass: ['visible', 'untagged'] },
+                        { description: 'Trama viaja a PCN2', explanation: '<strong>Envío Final:</strong> SW2 reenvía trama (sin tag) a PCN2 (VLAN 99).', framePos: POS_PCN2_END, frameClass: ['visible', 'untagged'] },
+                        { description: 'PCN2 recibe la trama', explanation: '<strong>Recepción Final:</strong> PCN2 recibe.<br><strong>Resultado:</strong> Comunicación exitosa por VLAN Nativa.', framePos: POS_PCN2_END, frameClass: ['visible', 'untagged'], isLastStep: true }
+                    ]
+                };
+            }
+
+             // --- Lógica Principal (Next Step) ---
+             async function executeNextStep() {
+                if (isAnimating) return;
+                const steps = scenarioSteps[currentScenario];
+                const nextStepIndex = currentStep + 1; // Índice del paso al que vamos
+
+                // Verificar si ya estamos en el último paso o más allá
+                if (!steps || currentStep >= steps.length - 1) {
+                    btnNextStep.disabled = true;
+                    return; // Ya no hay siguiente paso
+                }
+
+                isAnimating = true; // Bloquear botones durante la transición/animación
+                btnPrevStep.disabled = true;
+                btnNextStep.disabled = true;
+
+                const stepData = steps[nextStepIndex]; // Datos del paso al que vamos
+
+                // Actualizar textos primero
+                updateText(stepDescription, `${nextStepIndex + 1}. ${stepData.description || ''}`);
+                updateText(explanation, stepData.explanation || '', 'info');
+
+                // Realizar animación/cambio de estado
+                if (stepData.isFloodStep) {
+                    await animateFlood(stepData.floodTargets, stepData.finalPos, stepData.finalClass);
+                } else {
+                    if (stepData.framePos) { moveFrame(stepData.framePos); }
+                    if (stepData.frameClass) {
+                        const allClasses = ['untagged', 'tagged-vlan10', 'tagged-vlan20', 'tagged-vlan-native', 'broadcast-received', 'blocked', 'visible'];
+                        const classesToRemove = allClasses.filter(cls => !stepData.frameClass.includes(cls));
+                        updateFrameClass(stepData.frameClass, classesToRemove);
+                    }
+                    await sleep(50); // Pequeña pausa
+                }
+
+                // Actualizar el índice del paso actual DESPUÉS de completar la acción
+                currentStep = nextStepIndex;
+
+                // Re-habilitar botones según el nuevo estado
+                isAnimating = false;
+                btnPrevStep.disabled = false; // Si avanzamos, el anterior siempre es posible (excepto si estamos en el paso 0, pero ya lo controlamos)
+                btnNextStep.disabled = stepData.isLastStep;
+
+                if (stepData.isLastStep) {
+                    btnNextStep.textContent = "Fin Escenario";
+                     if (!explanation.innerHTML.includes("(Fin del escenario)")) {
+                         updateText(explanation, explanation.innerHTML + "<br><strong>(Fin del escenario)</strong>", 'success');
+                     }
+                } else {
+                    btnNextStep.textContent = "Siguiente Paso";
+                }
+            }
+
+            // --- NUEVA: Lógica para Paso Anterior ---
+            function executePreviousStep() {
+                if (isAnimating || currentStep <= 0) return; // No retroceder si está animando o ya está en el primer paso
+
+                currentStep--; // Decrementar índice
+                applyStepState(currentStep); // Aplicar el estado del paso anterior
+
+                // El estado de los botones se actualiza en applyStepState
+            }
+
+            // --- Event Listeners ---
+            scenarioSelect.addEventListener('change', resetVisualization);
+            btnNextStep.addEventListener('click', executeNextStep);
+            btnPrevStep.addEventListener('click', executePreviousStep); // Nuevo listener
+            btnReset.addEventListener('click', resetVisualization);
+
+            // --- Inicialización ---
+            defineScenarioSteps(); // Definir los pasos (ahora sin el paso 0)
+            scenarioSelect.value = 'vlan10-broadcast'; // Opcional: mantener escenario por defecto
+            resetVisualization(); // Iniciar la visualización en el paso 0
+
+        });
+    </script>
+
+</body>
+</html>

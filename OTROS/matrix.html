@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Webcam ASCII Mirror (Aspect Ratio REAL Fix)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --matrix-green: #00ff41; --matrix-green-dim: #00c732; --matrix-green-dark: #008f23; --bg-color: #050505; --text-color: var(--matrix-green);
+        }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--bg-color); }
+        body { color: #ccc; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+        #webcamVideo, #processCanvas { display: none; }
+
+        #mainContainer { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 1rem 0.5rem; box-sizing: border-box; }
+
+        #asciiContainer {
+            position: relative; width: 100%; flex-grow: 1; display: flex; justify-content: center; align-items: center; overflow: hidden;
+            /* max-width: 1400px; Eliminado para permitir expansión total */
+        }
+
+        #asciiOutput {
+            font-family: 'Courier New', 'Consolas', 'Lucida Console', monospace;
+            /* === AJUSTES PARA DENSIDAD Y ASPECTO === */
+            font-size: 8px;  /* Pequeño para densidad */
+            line-height: 0.75; /* Ajusta para balance vertical/horizontal */
+            /* letter-spacing: -1px; /* Opcional: juntar más aún */
+            /* ====================================== */
+            white-space: pre; background-color: transparent; padding: 0; margin: 0;
+            text-align: center; color: var(--text-color);
+            text-shadow: 0 0 3px var(--matrix-green-dim);
+            /* Importante: Evitar que el pre fuerce un tamaño mínimo */
+            display: inline-block; /* O block, pero inline-block permite centrado con text-align */
+            max-width: 100%; /* No exceder contenedor */
+            max-height: 100%; /* No exceder contenedor */
+             overflow: hidden !important; /* Forzar ocultar overflow */
+        }
+
+         /* --- Estilos Fullscreen --- */
+         :fullscreen { /* Estilos aplicados al elemento en fullscreen (html) */ }
+         :fullscreen #mainContainer { padding: 0; }
+         :fullscreen #asciiContainer { max-width: none; }
+         :fullscreen #asciiOutput {
+             font-size: 9px; /* Ligeramente mayor en FS */
+             line-height: 0.8;
+         }
+         :fullscreen .controls-container, :fullscreen header { display: none; }
+         :fullscreen #fullscreenButton { position: fixed; top: 10px; right: 10px; z-index: 2147483647; opacity: 0.5; transition: opacity 0.3s ease; }
+         :fullscreen #fullscreenButton:hover { opacity: 1; }
+         /* Prefijos por si acaso */
+          :-webkit-full-screen { } :-moz-full-screen { } :-ms-fullscreen { }
+
+         /* --- Fin Estilos Fullscreen --- */
+
+        .controls-container { margin-bottom: 0.5rem; }
+        .controls { display: flex; gap: 10px; align-items: center; justify-content: center; }
+        #status { min-height: 1.5em; color: #888; margin-top: 0.25rem; font-size: 0.9em;}
+        header { margin-bottom: 0.5rem;}
+        header h1 { color: var(--matrix-green); text-shadow: 0 0 8px var(--matrix-green-dim); font-size: 1.75rem; margin-bottom: 0.25rem;}
+        header p { color: #aaa; font-size: 1rem; margin-bottom: 0;}
+        button { transition: background-color 0.2s ease, border-color 0.2s ease; }
+    </style>
+</head>
+<body>
+    <div id="mainContainer">
+        <header class="text-center">
+             <h1><i class="bi bi-camera-video-fill"></i> Matrix Webcam ASCII Mirror <i class="bi bi-type"></i></h1>
+             <p class="lead">Tu reflejo digital en la lluvia...</p>
+        </header>
+        <div class="controls-container text-center">
+            <div class="controls">
+                <button id="toggleButton" class="btn btn-success btn-sm"><i class="bi bi-play-fill"></i> Iniciar</button>
+                <button id="fullscreenButton" class="btn btn-outline-light btn-sm"><i class="bi bi-fullscreen"></i> Fullscreen</button>
+            </div>
+             <p id="status" class="text-muted">Esperando inicio...</p>
+        </div>
+        <div id="asciiContainer">
+             <pre id="asciiOutput">Conectando a la fuente...</pre>
+        </div>
+    </div>
+    <video id="webcamVideo" playsinline autoplay muted></video>
+    <canvas id="processCanvas"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggleButton = document.getElementById('toggleButton'); /*...*/ const fullscreenButton = document.getElementById('fullscreenButton'); /*...*/ const statusElement = document.getElementById('status'); /*...*/ const asciiOutput = document.getElementById('asciiOutput'); /*...*/ const asciiContainer = document.getElementById('asciiContainer'); /*...*/ const videoElement = document.getElementById('webcamVideo'); /*...*/ const canvasElement = document.getElementById('processCanvas'); /*...*/ const ctx = canvasElement.getContext('2d', { willReadFrequently: true });
+
+            let stream = null; let animationFrameId = null; let isRunning = false;
+
+            // --- Configuración ---
+            const BRIGHTNESS_CHARS = '`^".,:;Il!i><+_?][}{)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$';
+            const RAIN_FADE_AMOUNT = 5; const BACKGROUND_FADE_AMOUNT = 2; const MAX_TRAIL_LENGTH = 30; const NEW_DROP_CHANCE = 0.035; const MIN_SPEED = 3; const MAX_SPEED = 8;
+            // *** AJUSTE DE ASPECT RATIO DEL CARÁCTER ***
+            // Valor estimado (ancho / alto). Un valor más bajo < 1.0 significa que es más alto que ancho.
+            // ¡ESTE VALOR ES CRUCIAL Y PUEDE NECESITAR AJUSTE! Prueba entre 0.5 y 0.7
+            const CHARACTER_ASPECT_RATIO = 0.6;
+
+            // --- Configuración Procesamiento ---
+            // Fijamos la resolución VERTICAL deseada para el muestreo y el ASCII
+            const TARGET_ASCII_ROWS = 70; // Ajusta este valor (más alto = más detalle vertical)
+            let PROCESS_WIDTH = 0;
+            let PROCESS_HEIGHT = 0; // Se calculará para coincidir con ASCII_ROWS
+            let ASCII_COLS = 0; // Se calculará para compensar el aspecto
+            let ASCII_ROWS = TARGET_ASCII_ROWS;
+
+            // --- Estado ---
+            let columns = []; let brightnessGrid = [];
+
+            // --- Funciones ---
+            function initSimulationState() {
+                 columns = []; brightnessGrid = [];
+                 if(ASCII_COLS <= 0 || ASCII_ROWS <= 0) {
+                    console.error("Dimensiones ASCII inválidas:", ASCII_COLS, ASCII_ROWS);
+                    return;
+                 }
+                 for (let x = 0; x < ASCII_COLS; x++) { columns.push({ y: -1, speed: Math.floor(Math.random() * (MAX_SPEED - MIN_SPEED + 1)) + MIN_SPEED, frames: 0 }); }
+                 for (let y = 0; y < ASCII_ROWS; y++) { brightnessGrid.push(Array(ASCII_COLS).fill(0)); }
+                 console.log(`Estado inicializado: ${ASCII_COLS} cols x ${ASCII_ROWS} rows`);
+             }
+
+            async function startSequence() {
+                 if (isRunning || stream) return; statusElement.textContent = 'Solicitando acceso...'; toggleButton.disabled = true; fullscreenButton.disabled = true; try { stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); statusElement.textContent = 'Webcam activa. Preparando...'; videoElement.srcObject = stream; const setupProcessing = () => { if (!isRunning && videoElement.videoWidth > 0) {
+                    const videoAspectRatio = videoElement.videoWidth / videoElement.videoHeight;
+
+                    // Calcular dimensiones del canvas de PROCESAMIENTO basado en ASCII_ROWS
+                    ASCII_ROWS = TARGET_ASCII_ROWS; // Usar el target fijado
+                    PROCESS_HEIGHT = ASCII_ROWS; // Muestrear misma resolución vertical
+                    PROCESS_WIDTH = Math.floor(PROCESS_HEIGHT * videoAspectRatio); // Ancho de proceso que mantiene aspect ratio
+
+                    // Calcular COLUMNAS ASCII para compensar ratio de carácter
+                    ASCII_COLS = Math.floor(ASCII_ROWS * (videoAspectRatio / CHARACTER_ASPECT_RATIO));
+
+                    // Establecer tamaño del canvas de PROCESO
+                    canvasElement.width = PROCESS_WIDTH; canvasElement.height = PROCESS_HEIGHT;
+
+                    console.log(`Video: ${videoElement.videoWidth}x${videoElement.videoHeight} (Ratio: ${videoAspectRatio.toFixed(2)})`);
+                    console.log(`Proceso: ${PROCESS_WIDTH}x${PROCESS_HEIGHT}`);
+                    console.log(`ASCII Grid: ${ASCII_COLS}x${ASCII_ROWS} (Char Ratio Comp: ${CHARACTER_ASPECT_RATIO})`);
+
+                    initSimulationState();
+                    isRunning = true; toggleButton.innerHTML = '<i class="bi bi-stop-fill"></i> Detener'; statusElement.textContent = 'Conectado...'; toggleButton.disabled = false; fullscreenButton.disabled = false; renderLoop(); } }; videoElement.onloadedmetadata = setupProcessing; videoElement.oncanplay = setupProcessing; } catch (err) { console.error('Error webcam:', err); statusElement.textContent = `Error: ${err.message}.`; stream = null; toggleButton.disabled = false; fullscreenButton.disabled = true; }
+             }
+
+             function stopSequence() { /* ... (Sin cambios) ... */
+                  if (!isRunning && !stream) return; isRunning = false; if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; if (stream) stream.getTracks().forEach(track => track.stop()); stream = null; videoElement.srcObject = null; toggleButton.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar'; statusElement.textContent = 'Desconectado.'; asciiOutput.textContent = 'Conectando...'; toggleButton.disabled = false; fullscreenButton.disabled = true; console.log('Secuencia detenida.');
+             }
+
+            function mapBrightnessToChar(brightness) { /* ... (Sin cambios) ... */
+                 brightness = Math.max(0, Math.min(255, Math.floor(brightness))); const index = Math.min(BRIGHTNESS_CHARS.length - 1, Math.max(0, Math.floor((brightness / 255) * BRIGHTNESS_CHARS.length))); return BRIGHTNESS_CHARS[index];
+            }
+
+            /** Obtiene el brillo de la IMAGEN ORIGINAL mapeando la coordenada ASCII */
+            function getOriginalImageBrightness(asciiX, asciiY, imageData) {
+                 // Mapear coordenada ASCII (0..ASCII_COLS-1, 0..ASCII_ROWS-1)
+                 // a coordenada del CANVAS DE PROCESAMIENTO (0..PROCESS_WIDTH-1, 0..PROCESS_HEIGHT-1)
+                 const processX = Math.floor((asciiX / ASCII_COLS) * PROCESS_WIDTH);
+                 const processY = Math.floor((asciiY / ASCII_ROWS) * PROCESS_HEIGHT);
+                 const clampedX = Math.min(PROCESS_WIDTH - 1, Math.max(0, processX));
+                 const clampedY = Math.min(PROCESS_HEIGHT - 1, Math.max(0, processY));
+                 const index = (clampedY * PROCESS_WIDTH + clampedX) * 4;
+                 const r = imageData.data[index]; const g = imageData.data[index + 1]; const b = imageData.data[index + 2];
+                 if (r === undefined || g === undefined || b === undefined) return 0;
+                 return Math.floor(0.2126 * r + 0.7152 * g + 0.0722 * b);
+            }
+
+
+            function updateAndRenderASCII(imageData) {
+                if (ASCII_COLS <= 0 || ASCII_ROWS <= 0) return; // Safety check
+
+                 // 1. Desvanecer/Actualizar fondo con Webcam
+                 for (let y = 0; y < ASCII_ROWS; y++) { for (let x = 0; x < ASCII_COLS; x++) {
+                     const camBrightness = getOriginalImageBrightness(x, y, imageData); const oldBrightness = brightnessGrid[y][x]; let newBrightness = Math.max(0, oldBrightness - BACKGROUND_FADE_AMOUNT); newBrightness = Math.max(newBrightness, camBrightness * 0.7); brightnessGrid[y][x] = newBrightness;
+                 }}
+
+                 // 2. Procesar las gotas y SOBRESCRIBIR brillo
+                 for (let x = 0; x < ASCII_COLS; x++) {
+                     const col = columns[x];
+                     if (col.y < 0) { if (Math.random() < NEW_DROP_CHANCE) { /* Nueva gota */ col.y = 0; col.speed = Math.floor(Math.random() * (MAX_SPEED - MIN_SPEED + 1)) + MIN_SPEED; col.frames = 0; }}
+                     else { col.frames++; if (col.frames >= col.speed) { col.frames = 0; const headY = col.y;
+                         if (headY >= 0 && headY < ASCII_ROWS) {
+                             const headCamBrightness = getOriginalImageBrightness(x, headY, imageData);
+                             brightnessGrid[headY][x] = headCamBrightness; // Cabeza
+                             const trailLength = Math.min(MAX_TRAIL_LENGTH, headY);
+                             for(let i = 1; i <= trailLength; i++) { const trailY = headY - i; if (trailY >= 0) {
+                                 const trailBrightness = Math.max(0, headCamBrightness - i * RAIN_FADE_AMOUNT);
+                                 brightnessGrid[trailY][x] = Math.max(brightnessGrid[trailY][x], trailBrightness); // Cola sobrescribe si > fondo
+                             }}
+                         }
+                         col.y++; if (col.y >= ASCII_ROWS) col.y = -1;
+                     }}
+                 }
+
+                 // 3. Construir string ASCII (más eficiente)
+                 let frameRows = [];
+                 for (let y = 0; y < ASCII_ROWS; y++) {
+                    let rowChars = [];
+                    for (let x = 0; x < ASCII_COLS; x++) {
+                         rowChars.push(mapBrightnessToChar(brightnessGrid[y][x]));
+                     }
+                     frameRows.push(rowChars.join('')); // Unir caracteres de la fila
+                 }
+                 asciiOutput.textContent = frameRows.join('\n'); // Unir filas con salto de línea
+            }
+
+
+            function renderLoop() {
+                 if (!isRunning) { if (stream) animationFrameId = requestAnimationFrame(renderLoop); return; }
+                 if (videoElement.paused || videoElement.ended || PROCESS_HEIGHT === 0 || PROCESS_WIDTH === 0) { animationFrameId = requestAnimationFrame(renderLoop); return; }
+
+                 // 1. Dibujar video ESPEJADO en canvas oculto
+                 ctx.save(); ctx.translate(PROCESS_WIDTH, 0); ctx.scale(-1, 1); ctx.drawImage(videoElement, 0, 0, PROCESS_WIDTH, PROCESS_HEIGHT); ctx.restore();
+
+                 // 2. Obtener datos de píxeles
+                 let imageData = null; try { imageData = ctx.getImageData(0, 0, PROCESS_WIDTH, PROCESS_HEIGHT); } catch (e) { console.error("Error getImageData:", e); animationFrameId = requestAnimationFrame(renderLoop); return; }
+
+                 // 3. Actualizar y dibujar ASCII
+                 updateAndRenderASCII(imageData);
+
+                 // 4. Siguiente frame
+                 animationFrameId = requestAnimationFrame(renderLoop);
+            }
+
+            // --- Fullscreen ---
+            function toggleFullScreen() { /* ... (Sin cambios, usa document.documentElement) ... */
+                 const elem = document.documentElement; if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement ) { statusElement.textContent = "Entrando..."; if (elem.requestFullscreen) { elem.requestFullscreen(); } else if (elem.mozRequestFullScreen) { elem.mozRequestFullScreen(); } else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); } else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); } } else { statusElement.textContent = "Saliendo..."; if (document.exitFullscreen) { document.exitFullscreen(); } else if (document.mozCancelFullScreen) { document.mozCancelFullScreen(); } else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); } else if (document.msExitFullscreen) { document.msExitFullscreen(); } }
+             }
+             fullscreenButton.addEventListener('click', toggleFullScreen); document.addEventListener('fullscreenchange', () => { const isFs = !!document.fullscreenElement; fullscreenButton.innerHTML = isFs ? '<i class="bi bi-fullscreen-exit"></i>' : '<i class="bi bi-fullscreen"></i>'; if (isFs) statusElement.textContent = 'Pantalla Completa.'; else if(isRunning) statusElement.textContent = 'Conectado...'; else statusElement.textContent = 'Detenido.'; }); document.addEventListener('webkitfullscreenchange', () => document.dispatchEvent(new Event('fullscreenchange'))); document.addEventListener('mozfullscreenchange', () => document.dispatchEvent(new Event('fullscreenchange'))); document.addEventListener('MSFullscreenChange', () => document.dispatchEvent(new Event('fullscreenchange')));
+
+            // --- Event Listener Principal ---
+            toggleButton.addEventListener('click', () => { if (isRunning) { stopSequence(); } else { startSequence(); } });
+
+            // --- Estado inicial ---
+            statusElement.textContent = 'Haz clic en Iniciar para entrar a la Matrix.'; toggleButton.disabled = false; fullscreenButton.disabled = true;
+
+        }); // Fin de DOMContentLoaded
+    </script>
+    <!-- === FIN JAVASCRIPT INCRUSTADO === -->
+
+</body>
+</html>

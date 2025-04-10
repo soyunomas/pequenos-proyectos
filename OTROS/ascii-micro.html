@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Música ASCII Simétrico (Todo en Uno)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons (Opcional) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        /* --- CSS Incrustado --- */
+        body {
+            background-color: #111; /* Fondo oscuro para resaltar ASCII */
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding-top: 2rem;
+            font-family: sans-serif; /* Fuente base para el resto de la página */
+        }
+
+        #asciiOutput {
+            font-family: 'Courier New', Courier, monospace; /* Fuente monoespaciada crucial */
+            font-size: 10px; /* Ajusta según prefieras */
+            line-height: 0.8;  /* Ajusta para densidad vertical */
+            white-space: pre;  /* Mantiene espacios y saltos de línea */
+            background-color: #222;
+            padding: 15px;
+            border-radius: 5px;
+            overflow: hidden; /* Evita barras de scroll si el tamaño es fijo */
+            margin-top: 20px;
+            width: 800px; /* Ancho fijo para el ejemplo */
+            height: 400px; /* Alto fijo para el ejemplo */
+            border: 1px solid #444;
+            color: #0f0; /* Color clásico verde terminal */
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+         .container {
+             max-width: 900px; /* Asegura que el pre no se desborde mucho */
+             width: 100%;
+             display: flex;
+             flex-direction: column;
+             align-items: center;
+         }
+         /* --- Fin CSS Incrustado --- */
+    </style>
+</head>
+<body>
+    <div class="container text-center">
+        <header class="mb-4">
+            <h1><i class="bi bi-music-note-beamed"></i> Visualizador de Música ASCII Simétrico <i class="bi bi-mic-fill"></i></h1>
+            <p class="lead">Habla o pon música cerca del micrófono para ver la magia.</p>
+        </header>
+
+        <div class="controls">
+            <button id="toggleButton" class="btn btn-primary">
+                <i class="bi bi-play-fill"></i> Iniciar Visualizador
+            </button>
+            <p id="status" class="mt-2 text-muted">Esperando inicio...</p>
+        </div>
+
+        <!-- El contenedor para el arte ASCII -->
+        <pre id="asciiOutput">Cargando...</pre>
+
+    </div>
+
+    <!-- Bootstrap Bundle with Popper (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <!-- === INICIO JAVASCRIPT INCRUSTADO === -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggleButton = document.getElementById('toggleButton');
+            const statusElement = document.getElementById('status');
+            const asciiOutput = document.getElementById('asciiOutput');
+
+            let audioContext = null;
+            let analyser = null;
+            let microphoneSource = null;
+            let dataArray = null;
+            let animationFrameId = null;
+            let isInitialized = false;
+            let isRunning = false;
+
+            // --- Configuración ---
+            const FFT_SIZE = 512;
+            const SMOOTHING = 0.8;
+            const ASCII_CHARS = ' .,:;irsXA253hMHGS#9B&@'; // De menos denso a más denso
+            // Ajusta estas dimensiones según el tamaño del <pre> en CSS
+            const OUTPUT_WIDTH = 100; // Asegúrate de que sea par para una simetría perfecta si lo deseas, o maneja el centro si es impar.
+            const OUTPUT_HEIGHT = 50; // Caracteres de alto
+
+            // --- Funciones ---
+
+            /** Inicializa el AudioContext y pide acceso al micrófono */
+            async function initAudio() {
+                if (isInitialized) return;
+
+                statusElement.textContent = 'Inicializando AudioContext...';
+                try {
+                    // Crear AudioContext (puede requerir interacción del usuario en algunos navegadores)
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    // Intentar resumir el contexto si está suspendido (política de autoplay)
+                    await audioContext.resume();
+
+                    statusElement.textContent = 'Solicitando acceso al micrófono...';
+
+                    // Pedir acceso al micrófono
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+                    statusElement.textContent = 'Configurando Analizador...';
+
+                    // Crear fuente de audio desde el stream
+                    microphoneSource = audioContext.createMediaStreamSource(stream);
+
+                    // Crear AnalyserNode
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = FFT_SIZE;
+                    analyser.smoothingTimeConstant = SMOOTHING;
+
+                    // Conectar la fuente al analizador (¡NO conectar al destination para no oír el mic!)
+                    microphoneSource.connect(analyser);
+
+                    // Preparar array para los datos de frecuencia
+                    const bufferLength = analyser.frequencyBinCount; // Siempre fftSize / 2
+                    dataArray = new Uint8Array(bufferLength);
+
+                    isInitialized = true;
+                    statusElement.textContent = 'Listo para iniciar.';
+                    toggleButton.disabled = false; // Habilitar botón tras inicializar
+                    console.log('Audio inicializado correctamente.');
+
+                } catch (err) {
+                    console.error('Error al inicializar el audio:', err);
+                    statusElement.textContent = `Error: ${err.message}. Asegúrate de permitir el acceso al micrófono.`;
+                    isInitialized = false;
+                    toggleButton.disabled = true; // Deshabilitar si falla
+                }
+            }
+
+            /** Mapea un valor (0-255) a un carácter ASCII */
+            function mapValueToAscii(value) {
+                const index = Math.min(
+                    ASCII_CHARS.length - 1, // Asegurar que no exceda el índice máximo
+                    Math.max(0, // Asegurar que no sea negativo
+                        Math.floor((value / 255) * ASCII_CHARS.length)
+                    )
+                );
+                return ASCII_CHARS[index];
+            }
+
+            /** Genera el frame ASCII SIMÉTRICO basado en los datos de audio */
+            function generateAsciiFrame() {
+                if (!analyser || !dataArray) return '';
+
+                analyser.getByteFrequencyData(dataArray); // Obtener datos de frecuencia actuales
+
+                // Crear grid vacío
+                const grid = Array(OUTPUT_HEIGHT).fill(null).map(() => Array(OUTPUT_WIDTH).fill(' '));
+
+                // Solo necesitamos iterar hasta la mitad del ancho
+                const halfWidth = Math.ceil(OUTPUT_WIDTH / 2);
+                // Usamos solo la mitad inferior del espectro de frecuencia para la mitad izquierda
+                const relevantFrequencyBins = Math.floor(dataArray.length / 2);
+                const step = Math.floor(relevantFrequencyBins / halfWidth);
+
+                for (let x = 0; x < halfWidth; x++) {
+                    let sum = 0;
+                    // Promediar los bins de frecuencia para esta columna IZQUIERDA
+                    for (let i = 0; i < step; i++) {
+                        const index = x * step + i;
+                        if (index < dataArray.length) {
+                            sum += dataArray[index];
+                        }
+                    }
+                    const averageValue = step > 0 ? sum / step : dataArray[x * step] || 0;
+
+                    // Calcular la altura de la "barra" para esta columna
+                    const barHeight = Math.floor((averageValue / 255) * OUTPUT_HEIGHT);
+
+                    // Calcular el índice X correspondiente en el lado derecho (reflejado)
+                    const rightX = OUTPUT_WIDTH - 1 - x;
+
+                    // Dibujar la barra en la grid (de abajo hacia arriba) en AMBOS LADOS
+                    for (let y = 0; y < barHeight; y++) {
+                        const gridY = OUTPUT_HEIGHT - 1 - y;
+                        if (gridY >= 0) { // Asegurarse de que y no sea negativo
+                            const charValue = Math.floor((y / (OUTPUT_HEIGHT -1)) * 255); // Gradiente de carácter
+                            const char = mapValueToAscii(charValue + 50); // +50 para hacerlo más brillante
+
+                            // Dibujar en el lado izquierdo
+                            grid[gridY][x] = char;
+
+                            // Dibujar en el lado derecho (solo si no es la misma columna central en caso de ancho impar)
+                            if (x !== rightX) {
+                                grid[gridY][rightX] = char;
+                            }
+                        }
+                    }
+                }
+
+                // Convertir la grid a un string
+                const asciiFrame = grid.map(row => row.join('')).join('\n');
+                return asciiFrame;
+            }
+
+
+            /** Bucle principal de animación */
+            function visualize() {
+                if (!isRunning) return; // Detener si isRunning es false
+
+                // Generar el frame ASCII
+                const frame = generateAsciiFrame();
+
+                // Actualizar el contenido del <pre>
+                asciiOutput.textContent = frame;
+
+                // Solicitar el siguiente frame
+                animationFrameId = requestAnimationFrame(visualize);
+            }
+
+            /** Inicia la visualización */
+            function startVisualization() {
+                if (!isInitialized || isRunning) return;
+                // Asegurar que el contexto esté activo (importante tras interacción)
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+
+                isRunning = true;
+                statusElement.textContent = 'Visualizando...';
+                toggleButton.innerHTML = '<i class="bi bi-stop-fill"></i> Detener Visualizador';
+                visualize(); // Iniciar bucle
+                console.log('Visualización iniciada.');
+            }
+
+            /** Detiene la visualización */
+            function stopVisualization() {
+                if (!isRunning) return;
+
+                isRunning = false;
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+                statusElement.textContent = 'Detenido. Listo para iniciar.';
+                toggleButton.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar Visualizador';
+                // Opcional: Limpiar la pantalla al detener
+                // asciiOutput.textContent = Array(OUTPUT_HEIGHT).fill(' '.repeat(OUTPUT_WIDTH)).join('\n');
+                console.log('Visualización detenida.');
+            }
+
+            // --- Event Listener ---
+            toggleButton.addEventListener('click', async () => {
+                if (!isInitialized) {
+                    toggleButton.disabled = true; // Deshabilitar mientras se inicializa
+                    await initAudio(); // Esperar a que termine la inicialización (o falle)
+                    // Si la inicialización tuvo éxito, intenta iniciar
+                    if(isInitialized) {
+                        startVisualization();
+                    } else {
+                        // Si falló, el botón ya estará deshabilitado por initAudio
+                    }
+                } else {
+                    // Si ya está inicializado, simplemente alterna el estado
+                    if (isRunning) {
+                        stopVisualization();
+                    } else {
+                        startVisualization();
+                    }
+                }
+            });
+
+            // Mensaje inicial
+            statusElement.textContent = 'Haz clic en Iniciar para comenzar.';
+            // Inicialmente habilitado para permitir el primer clic que dispara initAudio
+            toggleButton.disabled = false;
+
+        }); // Fin de DOMContentLoaded
+    </script>
+    <!-- === FIN JAVASCRIPT INCRUSTADO === -->
+
+</body>
+</html>

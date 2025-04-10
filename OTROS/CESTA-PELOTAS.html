@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego Cesta Rebote Mediapipe v2.1</title> <!-- Versión actualizada -->
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Mediapipe JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+    <style>
+        /* Estilos generales y de pantalla completa */
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+        body { display: flex; flex-direction: column; align-items: center; padding-top: 1rem; }
+        #app-content { width: 100%; max-width: 95%; display: flex; flex-direction: column; align-items: center; flex-grow: 1; padding-bottom: 1rem; }
+        .loading { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(33, 37, 41, 0.9); z-index: 1000; font-size: 1.5rem; color: #dee2e6; }
+        #canvas-container { position: relative; width: 640px; height: 480px; max-width: 100%; margin: 0.5rem auto; border: 1px solid #6c757d; background-color: #212529; flex-shrink: 0; transition: width 0.1s ease-out, height 0.1s ease-out; overflow: hidden; }
+        #output_canvas { display: block; width: 100%; height: 100%; position: relative; z-index: 1; background-color: transparent; }
+        .video-feed { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; object-fit: cover; transform: scaleX(-1); -webkit-transform: scaleX(-1); }
+        h1 { text-align: center; margin-bottom: 0.5rem; color: #f8f9fa; font-size: 1.8rem; }
+        .controls-container { display: flex; justify-content: center; align-items: center; margin-bottom: 0.5rem; width: 100%; max-width: 640px; height: 40px; }
+        #fullscreen-btn { flex-shrink: 0; }
+        html:fullscreen #app-content > h1,
+        html:fullscreen #app-content > .controls-container { display: none; }
+        html:fullscreen #canvas-container { position: fixed; top: 0; left: 0; width: 100vw !important; height: 100vh !important; border: none; margin: 0; z-index: 990; max-width: none; }
+        #score-display { position: absolute; top: 15px; right: 15px; background-color: rgba(0, 0, 0, 0.6); color: #fff; padding: 8px 12px; border-radius: 5px; font-size: 1.1rem; font-weight: bold; z-index: 5; pointer-events: none; }
+        html:fullscreen #score-display { top: 20px; right: 20px; font-size: 1.3rem; }
+    </style>
+</head>
+<body>
+    <div id="app-content">
+        <h1>Juego Cesta Rebote Mediapipe</h1>
+         <div class="controls-container">
+            <button id="fullscreen-btn" class="btn btn-secondary btn-sm">Pantalla Completa</button>
+         </div>
+        <div class="loading" id="loading-indicator"> Cargando modelo y cámara... </div>
+        <div id="canvas-container">
+            <video class="video-feed" id="input_video" autoplay muted playsinline></video>
+            <canvas id="output_canvas" width="640" height="480"></canvas>
+            <div id="score-display">Bolas: 0</div>
+        </div>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const canvasContainer = document.getElementById('canvas-container');
+        const scoreDisplayElement = document.getElementById('score-display');
+
+        const INITIAL_CANVAS_WIDTH = 640;
+        const INITIAL_CANVAS_HEIGHT = 480;
+        let currentCanvasWidth = INITIAL_CANVAS_WIDTH;
+        let currentCanvasHeight = INITIAL_CANVAS_HEIGHT;
+
+        const NUM_BALLS = 100;
+        const balls = [];
+        const GRAVITY = 0.2;
+        const BOUNCE_FACTOR = 0.65;
+        const BALL_RADIUS = 10;
+        const BOTTOM_DISAPPEAR_PROBABILITY = 0.35;
+
+        let poseLandmarks = null;
+        let currentBasketSegments = [];
+        let basketArcData = null;
+
+        // --- Funciones Pantalla Completa (sin cambios) ---
+        function isFullscreen() { /* ... */ return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement; }
+        function toggleFullScreen() { /* ... */ const elem = document.documentElement; if (!isFullscreen()) { if (elem.requestFullscreen) elem.requestFullscreen(); else if (elem.mozRequestFullScreen) elem.mozRequestFullScreen(); else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen(); else if (elem.msRequestFullscreen) elem.msRequestFullscreen(); } else { if (document.exitFullscreen) document.exitFullscreen(); else if (document.mozCancelFullScreen) document.mozCancelFullScreen(); else if (document.webkitExitFullscreen) document.webkitExitFullscreen(); else if (document.msExitFullscreen) document.msExitFullscreen(); } }
+        fullscreenBtn.addEventListener('click', toggleFullScreen);
+        function handleFullscreenChange() { if (isFullscreen()) { fullscreenBtn.textContent = 'Salir Pant. Completa'; currentCanvasWidth = window.innerWidth; currentCanvasHeight = window.innerHeight; } else { fullscreenBtn.textContent = 'Pantalla Completa'; currentCanvasWidth = INITIAL_CANVAS_WIDTH; currentCanvasHeight = INITIAL_CANVAS_HEIGHT; } canvasElement.width = currentCanvasWidth; canvasElement.height = currentCanvasHeight; console.log(`Canvas resized to: ${currentCanvasWidth}x${currentCanvasHeight}`); }
+        document.addEventListener('fullscreenchange', handleFullscreenChange); document.addEventListener('webkitfullscreenchange', handleFullscreenChange); document.addEventListener('mozfullscreenchange', handleFullscreenChange); document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+        // --- Clase Pelota (sin cambios) ---
+        class Ball {
+            constructor(x, y, radius, color) { /* ... */ this.radius = radius; this.color = color; this.x = x * (currentCanvasWidth / INITIAL_CANVAS_WIDTH); this.y = y * (currentCanvasHeight / INITIAL_CANVAS_HEIGHT); this.dx = (Math.random() - 0.5) * 4; this.dy = Math.random() * 3 + 1; }
+            draw() { /* ... */ canvasCtx.beginPath(); canvasCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); canvasCtx.fillStyle = this.color; canvasCtx.fill(); canvasCtx.closePath(); }
+            update(basketSegments) { /* ... */ this.dy += GRAVITY; this.x += this.dx; this.y += this.dy; if (this.y + this.radius > currentCanvasHeight) { if (Math.random() < BOTTOM_DISAPPEAR_PROBABILITY) { this.reset(); } else { this.y = currentCanvasHeight - this.radius; this.dy *= -BOUNCE_FACTOR; this.dx *= 0.95; } } else if (this.y - this.radius < 0 && this.dy < 0) { this.y = this.radius; this.dy *= -BOUNCE_FACTOR; } if (this.x + this.radius > currentCanvasWidth) { this.x = currentCanvasWidth - this.radius; this.dx *= -BOUNCE_FACTOR; } else if (this.x - this.radius < 0) { this.x = this.radius; this.dx *= -BOUNCE_FACTOR; } this.checkBasketCollision(basketSegments); if (this.y - this.radius > currentCanvasHeight + this.radius * 4) { this.reset(); } }
+            checkBasketCollision(segments) { /* ... */ if (!segments || segments.length === 0) return; for (const line of segments) { const pt = { x: this.x, y: this.y }; const p1 = line.start; const p2 = line.end; const lenSq = (p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2; if (lenSq === 0) continue; let t = ((pt.x - p1.x) * (p2.x - p1.x) + (pt.y - p1.y) * (p2.y - p1.y)) / lenSq; t = Math.max(0, Math.min(1, t)); const closestX = p1.x + t * (p2.x - p1.x); const closestY = p1.y + t * (p2.y - p1.y); const distX = pt.x - closestX; const distY = pt.y - closestY; const distanceSq = distX ** 2 + distY ** 2; if (distanceSq < this.radius ** 2) { let normalX = p2.y - p1.y; let normalY = p1.x - p2.x; const normalLen = Math.sqrt(normalX**2 + normalY**2); if (normalLen > 0) { normalX /= normalLen; normalY /= normalLen; } else { normalX = 0; normalY = 1; } const vectorToBallX = pt.x - closestX; const vectorToBallY = pt.y - closestY; if (normalX * vectorToBallX + normalY * vectorToBallY < 0) { normalX *= -1; normalY *= -1; } const dotProduct = this.dx * normalX + this.dy * normalY; if (dotProduct < 0) { this.dx -= (1 + BOUNCE_FACTOR) * dotProduct * normalX; this.dy -= (1 + BOUNCE_FACTOR) * dotProduct * normalY; const overlap = this.radius - Math.sqrt(distanceSq) + 0.5; this.x += normalX * overlap; this.y += normalY * overlap; break; } } } }
+            reset() { /* ... */ this.x = Math.random() * currentCanvasWidth; this.y = -this.radius - Math.random() * 80; this.dx = (Math.random() - 0.5) * 4; this.dy = Math.random() * 4 + 1; }
+        }
+
+        // --- Crear Pelotas Iniciales (sin cambios) ---
+        function createBalls() { /* ... */ const colors = ['#ff6347', '#1e90ff', '#32cd32', '#ffd700', '#9370db', '#ff69b4', '#00fa9a', '#ff4500', '#00bfff']; balls.length = 0; for (let i = 0; i < NUM_BALLS; i++) { const radius = BALL_RADIUS; const initialX = Math.random() * (INITIAL_CANVAS_WIDTH - radius * 2) + radius; const initialY = Math.random() * -INITIAL_CANVAS_HEIGHT * 0.8; const color = colors[Math.floor(Math.random() * colors.length)]; balls.push(new Ball(initialX, initialY, radius, color)); } }
+
+        // --- Funciones para la curva y segmentos (sin cambios) ---
+        function getQuadraticBezierPoint(t, p0, p1, p2) { /* ... */ const u = 1 - t; const tt = t * t; const uu = u * u; const ut = u * t; const x = uu * p0.x + 2 * ut * p1.x + tt * p2.x; const y = uu * p0.y + 2 * ut * p1.y + tt * p2.y; return { x, y }; }
+        function getArcLineSegments(p1, p2, cp, numSegments = 10) { /* ... */ const segments = []; let lastPoint = p1; for (let i = 1; i <= numSegments; i++) { const t = i / numSegments; const currentPoint = getQuadraticBezierPoint(t, p1, cp, p2); segments.push({ start: lastPoint, end: currentPoint }); lastPoint = currentPoint; } return segments; }
+
+        // --- Lógica del Juego: Comprobar si la bola está en la cesta (sin cambios) ---
+        function isBallInsideBasket(ball, arc) { /* ... */ if (!arc) return false; const { p1, p2, cp } = arc; const ballX = ball.x; const ballY = ball.y; const radius = ball.radius; const minX = Math.min(p1.x, p2.x) - radius; const maxX = Math.max(p1.x, p2.x) + radius; if (ballX < minX || ballX > maxX) return false; let lineY; if (Math.abs(p2.x - p1.x) < 0.01) { lineY = (p1.y + p2.y) / 2; } else { const m = (p2.y - p1.y) / (p2.x - p1.x); lineY = p1.y + m * (ballX - p1.x); } const bottomY = cp.y; return ballY > (lineY - radius) && ballY < (bottomY + radius); }
+
+        // --- Función Callback de Mediapipe ---
+        function onResults(results) {
+             loadingIndicator.style.display = 'none';
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, currentCanvasWidth, currentCanvasHeight);
+            canvasCtx.scale(-1, 1);
+            canvasCtx.translate(-currentCanvasWidth, 0);
+
+            currentBasketSegments = [];
+            basketArcData = null;
+            let ballsInsideCount = 0;
+
+            if (results.poseLandmarks) {
+                poseLandmarks = results.poseLandmarks;
+                const leftWrist = poseLandmarks[POSE_LANDMARKS.LEFT_WRIST];
+                const rightWrist = poseLandmarks[POSE_LANDMARKS.RIGHT_WRIST];
+
+                if (leftWrist && rightWrist) {
+                    const p1 = { x: rightWrist.x * currentCanvasWidth, y: rightWrist.y * currentCanvasHeight };
+                    const p2 = { x: leftWrist.x * currentCanvasWidth, y: leftWrist.y * currentCanvasHeight };
+                    const centerX = (p1.x + p2.x) / 2;
+                    const centerY = (p1.y + p2.y) / 2;
+                    const basketDepth = Math.abs(p1.x - p2.x) * 0.45 + 30;
+                    const cp = { x: centerX, y: centerY + basketDepth };
+
+                    basketArcData = { p1, p2, cp };
+
+                    // Calcular longitud y puntos finales de líneas verticales
+                    const interWristDistance = Math.abs(p1.x - p2.x);
+                    // *** LÍNEA MODIFICADA *** Se reduce el factor a 0.2 y el mínimo a 15
+                    const verticalLineLength = Math.max(15, interWristDistance * 0.2);
+                    const p1_up = { x: p1.x, y: p1.y - verticalLineLength };
+                    const p2_up = { x: p2.x, y: p2.y - verticalLineLength };
+
+                    // Dibujar Todo
+                    canvasCtx.beginPath();
+                    canvasCtx.moveTo(p1_up.x, p1_up.y);
+                    canvasCtx.lineTo(p1.x, p1.y);
+                    canvasCtx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y);
+                    canvasCtx.lineTo(p2_up.x, p2_up.y);
+                    canvasCtx.strokeStyle = '#00FFFF';
+                    canvasCtx.lineWidth = 5;
+                    canvasCtx.stroke();
+
+                    // Generar Segmentos para Física
+                    const arcSegments = getArcLineSegments(p1, p2, cp, 15);
+                    const verticalSegment1 = { start: p1, end: p1_up };
+                    const verticalSegment2 = { start: p2, end: p2_up };
+                    currentBasketSegments = [...arcSegments, verticalSegment1, verticalSegment2];
+                }
+            }
+
+            // Actualizar, Dibujar, y Contar Bolas
+            balls.forEach(ball => {
+                ball.update(currentBasketSegments);
+                ball.draw();
+                if (isBallInsideBasket(ball, basketArcData)) {
+                    ballsInsideCount++;
+                }
+            });
+
+             // Actualizar display de puntuación
+             scoreDisplayElement.textContent = 'Bolas: ' + ballsInsideCount;
+
+            canvasCtx.restore();
+        } // Fin onResults
+
+        // --- Inicialización Mediapipe Pose (sin cambios) ---
+        const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
+        pose.setOptions({modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false, smoothSegmentation: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+        pose.onResults(onResults);
+
+        // --- Inicialización Cámara (sin cambios) ---
+        const camera = new Camera(videoElement, {onFrame: async () => { await pose.send({ image: videoElement }); }, width: INITIAL_CANVAS_WIDTH, height: INITIAL_CANVAS_HEIGHT});
+
+        // --- Iniciar todo ---
+        createBalls();
+        camera.start().then(() => {console.log("Cámara iniciada.");}).catch(err => {console.error("Error cámara:", err);loadingIndicator.textContent = `Error cámara: ${err.message}. Revisa permisos.`;loadingIndicator.style.backgroundColor = "rgba(220, 53, 69, 0.9)";});
+        console.log("Juego Cesta Rebote Mediapipe v2.1 iniciado. Esperando cámara...");
+
+    </script>
+</body>
+</html>

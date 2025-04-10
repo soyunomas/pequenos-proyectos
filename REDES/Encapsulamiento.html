@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Encapsulamiento/Desencapsulamiento</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-app: #f0f0a0; /* Amarillo claro */
+            --color-transport: #d0f0d0; /* Verde claro */
+            --color-network: #f8f8c0; /* Amarillo más pálido */
+            --color-link: #f8d8e8; /* Rosa claro */
+            --color-physical: #e8d8f8; /* Lila claro */
+            --color-data: #a0c0f0; /* Azul claro */
+            --color-l4-hdr: #f0a0a0; /* Rojo claro */
+            --color-l3-hdr: #f0c8a0; /* Naranja claro */
+            --color-l2-hdr: #a0f0e0; /* Turquesa claro */
+            --color-l2-trl: #c0a0f0; /* Morado claro */
+            --color-bits: #6c757d; /* Gris Bootstrap secundario */
+        }
+
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+
+        .layer-stack {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #fff;
+            height: 550px; /* Altura fija para alinear capas */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .layer {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 5px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 4px;
+            flex-grow: 1; /* Hace que las capas ocupen espacio */
+            display: flex;
+            align-items: center; /* Centra verticalmente el texto */
+            justify-content: center; /* Centra horizontalmente el texto */
+            position: relative; /* Para posicionar el SVG */
+            min-height: 80px; /* Altura mínima */
+        }
+
+        .layer-app { background-color: var(--color-app); }
+        .layer-transport { background-color: var(--color-transport); }
+        .layer-network { background-color: var(--color-network); }
+        .layer-link { background-color: var(--color-link); }
+        .layer-physical { background-color: var(--color-physical); }
+
+        .network-medium {
+            border: 1px dashed #aaa;
+            height: 550px;
+            margin-bottom: 20px;
+            background-color: #e9ecef;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #visualization-area {
+            position: relative; /* Contenedor para el SVG absoluto */
+            height: 550px; /* Coincide con la altura de las columnas */
+            margin-bottom: 20px; /* Espacio antes del panel de control */
+        }
+
+        #pdu-svg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Para no interferir con clics en otros elementos */
+            overflow: visible; /* Permite que el SVG se salga un poco si es necesario */
+        }
+
+        #pdu-group {
+            /* La transición se aplica dinámicamente con JS */
+            cursor: default;
+        }
+
+         /* Estilos base para los bloques PDU */
+        .pdu-block {
+            stroke: #333;
+            stroke-width: 1;
+            shape-rendering: crispEdges;
+            cursor: help; /* Indica que hay info al pasar el ratón */
+            pointer-events: all; /* Permitir eventos en los bloques */
+        }
+        .pdu-text {
+            font-family: sans-serif;
+            font-size: 10px;
+            fill: #000;
+            pointer-events: none; /* Texto no captura eventos del ratón */
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        /* Colores específicos de bloques */
+        .pdu-data { fill: var(--color-data); }
+        .pdu-l4-hdr { fill: var(--color-l4-hdr); }
+        .pdu-l3-hdr { fill: var(--color-l3-hdr); }
+        .pdu-l2-hdr { fill: var(--color-l2-hdr); }
+        .pdu-l2-trl { fill: var(--color-l2-trl); }
+
+        /* Estilo para los bits */
+        .pdu-bits {
+             stroke: var(--color-bits);
+             stroke-width: 4; /* Más grueso */
+             fill: none;
+             stroke-dasharray: 5 3; /* Patrón punteado */
+             /* La transición se aplica con JS */
+        }
+
+        .control-panel {
+            border: 1px solid #ccc;
+            padding: 20px;
+            /* margin-top: 20px; */ /* Eliminado, ya que #visualization-area tiene margin-bottom */
+            background-color: #fff;
+            border-radius: 5px;
+        }
+
+        .pdu-info {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #555;
+            background-color: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        #info-tooltip {
+            position: fixed; /* Usar fixed para posicionar relativo a la ventana */
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            white-space: nowrap;
+            display: none; /* Oculto por defecto */
+            z-index: 1000;
+            pointer-events: none; /* No interfiere con el ratón */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Encapsulamiento y Desencapsulamiento</h1>
+
+        <div id="visualization-area">
+            <div class="row">
+                <!-- Emisor -->
+                <div class="col-3">
+                    <div class="layer-stack">
+                        <div class="layer layer-app" id="layer-app-sender">App</div>
+                        <div class="layer layer-transport" id="layer-transport-sender">Transporte</div>
+                        <div class="layer layer-network" id="layer-network-sender">Red</div>
+                        <div class="layer layer-link" id="layer-link-sender">Enlace</div>
+                        <div class="layer layer-physical" id="layer-physical-sender">Física</div>
+                        <div class="text-center mt-2"><strong>Emisor</strong></div>
+                    </div>
+                </div>
+
+                <!-- Medio -->
+                <div class="col-6">
+                    <div class="network-medium" id="network-medium">
+                        <!-- Área donde viaja la PDU/Bits -->
+                    </div>
+                </div>
+
+                <!-- Receptor -->
+                <div class="col-3">
+                    <div class="layer-stack">
+                        <div class="layer layer-app" id="layer-app-receiver">App</div>
+                        <div class="layer layer-transport" id="layer-transport-receiver">Transporte</div>
+                        <div class="layer layer-network" id="layer-network-receiver">Red</div>
+                        <div class="layer layer-link" id="layer-link-receiver">Enlace</div>
+                        <div class="layer layer-physical" id="layer-physical-receiver">Física</div>
+                        <div class="text-center mt-2"><strong>Receptor</strong></div>
+                    </div>
+                </div>
+            </div>
+
+             <!-- Contenedor SVG Absoluto -->
+             <svg id="pdu-svg-container" width="100%" height="100%">
+                <defs>
+                    <!-- Definición de la línea ondulada para los bits -->
+                    <path id="bits-path-def" d="M 0 0 q 10 -10 20 0 t 20 0 t 20 0 t 20 0 t 20 0" stroke="none" fill="none" />
+                </defs>
+                <g id="pdu-group" transform="translate(0, 0)" visibility="hidden">
+                    <!-- Bloques PDU -->
+                     <rect id="l2-hdr" class="pdu-block pdu-l2-hdr" height="30" width="40" data-info="Cabecera L2 (Ethernet): MAC Destino, MAC Origen, Tipo"/>
+                     <text class="pdu-text" id="l2-hdr-text">L2H</text>
+
+                     <rect id="l3-hdr" class="pdu-block pdu-l3-hdr" height="30" width="40" data-info="Cabecera L3 (IP): IP Origen, IP Destino, TTL"/>
+                     <text class="pdu-text" id="l3-hdr-text">L3H</text>
+
+                     <rect id="l4-hdr" class="pdu-block pdu-l4-hdr" height="30" width="40" data-info="Cabecera L4 (TCP/UDP): Puerto Origen, Puerto Destino, Checksum"/>
+                     <text class="pdu-text" id="l4-hdr-text">L4H</text>
+
+                     <rect id="data" class="pdu-block pdu-data" height="30" width="60" data-info="Datos de Aplicación (Ej: GET / HTTP/1.1)"/>
+                     <text class="pdu-text" id="data-text">Datos</text>
+
+                     <rect id="l2-trl" class="pdu-block pdu-l2-trl" height="30" width="30" data-info="Cola L2 (Ethernet): FCS (Frame Check Sequence)"/>
+                     <text class="pdu-text" id="l2-trl-text">L2T</text>
+
+                     <!-- Representación de Bits (línea y texto) -->
+                     <use id="bits-path" href="#bits-path-def" class="pdu-bits" visibility="hidden"/>
+                     <text id="bits-text-placeholder" class="pdu-text" y="45" visibility="hidden" fill="#555" font-size="12" text-anchor="middle">--- Bits ---</text>
+                </g>
+            </svg>
+        </div>
+
+        <!-- Panel de Control e Información -->
+        <div class="row">
+            <div class="col-12">
+                <div class="control-panel">
+                    <h5 id="step-title">Paso 0: Inicio</h5>
+                    <p><strong>PDU Actual:</strong> <span id="pdu-name" class="pdu-info">Ninguna</span></p>
+                    <p id="step-description">Haz clic en 'Siguiente Paso' para iniciar la simulación.</p>
+                    <p><strong>Acción Clave:</strong> <span id="action-details">-</span></p>
+                    <div class="mt-3">
+                        <button id="prev-step" class="btn btn-info me-2">Paso Anterior</button>
+                        <button id="next-step" class="btn btn-primary me-2">Siguiente Paso</button>
+                        <button id="reset" class="btn btn-secondary">Reiniciar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tooltip para info de cabeceras -->
+        <div id="info-tooltip"></div>
+
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- DOM Elements ---
+        const pduGroup = document.getElementById('pdu-group');
+        const svgContainer = document.getElementById('pdu-svg-container');
+        const prevButton = document.getElementById('prev-step'); // BOTÓN ANTERIOR
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset');
+        const stepTitle = document.getElementById('step-title');
+        const pduName = document.getElementById('pdu-name');
+        const stepDescription = document.getElementById('step-description');
+        const actionDetails = document.getElementById('action-details');
+        const infoTooltip = document.getElementById('info-tooltip');
+
+        // PDU Blocks Elements
+        const blocks = {
+            l2Hdr: document.getElementById('l2-hdr'),
+            l3Hdr: document.getElementById('l3-hdr'),
+            l4Hdr: document.getElementById('l4-hdr'),
+            data: document.getElementById('data'),
+            l2Trl: document.getElementById('l2-trl'),
+            bits: document.getElementById('bits-path'),
+            bitsText: document.getElementById('bits-text-placeholder') // TEXTO BITS
+        };
+        const texts = {
+            l2Hdr: document.getElementById('l2-hdr-text'),
+            l3Hdr: document.getElementById('l3-hdr-text'),
+            l4Hdr: document.getElementById('l4-hdr-text'),
+            data: document.getElementById('data-text'),
+            l2Trl: document.getElementById('l2-trl-text'),
+        }
+
+        // --- State ---
+        let currentStep = 0;
+        const totalSteps = 12;
+
+        // --- Constants ---
+        const PDU_HEIGHT = 30;
+        const PDU_Y_OFFSET = 15;
+        const BLOCK_WIDTHS = {
+            l2Hdr: 40, l3Hdr: 40, l4Hdr: 40, data: 60, l2Trl: 30
+        };
+        const BITS_WIDTH = 120; // Ancho visual para centrar línea y texto de bits
+        const VISIBILITY_STATE = {
+            l2Hdr: 'hidden', l3Hdr: 'hidden', l4Hdr: 'hidden', data: 'hidden', l2Trl: 'hidden',
+            bits: 'hidden', bitsText: 'hidden' // Incluir estado del texto de bits
+        };
+        const DEFAULT_TRANSITION = 'transform 0.8s ease-in-out';
+        const TRAVEL_TRANSITION = 'transform 1.5s linear';
+        const NO_TRANSITION = 'none'; // Para movimientos instantáneos
+
+        // --- Layer Positions ---
+        function getLayerYPosition(layerId) {
+            const layerElement = document.getElementById(layerId);
+            if (!layerElement) return 0;
+            const svgRect = svgContainer.getBoundingClientRect();
+            const layerRect = layerElement.getBoundingClientRect();
+            const relativeY = layerRect.top - svgRect.top + (layerRect.height / 2) - PDU_Y_OFFSET;
+            return relativeY;
+        }
+
+        function getLayerXPosition(layerId) {
+            const layerElement = document.getElementById(layerId);
+             if (!layerElement) return 0;
+            const svgRect = svgContainer.getBoundingClientRect();
+            const layerRect = layerElement.getBoundingClientRect();
+            const relativeX = layerRect.left - svgRect.left + (layerRect.width / 2);
+             return relativeX;
+        }
+
+        // --- Functions ---
+
+        function updatePduLayout() {
+            let currentX = 0;
+            let totalWidth = 0;
+            const blockOrder = ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl'];
+            const isBitsVisible = VISIBILITY_STATE.bits === 'visible' || VISIBILITY_STATE.bitsText === 'visible';
+
+            // Ocultar/Mostrar bloques de trama vs bits/texto de bits
+            blockOrder.forEach(id => {
+                if (blocks[id]) blocks[id].setAttribute('visibility', isBitsVisible ? 'hidden' : VISIBILITY_STATE[id]);
+                if (texts[id]) texts[id].setAttribute('visibility', isBitsVisible ? 'hidden' : VISIBILITY_STATE[id]);
+            });
+             blocks.bits.setAttribute('visibility', VISIBILITY_STATE.bits);
+             blocks.bitsText.setAttribute('visibility', VISIBILITY_STATE.bitsText);
+
+            if (!isBitsVisible) {
+                // Layout de bloques de trama
+                blockOrder.forEach(id => {
+                    if (VISIBILITY_STATE[id] === 'visible') {
+                        const width = BLOCK_WIDTHS[id];
+                        blocks[id].setAttribute('x', currentX);
+                        blocks[id].setAttribute('y', 0);
+                        texts[id].setAttribute('x', currentX + width / 2);
+                        texts[id].setAttribute('y', PDU_HEIGHT / 2);
+                        texts[id].setAttribute('dy', 0);
+                        texts[id].setAttribute('visibility', width < 20 ? 'hidden' : 'visible');
+                        currentX += width;
+                        totalWidth += width;
+                    }
+                });
+            } else {
+                 // Layout para bits (línea y texto)
+                 totalWidth = BITS_WIDTH;
+                 // Centrar la línea de bits (el path original es de 100px de ancho)
+                 blocks.bits.setAttribute('transform', `translate(${(BITS_WIDTH - 100) / 2}, ${PDU_HEIGHT / 2})`);
+                 // Centrar el texto de bits
+                 blocks.bitsText.setAttribute('x', BITS_WIDTH / 2);
+                 // y está fijado en el SVG, pero podrías ajustarlo aquí: blocks.bitsText.setAttribute('y', PDU_HEIGHT + 15);
+            }
+            return totalWidth;
+        }
+
+        // Mueve el PDU aplicando una transición
+        function movePduTo(targetX, targetY, pduWidth, transitionStyle = DEFAULT_TRANSITION) {
+             const centeredX = targetX - (pduWidth / 2);
+             pduGroup.style.transition = transitionStyle;
+             pduGroup.setAttribute('transform', `translate(${centeredX}, ${targetY})`);
+        }
+
+        // Actualiza el panel de información
+        function updateInfoPanel(stepConfig) {
+            stepTitle.textContent = `Paso ${currentStep}: ${stepConfig.title}`;
+            pduName.textContent = stepConfig.pdu;
+            stepDescription.textContent = stepConfig.description; // Usará la descripción del 'steps' array
+            actionDetails.textContent = stepConfig.action;
+        }
+
+        // Resetea todos los estados de visibilidad a 'hidden'
+        function resetVisibility() {
+             Object.keys(VISIBILITY_STATE).forEach(k => {
+                 VISIBILITY_STATE[k] = 'hidden';
+             });
+        }
+
+        // --- Step Definitions con Descripciones Mejoradas ---
+        const steps = [
+             // Step 0: Initial State
+            {
+                title: "Inicio", pdu: "Ninguna",
+                description: "Estado inicial antes de cualquier transmisión. No hay datos activos en las capas de red. Listo para iniciar el proceso.",
+                action: "-",
+                targetLayer: null, pduVisible: false,
+                updateVisibility: () => resetVisibility()
+            },
+            // Step 1: Application Layer (Sender) - Generate Data
+            {
+                title: "Datos Aplicación (Emisor)", pdu: "Datos",
+                description: "La aplicación de origen (ej. navegador web, cliente de correo) genera los datos útiles que se desean enviar (ej. solicitud 'GET /pagina.html', cuerpo de un email). Esta es la carga útil (payload) original.",
+                action: "Generación de datos de usuario.",
+                targetLayer: 'layer-app-sender', pduVisible: true,
+                updateVisibility: () => { VISIBILITY_STATE.data = 'visible'; }
+            },
+            // Step 2: Transport Layer (Sender) - Encapsulation
+            {
+                title: "Encapsulación Transporte (Emisor)", pdu: "Segmento / Datagrama",
+                description: "Los datos bajan a L4. Se añade cabecera (ej. TCP/UDP) con: Puerto Origen/Destino (para identificar apps). Puede incluir secuencia/ack (TCP) y checksums. La PDU se convierte en Segmento (TCP) o Datagrama (UDP).",
+                action: "Añadiendo cabecera L4 (Puertos).",
+                targetLayer: 'layer-transport-sender', pduVisible: true,
+                updateVisibility: () => { VISIBILITY_STATE.l4Hdr = 'visible'; }
+            },
+            // Step 3: Network Layer (Sender) - Encapsulation
+            {
+                title: "Encapsulación Red (Emisor)", pdu: "Paquete",
+                description: "El segmento/datagrama baja a L3. Se añade cabecera IP con direcciones lógicas: IP Origen/Destino (para enrutamiento global). Incluye TTL. La PDU ahora es un Paquete.",
+                action: "Añadiendo cabecera L3 (IPs).",
+                targetLayer: 'layer-network-sender', pduVisible: true,
+                updateVisibility: () => { VISIBILITY_STATE.l3Hdr = 'visible'; }
+            },
+             // Step 4: Link Layer (Sender) - Encapsulation
+            {
+                title: "Encapsulación Enlace (Emisor)", pdu: "Trama",
+                description: "El paquete baja a L2. Se añade cabecera (ej. Ethernet) con direcciones físicas: MAC Origen/Destino (para entrega en red local). Se añade Cola (Trailer) con FCS (detección de errores). La PDU se convierte en Trama.",
+                action: "Añadiendo cabecera L2 (MACs) y cola L2 (FCS).",
+                targetLayer: 'layer-link-sender', pduVisible: true,
+                updateVisibility: () => { VISIBILITY_STATE.l2Hdr = 'visible'; VISIBILITY_STATE.l2Trl = 'visible'; }
+            },
+             // Step 5: Physical Layer (Sender) - Prepare Transmission
+            {
+                title: "Preparación Física (Emisor)", pdu: "Trama -> Bits",
+                description: "La Trama completa se entrega a L1 (NIC). Aquí, los bits de la trama (1s y 0s) se codifican en señales físicas (eléctricas, ópticas, radio) adecuadas para el medio de transmisión.",
+                action: "Codificación de Trama a señales.",
+                targetLayer: 'layer-physical-sender', pduVisible: true,
+                updateVisibility: () => {
+                     VISIBILITY_STATE.bits = 'hidden'; VISIBILITY_STATE.bitsText = 'hidden';
+                     blocks.bits.style.transition = NO_TRANSITION;
+                     blocks.bits.style.strokeDashoffset = '200';
+                }
+            },
+             // Step 6: Network Medium - ANIMATED TRAVEL
+            {
+                title: "Viaje por el Medio", pdu: "Bits",
+                description: "Las señales físicas que representan los Bits viajan a través del medio de red (cable, fibra, aire). Pueden sufrir atenuación, ruido o interferencias.",
+                action: "Transmisión de señales físicas.",
+                targetLayer: 'network-medium', // Indicador especial
+                pduVisible: true,
+                updateVisibility: () => {
+                    VISIBILITY_STATE.bits = 'visible'; VISIBILITY_STATE.bitsText = 'visible';
+                    blocks.bits.style.transition = NO_TRANSITION;
+                    blocks.bits.style.strokeDashoffset = '200';
+                    requestAnimationFrame(() => {
+                        const travelDurationMatch = TRAVEL_TRANSITION.match(/\d+\.?\d*/);
+                        const travelDuration = travelDurationMatch ? parseFloat(travelDurationMatch[0]) : 1.5;
+                        blocks.bits.style.transition = `stroke-dashoffset ${travelDuration}s linear`;
+                        blocks.bits.style.strokeDashoffset = '0';
+                    });
+                }
+            },
+             // Step 7: Physical Layer (Receiver) - Reception
+            {
+                title: "Recepción Física (Receptor)", pdu: "Bits -> Trama",
+                description: "La NIC del receptor detecta las señales entrantes. Realiza la decodificación de señales a bits. Estos bits se agrupan para reconstruir la Trama original.",
+                action: "Decodificación de señales a Trama.",
+                targetLayer: 'layer-physical-receiver', pduVisible: true,
+                updateVisibility: () => {
+                     VISIBILITY_STATE.l2Hdr = 'visible'; VISIBILITY_STATE.l3Hdr = 'visible';
+                     VISIBILITY_STATE.l4Hdr = 'visible'; VISIBILITY_STATE.data = 'visible';
+                     VISIBILITY_STATE.l2Trl = 'visible';
+                     VISIBILITY_STATE.bits = 'hidden'; VISIBILITY_STATE.bitsText = 'hidden';
+                }
+            },
+             // Step 8: Link Layer (Receiver) - Decapsulation
+            {
+                title: "Desencapsulación Enlace (Receptor)", pdu: "Trama -> Paquete",
+                description: "La Trama sube a L2. Se comprueba la MAC Destino. Se verifica el FCS (si falla, se descarta). Si ok, se retiran cabecera y cola L2. El Paquete contenido se pasa a L3.",
+                action: "Verificando MAC/FCS. Quitando L2.",
+                targetLayer: 'layer-link-receiver', pduVisible: true,
+                updateVisibility: () => { VISIBILITY_STATE.l2Hdr = 'hidden'; VISIBILITY_STATE.l2Trl = 'hidden'; }
+            },
+            // Step 9: Network Layer (Receiver) - Decapsulation
+            {
+                title: "Desencapsulación Red (Receptor)", pdu: "Paquete -> Segmento/Datagrama",
+                description: "El Paquete sube a L3. Se verifica la IP Destino. Si ok, se procesa y retira la cabecera IP. El Segmento/Datagrama contenido se pasa a L4.",
+                action: "Verificando IP. Quitando L3.",
+                targetLayer: 'layer-network-receiver', pduVisible: true,
+                updateVisibility: () => { VISIBILITY_STATE.l3Hdr = 'hidden'; }
+            },
+             // Step 10: Transport Layer (Receiver) - Decapsulation
+            {
+                title: "Desencapsulación Transporte (Receptor)", pdu: "Segmento/Datagrama -> Datos",
+                description: "El Segmento/Datagrama sube a L4. Se lee Puerto Destino para identificar la app. Se verifica checksum L4. Se gestiona TCP (sec/ack). Se retira cabecera L4. Los Datos se pasan a la app.",
+                action: "Verificando Puertos/Checksum. Quitando L4.",
+                targetLayer: 'layer-transport-receiver', pduVisible: true,
+                updateVisibility: () => { VISIBILITY_STATE.l4Hdr = 'hidden'; }
+            },
+             // Step 11: Application Layer (Receiver) - Delivery
+            {
+                title: "Entrega a Aplicación (Receptor)", pdu: "Datos",
+                description: "Los Datos originales (sin cabeceras) llegan a L7 y son entregados al proceso de aplicación específico (ej. servidor web) identificado por el puerto destino. La aplicación ahora puede usar los datos.",
+                action: "Entregando datos a la aplicación.",
+                targetLayer: 'layer-app-receiver', pduVisible: true,
+                updateVisibility: () => { /* Estado acumulado ya es correcto */ }
+            },
+             // Step 12: End
+            {
+                title: "Proceso Completo", pdu: "Datos",
+                description: "Fin de la simulación para esta PDU. Los datos han viajado desde la aplicación emisora hasta ser entregados correctamente a la aplicación receptora.",
+                action: "Fin de la transmisión.",
+                targetLayer: 'layer-app-receiver', // Stay at App layer
+                pduVisible: true,
+                updateVisibility: () => {} // No cambia nada de L11
+            },
+        ];
+
+        // Ejecuta un paso de la animación
+        function executeStep(stepIndex, isMovingBack = false) {
+            if (stepIndex < 0 || stepIndex >= steps.length) {
+                console.error("Invalid step index:", stepIndex);
+                return;
+            }
+
+            const config = steps[stepIndex];
+            const isTravelStep = stepIndex === 6;
+
+            // A. Detener transiciones anteriores para evitar solapamientos
+            pduGroup.style.transition = NO_TRANSITION;
+            blocks.bits.style.transition = NO_TRANSITION;
+
+            // B. Reconstruir el estado de visibilidad CUMULATIVO para el paso actual
+            resetVisibility(); // Empezar ocultando todo
+            for (let i = 1; i <= stepIndex; i++) {
+                if (steps[i].updateVisibility) {
+                    steps[i].updateVisibility();
+                }
+            }
+             if (!isTravelStep) {
+                 VISIBILITY_STATE.bits = 'hidden';
+                 VISIBILITY_STATE.bitsText = 'hidden';
+             }
+
+
+            // C. Actualizar el layout del SVG (posiciones internas de bloques)
+            const pduWidth = updatePduLayout();
+
+            // D. Actualizar panel de información (ahora usa la descripción del array)
+            updateInfoPanel(config);
+
+            // E. Mover el grupo PDU a la posición correcta
+            let currentTransition = (isMovingBack || isTravelStep) ? NO_TRANSITION : DEFAULT_TRANSITION;
+
+            if (config.targetLayer) {
+                let targetX, targetY;
+
+                 if (config.targetLayer === 'network-medium') {
+                     const mediumElement = document.getElementById('network-medium');
+                     const svgRect = svgContainer.getBoundingClientRect();
+                     const mediumRect = mediumElement.getBoundingClientRect();
+                     targetX = mediumRect.left - svgRect.left + 20;
+                     targetY = getLayerYPosition('layer-physical-sender');
+                 } else {
+                    targetX = getLayerXPosition(config.targetLayer);
+                    targetY = getLayerYPosition(config.targetLayer);
+                 }
+
+                 movePduTo(targetX, targetY, pduWidth, currentTransition);
+
+                 if (isTravelStep && !isMovingBack) {
+                    pduGroup.offsetHeight; // Reflow
+
+                    const mediumElement = document.getElementById('network-medium');
+                    const svgRect = svgContainer.getBoundingClientRect();
+                    const mediumRect = mediumElement.getBoundingClientRect();
+                    const endX = mediumRect.right - svgRect.left - pduWidth - 20;
+                    const endY = getLayerYPosition('layer-physical-receiver');
+
+                    movePduTo(endX, endY, pduWidth, TRAVEL_TRANSITION);
+                 }
+            }
+
+             // F. Establecer visibilidad general del grupo PDU
+             pduGroup.setAttribute('visibility', config.pduVisible ? 'visible' : 'hidden');
+
+            // G. Actualizar estado de los botones
+            prevButton.disabled = stepIndex === 0;
+            nextButton.disabled = stepIndex >= totalSteps;
+            resetButton.disabled = stepIndex === 0;
+        }
+
+
+        // --- Event Listeners ---
+        nextButton.addEventListener('click', () => {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                executeStep(currentStep, false);
+            }
+        });
+
+        prevButton.addEventListener('click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                executeStep(currentStep, true);
+            }
+        });
+
+        resetButton.addEventListener('click', () => {
+            currentStep = 0;
+            executeStep(currentStep, true);
+        });
+
+         // Tooltip Logic
+         svgContainer.addEventListener('mousemove', (e) => {
+             let targetElement = e.target.closest('.pdu-block');
+
+             if (targetElement) {
+                 const info = targetElement.getAttribute('data-info');
+                 if (info) {
+                     infoTooltip.textContent = info;
+                     infoTooltip.style.display = 'block';
+                     infoTooltip.style.left = `${e.clientX + 15}px`;
+                     infoTooltip.style.top = `${e.clientY + 10}px`;
+                 }
+             } else {
+                 infoTooltip.style.display = 'none';
+             }
+         });
+         svgContainer.addEventListener('mouseleave', () => {
+            infoTooltip.style.display = 'none';
+         });
+
+
+        // --- Initial Setup ---
+        executeStep(0); // Inicializar la visualización en el paso 0
+
+    </script>
+</body>
+</html>
