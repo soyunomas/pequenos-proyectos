@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Subnetting Avanzada</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .results-card {
+            background-color: #e9ecef;
+            border-left: 5px solid #0d6efd;
+        }
+        .binary-output {
+            font-family: 'Courier New', Courier, monospace;
+            word-wrap: break-word; /* Ensure long binary strings wrap */
+            font-size: 0.9em;
+             white-space: pre-wrap; /* Preserve spaces and wrap */
+        }
+        dl dt {
+            font-weight: bold;
+            color: #495057;
+        }
+         dl dd {
+            margin-bottom: 0.5rem;
+            color: #212529;
+         }
+        #errorMessages {
+            white-space: pre-line; /* Respect newlines in error messages */
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4 mb-5">
+        <h1 class="mb-4 text-center text-primary">Calculadora de Subnetting Avanzada</h1>
+        <p class="text-center text-muted mb-4">Introduce una dirección IP y su máscara de subred (ej: 192.168.1.10 y 255.255.255.0 o /24)</p>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form id="subnetForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="ipAddress" class="form-label">Dirección IP:</label>
+                            <input type="text" class="form-control" id="ipAddress" placeholder="Ej: 192.168.1.10" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="subnetMaskCidr" class="form-label">Máscara de Subred o CIDR:</label>
+                            <input type="text" class="form-control" id="subnetMaskCidr" placeholder="Ej: 255.255.255.0 o /24" required>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg px-4 me-md-2">Calcular</button>
+                        <button type="button" id="clearButton" class="btn btn-outline-secondary btn-lg px-4">Limpiar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="errorMessages" class="alert alert-danger mt-3" style="display: none;"></div>
+
+        <div id="results" class="mt-4" style="display: none;">
+            <h2 class="mb-3 text-center">Resultados del Análisis de Red</h2>
+            <div class="card results-card shadow-sm">
+                <div class="card-body">
+                     <dl class="row">
+                        <dt class="col-sm-4">IP Ingresada:</dt>
+                        <dd class="col-sm-8"><span id="resultIpAddress"></span></dd>
+
+                        <dt class="col-sm-4">Máscara Ingresada:</dt>
+                        <dd class="col-sm-8"><span id="resultInputMask"></span></dd>
+
+                        <dt class="col-sm-4">Máscara Decimal:</dt>
+                        <dd class="col-sm-8"><span id="resultSubnetMask"></span></dd>
+
+                        <dt class="col-sm-4">Notación CIDR:</dt>
+                        <dd class="col-sm-8">/<span id="resultCidr"></span></dd>
+
+                        <hr>
+
+                        <dt class="col-sm-4">Dirección de Red:</dt>
+                        <dd class="col-sm-8"><strong class="text-success"><span id="resultNetworkAddress"></span></strong></dd>
+
+                        <dt class="col-sm-4">Dirección de Broadcast:</dt>
+                        <dd class="col-sm-8"><strong class="text-danger"><span id="resultBroadcastAddress"></span></strong></dd>
+
+                        <dt class="col-sm-4">Primera IP Útil (Host Min):</dt>
+                        <dd class="col-sm-8"><span id="resultFirstHost"></span></dd>
+
+                        <dt class="col-sm-4">Última IP Útil (Host Max):</dt>
+                        <dd class="col-sm-8"><span id="resultLastHost"></span></dd>
+
+                        <hr>
+
+                        <dt class="col-sm-4">Número Total de Hosts:</dt>
+                        <dd class="col-sm-8"><span id="resultTotalHosts"></span></dd>
+
+                        <dt class="col-sm-4">Número de Hosts Utilizables:</dt>
+                        <dd class="col-sm-8"><span id="resultUsableHosts"></span></dd>
+
+                        <dt class="col-sm-4">Máscara Wildcard:</dt>
+                        <dd class="col-sm-8"><span id="resultWildcardMask"></span></dd>
+
+                        <hr>
+
+                        <dt class="col-sm-4">Clase IP:</dt>
+                        <dd class="col-sm-8"><span id="resultIpClass"></span></dd>
+
+                        <dt class="col-sm-4">Tipo IP:</dt>
+                        <dd class="col-sm-8"><span id="resultIpType"></span></dd>
+
+                         <hr>
+
+                         <dt class="col-sm-12">Representación Binaria:</dt>
+                         <dd class="col-sm-12 binary-output">
+                             IP:    <span id="resultBinaryIp"></span><br>
+                             Máscara:<span id="resultBinaryMask"></span>
+                         </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('subnetForm');
+            const ipAddressInput = document.getElementById('ipAddress');
+            const subnetMaskCidrInput = document.getElementById('subnetMaskCidr');
+            const resultsDiv = document.getElementById('results');
+            const errorMessagesDiv = document.getElementById('errorMessages');
+            const clearButton = document.getElementById('clearButton');
+
+            // --- Helper Functions ---
+
+            // Convierte IP string a entero de 32 bits
+            function ipToInt(ip) {
+                return ip.split('.').reduce((res, octet) => (res << 8) | parseInt(octet, 10), 0) >>> 0;
+            }
+
+            // Convierte entero de 32 bits a IP string
+            function intToIp(int) {
+                 // Usar >>> para asegurar tratamiento como unsigned
+                return `${(int >>> 24)}.${(int >> 16) & 255}.${(int >> 8) & 255}.${int & 255}`;
+            }
+
+             // Convierte entero de 32 bits a string binario formateado
+            function intToBinaryString(int) {
+                 const binary = int.toString(2).padStart(32, '0');
+                 // Inserta puntos cada 8 bits para legibilidad
+                 return `${binary.substring(0, 8)}.${binary.substring(8, 16)}.${binary.substring(16, 24)}.${binary.substring(24, 32)}`;
+             }
+
+            // Convierte CIDR (número) a máscara entera de 32 bits
+            function cidrToMaskInt(cidr) {
+                 if (cidr === 0) return 0;
+                // Crea una máscara con 'cidr' unos a la izquierda
+                 // Usar -1 (todos los bits a 1) y desplazar a la derecha
+                 // Usar >>> 0 para mantenerlo unsigned
+                return (0xFFFFFFFF << (32 - cidr)) >>> 0;
+            }
+
+            // Convierte máscara entera a CIDR (número)
+             function maskIntToCidr(maskInt) {
+                 let cidr = 0;
+                 let mask = maskInt;
+                 while (mask & 0x80000000) { // Mientras el bit más significativo sea 1
+                     cidr++;
+                     mask <<= 1;
+                 }
+                 // Validar que los bits restantes sean 0 (máscara válida)
+                 return (mask === 0) ? cidr : -1; // Devuelve -1 si la máscara no es contigua
+             }
+
+            // Valida formato de IP
+            function isValidIp(ip) {
+                const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+                return ipRegex.test(ip);
+            }
+
+             // Valida formato y contigüidad de la máscara decimal
+             function isValidSubnetMask(mask) {
+                 if (!isValidIp(mask)) return false; // Usa la misma validación de formato que IP
+                 const maskInt = ipToInt(mask);
+                 const invertedMask = (~maskInt) >>> 0; // Invierte bits
+                 // Una máscara válida invertida + 1 debe ser una potencia de 2
+                 // O la máscara debe ser 0.0.0.0 o 255.255.255.255
+                 if (maskInt === 0 || maskInt === 0xFFFFFFFF) return true;
+                 // (invertedMask + 1) & invertedMask será 0 si invertedMask+1 es potencia de 2
+                 return ((invertedMask + 1) & invertedMask) === 0;
+             }
+
+            // Obtiene la clase de la IP
+             function getIpClass(ip) {
+                 const firstOctet = parseInt(ip.split('.')[0], 10);
+                 if (firstOctet >= 1 && firstOctet <= 126) return 'A'; // 127 es loopback
+                 if (firstOctet >= 128 && firstOctet <= 191) return 'B';
+                 if (firstOctet >= 192 && firstOctet <= 223) return 'C';
+                 if (firstOctet >= 224 && firstOctet <= 239) return 'D (Multicast)';
+                 if (firstOctet >= 240 && firstOctet <= 255) return 'E (Experimental)';
+                 return 'Desconocida'; // Incluye 0.x.x.x y 127.x.x.x
+             }
+
+            // Determina si la IP es privada (RFC 1918)
+            function getIpType(ip) {
+                const ipInt = ipToInt(ip);
+                const octets = ip.split('.').map(o => parseInt(o, 10));
+
+                // 10.0.0.0 - 10.255.255.255 (/8)
+                if (octets[0] === 10) return 'Privada (RFC 1918)';
+                // 172.16.0.0 - 172.31.255.255 (/12)
+                if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return 'Privada (RFC 1918)';
+                // 192.168.0.0 - 192.168.255.255 (/16)
+                if (octets[0] === 192 && octets[1] === 168) return 'Privada (RFC 1918)';
+                 // 127.0.0.0/8 (Loopback)
+                 if (octets[0] === 127) return 'Loopback';
+                 // 169.254.0.0/16 (APIPA)
+                 if (octets[0] === 169 && octets[1] === 254) return 'APIPA (Link-local)';
+
+                return 'Pública';
+            }
+
+            // Limpia los resultados y errores
+            function clearResults() {
+                resultsDiv.style.display = 'none';
+                errorMessagesDiv.style.display = 'none';
+                errorMessagesDiv.textContent = '';
+                 // Limpiar spans de resultados
+                 const resultSpans = resultsDiv.querySelectorAll('span[id^="result"]');
+                 resultSpans.forEach(span => span.textContent = '');
+            }
+
+            // Muestra errores
+             function displayError(messages) {
+                 clearResults(); // Oculta resultados si hay error
+                 errorMessagesDiv.innerHTML = messages.join('<br>'); // Usa innerHTML para los <br>
+                 errorMessagesDiv.style.display = 'block';
+             }
+
+             // --- Event Listener del Formulario ---
+             form.addEventListener('submit', (e) => {
+                 e.preventDefault(); // Prevenir envío real del formulario
+                 clearResults();
+
+                 const ipStr = ipAddressInput.value.trim();
+                 const maskOrCidrStr = subnetMaskCidrInput.value.trim();
+                 let errors = [];
+
+                 // --- Validación de Entradas ---
+                 if (!ipStr) errors.push("La dirección IP es requerida.");
+                 else if (!isValidIp(ipStr)) errors.push("Formato de dirección IP inválido.");
+
+                 if (!maskOrCidrStr) errors.push("La máscara de subred o CIDR es requerida.");
+
+                 let cidr = -1;
+                 let maskInt = -1;
+                 let inputMaskStr = maskOrCidrStr; // Guardar la entrada original
+
+                 if (maskOrCidrStr.startsWith('/')) {
+                     const cidrNum = parseInt(maskOrCidrStr.substring(1), 10);
+                     if (!isNaN(cidrNum) && cidrNum >= 0 && cidrNum <= 32) {
+                         cidr = cidrNum;
+                         maskInt = cidrToMaskInt(cidr);
+                     } else {
+                         errors.push("CIDR inválido (debe ser /0 a /32).");
+                     }
+                 } else {
+                     if (isValidSubnetMask(maskOrCidrStr)) {
+                         maskInt = ipToInt(maskOrCidrStr);
+                         cidr = maskIntToCidr(maskInt);
+                         if (cidr === -1) {
+                              // Esto no debería pasar si isValidSubnetMask es correcto, pero por si acaso
+                              errors.push("Máscara de subred inválida (bits no contiguos).");
+                         }
+                     } else {
+                         errors.push("Formato de máscara de subred decimal inválido o bits no contiguos.");
+                     }
+                 }
+
+                 if (errors.length > 0) {
+                     displayError(errors);
+                     return;
+                 }
+
+                 // --- Cálculos ---
+                 const ipInt = ipToInt(ipStr);
+                 const networkInt = (ipInt & maskInt) >>> 0;
+                 const broadcastInt = (networkInt | (~maskInt)) >>> 0;
+                 const wildcardInt = (~maskInt) >>> 0;
+
+                 const totalHosts = Math.pow(2, 32 - cidr);
+                 let usableHosts = 0;
+                 let firstHostInt = -1;
+                 let lastHostInt = -1;
+
+                 // Casos especiales para /31 y /32
+                 if (cidr < 31) {
+                      usableHosts = totalHosts - 2;
+                      // Asegurarse de que la red no sea 0.0.0.0 o broadcast antes de sumar/restar
+                      if (networkInt !== broadcastInt) { // Evita errores en /31 y /32
+                            firstHostInt = networkInt + 1;
+                            lastHostInt = broadcastInt - 1;
+                      } else { // Para /31, técnicamente no hay hosts usables según el cálculo std.
+                           usableHosts = 0; // O 2 si se interpreta como punto a punto
+                      }
+                 } else if (cidr === 31) {
+                    // RFC 3021 define /31 para point-to-point links.
+                    // No hay red/broadcast explícitos, las 2 IPs son usables.
+                    // Nuestro cálculo estándar da 0 usables, mantenemos eso por simplicidad
+                    // o podríamos ajustarlo aquí. Vamos a mantener 0 por consistencia con la resta.
+                    usableHosts = 0; // O podríamos poner '2 (Punto a Punto)'
+                    firstHostInt = networkInt; // La primera IP de la /31
+                    lastHostInt = broadcastInt; // La segunda IP de la /31
+                 } else { // cidr === 32
+                      usableHosts = 0; // Solo 1 host total, 0 usables (es la propia IP)
+                      firstHostInt = networkInt;
+                      lastHostInt = networkInt;
+                 }
+
+
+                 // --- Mostrar Resultados ---
+                 document.getElementById('resultIpAddress').textContent = ipStr;
+                 document.getElementById('resultInputMask').textContent = inputMaskStr;
+                 document.getElementById('resultSubnetMask').textContent = intToIp(maskInt);
+                 document.getElementById('resultCidr').textContent = cidr;
+
+                 document.getElementById('resultNetworkAddress').textContent = intToIp(networkInt);
+                 document.getElementById('resultBroadcastAddress').textContent = intToIp(broadcastInt);
+
+                 // Manejar visualización de hosts para /31 y /32
+                 if (cidr >= 31) {
+                     document.getElementById('resultFirstHost').textContent = (cidr === 31) ? `${intToIp(firstHostInt)} (Punto a Punto)` : intToIp(firstHostInt);
+                     document.getElementById('resultLastHost').textContent = (cidr === 31) ? `${intToIp(lastHostInt)} (Punto a Punto)`: intToIp(lastHostInt);
+                     document.getElementById('resultUsableHosts').textContent = (cidr === 31) ? '2 (Punto a Punto - RFC 3021)' : '0';
+                 } else if (usableHosts > 0) {
+                    document.getElementById('resultFirstHost').textContent = intToIp(firstHostInt);
+                    document.getElementById('resultLastHost').textContent = intToIp(lastHostInt);
+                    document.getElementById('resultUsableHosts').textContent = usableHosts.toLocaleString(); // Formato agradable
+                 } else {
+                    document.getElementById('resultFirstHost').textContent = 'N/A';
+                    document.getElementById('resultLastHost').textContent = 'N/A';
+                    document.getElementById('resultUsableHosts').textContent = '0';
+                 }
+
+
+                 document.getElementById('resultTotalHosts').textContent = totalHosts.toLocaleString();
+
+                 document.getElementById('resultWildcardMask').textContent = intToIp(wildcardInt);
+                 document.getElementById('resultIpClass').textContent = getIpClass(ipStr);
+                 document.getElementById('resultIpType').textContent = getIpType(ipStr);
+
+                 document.getElementById('resultBinaryIp').textContent = intToBinaryString(ipInt);
+                 document.getElementById('resultBinaryMask').textContent = intToBinaryString(maskInt);
+
+                 resultsDiv.style.display = 'block'; // Mostrar la sección de resultados
+                 // Scroll suave hacia los resultados en pantallas pequeñas
+                 resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+             });
+
+             // --- Event Listener del Botón Limpiar ---
+             clearButton.addEventListener('click', () => {
+                 form.reset(); // Limpia los campos del formulario
+                 clearResults(); // Limpia errores y resultados
+                 ipAddressInput.focus(); // Pone el foco de nuevo en el primer campo
+             });
+
+        }); // Fin DOMContentLoaded
+    </script>
+
+</body>
+</html>

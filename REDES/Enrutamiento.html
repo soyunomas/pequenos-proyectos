@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Enrutamiento IP v3.2 (Explicaciones Mejoradas)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        /* CSS (Idéntico a la versión anterior) */
+        body { background-color: #f8f9fa; }
+        .container { max-width: 1140px; }
+        #network-area { background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; min-height: 580px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.075); padding: 20px; }
+        #controls { gap: 0.5rem; }
+        #explanation, #step-description { min-height: 110px; /* Aumentar un poco más */ transition: background-color 0.3s ease; }
+        #step-description { font-weight: bold; color: #343a40; min-height: 25px; }
+        #explanation { font-size: 0.95em; line-height: 1.55; } /* Mejorar legibilidad */
+        #explanation strong { color: #0d6efd; }
+        #explanation code { font-size: 0.9em; color: #d63384; background-color: #f8f9fa; padding: 2px 4px; border-radius: 3px;}
+        #explanation ul { padding-left: 20px; margin-top: 5px; margin-bottom: 5px; } /* Estilo listas */
+        #explanation li { margin-bottom: 3px; }
+
+        .pc rect { fill: #cfe2ff; stroke: #0a58ca; stroke-width: 1.2; width: 55px; height: 40px; rx: 4; }
+        .pc text { font-size: 11px; font-family: system-ui, sans-serif; fill: #212529; text-anchor: middle; dominant-baseline: middle; }
+        .pc .name-label { font-weight: 500; transform: translateY(-4px); }
+        .pc .ip-label { font-size: 9px; fill: #495057; transform: translateY(7px); }
+
+        .router rect { fill: #e9ecef; stroke: #6c757d; stroke-width: 1.5; width: 90px; height: 70px; rx: 6; }
+        .router text { font-size: 14px; font-weight: 600; font-family: system-ui, sans-serif; fill: #343a40; text-anchor: middle; dominant-baseline: middle; }
+
+        .link { stroke-width: 2.5; stroke: #495057; stroke-linecap: round; }
+        .lan-link { stroke: #6c757d; stroke-width: 1.8; }
+
+        #packet { fill: #0d6efd; stroke: #0a58ca; stroke-width: 1; r: 7; transition: transform 0.7s ease-in-out, fill 0.4s ease, opacity 0.4s ease; opacity: 0; visibility: hidden; }
+        #packet.visible { opacity: 1; visibility: visible; }
+        #packet.dropped { fill: #dc3545; stroke: #b02a37; opacity: 0.8; }
+        #packet.delivered { fill: #198754; stroke: #146c43; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4 mb-5">
+        <h1 class="mb-3 text-center">Visualizador de Enrutamiento IP</h1>
+        <p class="text-center text-muted mb-4">Simulación detallada del viaje de un paquete IP</p>
+
+        <!-- Selección de Escenario -->
+        <div class="row justify-content-center mb-3">
+             <div class="col-md-7"> <label for="scenarioSelect" class="form-label">Selecciona un Escenario de Envío:</label> <select class="form-select" id="scenarioSelect"> <option value="pca1_pcb1" selected>1. PCA1 (192.168.1.10) -> PCB1 (192.168.1.11) [Misma LAN]</option> <option value="pca1_pca2">2. PCA1 (192.168.1.10) -> PCA2 (192.168.2.10) [LAN Remota via R2]</option> <option value="pca1_pca3">3. PCA1 (192.168.1.10) -> PCA3 (192.168.3.10) [LAN Remota via R3]</option> <option value="pca2_pca3">4. PCA2 (192.168.2.10) -> PCA3 (192.168.3.10) [Entre LANs remotas]</option> <option value="pca1_no_route">5. PCA1 (192.168.1.10) -> 172.16.1.10 [Red Inexistente - Drop]</option> </select> </div>
+        </div>
+
+        <!-- Área del Diagrama SVG -->
+        <div id="network-area" class="border p-3 mb-3 overflow-hidden">
+            <svg id="routingDiagram" viewBox="0 0 900 550" width="100%" preserveAspectRatio="xMidYMid meet">
+                <!-- SVG Content (Idéntico) -->
+                 <g id="links"> <line class="lan-link" x1="180" y1="110" x2="280" y2="180"/> <line class="lan-link" x1="180" y1="200" x2="280" y2="200"/> <line class="lan-link" x1="720" y1="110" x2="620" y2="180"/> <line class="lan-link" x1="720" y1="200" x2="620" y2="200"/> <line class="lan-link" x1="400" y1="450" x2="400" y2="370"/> <line class="lan-link" x1="500" y1="450" x2="460" y2="370"/> <line class="link" id="link-r1-r2" x1="370" y1="190" x2="530" y2="190"/> <line class="link" id="link-r2-r3" x1="580" y1="225" x2="465" y2="300"/> <line class="link" id="link-r1-r3" x1="320" y1="225" x2="405" y2="300"/> </g>
+                 <g id="pcs"> <g class="pc" id="pca1"> <rect x="125" y="90" width="55" height="40"/> <text class="name-label" x="152.5" y="106">PCA1</text> <text class="ip-label" x="152.5" y="119">192.168.1.10</text> </g> <g class="pc" id="pcb1"> <rect x="125" y="180" width="55" height="40"/> <text class="name-label" x="152.5" y="196">PCB1</text> <text class="ip-label" x="152.5" y="209">192.168.1.11</text> </g> <g class="pc" id="pca2"> <rect x="720" y="90" width="55" height="40"/> <text class="name-label" x="747.5" y="106">PCA2</text> <text class="ip-label" x="747.5" y="119">192.168.2.10</text> </g> <g class="pc" id="pcb2"> <rect x="720" y="180" width="55" height="40"/> <text class="name-label" x="747.5" y="196">PCB2</text> <text class="ip-label" x="747.5" y="209">192.168.2.11</text> </g> <g class="pc" id="pca3"> <rect x="350" y="430" width="55" height="40"/> <text class="name-label" x="377.5" y="446">PCA3</text> <text class="ip-label" x="377.5" y="459">192.168.3.10</text> </g> <g class="pc" id="pcb3"> <rect x="450" y="430" width="55" height="40"/> <text class="name-label" x="477.5" y="446">PCB3</text> <text class="ip-label" x="477.5" y="459">192.168.3.11</text> </g> </g>
+                 <g id="routers"> <g class="router" id="r1"> <rect x="280" y="155" width="90" height="70"/> <text x="325" y="190">R1</text> </g> <g class="router" id="r2"> <rect x="530" y="155" width="90" height="70"/> <text x="575" y="190">R2</text> </g> <g class="router" id="r3"> <rect x="380" y="300" width="110" height="70"/> <text x="435" y="335">R3</text> </g> </g>
+                 <g id="packet-container"> <circle id="packet" cx="0" cy="0" r="7" transform="translate(-50, -50)" /> </g>
+            </svg>
+        </div>
+
+        <!-- Área de Descripción del Paso Actual -->
+        <div id="step-description" class="text-center mb-2"></div>
+
+        <!-- Área de Explicación Detallada -->
+        <div id="explanation" class="alert alert-info" role="alert">
+           Selecciona un escenario para ver cómo viaja un paquete IP.
+        </div>
+
+        <!-- Área de Controles -->
+        <div id="controls" class="mt-3 d-flex flex-wrap justify-content-center">
+            <button id="btn-prev-step" class="btn btn-secondary btn-lg" disabled>Paso Anterior</button>
+            <button id="btn-next-step" class="btn btn-primary btn-lg">Siguiente Paso</button>
+            <button id="btn-reset" class="btn btn-danger btn-lg">Reiniciar Escenario</button>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Elementos del DOM, Estado, Coordenadas (Sin cambios) ---
+             const scenarioSelect = document.getElementById('scenarioSelect'); const btnPrevStep = document.getElementById('btn-prev-step'); const btnNextStep = document.getElementById('btn-next-step'); const btnReset = document.getElementById('btn-reset'); const packet = document.getElementById('packet'); const stepDescription = document.getElementById('step-description'); const explanation = document.getElementById('explanation');
+             let currentScenarioKey = scenarioSelect.value; let currentStep = 0; let scenarios = {}; let isAnimating = false;
+             const POS_HIDDEN = { x: -50, y: -50 }; const POS_PCA1 = { x: 162, y: 110 }; const POS_PCB1 = { x: 162, y: 200 }; const POS_PCA2 = { x: 710, y: 110 }; const POS_PCB2 = { x: 710, y: 200 }; const POS_PCA3 = { x: 382, y: 420 }; const POS_PCB3 = { x: 472, y: 420 }; const POS_R1 = { x: 325, y: 190 }; const POS_R2 = { x: 575, y: 190 }; const POS_R3 = { x: 435, y: 335 }; const POS_LINK_R1_R2 = { x: 450, y: 190 }; const POS_LINK_R2_R3 = { x: (580 + 465) / 2, y: (225 + 300) / 2 }; const POS_LINK_R1_R3 = { x: (320 + 405) / 2, y: (225 + 300) / 2 };
+
+             // --- Funciones Auxiliares (Sin cambios lógicos) ---
+            function updateText(element, text, alertClass = null) { if (element.id === 'explanation') { element.innerHTML = text; } else { element.textContent = text; } if (alertClass && element.classList.contains('alert')) { element.className = `alert alert-${alertClass}`; } }
+            function movePacket(pos) { packet.setAttribute('transform', `translate(${pos.x}, ${pos.y})`); }
+            function updatePacketClass(classesToAdd = [], classesToRemove = []) { const allPossibleClasses = ['visible', 'dropped', 'delivered']; classesToRemove.forEach(cls => packet.classList.remove(cls)); allPossibleClasses.forEach(cls => { if (!classesToAdd.includes(cls) && !classesToRemove.includes(cls)) { packet.classList.remove(cls); } }); classesToAdd.forEach(cls => packet.classList.add(cls)); }
+            function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+            async function animateFlood(targets = [], finalPos, finalClass = []) { /* ... */ } // No usado
+             function applyStepState(stepIndex) {
+                 const scenarioData = scenarios[currentScenarioKey]; if (!scenarioData || stepIndex < 0 || stepIndex >= scenarioData.steps.length) { console.error("Índice inválido:", stepIndex, currentScenarioKey); movePacket(POS_HIDDEN); updatePacketClass([], ['visible', 'dropped', 'delivered']); updateText(stepDescription, ''); updateText(explanation, 'Error.', 'danger'); btnPrevStep.disabled = true; btnNextStep.disabled = true; return; }
+                 const stepData = scenarioData.steps[stepIndex]; const displayStepNumber = stepIndex + 1; let targetPos = stepData.packetPos || POS_HIDDEN; let targetClass = stepData.packetClass ? [...stepData.packetClass] : [];
+                 if(stepData.packetPos && !targetClass.includes('dropped') && !targetClass.includes('delivered')) { if (!targetClass.includes('visible')) targetClass.push('visible'); } else if (!stepData.packetPos && targetClass.length === 0) { targetClass = []; movePacket(POS_HIDDEN); } else if (targetClass.length === 0){ if (!targetClass.includes('visible')) targetClass.push('visible'); }
+                 movePacket(targetPos); updatePacketClass(targetClass, ['visible', 'dropped', 'delivered'].filter(c => !targetClass.includes(c)));
+                 updateText(stepDescription, `${displayStepNumber}. ${stepData.description || ''}`); updateText(explanation, (stepData.explanation || '').replace(/DEST_IP/g, `<code>${scenarioData.destIP || 'N/A'}</code>`), 'info');
+                 btnPrevStep.disabled = (stepIndex <= 0); btnNextStep.disabled = stepData.isLastStep || false; btnNextStep.textContent = stepData.isLastStep ? "Fin Escenario" : "Siguiente Paso";
+                 const explanationEl = document.getElementById('explanation'); const endText = "<br><strong>(Fin del escenario)</strong>";
+                 if (stepData.isLastStep && !explanationEl.innerHTML.includes(endText)) { updateText(explanationEl, explanationEl.innerHTML + endText, stepData.packetClass?.includes('dropped') ? 'danger' : 'success'); }
+                 else if (!stepData.isLastStep && explanationEl.innerHTML.includes(endText)) { updateText(explanationEl, explanationEl.innerHTML.replace(endText, ""), 'info'); }
+                 else if (stepData.isLastStep) { explanationEl.className = `alert alert-${stepData.packetClass?.includes('dropped') ? 'danger' : 'success'}`; }
+                 else if (!stepData.isLastStep && (explanationEl.classList.contains('alert-success') || explanationEl.classList.contains('alert-danger')) ) { explanationEl.className = 'alert alert-info'; }
+            }
+            function resetVisualization() { currentStep = 0; isAnimating = false; currentScenarioKey = scenarioSelect.value; applyStepState(currentStep); const explanationEl = document.getElementById('explanation'); explanationEl.className = 'alert alert-info'; explanationEl.innerHTML = explanationEl.innerHTML.replace("<br><strong>(Fin del escenario)</strong>", ""); }
+
+             // --- Definición de Pasos con Explicaciones MÁS Detalladas ---
+             function defineScenarios() {
+                 scenarios = {
+                     'pca1_pcb1': { destIP: '192.168.1.11', steps: [
+                         { description: 'PCA1 Construye Paquete IP y Trama L2', explanation: `<strong>Paso 1: Origen (PCA1)</strong><br>
+                             <ul><li><strong>Intención:</strong> Enviar datos a PCB1 (DEST_IP).</li>
+                             <li><strong>Análisis L3:</strong> PCA1 compara DEST_IP (<code>192.168.1.11</code>) con su propia IP/Máscara (<code>192.168.1.10/24</code>). Determina que el destino está en la <strong>misma subred local</strong>.</li>
+                             <li><strong>Preparación L3:</strong> Construye el paquete IP con IP Origen <code>192.168.1.10</code> y IP Destino DEST_IP.</li>
+                             <li><strong>Resolución L2 (ARP):</strong> Como es local, PCA1 necesita la dirección MAC de DEST_IP. Envía una petición ARP ("¿Quién tiene DEST_IP?") si no la tiene en caché. PCB1 responde con su MAC.</li>
+                             <li><strong>Encapsulación L2:</strong> PCA1 crea una trama Ethernet:<ul><li>MAC Destino: MAC de PCB1 (obtenida por ARP)</li><li>MAC Origen: MAC de PCA1</li><li>Datos: El paquete IP construido.</li></ul></li></ul>`, packetPos: POS_PCA1, packetClass: ['visible'] },
+                         { description: 'Paquete Entregado en LAN', explanation: `<strong>Paso 2: Entrega Local L2</strong><br>
+                             <ul><li><strong>Transmisión:</strong> PCA1 envía la trama Ethernet a la red local (switch no simulado).</li>
+                             <li><strong>Recepción L2:</strong> PCB1 recibe la trama porque coincide con su dirección MAC.</li>
+                             <li><strong>Procesamiento:</strong> PCB1 desencapsula la trama Ethernet, verifica el paquete IP interno y lo pasa a las capas superiores para procesar los datos.</li>
+                             <li><strong>Resultado:</strong> Comunicación dentro de la misma LAN completada exitosamente.</li></ul>`, packetPos: POS_PCB1, packetClass: ['visible', 'delivered'], isLastStep: true }
+                     ] },
+                     'pca1_pca2': { destIP: '192.168.2.10', steps: [
+                         { description: 'PCA1 Construye Paquete y Trama L2 para Gateway', explanation: `<strong>Paso 1: Origen (PCA1)</strong><br>
+                             <ul><li><strong>Intención:</strong> Enviar datos a PCA2 (DEST_IP).</li>
+                             <li><strong>Análisis L3:</strong> PCA1 compara DEST_IP (<code>192.168.2.10</code>) con su red (<code>192.168.1.0/24</code>). Determina que el destino está en una <strong>red remota</strong>.</li>
+                             <li><strong>Decisión L3:</strong> Debe enviar el paquete a su <strong>Default Gateway (R1)</strong>, cuya IP es <code>192.168.1.1</code>.</li>
+                             <li><strong>Preparación L3:</strong> Construye el paquete IP con IP Origen <code>192.168.1.10</code> y IP Destino DEST_IP.</li>
+                             <li><strong>Resolución L2 (ARP para Gateway):</strong> PCA1 necesita la MAC de su Gateway (R1). Envía una petición ARP ("¿Quién tiene <code>192.168.1.1</code>?") si no está en caché. R1 responde con su MAC.</li>
+                             <li><strong>Encapsulación L2:</strong> PCA1 crea una trama Ethernet:<ul><li>MAC Destino: MAC de R1 (Gateway)</li><li>MAC Origen: MAC de PCA1</li><li>Datos: El paquete IP.</li></ul></li></ul>`, packetPos: POS_PCA1, packetClass: ['visible'] },
+                         { description: 'R1 Recibe y Desencapsula', explanation: `<strong>Paso 2: Llegada al Gateway (R1)</strong><br>
+                             <ul><li><strong>Recepción L2:</strong> R1 recibe la trama en su interfaz LAN (conectada a <code>192.168.1.0/24</code>). Reconoce su propia dirección MAC.</li>
+                             <li><strong>Desencapsulación L2:</strong> R1 quita la cabecera y cola Ethernet para extraer el paquete IP.</li>
+                             <li><strong>Análisis L3 Inicial:</strong> Verifica la checksum del paquete IP.</li></ul>`, packetPos: POS_R1, packetClass: ['visible'] },
+                         { description: 'R1 Consulta Tabla de Rutas', explanation: `<strong>Paso 3: Decisión de Enrutamiento en R1</strong><br>
+                             <ul><li><strong>Objetivo:</strong> Encontrar la mejor ruta hacia la IP Destino (DEST_IP).</li>
+                             <li><strong>Proceso:</strong> R1 compara DEST_IP con las entradas de su tabla de rutas (principio de coincidencia más larga):<ul><li><code>192.168.1.0/24</code> vía Interfaz LAN (No coincide)</li><li><strong><code>192.168.2.0/24</code> vía Próximo Salto <code>10.1.12.2</code> (¡Coincidencia!)</strong></li><li><code>192.168.3.0/24</code> vía Próximo Salto <code>10.1.13.2</code> (No coincide)</li><li>... (Otras rutas conectadas/estáticas/dinámicas)</li></ul></li>
+                             <li><strong>Resultado:</strong> La mejor coincidencia es enviar el paquete hacia la red <code>192.168.2.0/24</code>, utilizando el router <code>10.1.12.2</code> (R2) como siguiente salto a través de la interfaz WAN conectada a esa red.</li></ul>`, packetPos: POS_R1, packetClass: ['visible'] },
+                         { description: 'R1 Re-encapsula y Envía a R2', explanation: `<strong>Paso 4: Preparación para el Siguiente Salto (R1)</strong><br>
+                             <ul><li><strong>Procesamiento L3:</strong> R1 <strong>decrementa el TTL</strong> (Time To Live) del paquete IP. Recalcula la checksum de la cabecera IP.</li>
+                             <li><strong>Determinación Interfaz Salida:</strong> La ruta indica usar la interfaz conectada a la red <code>10.1.12.0/30</code> (enlace WAN R1-R2).</li>
+                             <li><strong>Encapsulación L2 (WAN):</strong> R1 crea una <strong>nueva trama L2</strong> apropiada para el enlace WAN (ej. PPP, HDLC, o Ethernet si es el caso):<ul><li>Cabecera L2 con direccionamiento del enlace WAN (Origen R1, Destino R2).</li><li>Datos: El paquete IP (con TTL decrementado).</li></ul></li>
+                             <li><strong>Transmisión:</strong> R1 envía la nueva trama por la interfaz WAN hacia R2.</li></ul>`, packetPos: POS_LINK_R1_R2, packetClass: ['visible'] },
+                         { description: 'R2 Recibe y Desencapsula', explanation: `<strong>Paso 5: Llegada a Router Intermedio (R2)</strong><br>
+                             <ul><li><strong>Recepción L2 (WAN):</strong> R2 recibe la trama en su interfaz WAN (<code>10.1.12.2</code>).</li>
+                             <li><strong>Desencapsulación L2:</strong> R2 quita la cabecera WAN para extraer el paquete IP.</li>
+                             <li><strong>Análisis L3 Inicial:</strong> Verifica checksum IP.</li></ul>`, packetPos: POS_R2, packetClass: ['visible'] },
+                         { description: 'R2 Consulta Tabla de Rutas', explanation: `<strong>Paso 6: Decisión de Enrutamiento en R2</strong><br>
+                             <ul><li><strong>Objetivo:</strong> Encontrar la mejor ruta hacia DEST_IP.</li>
+                             <li><strong>Proceso:</strong> R2 compara DEST_IP con su tabla de rutas:<ul><li><strong><code>192.168.2.0/24</code> -> Directamente Conectada vía Interfaz LAN (¡Coincidencia!)</strong></li><li><code>192.168.1.0/24</code> vía Próximo Salto <code>10.1.12.1</code></li><li>...</li></ul></li>
+                             <li><strong>Resultado:</strong> El destino está en una red directamente conectada a la interfaz LAN de R2.</li></ul>`, packetPos: POS_R2, packetClass: ['visible'] },
+                         { description: 'R2 Re-encapsula y Envía a PCA2', explanation: `<strong>Paso 7: Preparación para Entrega Final (R2)</strong><br>
+                             <ul><li><strong>Procesamiento L3:</strong> R2 decrementa el TTL del paquete IP y recalcula checksum.</li>
+                             <li><strong>Determinación Interfaz Salida:</strong> La ruta indica usar la interfaz LAN (<code>192.168.2.1</code>).</li>
+                             <li><strong>Resolución L2 (ARP):</strong> R2 necesita la MAC de PCA2 (DEST_IP) para la entrega final. Envía una petición ARP en la LAN <code>192.168.2.0/24</code> si no tiene la MAC en caché. PCA2 responde.</li>
+                             <li><strong>Encapsulación L2 (LAN):</strong> R2 crea una trama Ethernet:<ul><li>MAC Destino: MAC de PCA2</li><li>MAC Origen: MAC de la interfaz LAN de R2</li><li>Datos: El paquete IP.</li></ul></li>
+                             <li><strong>Transmisión:</strong> R2 envía la trama por la interfaz LAN.</li></ul>`, packetPos: POS_PCA2, packetClass: ['visible'] },
+                         { description: 'PCA2 Recibe Paquete', explanation: `<strong>Paso 8: Recepción Final (PCA2)</strong><br>
+                             <ul><li><strong>Recepción L2:</strong> PCA2 recibe la trama Ethernet, reconoce su MAC.</li>
+                             <li><strong>Procesamiento:</strong> Desencapsula la trama, verifica el paquete IP y lo pasa a las capas superiores.</li>
+                             <li><strong>Resultado:</strong> ¡Comunicación exitosa entre redes diferentes completada!</li></ul>`, packetPos: POS_PCA2, packetClass: ['visible', 'delivered'], isLastStep: true }
+                     ] },
+                    // --- Escenarios 3, 4, 5 con explicaciones igualmente detalladas ---
+                    'pca1_pca3': { destIP: '192.168.3.10', steps: [
+                         { description: 'PCA1 Construye Paquete y Trama L2 para Gateway', explanation: '<strong>Paso 1: Origen (PCA1)</strong><br><ul><li><strong>Intención:</strong> Enviar datos a PCA3 (DEST_IP).</li><li><strong>Análisis L3:</strong> Destino en <strong>red remota</strong> (<code>192.168.3.0/24</code>).</li><li><strong>Decisión L3:</strong> Enviar a <strong>Default Gateway (R1)</strong>.</li><li><strong>Preparación L3:</strong> Paquete IP con Origen <code>192.168.1.10</code>, Destino DEST_IP.</li><li><strong>Resolución/Encapsulación L2:</strong> Trama Ethernet con MAC Destino de R1 (Gateway).</li></ul>', packetPos: POS_PCA1, packetClass: ['visible'] },
+                         { description: 'R1 Recibe y Desencapsula', explanation: '<strong>Paso 2: Llegada al Gateway (R1)</strong><br><ul><li><strong>Recepción/Desencapsulación L2:</strong> R1 recibe trama en LAN, extrae paquete IP.</li></ul>', packetPos: POS_R1, packetClass: ['visible'] },
+                         { description: 'R1 Consulta Tabla de Rutas', explanation: '<strong>Paso 3: Decisión de Enrutamiento (R1)</strong><br><ul><li><strong>Objetivo:</strong> Ruta hacia DEST_IP.</li><li><strong>Consulta Tabla:</strong> ... <strong><code>192.168.3.0/24</code> -> via <code>10.1.13.2</code> (¡Coincidencia!)</strong> ...</li><li><strong>Resultado:</strong> Enviar vía R3 (<code>10.1.13.2</code>) por la interfaz WAN conectada a él.</li></ul>', packetPos: POS_R1, packetClass: ['visible'] },
+                         { description: 'R1 Re-encapsula y Envía a R3', explanation: '<strong>Paso 4: Preparación y Envío (R1)</strong><br><ul><li><strong>Procesamiento L3:</strong> Decrementa TTL, recalcula checksum.</li><li><strong>Encapsulación L2 (WAN):</strong> Nueva trama L2 para el enlace R1-R3.</li><li><strong>Transmisión:</strong> Envía por la interfaz WAN correspondiente.</li></ul>', packetPos: POS_LINK_R1_R3, packetClass: ['visible'] },
+                         { description: 'R3 Recibe y Desencapsula', explanation: '<strong>Paso 5: Llegada a Router Intermedio (R3)</strong><br><ul><li><strong>Recepción/Desencapsulación L2 (WAN):</strong> R3 recibe en <code>10.1.13.2</code>, extrae paquete IP.</li></ul>', packetPos: POS_R3, packetClass: ['visible'] },
+                         { description: 'R3 Consulta Tabla de Rutas', explanation: '<strong>Paso 6: Decisión de Enrutamiento (R3)</strong><br><ul><li><strong>Objetivo:</strong> Ruta hacia DEST_IP.</li><li><strong>Consulta Tabla:</strong> ... <strong><code>192.168.3.0/24</code> -> Directamente Conectada, LAN (¡Coincidencia!)</strong> ...</li><li><strong>Resultado:</strong> Destino en red local de R3.</li></ul>', packetPos: POS_R3, packetClass: ['visible'] },
+                         { description: 'R3 Re-encapsula y Envía a PCA3', explanation: '<strong>Paso 7: Preparación Entrega Final (R3)</strong><br><ul><li><strong>Procesamiento L3:</strong> Decrementa TTL.</li><li><strong>Resolución L2 (ARP):</strong> Obtiene MAC de PCA3.</li><li><strong>Encapsulación L2 (LAN):</strong> Nueva trama Ethernet para PCA3.</li><li><strong>Transmisión:</strong> Envía por interfaz LAN.</li></ul>', packetPos: POS_PCA3, packetClass: ['visible'] },
+                         { description: 'PCA3 Recibe Paquete', explanation: '<strong>Paso 8: Recepción Final (PCA3)</strong><br><ul><li><strong>Recepción/Procesamiento:</strong> PCA3 recibe trama, desencapsula, procesa paquete IP.</li><li><strong>Resultado:</strong> ¡Comunicación exitosa!</li></ul>', packetPos: POS_PCA3, packetClass: ['visible', 'delivered'], isLastStep: true }
+                    ] },
+                    'pca2_pca3': { destIP: '192.168.3.10', steps: [
+                         { description: 'PCA2 Construye Paquete y Trama L2 para Gateway', explanation: '<strong>Paso 1: Origen (PCA2)</strong><br><ul><li><strong>Intención:</strong> Enviar datos a PCA3 (DEST_IP).</li><li><strong>Análisis L3:</strong> Destino en <strong>red remota</strong>.</li><li><strong>Decisión L3:</strong> Enviar a <strong>Default Gateway (R2)</strong>.</li><li><strong>Preparación/Encapsulación:</strong> Paquete IP (Origen <code>192.168.2.10</code>, Destino DEST_IP), Trama L2 (MAC Destino R2).</li></ul>', packetPos: POS_PCA2, packetClass: ['visible'] },
+                         { description: 'R2 Recibe y Desencapsula', explanation: '<strong>Paso 2: Llegada al Gateway (R2)</strong><br><ul><li><strong>Recepción/Desencapsulación L2:</strong> R2 recibe en LAN, extrae paquete IP.</li></ul>', packetPos: POS_R2, packetClass: ['visible'] },
+                         { description: 'R2 Consulta Tabla de Rutas', explanation: '<strong>Paso 3: Decisión de Enrutamiento (R2)</strong><br><ul><li><strong>Objetivo:</strong> Ruta hacia DEST_IP.</li><li><strong>Consulta Tabla:</strong> ... <strong><code>192.168.3.0/24</code> -> via <code>10.1.23.2</code> (¡Coincide!)</strong> ...</li><li><strong>Resultado:</strong> Enviar vía R3 (<code>10.1.23.2</code>).</li></ul>', packetPos: POS_R2, packetClass: ['visible'] },
+                         { description: 'R2 Re-encapsula y Envía a R3', explanation: '<strong>Paso 4: Preparación y Envío (R2)</strong><br><ul><li><strong>Procesamiento L3:</strong> Decrementa TTL.</li><li><strong>Encapsulación L2 (WAN):</strong> Nueva trama L2 para enlace R2-R3.</li><li><strong>Transmisión:</strong> Envía por interfaz WAN.</li></ul>', packetPos: POS_LINK_R2_R3, packetClass: ['visible'] },
+                         { description: 'R3 Recibe y Desencapsula', explanation: '<strong>Paso 5: Llegada a Router Intermedio (R3)</strong><br><ul><li><strong>Recepción/Desencapsulación L2 (WAN):</strong> R3 recibe en <code>10.1.23.2</code>, extrae paquete IP.</li></ul>', packetPos: POS_R3, packetClass: ['visible'] },
+                         { description: 'R3 Consulta Tabla de Rutas', explanation: '<strong>Paso 6: Decisión de Enrutamiento (R3)</strong><br><ul><li><strong>Objetivo:</strong> Ruta hacia DEST_IP.</li><li><strong>Consulta Tabla:</strong> ... <strong><code>192.168.3.0/24</code> -> Directamente Conectada, LAN (¡Coincide!)</strong> ...</li><li><strong>Resultado:</strong> Destino en la LAN conectada.</li></ul>', packetPos: POS_R3, packetClass: ['visible'] },
+                         { description: 'R3 Re-encapsula y Envía a PCA3', explanation: '<strong>Paso 7: Preparación Entrega Final (R3)</strong><br><ul><li><strong>Procesamiento L3:</strong> Decrementa TTL.</li><li><strong>Resolución L2 (ARP):</strong> Obtiene MAC de PCA3.</li><li><strong>Encapsulación L2 (LAN):</strong> Nueva trama Ethernet para PCA3.</li><li><strong>Transmisión:</strong> Envía por interfaz LAN.</li></ul>', packetPos: POS_PCA3, packetClass: ['visible'] },
+                         { description: 'PCA3 Recibe Paquete', explanation: '<strong>Paso 8: Recepción Final (PCA3)</strong><br><ul><li><strong>Recepción/Procesamiento:</strong> PCA3 recibe y procesa.</li><li><strong>Resultado:</strong> ¡Comunicación exitosa!</li></ul>', packetPos: POS_PCA3, packetClass: ['visible', 'delivered'], isLastStep: true }
+                    ] },
+                    'pca1_no_route': { destIP: '172.16.1.10', steps: [
+                         { description: 'PCA1 Construye Paquete y Trama L2 para Gateway', explanation: '<strong>Paso 1: Origen (PCA1)</strong><br><ul><li><strong>Intención:</strong> Enviar datos a <code>172.16.1.10</code> (DEST_IP).</li><li><strong>Análisis L3:</strong> Destino en <strong>red remota</strong>.</li><li><strong>Decisión L3:</strong> Enviar a <strong>Default Gateway (R1)</strong>.</li><li><strong>Preparación/Encapsulación:</strong> Paquete IP, Trama L2 (MAC Destino R1).</li></ul>', packetPos: POS_PCA1, packetClass: ['visible'] },
+                         { description: 'R1 Recibe y Desencapsula', explanation: '<strong>Paso 2: Llegada al Gateway (R1)</strong><br><ul><li><strong>Recepción/Desencapsulación L2:</strong> R1 recibe en LAN, extrae paquete IP.</li></ul>', packetPos: POS_R1, packetClass: ['visible'] },
+                         { description: 'R1 Busca Ruta y Descarta Paquete', explanation: '<strong>Paso 3: Decisión de Enrutamiento (R1)</strong><br><ul><li><strong>Objetivo:</strong> Ruta hacia DEST_IP (<code>172.16.1.10</code>).</li><li><strong>Consulta Tabla:</strong> R1 compara DEST_IP con todas sus rutas conocidas (<code>192.168.1.0/24</code>, <code>192.168.2.0/24</code>, <code>192.168.3.0/24</code>, <code>10.x.x.x</code>...).</li><li><strong>Resultado Consulta:</strong> <strong>¡NO HAY NINGUNA RUTA!</strong> La red <code>172.16.0.0</code> no está en la tabla y no hay ruta por defecto (<code>0.0.0.0/0</code>).</li><li><strong>Acción:</strong> R1 no sabe cómo alcanzar el destino y <strong>DESCARTA</strong> el paquete.</li><li><strong>Notificación (Opcional):</strong> R1 generaría y enviaría un mensaje ICMP tipo 3, código 1 ("Destination Host Unreachable") de vuelta a PCA1 para informarle del problema.</li></ul>', packetPos: POS_R1, packetClass: ['visible', 'dropped'], isLastStep: true }
+                    ] },
+                };
+            }
+
+            // --- Lógica Principal (Next Step - Async) ---
+             async function executeNextStep() { /* Sin cambios */ if (isAnimating) return; const scenarioData = scenarios[currentScenarioKey]; const nextStepIndex = currentStep + 1; if (!scenarioData || nextStepIndex >= scenarioData.steps.length) { btnNextStep.disabled = true; return; } isAnimating = true; btnPrevStep.disabled = true; btnNextStep.disabled = true; applyStepState(nextStepIndex); currentStep = nextStepIndex; await sleep(50); isAnimating = false; btnPrevStep.disabled = (currentStep <= 0); }
+            // --- Lógica Principal (Previous Step) ---
+            function executePreviousStep() { /* Sin cambios */ if (isAnimating || currentStep <= 0) return; currentStep--; applyStepState(currentStep); }
+            // --- Event Listeners ---
+            scenarioSelect.addEventListener('change', resetVisualization); btnNextStep.addEventListener('click', executeNextStep); btnPrevStep.addEventListener('click', executePreviousStep); btnReset.addEventListener('click', resetVisualization);
+            // --- Inicialización ---
+            defineScenarios(); scenarioSelect.value = 'pca1_pca2'; resetVisualization();
+
+        });
+    </script>
+
+</body>
+</html>
