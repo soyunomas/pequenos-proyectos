@@ -15,7 +15,7 @@
 ### **Carpeta: BASES DE DATOS**
 
 1.  **Explicación Visual JOIN:**
-    [`Explicacion_Visual_JOIN.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Explicacion_Visual_JOIN.html)
+    [`Explicacion_Visual_JOIN.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Funcionamiento_JOIN-Visual.html)
  
 ### **Carpeta: OTROS**
 
