@@ -25,3 +25,5 @@
     [`ascii-micro.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/ascii-micro.html)
 3.  **Matrix:**
     [`matrix.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/matrix.html)
+4.  **Sorteo de Números sin repetición:**
+    [`matrix.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/Sorteo.html)
