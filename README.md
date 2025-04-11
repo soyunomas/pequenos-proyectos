@@ -1,6 +1,6 @@
 ## Una serie de pequeños proyectos sin acabar y desligados a falta de buscarles un sitio.
 
-**Carpeta: REDES**
+### **Carpeta: REDES**
 
 1.  **Calculadora IP:**
     [`Calculadora_IP.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Calculadora_IP.html)
@@ -12,12 +12,12 @@
     [`Vlans.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Vlans.html)
 
 
-**Carpeta: BASES DE DATOS**
+### **Carpeta: BASES DE DATOS**
 
 1.  **Explicación Visual JOIN:**
     [`Explicacion_Visual_JOIN.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Explicacion_Visual_JOIN.html)
  
-**Carpeta: OTROS**
+### **Carpeta: OTROS**
 
 1.  **Cesta Pelotas:**
     [`CESTA-PELOTAS.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/CESTA-PELOTAS.html)
