@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Interactivo de JOINs (Múltiples Ejemplos)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+    <style>
+        /* Estilos (Iguales a la versión anterior) */
+        body { padding-top: 1rem; padding-bottom: 2rem; background-color: #f8f9fa; }
+        .table-container, .viz-container { border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.5rem; margin-bottom: 1rem; background-color: #ffffff; min-height: 280px; overflow: hidden; }
+        .viz-container { display: flex; justify-content: center; align-items: center; }
+        svg { width: 100%; height: 100%; }
+        .node circle { stroke: #6c757d; stroke-width: 1; fill: #e9ecef; transition: fill 0.3s ease, stroke 0.3s ease; }
+        .node text { font-family: sans-serif; font-size: 7px; fill: #212529; text-anchor: middle; dominant-baseline: hanging; pointer-events: none; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
+        .node.left circle { fill: #cfe2ff; stroke: #0d6efd; } /* Color Izquierda (Genérico) */
+        .node.right circle { fill: #d1e7dd; stroke: #198754; } /* Color Derecha (Genérico - Verde por defecto) */
+        .node.highlight-no-match circle { fill: #f8d7da; stroke: #dc3545; stroke-width: 2; }
+        .node.dimmed { opacity: 0.4; }
+        .link line { stroke: #adb5bd; stroke-width: 1; stroke-dasharray: 3 1.5; transition: stroke 0.3s ease, opacity 0.3s ease; }
+        .link.dimmed line { opacity: 0.2; }
+        #sqlQueryContainer { background-color: #e9ecef; padding: 0.8rem; border-radius: 0.375rem; margin-top: 0.5rem; font-family: monospace; white-space: pre-wrap; font-size: 0.8em; max-height: 200px; overflow-y: auto; }
+        #explanationContainer { background-color: #f8f9fa; border: 1px dashed #ced4da; padding: 1rem; border-radius: 0.375rem; margin-top: 0rem; font-family: sans-serif; white-space: normal; font-size: 0.9em; text-align: center; }
+        .btn-check:checked+.btn { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-2 text-center">Visualizador Interactivo de SQL JOINs</h1>
+
+        <!-- *** Selector de Escenario *** -->
+        <div class="row mb-3">
+            <div class="col-md-6 offset-md-3">
+                <label for="scenarioSelect" class="form-label">Selecciona un Ejemplo:</label>
+                <select class="form-select form-select-sm" id="scenarioSelect">
+                    <!-- Opciones se cargarán con JS -->
+                </select>
+            </div>
+        </div>
+
+        <!-- Controles JOIN -->
+        <div class="text-center mb-4">
+             <div class="btn-group" role="group" aria-label="Tipos de JOIN">
+                 <input type="radio" class="btn-check" name="joinType" id="btnInner" autocomplete="off" data-join-type="INNER"><label class="btn btn-outline-primary btn-sm" for="btnInner">INNER</label>
+                 <input type="radio" class="btn-check" name="joinType" id="btnLeft" autocomplete="off" data-join-type="LEFT"><label class="btn btn-outline-primary btn-sm" for="btnLeft">LEFT</label>
+                 <input type="radio" class="btn-check" name="joinType" id="btnRight" autocomplete="off" data-join-type="RIGHT"><label class="btn btn-outline-primary btn-sm" for="btnRight">RIGHT</label>
+                 <input type="radio" class="btn-check" name="joinType" id="btnLeftWhere" autocomplete="off" data-join-type="LEFT_WHERE"><label class="btn btn-outline-danger btn-sm" id="btnLeftWhereLabel" for="btnLeftWhere">Casos SIN Coincidencia</label> <!-- ID añadido a la etiqueta -->
+             </div>
+        </div>
+
+        <!-- Área de Visualización -->
+        <div class="row mb-2 flex-nowrap">
+            <div class="col-3">
+                <h5 class="text-center small" id="leftTableTitle">Tabla Izquierda</h5>
+                <div class="table-container">
+                    <svg id="svgLeft" viewBox="0 0 100 260" preserveAspectRatio="xMidYMid meet"></svg>
+                </div>
+            </div>
+
+            <div class="col-6">
+                 <h5 class="text-center small">Visualización del JOIN</h5>
+                 <div class="viz-container">
+                    <svg id="svgJoinViz" viewBox="0 0 300 260" preserveAspectRatio="xMidYMid meet">
+                        <text x="150" y="130" text-anchor="middle" dominant-baseline="central" font-size="10px" fill="#6c757d">Selecciona un JOIN</text>
+                    </svg>
+                 </div>
+            </div>
+
+            <div class="col-3">
+                <h5 class="text-center small" id="rightTableTitle">Tabla Derecha</h5>
+                <div class="table-container">
+                    <svg id="svgRight" viewBox="0 0 100 260" preserveAspectRatio="xMidYMid meet"></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explicación -->
+        <div class="row mb-4"> <div class="col-md-8 offset-md-2"> <div id="explanationContainer"> -- La explicación del JOIN aparecerá aquí -- </div> </div> </div>
+
+        <!-- Resultados y SQL -->
+        <div class="row"> <div class="col-md-6"> <h5 class="small">Consulta SQL Ejecutada (Ejemplo):</h5> <div id="sqlQueryContainer"> -- La consulta SQL aparecerá aquí -- </div> </div> <div class="col-md-6"> <h5 class="small">Tabla de Resultados:</h5> <div id="resultsTableContainer" class="table-responsive"> <p class="text-muted small">Los resultados tabulares aparecerán aquí.</p> </div> </div> </div>
+
+    </div> <!-- Fin container -->
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script>
+        // --- Estructura de Datos Centralizada ---
+        const scenarios = {
+            articulos: {
+                label: "Artículos y Líneas",
+                leftTable: {
+                    data: [ { id: 1, nombre: 'Coca-Cola' }, { id: 2, nombre: 'Pepsi' }, { id: 3, nombre: 'Agua 50cl' }, { id: 4, nombre: 'Bocadillo Jamón' }, { id: 5, nombre: 'Bocata higos' }, { id: 6, nombre: 'Café Solo' }, { id: 7, nombre: 'Zumo Plátano' } ],
+                    idField: 'id',
+                    displayField: 'nombre',
+                    joinField: 'id',
+                    title: 'Articulos',
+                    nodePrefix: 'art',
+                    displayFormat: (item) => `${item.id}: ${item.nombre}`
+                },
+                rightTable: {
+                    data: [ { idLinea: 101, idArticulo: 1, cantidad: 2 }, { idLinea: 102, idArticulo: 3, cantidad: 1 }, { idLinea: 103, idArticulo: 1, cantidad: 1 }, { idLinea: 104, idArticulo: 4, cantidad: 1 }, { idLinea: 105, idArticulo: 6, cantidad: 1 }, { idLinea: 106, idArticulo: 3, cantidad: 3 } ],
+                    idField: 'idLinea',
+                    joinField: 'idArticulo',
+                    title: 'Lineas_Tickets',
+                    nodePrefix: 'linea',
+                    displayFormat: (item) => `${item.idLinea} (Art:${item.idArticulo})`,
+                    resultProps: ['cantidad']
+                },
+                headers: ['id', 'nombre', 'idLinea', 'idArticulo', 'cantidad'],
+                leftWhereLabel: "Artículos NO Vendidos",
+                leftWhereHeaders: ['id', 'nombre']
+            },
+            clientes: {
+                label: "Clientes y Tickets",
+                leftTable: {
+                    data: [ { id: 1, nombre: 'Ana G.' }, { id: 2, nombre: 'Luis M.' }, { id: 3, nombre: 'Carlos R.' }, { id: 4, nombre: 'Eva S.' }, { id: 5, nombre: 'Pedro N.' }, { id: 6, nombre: 'Laura B.' } ],
+                    idField: 'id',
+                    displayField: 'nombre',
+                    joinField: 'id',
+                    title: 'Clientes',
+                    nodePrefix: 'cli',
+                    displayFormat: (item) => `${item.id}: ${item.nombre}`
+                },
+                rightTable: {
+                    data: [ { idTicket: 1001, idCliente: 1, fecha: '2024-01-10' }, { idTicket: 1002, idCliente: 4, fecha: '2024-01-11' }, { idTicket: 1003, idCliente: 1, fecha: '2024-01-12' }, { idTicket: 1004, idCliente: 5, fecha: '2024-01-12' }, { idTicket: 1005, idCliente: 2, fecha: '2024-01-13' }, { idTicket: 1006, idCliente: 4, fecha: '2024-01-14' }, { idTicket: 1007, idCliente: 6, fecha: '2024-01-15' } ],
+                    idField: 'idTicket',
+                    joinField: 'idCliente',
+                    title: 'Tickets',
+                    nodePrefix: 'tic',
+                    displayFormat: (item) => `${item.idTicket} (Cli:${item.idCliente})`,
+                    resultProps: ['fecha']
+                },
+                headers: ['id', 'nombre', 'idTicket', 'idCliente', 'fecha'],
+                leftWhereLabel: "Clientes SIN Compras",
+                leftWhereHeaders: ['id', 'nombre']
+            },
+            alumnos: {
+                label: "Alumnos y Notas",
+                leftTable: {
+                    data: [ { id: 10, nombre: 'Elena' }, { id: 20, nombre: 'Marcos' }, { id: 30, nombre: 'Sofía' }, { id: 40, nombre: 'David' }, { id: 50, nombre: 'Lucía' } ],
+                    idField: 'id',
+                    displayField: 'nombre',
+                    joinField: 'id',
+                    title: 'Alumnos',
+                    nodePrefix: 'alu',
+                    displayFormat: (item) => `${item.id}: ${item.nombre}`
+                },
+                rightTable: {
+                    data: [ { idNota: 101, idAlumno: 10, materia: 'Mates', nota: 8 }, { idNota: 102, idAlumno: 20, materia: 'Lengua', nota: 7 }, { idNota: 103, idAlumno: 10, materia: 'Lengua', nota: 9 }, { idNota: 104, idAlumno: 40, materia: 'Mates', nota: 6 }, { idNota: 105, idAlumno: 50, materia: 'Inglés', nota: 10 }, { idNota: 106, idAlumno: 20, materia: 'Mates', nota: 7 } ],
+                    idField: 'idNota',
+                    joinField: 'idAlumno',
+                    title: 'Notas',
+                    nodePrefix: 'nota',
+                    displayFormat: (item) => `${item.idNota} (Alu:${item.idAlumno})`,
+                    resultProps: ['materia', 'nota']
+                },
+                headers: ['id', 'nombre', 'idNota', 'idAlumno', 'materia', 'nota'],
+                leftWhereLabel: "Alumnos SIN Notas",
+                leftWhereHeaders: ['id', 'nombre']
+            }
+        };
+        let currentScenarioKey = Object.keys(scenarios)[0];
+        let currentScenario = scenarios[currentScenarioKey];
+
+        // --- Constantes ---
+        const SVG_NS = "http://www.w3.org/2000/svg"; const NODE_RADIUS = 10; const VERTICAL_SPACING = 35; const TEXT_MARGIN_TOP = 3; const PADDING = 15; const TOP_OFFSET = 5;
+
+        // --- Elementos del DOM (Declaraciones movidas a init) ---
+        let scenarioSelectEl, svgLeftEl, svgRightEl, leftTableTitleEl, rightTableTitleEl, btnLeftWhereLabelEl, svgJoinVizEl, sqlQueryContainerEl, explanationContainerEl, resultsTableContainerEl, joinButtons;
+
+        // --- Funciones Auxiliares ---
+        function createSvgElement(tag, attributes) { const el = document.createElementNS(SVG_NS, tag); for (const key in attributes) { el.setAttribute(key, attributes[key]); } return el; }
+        function drawLine(svgEl, startCoords, endCoords, dimmed = false) { const line = createSvgElement('line', { x1: startCoords.cx + NODE_RADIUS, y1: startCoords.cy, x2: endCoords.cx - NODE_RADIUS, y2: endCoords.cy, class: dimmed ? 'dimmed' : '' }); const linkGroup = createSvgElement('g', { class: 'link' }); linkGroup.appendChild(line); svgEl.insertBefore(linkGroup, svgEl.firstChild); }
+
+        // --- Dibujar Nodo Genérico ---
+        function drawNode(svgEl, item, index, type, additionalClasses = '') {
+            const isLeft = type === 'left';
+            const config = isLeft ? currentScenario.leftTable : currentScenario.rightTable;
+            const itemId = `${config.nodePrefix}-${item[config.idField]}`;
+            const textContent = config.displayFormat(item);
+
+            let viewBoxWidth = svgEl.viewBox.baseVal.width; let nodeCx;
+            if (svgEl.id === 'svgLeft' || svgEl.id === 'svgRight') { nodeCx = 50; }
+            else { nodeCx = isLeft ? PADDING + NODE_RADIUS + 40 : viewBoxWidth - PADDING - NODE_RADIUS - 40; }
+
+            const nodeCy = TOP_OFFSET + NODE_RADIUS + index * VERTICAL_SPACING;
+            const textY = nodeCy + NODE_RADIUS + TEXT_MARGIN_TOP;
+
+            const group = createSvgElement('g', { class: `node ${type} ${additionalClasses}`, id: itemId, 'data-id': item[config.idField] });
+            const circle = createSvgElement('circle', { cx: nodeCx, cy: nodeCy, r: NODE_RADIUS });
+            const text = createSvgElement('text', { x: nodeCx, y: textY });
+            text.textContent = textContent;
+            group.appendChild(circle); group.appendChild(text); svgEl.appendChild(group);
+            return { group, cx: nodeCx, cy: nodeCy };
+        }
+
+        // --- Generar Consulta SQL Dinámica ---
+        function generateSQLQuery(scenario, joinType) {
+            const leftConfig = scenario.leftTable;
+            const rightConfig = scenario.rightTable;
+            const leftAlias = 'a';
+            const rightAlias = 'b';
+
+            const leftTableName = leftConfig.title;
+            const rightTableName = rightConfig.title;
+
+            const leftJoinCol = leftConfig.joinField;
+            const rightJoinCol = rightConfig.joinField;
+            const leftIdCol = leftConfig.idField;
+            const leftDisplayCol = leftConfig.displayField;
+            const rightIdCol = rightConfig.idField;
+            const rightResultCols = rightConfig.resultProps || [];
+
+            let selectStatement = '';
+            let fromClause = `FROM ${leftTableName} ${leftAlias}`;
+            let joinClause = '';
+            let whereClause = '';
+
+            if (joinType === 'LEFT_WHERE') {
+                const selectCols = (scenario.leftWhereHeaders || [leftIdCol, leftDisplayCol])
+                                    .map(col => `${leftAlias}.${col}`).join(', ');
+                selectStatement = `SELECT ${selectCols}`;
+                joinClause = `LEFT JOIN ${rightTableName} ${rightAlias} ON ${leftAlias}.${leftJoinCol} = ${rightAlias}.${rightJoinCol}`;
+                // Usar la clave primaria de la tabla derecha para la condición IS NULL es generalmente más fiable
+                whereClause = `WHERE ${rightAlias}.${rightIdCol} IS NULL`;
+
+            } else if (joinType) {
+                const leftSelectCols = [leftIdCol, leftDisplayCol].map(col => `${leftAlias}.${col}`);
+                const rightSelectCols = [rightIdCol, rightJoinCol, ...rightResultCols].map(col => `${rightAlias}.${col}`);
+                 // Usar Set para evitar duplicados si una columna existe en ambas selecciones (ej: si joinField = idField)
+                const allSelectCols = [...new Set([...leftSelectCols, ...rightSelectCols])];
+                selectStatement = `SELECT ${allSelectCols.join(', ')}`;
+
+                switch (joinType) {
+                    case 'INNER':
+                        joinClause = `INNER JOIN ${rightTableName} ${rightAlias} ON ${leftAlias}.${leftJoinCol} = ${rightAlias}.${rightJoinCol}`;
+                        break;
+                    case 'LEFT':
+                        joinClause = `LEFT JOIN ${rightTableName} ${rightAlias} ON ${leftAlias}.${leftJoinCol} = ${rightAlias}.${rightJoinCol}`;
+                        break;
+                    case 'RIGHT':
+                        joinClause = `RIGHT JOIN ${rightTableName} ${rightAlias} ON ${leftAlias}.${leftJoinCol} = ${rightAlias}.${rightJoinCol}`;
+                        break;
+                    default:
+                         return `-- Tipo de JOIN no reconocido: ${joinType} --`;
+                }
+            } else {
+                 return `-- Seleccione un tipo de JOIN --`;
+            }
+
+            const sql = `${selectStatement}\n${fromClause}\n${joinClause}${whereClause ? '\n' + whereClause : ''};`;
+            return sql;
+        }
+
+        // --- Visualizar el JOIN ---
+        function visualizeJoin(joinType) {
+            svgJoinVizEl.innerHTML = '';
+            sqlQueryContainerEl.textContent = '-- Generando SQL... --';
+            explanationContainerEl.textContent = '-- Explicación --';
+            resultsTableContainerEl.innerHTML = '<p class="text-muted small">Resultados...</p>';
+
+            let results = [];
+            let explanation = '';
+            let headers = currentScenario.headers;
+
+            const sql = generateSQLQuery(currentScenario, joinType);
+
+            const leftConfig = currentScenario.leftTable;
+            const rightConfig = currentScenario.rightTable;
+
+            const rightItemsByJoinField = rightConfig.data.reduce((map, item) => {
+                const key = item[rightConfig.joinField];
+                if (key !== null && key !== undefined) {
+                   if (!map[key]) { map[key] = []; }
+                   map[key].push(item);
+                }
+                return map;
+            }, {});
+            const leftIdsWithMatch = new Set(rightConfig.data.map(item => item[rightConfig.joinField]).filter(id => id !== null && id !== undefined)); // Filtrar nulos/undefined
+            const leftItemMap = leftConfig.data.reduce((map, item) => { map[item[leftConfig.idField]] = item; return map; }, {});
+
+            const drawnLeftNodes = {}; const drawnRightNodes = {};
+
+            // Lógica JOIN
+            switch (joinType) {
+                 case 'INNER':
+                    explanation = `INNER JOIN: Muestra solo filas de '${leftConfig.title}' con correspondencia en '${rightConfig.title}'.`;
+                    let innerRightIndex = 0; const innerRightCoords = {};
+                    // Primero, identificar y dibujar nodos derechos que tienen correspondencia
+                    rightConfig.data.forEach(rItem => {
+                        const lItemMatch = leftItemMap[rItem[rightConfig.joinField]];
+                        if(lItemMatch){
+                           const rCoords = drawNode(svgJoinVizEl, rItem, innerRightIndex++, 'right');
+                           innerRightCoords[rItem[rightConfig.idField]] = rCoords; // Guardar coords por ID DERECHO
+                        }
+                    });
+                    // Luego, iterar por la izquierda y dibujar solo los que tienen match DERECHO DIBUJADO
+                    let innerLeftIndex = 0;
+                    leftConfig.data.forEach(lItem => {
+                        const rightMatches = rightItemsByJoinField[lItem[leftConfig.joinField]];
+                        if (rightMatches) {
+                             // Verificar si ALGUNO de los matches derechos fue dibujado
+                             const hasDrawableMatch = rightMatches.some(rItem => innerRightCoords[rItem[rightConfig.idField]]);
+                             if (hasDrawableMatch) {
+                                const lCoords = drawNode(svgJoinVizEl, lItem, innerLeftIndex++, 'left');
+                                drawnLeftNodes[lItem[leftConfig.idField]] = lCoords;
+                                rightMatches.forEach(rItem => {
+                                    // Si este match derecho específico fue dibujado, añadir resultado y línea
+                                    if(innerRightCoords[rItem[rightConfig.idField]]){
+                                        results.push({ ...lItem, ...rItem });
+                                        drawLine(svgJoinVizEl, lCoords, innerRightCoords[rItem[rightConfig.idField]]);
+                                    }
+                                });
+                             }
+                        }
+                    });
+                    break;
+
+                 case 'LEFT':
+                    explanation = `LEFT JOIN: Muestra TODOS los '${leftConfig.title}' (izquierda), con datos de '${rightConfig.title}' si hay coincidencia (NULL si no).`;
+                    leftConfig.data.forEach((lItem, index) => { drawnLeftNodes[lItem[leftConfig.idField]] = drawNode(svgJoinVizEl, lItem, index, 'left'); });
+                    let leftRightIndex = 0;
+                    leftConfig.data.forEach(lItem => {
+                        const lCoords = drawnLeftNodes[lItem[leftConfig.idField]];
+                        const rightMatches = rightItemsByJoinField[lItem[leftConfig.joinField]];
+                        if (rightMatches) {
+                            rightMatches.forEach(rItem => {
+                                results.push({ ...lItem, ...rItem });
+                                if (!drawnRightNodes[rItem[rightConfig.idField]]) { drawnRightNodes[rItem[rightConfig.idField]] = drawNode(svgJoinVizEl, rItem, leftRightIndex++, 'right'); }
+                                drawLine(svgJoinVizEl, lCoords, drawnRightNodes[rItem[rightConfig.idField]]);
+                            });
+                        } else {
+                            const nullRight = {};
+                            // Poner a NULL idField, joinField y resultProps de la tabla derecha
+                            nullRight[rightConfig.idField] = null;
+                            nullRight[rightConfig.joinField] = null;
+                            rightConfig.resultProps.forEach(prop => nullRight[prop] = null);
+                            results.push({ ...lItem, ...nullRight });
+                        }
+                    });
+                    break;
+
+                 case 'RIGHT':
+                    explanation = `RIGHT JOIN: Muestra TODOS los '${rightConfig.title}' (derecha), con datos de '${leftConfig.title}' si hay coincidencia (NULL si no).`;
+                    rightConfig.data.forEach((rItem, index) => { drawnRightNodes[rItem[rightConfig.idField]] = drawNode(svgJoinVizEl, rItem, index, 'right'); });
+                    let rightLeftIndex = 0;
+                    rightConfig.data.forEach(rItem => {
+                        const rCoords = drawnRightNodes[rItem[rightConfig.idField]];
+                        const lItemMatch = leftItemMap[rItem[rightConfig.joinField]];
+                        let lCoords;
+                        if (lItemMatch) {
+                             if (!drawnLeftNodes[lItemMatch[leftConfig.idField]]) { lCoords = drawNode(svgJoinVizEl, lItemMatch, rightLeftIndex++, 'left'); drawnLeftNodes[lItemMatch[leftConfig.idField]] = lCoords; }
+                             else { lCoords = drawnLeftNodes[lItemMatch[leftConfig.idField]]; }
+                             results.push({ ...lItemMatch, ...rItem });
+                             drawLine(svgJoinVizEl, lCoords, rCoords);
+                        } else {
+                             const nullLeft = {};
+                            // Poner a NULL idField, displayField y joinField de la tabla izquierda
+                             nullLeft[leftConfig.idField] = null;
+                             nullLeft[leftConfig.displayField] = null;
+                             nullLeft[leftConfig.joinField] = null;
+                             results.push({ ...nullLeft, ...rItem });
+                        }
+                    });
+                    break;
+
+                 case 'LEFT_WHERE':
+                    explanation = `LEFT JOIN + WHERE NULL: Muestra solo '${leftConfig.title}' (izquierda) SIN coincidencia en '${rightConfig.title}'. (${currentScenario.leftWhereLabel}).`;
+                    headers = currentScenario.leftWhereHeaders;
+                    leftConfig.data.forEach((lItem, index) => {
+                        const hasMatch = leftIdsWithMatch.has(lItem[leftConfig.joinField]);
+                        const nodeClass = !hasMatch ? 'highlight-no-match' : 'dimmed';
+                        drawnLeftNodes[lItem[leftConfig.idField]] = drawNode(svgJoinVizEl, lItem, index, 'left', nodeClass);
+                        if (!hasMatch) { results.push(lItem); }
+                    });
+                    let lwRightIndex = 0;
+                    leftConfig.data.forEach(lItem => {
+                         const rightMatches = rightItemsByJoinField[lItem[leftConfig.joinField]];
+                        if (rightMatches) { // Solo necesitamos dibujar los nodos derechos si hay match
+                             const lCoords = drawnLeftNodes[lItem[leftConfig.idField]]; // El nodo izq siempre existe
+                             rightMatches.forEach(rItem => {
+                                if (!drawnRightNodes[rItem[rightConfig.idField]]) { drawnRightNodes[rItem[rightConfig.idField]] = drawNode(svgJoinVizEl, rItem, lwRightIndex++, 'right', 'dimmed'); }
+                                drawLine(svgJoinVizEl, lCoords, drawnRightNodes[rItem[rightConfig.idField]], true); // Línea siempre tenue
+                            });
+                        }
+                    });
+                    break;
+
+                 default:
+                    svgJoinVizEl.innerHTML = '<text x="150" y="130" text-anchor="middle" dominant-baseline="central" font-size="10px" fill="#6c757d">Selecciona un JOIN</text>';
+                    explanation = "Selecciona un tipo de JOIN.";
+                    sql = "-- Seleccione un tipo de JOIN --"; // Actualizar SQL también en default
+             }
+
+             // Actualizar UI
+             sqlQueryContainerEl.textContent = sql;
+             explanationContainerEl.textContent = explanation;
+             if (results.length > 0) { generateResultTable(results, headers, joinType === 'LEFT_WHERE'); }
+             else if (joinType) { resultsTableContainerEl.innerHTML = '<p class="text-muted small">La consulta no devolvió resultados.</p>'; }
+             else { resultsTableContainerEl.innerHTML = '<p class="text-muted small">Los resultados tabulares aparecerán aquí.</p>'; }
+        }
+
+        // --- Generar Tabla de Resultados ---
+        function generateResultTable(data, headers, isLeftWhere = false) {
+             const table = document.createElement('table'); table.className = 'table table-striped table-bordered table-sm small'; const thead = table.createTHead(); const headerRow = thead.insertRow();
+             headers.forEach(headerText => { const th = document.createElement('th'); th.textContent = headerText; headerRow.appendChild(th); });
+             const tbody = table.createTBody();
+             data.forEach(item => {
+                 const row = tbody.insertRow();
+                 headers.forEach(headerKey => {
+                     row.insertCell().textContent = item[headerKey] ?? 'NULL'; // Usa ?? para mostrar 'NULL' si es null o undefined
+                 });
+             });
+             resultsTableContainerEl.innerHTML = ''; resultsTableContainerEl.appendChild(table);
+        }
+
+        // --- Cargar Escenario ---
+        function loadScenario(scenarioKey) {
+            currentScenarioKey = scenarioKey;
+            currentScenario = scenarios[scenarioKey];
+
+            leftTableTitleEl.textContent = `Tabla: ${currentScenario.leftTable.title}`;
+            rightTableTitleEl.textContent = `Tabla: ${currentScenario.rightTable.title}`;
+            btnLeftWhereLabelEl.textContent = currentScenario.leftWhereLabel;
+
+            svgLeftEl.innerHTML = '';
+            svgRightEl.innerHTML = '';
+            svgJoinVizEl.innerHTML = '<text x="150" y="130" text-anchor="middle" dominant-baseline="central" font-size="10px" fill="#6c757d">Selecciona un JOIN</text>';
+            sqlQueryContainerEl.textContent = '-- Selecciona un JOIN --';
+            explanationContainerEl.textContent = 'Selecciona un tipo de JOIN para este escenario.';
+            resultsTableContainerEl.innerHTML = '<p class="text-muted small">Selecciona un JOIN.</p>';
+
+            currentScenario.leftTable.data.forEach((item, i) => drawNode(svgLeftEl, item, i, 'left'));
+            currentScenario.rightTable.data.forEach((item, i) => drawNode(svgRightEl, item, i, 'right'));
+
+            joinButtons.forEach(btn => btn.checked = false);
+        }
+
+        // --- Inicialización ---
+        function init() {
+            // *** Obtener Elementos del DOM AQUÍ dentro de init ***
+            scenarioSelectEl = document.getElementById('scenarioSelect');
+            svgLeftEl = document.getElementById('svgLeft');
+            svgRightEl = document.getElementById('svgRight');
+            leftTableTitleEl = document.getElementById('leftTableTitle');
+            rightTableTitleEl = document.getElementById('rightTableTitle');
+            btnLeftWhereLabelEl = document.getElementById('btnLeftWhereLabel');
+            svgJoinVizEl = document.getElementById('svgJoinViz');
+            sqlQueryContainerEl = document.getElementById('sqlQueryContainer');
+            explanationContainerEl = document.getElementById('explanationContainer');
+            resultsTableContainerEl = document.getElementById('resultsTableContainer');
+            joinButtons = document.querySelectorAll('.btn-check[name="joinType"]');
+
+            // Comprobación básica de que el elemento select existe
+            if (!scenarioSelectEl) {
+                console.error("¡Error crítico! No se encontró el elemento #scenarioSelect. El script no puede continuar.");
+                // Podrías mostrar un mensaje al usuario aquí si lo deseas
+                // document.body.innerHTML = '<div class="alert alert-danger">Error: No se pudo inicializar la página. Falta el elemento #scenarioSelect.</div>';
+                return;
+            }
+
+            // Poblar el select
+            Object.keys(scenarios).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = scenarios[key].label;
+                scenarioSelectEl.appendChild(option);
+            });
+
+            // Listener para el select
+            scenarioSelectEl.addEventListener('change', (event) => {
+                loadScenario(event.target.value);
+            });
+
+            // Listener para los botones JOIN
+            joinButtons.forEach(button => {
+                button.addEventListener('change', (event) => {
+                    if (event.target.checked) {
+                        visualizeJoin(event.target.dataset.joinType);
+                    }
+                });
+            });
+
+            // Cargar escenario inicial de forma segura
+             if (scenarios[currentScenarioKey]) {
+                 loadScenario(currentScenarioKey);
+             } else if (Object.keys(scenarios).length > 0) {
+                 currentScenarioKey = Object.keys(scenarios)[0];
+                 loadScenario(currentScenarioKey);
+             } else {
+                 console.error("No hay escenarios definidos para cargar.");
+                 explanationContainerEl.textContent = 'Error: No hay datos de ejemplo definidos.';
+             }
+        }
+
+        // Ejecutar al cargar el DOM
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+</body>
+</html>
