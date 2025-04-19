@@ -263,4 +263,67 @@
                      if (file.size > 50 * 1024 * 1024) { logToConsole('Advertencia: Archivo > 50MB...', 'warn'); alert('Advertencia: Archivo grande (>50MB).'); }
                      const reader = new FileReader();
                      reader.onload = function(e) {
-                         videoPreview.src = e.target.result; previewArea.style.display =
+                         videoPreview.src = e.target.result; previewArea.style.display = 'block'; logToConsole('Previsualización cargada...');
+                         videoPreview.onloadedmetadata = () => {
+                             const duration = videoPreview.duration; logToConsole(`Metadatos cargados. Duración: ${duration.toFixed(1)}s.`);
+                             if (duration > 20) { logToConsole('Advertencia: Video > 20s...', 'warn'); }
+                             endTimeInput.max = duration.toFixed(1); startTimeInput.max = duration.toFixed(1); endTimeInput.value = Math.min(5, duration).toFixed(1); startTimeInput.value = 0;
+                             startTimeInput.disabled = false; endTimeInput.disabled = false; memeTextInput.disabled = false;
+                             if (ffmpegLoaded && !window.ffmpegScriptLoadError) { generateButton.disabled = false; buttonText.textContent = 'Generar GIF Meme'; }
+                             else if (window.ffmpegScriptLoadError) { buttonText.textContent = 'Error de carga'; } else { buttonText.textContent = 'Esperando FFmpeg...'; }
+                             logToConsole('Controles de video habilitados.');
+                         };
+                         videoPreview.onerror = () => { logToConsole('Error previsualización.', 'error'); previewArea.style.display = 'none'; buttonText.textContent = 'Error previsualización'; };
+                     }
+                     reader.onerror = () => { logToConsole('Error lectura archivo.', 'error'); };
+                     reader.readAsDataURL(file);
+                 } else {
+                     logToConsole('Archivo no válido.', 'warn'); previewArea.style.display = 'none'; videoPreview.src = ''; buttonText.textContent = 'Selecciona un video'; videoFileInput.value = '';
+                     startTimeInput.disabled = true; endTimeInput.disabled = true; memeTextInput.disabled = true; generateButton.disabled = true;
+                 }
+            });
+
+            gifForm.addEventListener('submit', async (event) => { /* ... igual que antes (usa .run, .FS) ... */
+                 event.preventDefault();
+                 if (!ffmpegLoaded || generateButton.disabled || window.ffmpegScriptLoadError) { logToConsole('No listo.', 'warn'); return; }
+                 const videoFile = videoFileInput.files[0]; if (!videoFile) { alert('Selecciona video.'); return; }
+                 const startTime = parseFloat(startTimeInput.value); const endTime = parseFloat(endTimeInput.value); const memeText = memeTextInput.value.trim(); const fps = gifFpsSelect.value; const width = gifWidthSelect.value; const usePalette = usePaletteCheckbox.checked;
+                 if (isNaN(startTime) || isNaN(endTime) || startTime < 0 || endTime <= startTime || endTime > videoPreview.duration) { logToConsole('Tiempos inválidos.', 'error'); alert('Rango inválido.'); return; }
+                 const duration = (endTime - startTime).toFixed(1); logToConsole(`Iniciando conversión v0.9.6: ${startTime}s-${endTime}s...`, 'log');
+                 setLoadingState(true, 'Preparando...'); resultArea.style.display = 'none'; progressArea.style.display = 'block'; progressBar.style.width = '0%'; progressBar.setAttribute('aria-valuenow', '0'); progressLabel.textContent = 'Preparando...';
+                 if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+
+                 try {
+                     const inputFilename = 'input.mp4'; const outputFilename = 'output.gif'; const paletteFilename = 'palette.png';
+                     logToConsole('Leyendo archivo video...'); progressLabel.textContent = 'Leyendo video...'; const fileData = await readFileAsUint8Array(videoFile);
+                     logToConsole('Escribiendo video en FFmpeg...'); progressLabel.textContent = 'Cargando video...'; ffmpeg.FS('writeFile', inputFilename, fileData);
+                     logToConsole('Video cargado.'); setLoadingState(true, 'Convirtiendo...');
+                     const commandBase = ['-i', inputFilename, '-ss', String(startTime), '-to', String(endTime)]; const scaleFilter = `scale=${width}:${(width === '-1' ? '-1' : '-2')}:flags=lanczos`; const vfOptionsBase = `fps=${fps},${scaleFilter}`; let finalCommand = [];
+                     if (usePalette) {
+                         logToConsole('Generando paleta (1/2)...'); progressLabel.textContent = 'Generando paleta (1/2)...'; const paletteCommand = [...commandBase, '-vf', `${vfOptionsBase},palettegen=stats_mode=diff`, '-y', paletteFilename]; await ffmpeg.run(...paletteCommand);
+                         logToConsole('Paleta generada.', 'success'); logToConsole('Creando GIF con paleta (2/2)...'); progressLabel.textContent = 'Creando GIF (2/2)...'; finalCommand = ['-i', inputFilename, '-i', paletteFilename, '-ss', String(startTime), '-to', String(endTime), '-filter_complex', `${vfOptionsBase} [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5`, '-y', outputFilename];
+                     } else { logToConsole('Creando GIF (Paso único)...'); progressLabel.textContent = 'Creando GIF...'; finalCommand = [...commandBase, '-vf', vfOptionsBase, '-y', outputFilename]; }
+                     logToConsole(`Ejecutando FFmpeg: ffmpeg ${finalCommand.join(' ')}`); progressBar.style.width = '0%'; progressBar.setAttribute('aria-valuenow', '0');
+                     await ffmpeg.run(...finalCommand); logToConsole('Conversión completada!', 'success');
+                     progressLabel.textContent = 'Obteniendo resultado...'; logToConsole('Leyendo GIF...'); const data = ffmpeg.FS('readFile', outputFilename); logToConsole(`GIF leído (${(data.length / 1024).toFixed(1)} KB).`);
+                     const blob = new Blob([data.buffer], { type: 'image/gif' }); currentObjectUrl = URL.createObjectURL(blob);
+                     gifOutput.src = currentObjectUrl; memeTextOutput.textContent = memeText || ' '; downloadButton.href = currentObjectUrl; resultArea.style.display = 'block';
+                     try { ffmpeg.FS('unlink', inputFilename); ffmpeg.FS('unlink', outputFilename); if (usePalette) ffmpeg.FS('unlink', paletteFilename); logToConsole('Archivos temp limpiados.'); } catch (e) { logToConsole(`Warn: No se limpiaron archivos (${e.message || e}).`, 'warn'); }
+                 } catch (error) { let errorMsg = error instanceof Error ? error.message : String(error); logToConsole(`Error conversión: ${errorMsg}`, 'error'); alert(`Error durante la conversión: ${errorMsg}`); resultArea.style.display = 'none'; }
+                 finally { setLoadingState(false); progressArea.style.display = 'none'; }
+            });
+
+            // --- Inicio ---
+            logToConsole('DOM cargado. Verificando FFmpeg v0.9.6 (remoto)...');
+            if (window.ffmpegScriptLoadError) {
+                 logToConsole('Error detectado en carga inicial. No se iniciará FFmpeg.', 'error');
+                 scriptErrorDisplay.style.display = 'block'; ffmpegStatus.textContent = 'Error al cargar librería remota.'; ffmpegStatus.classList.add('text-danger'); generateButton.disabled = true; buttonText.textContent = 'Error de carga'; videoFileInput.disabled = true;
+            } else {
+                 waitForFFmpeg();
+            }
+
+        }); // Fin DOMContentLoaded
+    </script>
+
+</body>
+</html>
