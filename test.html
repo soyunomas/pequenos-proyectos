@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertidor MP4 a GIF (FFmpeg v0.9.6 Remote)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <!-- Script para manejar errores de carga de librerías (relevante para CDN también) -->
+    <script>
+        window.ffmpegScriptLoadError = false;
+        function handleScriptError(scriptElement) {
+            if (window.ffmpegScriptLoadError) return;
+            window.ffmpegScriptLoadError = true;
+            const scriptSrc = scriptElement ? scriptElement.src : 'desconocido';
+            console.error(`Error crítico: No se pudo cargar el script esencial desde: ${scriptSrc}`);
+            const errorDisplay = document.getElementById('scriptErrorDisplay');
+            const ffmpegStatus = document.getElementById('ffmpegStatus');
+            if (errorDisplay) {
+                 errorDisplay.style.display = 'block';
+                 // Mensaje más genérico para CDN
+                 errorDisplay.textContent = `Error crítico: No se pudo cargar la librería ${scriptSrc.split('/').pop()} desde la URL remota. Verifica tu conexión a internet o que el servicio CDN (unpkg.com) esté disponible.`;
+             }
+             if (ffmpegStatus) { ffmpegStatus.textContent = 'Error al cargar librería remota.'; ffmpegStatus.classList.add('text-danger'); }
+             const generateButton = document.getElementById('generateButton'); const buttonText = document.getElementById('buttonText');
+             if(generateButton && buttonText) { generateButton.disabled = true; buttonText.textContent = 'Error de carga'; }
+        }
+    </script>
+
+    <!-- FFmpeg.wasm Script v0.9.6 (Remote URL desde unpkg) -->
+    <script defer src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.6/dist/ffmpeg.min.js" crossorigin="anonymous" onerror="handleScriptError(this)"></script>
+
+    <style>
+        /* Estilos CSS (sin cambios) */
+        #memeTextOutput { font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif; font-size: 2.5em; font-weight: bold; text-transform: uppercase; color: white; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, -2px -2px 3px rgba(0,0,0,0.7), 2px -2px 3px rgba(0,0,0,0.7), -2px 2px 3px rgba(0,0,0,0.7), 2px 2px 3px rgba(0,0,0,0.7); line-height: 1.1; margin-top: -15px; padding: 0 10px; word-wrap: break-word; }
+        #resultContainer img { max-width: 100%; height: auto; display: block; margin-left: auto; margin-right: auto; background-color: #eee; }
+        #errorConsole { position: fixed; bottom: 0; left: 0; width: 100%; max-height: 150px; overflow-y: auto; background-color: #212529; color: #f8f9fa; font-family: monospace; font-size: 0.8em; padding: 5px 10px; border-top: 1px solid #495057; z-index: 1000; white-space: pre-wrap; }
+        #errorConsole div { border-bottom: 1px dashed #495057; padding-bottom: 2px; margin-bottom: 2px; }
+        #errorConsole div:last-child { border-bottom: none; }
+        .console-error { color: #dc3545; }
+        .console-warn { color: #ffc107; }
+        .console-success { color: #198754; }
+        .console-ffmpeg { color: #6c757d; font-style: italic; }
+        #progressArea { display: none; }
+        #progressBar { height: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="container mt-4 mb-5 pb-5">
+         <h1 class="mb-4 text-center">Creador de GIF Meme <span class="badge bg-success">Online v0.9.6</span></h1>
+         <!-- Mensaje informativo sobre carga remota -->
+         <div class="alert alert-success" role="alert">
+              Usando FFmpeg v0.9.6 (remoto) y núcleo v0.8.5 (remoto) desde unpkg.com.
+         </div>
+         <div id="scriptErrorDisplay" class="alert alert-danger" role="alert" style="display: none;">
+             Error crítico: No se pudieron cargar las librerías necesarias (FFmpeg). La funcionalidad de conversión no está disponible.
+         </div>
+         <form id="gifForm">
+              <div class="mb-3">
+                 <label for="videoFile" class="form-label">1. Sube tu archivo MP4:</label>
+                 <input class="form-control" type="file" id="videoFile" accept="video/mp4" required disabled>
+                 <small class="form-text text-muted" id="ffmpegStatus">Esperando FFmpeg (remoto)...</small>
+             </div>
+               <div id="previewArea" class="mb-3" style="display: none;">
+                 <label class="form-label">2. Previsualización y Selección de Rango:</label>
+                 <video id="videoPreview" controls width="100%" class="bg-light border"></video>
+                  <div class="row mt-2"> <div class="col-md-6"> <label for="startTime" class="form-label">Inicio (s):</label> <input type="number" class="form-control" id="startTime" value="0" min="0" step="0.1" disabled> </div> <div class="col-md-6"> <label for="endTime" class="form-label">Fin (s):</label> <input type="number" class="form-control" id="endTime" value="5" min="0" step="0.1" disabled> </div> </div>
+                  <small class="form-text text-muted">Ajusta el rango para el GIF.</small>
+               </div>
+               <div class="mb-3"> <label for="memeText" class="form-label">3. Texto para el Meme:</label> <textarea class="form-control" id="memeText" rows="2" placeholder="Escribe tu texto aquí..." maxlength="100" disabled></textarea> </div>
+               <div class="mb-3">
+                 <label class="form-label">4. Opciones de GIF:</label>
+                 <div class="row"> <div class="col-md-4"> <label for="gifFps" class="form-label small">FPS:</label> <select class="form-select form-select-sm" id="gifFps" disabled> <option value="10">10</option> <option value="15">15</option> <option value="8">8</option> <option value="24">24</option> </select> </div> <div class="col-md-4"> <label for="gifWidth" class="form-label small">Ancho (px):</label> <select class="form-select form-select-sm" id="gifWidth" disabled> <option value="320">320</option> <option value="480">480</option> <option value="240">240</option> <option value="-1">Original</option> </select> </div> <div class="col-md-4 d-flex align-items-end"> <div class="form-check"> <input class="form-check-input" type="checkbox" id="usePalette" checked disabled> <label class="form-check-label small" for="usePalette"> Optimizar Paleta </label> </div> </div> </div>
+               </div>
+               <div class="d-grid gap-2 col-8 mx-auto mb-4 mt-4"> <button type="submit" id="generateButton" class="btn btn-primary btn-lg" disabled> <span id="buttonText">Esperando FFmpeg...</span> <span id="loadingSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display: none;"></span> </button> </div>
+               <div id="progressArea" class="mt-3 mb-3" style="display: none;"> <label id="progressLabel">Procesando...</label> <div class="progress"> <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div> </div> </div>
+         </form>
+         <div id="resultArea" class="mt-4 text-center" style="display: none;">
+             <h2>¡Tu GIF Meme está listo!</h2>
+             <div id="resultContainer" class="mt-3 mb-2 p-2 border d-inline-block bg-light"> <img id="gifOutput" src="#" alt="GIF Generado"> <p id="memeTextOutput" class="mt-1 mb-0">Texto del Meme</p> </div>
+             <div> <a id="downloadButton" href="#" class="btn btn-success" download="meme.gif"> Descargar GIF </a> </div>
+         </div>
+    </div><!-- /container -->
+
+    <!-- Consola de Errores Simulada -->
+    <div id="errorConsole">
+        <div>Consola lista. Esperando carga de FFmpeg v0.9.6 (remoto)...</div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <!-- Nuestro Script Principal Adaptado para v0.9.6 Remota -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Elementos DOM ---
+            const videoFileInput = document.getElementById('videoFile');
+            const ffmpegStatus = document.getElementById('ffmpegStatus');
+            // ... (resto de elementos DOM igual que antes) ...
+             const videoPreview = document.getElementById('videoPreview');
+             const previewArea = document.getElementById('previewArea');
+             const startTimeInput = document.getElementById('startTime');
+             const endTimeInput = document.getElementById('endTime');
+             const memeTextInput = document.getElementById('memeText');
+             const gifFpsSelect = document.getElementById('gifFps');
+             const gifWidthSelect = document.getElementById('gifWidth');
+             const usePaletteCheckbox = document.getElementById('usePalette');
+             const generateButton = document.getElementById('generateButton');
+             const buttonText = document.getElementById('buttonText');
+             const loadingSpinner = document.getElementById('loadingSpinner');
+             const gifForm = document.getElementById('gifForm');
+             const progressArea = document.getElementById('progressArea');
+             const progressLabel = document.getElementById('progressLabel');
+             const progressBar = document.getElementById('progressBar');
+             const resultArea = document.getElementById('resultArea');
+             const gifOutput = document.getElementById('gifOutput');
+             const memeTextOutput = document.getElementById('memeTextOutput');
+             const downloadButton = document.getElementById('downloadButton');
+             const errorConsole = document.getElementById('errorConsole');
+             const scriptErrorDisplay = document.getElementById('scriptErrorDisplay');
+
+            // --- Variables Globales ---
+            let ffmpeg = null;
+            let ffmpegLoaded = false;
+            let currentObjectUrl = null;
+            let pollingInterval = null;
+            let pollingTimeout = null;
+
+
+            // --- Funciones Auxiliares (Log, Estado Carga) ---
+             function logToConsole(message, type = 'log') { /* ... igual que antes ... */
+                 const entry = document.createElement('div'); const timestamp = new Date().toLocaleTimeString(); entry.textContent = `[${timestamp}] ${message}`;
+                 if (type === 'error') entry.classList.add('console-error'); else if (type === 'warn') entry.classList.add('console-warn'); else if (type === 'success') entry.classList.add('console-success'); else if (type === 'console-ffmpeg') entry.classList.add('console-ffmpeg');
+                 errorConsole.appendChild(entry); errorConsole.scrollTop = errorConsole.scrollHeight;
+                 const maxMessages = 100; if (errorConsole.children.length > maxMessages) { errorConsole.removeChild(errorConsole.firstChild); }
+             }
+             function setLoadingState(isLoading, message = 'Generar GIF Meme') { /* ... igual que antes ... */
+                 generateButton.disabled = isLoading;
+                 if (isLoading) { buttonText.textContent = message; loadingSpinner.style.display = 'inline-block'; videoFileInput.disabled = true; startTimeInput.disabled = true; endTimeInput.disabled = true; memeTextInput.disabled = true; gifFpsSelect.disabled = true; gifWidthSelect.disabled = true; usePaletteCheckbox.disabled = true; }
+                 else {
+                     loadingSpinner.style.display = 'none'; videoFileInput.disabled = false;
+                     if (videoPreview.src && videoPreview.duration && ffmpegLoaded) { buttonText.textContent = 'Generar GIF Meme'; startTimeInput.disabled = false; endTimeInput.disabled = false; memeTextInput.disabled = false; gifFpsSelect.disabled = false; gifWidthSelect.disabled = false; usePaletteCheckbox.disabled = false; }
+                     else if (window.ffmpegScriptLoadError) { buttonText.textContent = 'Error de carga'; generateButton.disabled = true; }
+                     else if (!ffmpegLoaded) { buttonText.textContent = 'Esperando FFmpeg...'; generateButton.disabled = true; }
+                     else { buttonText.textContent = 'Selecciona un video'; startTimeInput.disabled = true; endTimeInput.disabled = true; memeTextInput.disabled = true; generateButton.disabled = true; }
+                 }
+             }
+
+            // --- Inicialización FFmpeg (Adaptada para v0.9.6, corePath remoto) ---
+            async function initializeFFmpeg() {
+                logToConsole('Librería detectada (v0.9.6). Cargando núcleo FFmpeg (v0.8.5)...');
+                ffmpegStatus.textContent = 'Cargando núcleo FFmpeg...';
+                try {
+                    ffmpeg = FFmpeg.createFFmpeg({
+                         log: true,
+                         // Especificar corePath remoto compatible
+                         corePath: 'https://unpkg.com/@ffmpeg/core@0.8.5/dist/ffmpeg-core.js',
+                     });
+
+                    ffmpeg.setLogger(({ type, message }) => {
+                         logToConsole(`FFmpeg (${type}): ${message}`, 'console-ffmpeg');
+                    });
+
+                    // Adaptado para progreso - chequear 'ratio' o 'progress'
+                    ffmpeg.setProgress((progressData) => {
+                         let ratio = 0;
+                         if (typeof progressData === 'object' && progressData !== null) {
+                             ratio = progressData.ratio !== undefined ? progressData.ratio : (progressData.progress !== undefined ? progressData.progress : 0);
+                         } else if (typeof progressData === 'number') { // Algunas versiones antiguas solo pasaban el ratio
+                             ratio = progressData;
+                         }
+                         const percentage = Math.round(ratio * 100);
+                         if (percentage >= 0 && percentage <= 100) {
+                             progressBar.style.width = `${percentage}%`;
+                             progressBar.setAttribute('aria-valuenow', percentage);
+                             progressLabel.textContent = `Procesando... ${percentage}%`;
+                         }
+                    });
+
+                    await ffmpeg.load();
+
+                    ffmpegLoaded = true;
+                    logToConsole('FFmpeg v0.9.6 + Core v0.8.5 cargados y listos.', 'success');
+                    ffmpegStatus.textContent = 'FFmpeg listo.';
+                    if (!window.ffmpegScriptLoadError) {
+                        videoFileInput.disabled = false;
+                        gifFpsSelect.disabled = false;
+                        gifWidthSelect.disabled = false;
+                        usePaletteCheckbox.disabled = false;
+                        buttonText.textContent = 'Selecciona un video';
+                        setLoadingState(false);
+                    }
+
+                } catch (error) {
+                    logToConsole(`Error inicializando núcleo FFmpeg (remoto): ${error}`, 'error');
+                    ffmpegStatus.textContent = 'Error al inicializar FFmpeg.';
+                    ffmpegStatus.classList.add('text-danger');
+                     if (scriptErrorDisplay) { scriptErrorDisplay.style.display = 'block'; scriptErrorDisplay.textContent = `Error inicializando FFmpeg: ${error.message}. La conversión no funcionará.`; }
+                    videoFileInput.disabled = true;
+                    generateButton.disabled = true;
+                    buttonText.textContent = 'Error FFmpeg';
+                }
+            }
+
+            // --- Polling (Adaptado para v0.9.6 - solo chequea FFmpeg) ---
+            function waitForFFmpeg(timeout = 15000) {
+                logToConsole('Esperando que la librería FFmpeg v0.9.6 (remota) esté disponible...');
+                const checkInterval = 100;
+                let elapsedTime = 0;
+
+                if (pollingInterval) clearInterval(pollingInterval);
+                if (pollingTimeout) clearTimeout(pollingTimeout);
+
+                pollingInterval = setInterval(() => {
+                    if (window.ffmpegScriptLoadError) {
+                         logToConsole('Polling detenido por error de carga.', 'error');
+                         clearInterval(pollingInterval); clearTimeout(pollingTimeout);
+                         if(scriptErrorDisplay) scriptErrorDisplay.style.display = 'block';
+                         ffmpegStatus.textContent = 'Error al cargar librería remota.'; ffmpegStatus.classList.add('text-danger');
+                         generateButton.disabled = true; buttonText.textContent = 'Error de carga'; videoFileInput.disabled = true;
+                         return;
+                     }
+                    if (typeof FFmpeg !== 'undefined') {
+                        clearInterval(pollingInterval); clearTimeout(pollingTimeout);
+                        logToConsole('Librería FFmpeg v0.9.6 (remota) detectada.', 'success');
+                        initializeFFmpeg();
+                    } else { elapsedTime += checkInterval; }
+                }, checkInterval);
+
+                pollingTimeout = setTimeout(() => {
+                    clearInterval(pollingInterval);
+                    if (!window.ffmpegScriptLoadError) {
+                        logToConsole('Timeout esperando FFmpeg v0.9.6 (remoto).', 'error');
+                        ffmpegStatus.textContent = 'Error: Timeout cargando librería.'; ffmpegStatus.classList.add('text-danger');
+                        if (scriptErrorDisplay) { scriptErrorDisplay.textContent = 'Error: La librería FFmpeg tardó demasiado en cargar desde unpkg.com.'; scriptErrorDisplay.style.display = 'block'; }
+                        generateButton.disabled = true; buttonText.textContent = 'Error Timeout'; videoFileInput.disabled = true;
+                    }
+                }, timeout);
+            }
+
+            // --- Función para leer archivo como Uint8Array ---
+            const readFileAsUint8Array = (file) => { /* ... igual que antes ... */
+                 return new Promise((resolve, reject) => {
+                     const reader = new FileReader();
+                     reader.onload = (event) => { resolve(new Uint8Array(event.target.result)); };
+                     reader.onerror = (event) => { reject(new Error(`Error leyendo archivo: ${event.target.error}`)); };
+                     reader.readAsArrayBuffer(file);
+                 });
+             };
+
+            // --- Event Listeners (change, submit - igual que v0.7.0) ---
+            videoFileInput.addEventListener('change', (event) => { /* ... igual que antes ... */
+                 const file = event.target.files[0];
+                 if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; logToConsole('URL de objeto anterior liberada.'); }
+                 resultArea.style.display = 'none'; gifOutput.src = '#'; downloadButton.href = '#';
+                 generateButton.disabled = true; buttonText.textContent = 'Cargando video...'; startTimeInput.disabled = true; endTimeInput.disabled = true; memeTextInput.disabled = true;
+
+                 if (file && file.type === 'video/mp4') {
+                     logToConsole(`Archivo seleccionado: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, 'log');
+                     if (file.size > 50 * 1024 * 1024) { logToConsole('Advertencia: Archivo > 50MB...', 'warn'); alert('Advertencia: Archivo grande (>50MB).'); }
+                     const reader = new FileReader();
+                     reader.onload = function(e) {
+                         videoPreview.src = e.target.result; previewArea.style.display =
