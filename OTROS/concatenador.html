@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concatenador de Archivos de Texto (Autocontenido con Iconos)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        /* Estilos generales y para el modo claro (por defecto) */
+        :root {
+            --body-bg: #f8f9fa; /* Color de fondo claro */
+            --body-color: #212529; /* Color de texto claro */
+            --border-color: #dee2e6; /* Color de borde claro */
+            --drop-zone-bg: #ffffff; /* Fondo zona drop claro */
+            --drop-zone-hover-bg: #e9ecef; /* Fondo hover zona drop claro */
+        }
+
+        /* Estilos específicos para el modo oscuro */
+        [data-bs-theme="dark"] {
+            --body-bg: #212529; /* Color de fondo oscuro */
+            --body-color: #dee2e6; /* Color de texto oscuro */
+            --border-color: #495057; /* Color de borde oscuro */
+            --drop-zone-bg: #343a40; /* Fondo zona drop oscuro */
+            --drop-zone-hover-bg: #495057; /* Fondo hover zona drop oscuro */
+        }
+
+        /* Aplicar variables */
+        body {
+            background-color: var(--body-bg);
+            color: var(--body-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        #drop-zone {
+            border-style: dashed !important;
+            border-width: 2px !important;
+            border-color: var(--border-color) !important;
+            background-color: var(--drop-zone-bg);
+            transition: background-color 0.2s ease, border-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        #drop-zone.drag-over {
+            background-color: var(--drop-zone-hover-bg);
+            border-color: var(--bs-primary) !important; /* Usa color primario de Bootstrap */
+        }
+
+        #theme-toggle {
+            z-index: 1050; /* Asegura que esté sobre otros elementos */
+            font-size: 1.5rem; /* Tamaño del icono */
+        }
+
+        /* Ajustes para accesibilidad del input file oculto */
+        .d-none {
+            display: none !important;
+        }
+
+        /* Asegura que el label asociado funcione bien */
+        #drop-zone label {
+            cursor: pointer;
+        }
+
+        /* Estilos para la lista de archivos */
+        #file-list .list-group-item {
+             background-color: var(--bs-list-group-bg); /* Usa variable de BS5 para compatibilidad */
+             color: var(--bs-list-group-color);
+             border-color: var(--bs-list-group-border-color);
+             /* Asegura que el icono y el texto estén alineados */
+             display: flex;
+             align-items: center;
+        }
+        #file-list .list-group-item .file-name {
+             flex-grow: 1; /* Hace que el nombre ocupe el espacio restante */
+             margin-right: 10px; /* Espacio antes del botón de eliminar */
+             overflow: hidden;
+             text-overflow: ellipsis;
+             white-space: nowrap;
+        }
+         #file-list .list-group-item .bi { /* Estilo base para iconos en la lista */
+            margin-right: 0.5rem; /* Espacio entre icono y nombre */
+            flex-shrink: 0; /* Evita que el icono se encoja */
+        }
+         #file-list .list-group-item .btn { /* Botón de eliminar */
+            flex-shrink: 0; /* Evita que el botón se encoja */
+        }
+
+
+        /* Responsive: hacer el botón de tema un poco más pequeño en pantallas pequeñas */
+        @media (max-width: 576px) {
+            #theme-toggle {
+                font-size: 1.2rem;
+                margin: 0.5rem !important; /* Reduce margen (ajustado m-2)*/
+            }
+             h1 {
+                font-size: 1.75rem; /* Reduce tamaño título */
+            }
+            .lead {
+                 font-size: 1rem; /* Reduce tamaño texto lead */
+            }
+            #file-list .list-group-item .file-name {
+                 /* Podrías querer reducir el tamaño de fuente o ajustar márgenes aquí si es necesario */
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="theme-toggle" class="btn position-fixed top-0 end-0 m-3" aria-label="Cambiar tema">
+        <i class="bi bi-moon-stars-fill"></i> <!-- Icono inicial (luna para tema claro) -->
+    </button>
+
+    <div class="container mt-5">
+        <h1 class="mb-4 text-center">Concatenador de Archivos de Texto</h1>
+
+        <div id="drop-zone" class="border rounded p-5 text-center mb-4">
+            <p class="lead">Arrastra archivos de texto (o directorios) aquí</p>
+            <p>o</p>
+            <label for="file-input" class="btn btn-primary">Selecciona Archivos</label>
+            <input type="file" id="file-input" multiple class="d-none" webkitdirectory directory>
+            <small class="d-block mt-2 text-muted">Solo se aceptarán archivos tipo texto (.txt, .js, .css, .html, .py, etc.)</small>
+        </div>
+
+        <div id="file-list-section" class="mb-4" style="display: none;">
+            <h2 >Archivos Seleccionados:</h2>
+            <ul id="file-list" class="list-group mb-3">
+                <!-- Los nombres de archivo se añadirán aquí dinámicamente -->
+            </ul>
+             <button id="clear-button" class="btn btn-warning me-2">Limpiar Selección</button>
+             <button id="download-button" class="btn btn-success">Descargar Archivo Concatenado</button>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS Bundle (Popper included) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <!-- Embedded Custom JS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const fileListElement = document.getElementById('file-list');
+            const fileListSection = document.getElementById('file-list-section');
+            const downloadButton = document.getElementById('download-button');
+            const clearButton = document.getElementById('clear-button');
+            const themeToggleButton = document.getElementById('theme-toggle');
+            const themeIcon = themeToggleButton.querySelector('i');
+            const htmlElement = document.documentElement;
+
+            let selectedFiles = []; // Almacena los objetos File
+
+            // --- Mapeo de extensiones a iconos de Bootstrap ---
+            const fileIconMap = {
+                js: 'bi-filetype-js',
+                jsx: 'bi-filetype-jsx',
+                ts: 'bi-filetype-tsx', // Usamos tsx para ambos
+                tsx: 'bi-filetype-tsx',
+                css: 'bi-filetype-css',
+                scss: 'bi-filetype-scss',
+                sass: 'bi-filetype-sass',
+                less: 'bi-filetype-css', // Representación común
+                html: 'bi-filetype-html',
+                htm: 'bi-filetype-html',
+                py: 'bi-filetype-py',
+                json: 'bi-filetype-json',
+                xml: 'bi-filetype-xml',
+                md: 'bi-filetype-md',
+                txt: 'bi-file-text',
+                csv: 'bi-file-earmark-spreadsheet',
+                log: 'bi-file-text',
+                yaml: 'bi-filetype-yml',
+                yml: 'bi-filetype-yml',
+                sh: 'bi-terminal',
+                bat: 'bi-terminal',
+                java: 'bi-filetype-java',
+                c: 'bi-filetype-c',
+                cpp: 'bi-filetype-cpp',
+                h: 'bi-filetype-h',
+                hpp: 'bi-filetype-hpp',
+                cs: 'bi-filetype-cs',
+                rb: 'bi-gem', // Icono de gema para Ruby
+                php: 'bi-filetype-php',
+                sql: 'bi-filetype-sql',
+                go: 'bi-filetype-go',
+                rs: 'bi-filetype-rust',
+                // Añade más extensiones y sus iconos aquí
+                default: 'bi-file-earmark-text' // Icono por defecto más específico para texto
+            };
+
+            // --- Manejo del Tema (Claro/Oscuro) ---
+            const applyTheme = (theme) => {
+                htmlElement.setAttribute('data-bs-theme', theme);
+                if (theme === 'dark') {
+                    themeIcon.classList.remove('bi-moon-stars-fill');
+                    themeIcon.classList.add('bi-sun-fill');
+                } else {
+                    themeIcon.classList.remove('bi-sun-fill');
+                    themeIcon.classList.add('bi-moon-stars-fill');
+                }
+                try {
+                    localStorage.setItem('theme', theme);
+                } catch (e) {
+                    console.warn("No se pudo guardar el tema en localStorage:", e);
+                }
+            };
+
+            themeToggleButton.addEventListener('click', () => {
+                const currentTheme = htmlElement.getAttribute('data-bs-theme') || 'light';
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                applyTheme(newTheme);
+            });
+
+            let savedTheme = 'light';
+            try {
+                 savedTheme = localStorage.getItem('theme') || 'light';
+            } catch (e) {
+                console.warn("No se pudo leer el tema de localStorage:", e);
+            }
+             applyTheme(savedTheme);
+
+            // --- Funcionalidad Drag and Drop ---
+            dropZone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dropZone.classList.remove('drag-over');
+                const items = event.dataTransfer.items;
+                if (items) {
+                     for (let i = 0; i < items.length; i++) {
+                        if (typeof items[i].webkitGetAsEntry === 'function') {
+                            const item = items[i].webkitGetAsEntry();
+                            if (item) {
+                                scanFiles(item);
+                            }
+                        } else {
+                            const file = items[i].getAsFile();
+                            if(file) {
+                                processFile(file);
+                            }
+                        }
+                    }
+                } else {
+                    const files = event.dataTransfer.files;
+                    processFileList(files);
+                }
+                fileInput.value = '';
+            });
+
+            dropZone.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') {
+                     fileInput.click();
+                }
+            });
+
+            // --- Manejo de Selección de Archivos (Input) ---
+            fileInput.addEventListener('change', (event) => {
+                processFileList(event.target.files);
+                fileInput.value = '';
+            });
+
+            // --- Procesamiento de Archivos y Directorios ---
+             function scanFiles(entry) {
+                if (!entry) return;
+                if (entry.isFile) {
+                    entry.file(file => { processFile(file); },
+                               err => { console.error(`Error al obtener el archivo: ${entry.name}`, err); });
+                } else if (entry.isDirectory) {
+                    const directoryReader = entry.createReader();
+                    directoryReader.readEntries(entries => { entries.forEach(scanFiles); },
+                                                err => { console.error(`Error al leer el directorio: ${entry.name}`, err); });
+                }
+            }
+
+            function processFileList(files) {
+                for (const file of files) {
+                    processFile(file);
+                }
+            }
+
+             function processFile(file) {
+                const allowedMimeTypes = ['text/plain', 'text/javascript', 'text/css', 'text/html', 'text/xml', 'text/csv', 'application/json', 'application/x-python-code', 'application/x-javascript'];
+                const allowedExtensions = /\.(txt|js|jsx|ts|tsx|css|scss|sass|less|html|htm|py|json|xml|md|csv|log|yaml|yml|sh|bat|java|c|cpp|h|hpp|cs|rb|php|sql|go|rs)$/i;
+
+                if (file && file.size > 0 &&
+                    ( (file.type && (file.type.startsWith('text/') || allowedMimeTypes.includes(file.type))) ||
+                      (!file.type && allowedExtensions.test(file.name)) ||
+                      (file.type && !file.type.startsWith('text/') && !allowedMimeTypes.includes(file.type) && allowedExtensions.test(file.name))
+                    ))
+                {
+                     if (!selectedFiles.some(existingFile => existingFile.name === file.name && existingFile.size === file.size)) {
+                         selectedFiles.push(file);
+                     } else {
+                         console.warn(`Archivo duplicado o ya añadido: ${file.name}`);
+                     }
+                } else if (file) {
+                    console.warn(`Archivo omitido (no parece de texto o está vacío): ${file.name}, Tipo: ${file.type || 'desconocido'}, Tamaño: ${file.size}`);
+                }
+                updateFileListUI();
+            }
+
+            // --- Actualizar UI de la Lista de Archivos ---
+            function updateFileListUI() {
+                fileListElement.innerHTML = ''; // Limpiar lista actual
+                if (selectedFiles.length > 0) {
+                    selectedFiles.forEach((file, index) => {
+                        const listItem = document.createElement('li');
+                        // Se quita d-flex justify-content-between aquí, se maneja con flex-grow en el span
+                        listItem.className = 'list-group-item d-flex align-items-center';
+
+                        // --- INICIO: Lógica del Icono ---
+                        const iconElement = document.createElement('i');
+                        iconElement.setAttribute('aria-hidden', 'true'); // Icono decorativo
+
+                        const fileName = file.name;
+                        const lastDotIndex = fileName.lastIndexOf('.');
+                        // Obtener extensión en minúsculas, o string vacío si no hay punto o está al inicio/final
+                        const extension = (lastDotIndex > 0 && lastDotIndex < fileName.length - 1)
+                                          ? fileName.substring(lastDotIndex + 1).toLowerCase()
+                                          : '';
+
+                        // Buscar icono en el mapa, usar default si no se encuentra
+                        const iconClass = fileIconMap[extension] || fileIconMap.default;
+                        iconElement.className = `bi ${iconClass}`; // Aplica clase base 'bi' y la específica
+
+                        listItem.appendChild(iconElement); // Añadir icono al LI
+                        // --- FIN: Lógica del Icono ---
+
+                        // Span para el nombre del archivo (con estilos CSS para overflow)
+                        const fileNameSpan = document.createElement('span');
+                        fileNameSpan.className = 'file-name'; // Clase para aplicar estilos CSS
+                        fileNameSpan.textContent = file.name;
+                        fileNameSpan.title = file.name; // Tooltip para nombres largos
+                        listItem.appendChild(fileNameSpan);
+
+                        // Botón para eliminar archivo individual
+                        const removeBtn = document.createElement('button');
+                        removeBtn.className = 'btn btn-sm btn-outline-danger'; // No necesita flex-shrink aquí porque el span tiene flex-grow
+                        removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+                        removeBtn.setAttribute('aria-label', `Quitar ${file.name}`);
+                        removeBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            removeFile(index);
+                        }
+                        listItem.appendChild(removeBtn);
+
+                        fileListElement.appendChild(listItem);
+                    });
+                    fileListSection.style.display = 'block'; // Mostrar sección
+                } else {
+                    fileListSection.style.display = 'none'; // Ocultar si no hay archivos
+                }
+            }
+
+             // --- Funciones de Botones (Limpiar, Descargar, Quitar) ---
+            function removeFile(indexToRemove) {
+                selectedFiles.splice(indexToRemove, 1);
+                updateFileListUI();
+            }
+
+            clearButton.addEventListener('click', () => {
+                selectedFiles = [];
+                updateFileListUI();
+                fileInput.value = '';
+            });
+
+            downloadButton.addEventListener('click', () => {
+                if (selectedFiles.length === 0) {
+                    alert('Por favor, selecciona o arrastra archivos primero.');
+                    return;
+                }
+                generateAndDownloadConcatenatedFile();
+            });
+
+            // --- Lógica de Concatenación y Descarga ---
+            function generateAndDownloadConcatenatedFile() {
+                const fileReadPromises = [];
+                const fileContents = [];
+                selectedFiles.forEach(file => fileContents.push({ name: file.name, content: null, error: false }));
+
+                selectedFiles.forEach((file, index) => {
+                    const reader = new FileReader();
+                    const promise = new Promise((resolve) => {
+                        reader.onload = (event) => {
+                            const header = `## Este es el archivo: ${file.name} ##\n`;
+                            const footer = `\n## Fin ${file.name} ##\n\n`;
+                            fileContents[index].content = header + event.target.result + footer;
+                            resolve();
+                        };
+                        reader.onerror = (event) => {
+                            console.error(`Error al leer el archivo: ${file.name}`, event.target.error);
+                            fileContents[index].content = `## Error al leer archivo: ${file.name} ##\n\n`;
+                            fileContents[index].error = true;
+                            resolve();
+                        };
+                        reader.readAsText(file);
+                    });
+                    fileReadPromises.push(promise);
+                });
+
+                Promise.all(fileReadPromises)
+                    .then(() => {
+                        const finalContent = fileContents.map(item => item.content).join('');
+                        const filesWithErrors = fileContents.filter(item => item.error).map(item => item.name);
+
+                        if (filesWithErrors.length > 0) {
+                            alert(`Advertencia: No se pudieron leer completamente los siguientes archivos:\n${filesWithErrors.join('\n')}\n\nEl archivo descargado contendrá marcadores de error para estos archivos.`);
+                        }
+
+                        const blob = new Blob([finalContent], { type: 'text/plain;charset=utf-8' });
+                        const link = document.createElement('a');
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `concatenado-${timestamp}.txt`;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(link.href);
+                    });
+            }
+        });
+    </script>
+
+</body>
+</html>
