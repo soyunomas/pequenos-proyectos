@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteo de Números Multicolor (Modo Oscuro + Latido)</title>
+    <style>
+        /* --- Variables CSS para Temas --- */
+        :root {
+            --bg-color: #f4f4f4;
+            --container-bg: #ffffff;
+            --text-color: #333;
+            --label-color: #555;
+            --input-bg: #ffffff;
+            --input-border: #ccc;
+            --input-text: #333;
+            --button-primary-bg: #007bff;
+            --button-primary-text: #ffffff;
+            --button-primary-hover: #0056b3;
+            --button-secondary-bg: #6c757d;
+            --button-secondary-hover: #5a6268;
+            --button-disabled-bg: #6c757d;
+            --button-disabled-opacity: 0.65;
+            --numero-color: #28a745; /* Color final del número */
+            --numero-spinning-color: #adb5bd; /* Fallback, no muy usado ahora */
+            --numero-spinning-opacity: 0.9;
+            --anteriores-text: #666;
+            --error-color: #dc3545;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --toggle-bg: #eee;
+            --toggle-border: #ccc;
+            --toggle-icon-color: #333;
+
+            --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            --size-transition-duration: 0.3s;
+
+            /* Tamaños base */
+            --numero-size-base-default: 10rem;
+            --numero-size-small-default: 2rem;
+            --numero-size-giant-default: 14rem;
+
+             /* Umbrales y escalas */
+            --digits-threshold-medium: 5;
+            --digits-threshold-large: 7;
+            --scale-factor-medium: 0.8;
+            --scale-factor-large: 0.6;
+        }
+
+        body.dark-mode {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --label-color: #b0b0b0;
+            --input-bg: #2a2a2a;
+            --input-border: #555;
+            --input-text: #e0e0e0;
+            --button-primary-bg: #0d6efd;
+            --button-primary-hover: #0b5ed7;
+            --button-secondary-bg: #5c636a;
+            --button-secondary-hover: #4a4f54;
+            --button-disabled-bg: #4a4f54;
+            --numero-color: #34c759; /* Color final modo oscuro */
+            --numero-spinning-color: #777;
+            --anteriores-text: #aaa;
+            --error-color: #ff4d4f;
+            --shadow-color: rgba(255, 255, 255, 0.1);
+            --toggle-bg: #2a2a2a;
+            --toggle-border: #555;
+            --toggle-icon-color: #e0e0e0;
+        }
+
+        /* --- Estilos Generales --- */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: var(--theme-transition);
+            position: relative;
+            overflow-x: hidden;
+        }
+        .container {
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-color);
+            max-width: 600px;
+            width: 100%;
+            transition: var(--theme-transition);
+        }
+        h1 {
+            color: var(--text-color);
+            margin-bottom: 20px;
+            transition: var(--theme-transition);
+        }
+
+        /* Número Resultado */
+        #numero-resultado {
+            font-weight: bold;
+            color: var(--numero-color); /* Color base/final */
+            margin: 10px 0 25px 0;
+            height: auto;
+            line-height: 1;
+            word-wrap: break-word;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: font-size var(--size-transition-duration) ease-in-out, color 0.1s linear, opacity 0.3s ease-out, var(--theme-transition);
+            will-change: font-size, color, opacity;
+            padding: 5px 0;
+        }
+
+        #numero-resultado.spinning {
+            opacity: var(--numero-spinning-opacity);
+             /* El color se aplicará inline con JS */
+        }
+
+        /* Inputs y Botones */
+        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+        label { font-weight: bold; color: var(--label-color); transition: var(--theme-transition); }
+        input[type="number"] { width: 100%; padding: 10px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--input-text); border-radius: 4px; box-sizing: border-box; font-size: 1rem; transition: var(--theme-transition); }
+        input[type="number"]::-moz-appearance: textfield;
+        input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"]::placeholder { color: var(--label-color); opacity: 0.7; }
+        button { color: var(--button-primary-text); border: none; padding: 12px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; transition: background-color 0.3s ease, opacity 0.3s ease, var(--theme-transition); margin-top: 10px; width: 100%; }
+        button#generarBtn { background-color: var(--button-primary-bg); }
+        button#generarBtn:hover:not(:disabled) { background-color: var(--button-primary-hover); }
+        button#resetBtn { background-color: var(--button-secondary-bg); margin-top: 10px; color: var(--button-primary-text); }
+        button#resetBtn:hover:not(:disabled) { background-color: var(--button-secondary-hover); }
+        button:disabled { background-color: var(--button-disabled-bg); cursor: not-allowed; opacity: var(--button-disabled-opacity); }
+
+        /* Números anteriores y Mensaje */
+        #numeros-anteriores-container { margin-top: 25px; text-align: left; }
+        #numeros-anteriores-container strong { display: block; margin-bottom: 5px; color: var(--text-color); transition: var(--theme-transition); }
+        #numeros-anteriores-lista { font-size: 0.9rem; color: var(--anteriores-text); word-wrap: break-word; line-height: 1.5; max-height: 80px; overflow-y: auto; padding-right: 5px; transition: var(--theme-transition); }
+        .error-mensaje { color: var(--error-color); font-weight: bold; margin-top: 15px; min-height: 1.2em; transition: var(--theme-transition); }
+
+        /* Botón de cambio de tema */
+        .theme-toggle-button { position: fixed; top: 15px; right: 15px; background-color: var(--toggle-bg); border: 1px solid var(--toggle-border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; margin: 0; z-index: 1000; transition: var(--theme-transition), transform 0.2s ease; filter: grayscale(1); -webkit-tap-highlight-color: transparent; }
+        .theme-toggle-button:hover { transform: scale(1.1); }
+
+        /* Media Queries */
+        @media (max-width: 600px) { .container { padding: 20px; max-width: 95%; } :root { --numero-size-base-default: 7rem; --numero-size-small-default: 1.5rem; --numero-size-giant-default: 10rem; } .theme-toggle-button { top: 10px; right: 10px; width: 35px; height: 35px; font-size: 1rem; } }
+        @media (max-width: 400px) { :root { --numero-size-base-default: 5rem; --numero-size-small-default: 1rem; --numero-size-giant-default: 8rem; } h1 { font-size: 1.5rem; } }
+    </style>
+</head>
+<body>
+
+    <button id="theme-toggle" class="theme-toggle-button" aria-label="Cambiar tema"></button>
+
+    <div class="container">
+        <h1>Sorteo de Números</h1>
+        <div id="numero-resultado">--</div>
+
+        <div class="input-group">
+            <label for="minNum">Desde el número:</label>
+            <input type="number" id="minNum" value="1" inputmode="numeric" pattern="[0-9]*">
+        </div>
+
+        <div class="input-group">
+            <label for="maxNum">Hasta el número:</label>
+            <input type="number" id="maxNum" value="10" inputmode="numeric" pattern="[0-9]*">
+        </div>
+
+        <button id="generarBtn">Sacar Número</button>
+        <button id="resetBtn">Reiniciar Sorteo</button>
+
+        <div id="numeros-anteriores-container">
+            <strong>Números ya sorteados:</strong>
+            <div id="numeros-anteriores-lista">Ninguno</div>
+        </div>
+
+        <div id="mensaje" class="error-mensaje"></div>
+    </div>
+
+    <script>
+        const minNumInput = document.getElementById('minNum');
+        const maxNumInput = document.getElementById('maxNum');
+        const generarBtn = document.getElementById('generarBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const numeroResultadoDiv = document.getElementById('numero-resultado');
+        const numerosAnterioresListaDiv = document.getElementById('numeros-anteriores-lista');
+        const mensajeDiv = document.getElementById('mensaje');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+
+        let numerosSorteados = [];
+        let minActual = null;
+        let maxActual = null;
+        let intervaloSlotMachine = null;
+        let timeoutLatido = null;
+        let numeroFinalActual = null;
+        let currentScaleFactor = 1;
+
+        const sunIcon = '☀️';
+        const moonIcon = '🌙';
+
+        // --- FUNCIONES AUXILIARES ---
+        function obtenerNumeroAleatorio(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            if (max > Number.MAX_SAFE_INTEGER) max = Number.MAX_SAFE_INTEGER;
+            if (min < Number.MIN_SAFE_INTEGER) min = Number.MIN_SAFE_INTEGER;
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getCssVariableValue(varName) {
+             return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(varName));
+        }
+
+        function getAdjustedFontSize(baseVarName) {
+            const defaultValue = getCssVariableValue(baseVarName);
+            return (defaultValue * currentScaleFactor) + 'rem';
+        }
+
+        function calculateScaleFactor(numero) {
+            const numStr = numero.toString();
+            const numDigits = numStr.length;
+            const thresholdMedium = getCssVariableValue('--digits-threshold-medium');
+            const thresholdLarge = getCssVariableValue('--digits-threshold-large');
+
+            if (numDigits >= thresholdLarge) { return getCssVariableValue('--scale-factor-large'); }
+            else if (numDigits >= thresholdMedium) { return getCssVariableValue('--scale-factor-medium'); }
+            else { return 1; }
+        }
+
+        function generarColorVibranteAleatorio() {
+            const h = Math.floor(Math.random() * 360);
+            const s = Math.floor(Math.random() * 31) + 70;
+            const l = Math.floor(Math.random() * 21) + 50;
+            return `hsl(${h}, ${s}%, ${l}%)`;
+        }
+
+        function finalizarActualizacionUI() {
+             if (numeroFinalActual === null) return;
+
+            numeroResultadoDiv.textContent = numeroFinalActual;
+            numeroResultadoDiv.classList.remove('spinning');
+            numeroResultadoDiv.style.fontSize = getAdjustedFontSize('--numero-size-base-default');
+            numeroResultadoDiv.style.color = ''; // Quitar color inline para usar el de CSS
+            numeroResultadoDiv.style.opacity = '';
+
+            if (numerosSorteados.length > 0) { numerosAnterioresListaDiv.textContent = numerosSorteados.join(', '); }
+            else { numerosAnterioresListaDiv.textContent = "Ninguno"; }
+
+            generarBtn.disabled = false;
+            resetBtn.disabled = false;
+            mensajeDiv.textContent = '';
+        }
+
+        function detenerAnimaciones() {
+            if (intervaloSlotMachine) { clearInterval(intervaloSlotMachine); intervaloSlotMachine = null; }
+            if (timeoutLatido) { clearTimeout(timeoutLatido); timeoutLatido = null; }
+
+            numeroResultadoDiv.classList.remove('spinning');
+            numeroResultadoDiv.style.opacity = '';
+            numeroResultadoDiv.style.color = ''; // Quitar color inline al detener
+
+            if (numeroFinalActual !== null) {
+                 currentScaleFactor = calculateScaleFactor(numeroFinalActual);
+                 numeroResultadoDiv.textContent = numeroFinalActual;
+                 numeroResultadoDiv.style.fontSize = getAdjustedFontSize('--numero-size-base-default');
+                 if (!numerosSorteados.includes(numeroFinalActual)) {
+                    numerosSorteados.push(numeroFinalActual);
+                 }
+            } else if (numeroResultadoDiv.textContent === '--') {
+                 currentScaleFactor = 1;
+                 numeroResultadoDiv.style.fontSize = getAdjustedFontSize('--numero-size-base-default');
+            }
+
+            finalizarActualizacionUI();
+            numeroFinalActual = null;
+        }
+
+
+        function mostrarMensaje(mensaje) {
+            mensajeDiv.textContent = mensaje;
+            numeroResultadoDiv.textContent = '--';
+            currentScaleFactor = 1;
+            numeroResultadoDiv.style.fontSize = getAdjustedFontSize('--numero-size-base-default');
+            numeroResultadoDiv.style.color = ''; // Resetear color
+            detenerAnimaciones();
+        }
+
+
+        // --- EFECTOS VISUALES COMBINADOS ---
+
+        function latir(paso) {
+            if (timeoutLatido === null && paso > 0) return;
+            const numeroEl = numeroResultadoDiv;
+            const smallSize = getAdjustedFontSize('--numero-size-small-default');
+            const giantSize = getAdjustedFontSize('--numero-size-giant-default');
+            const baseSize = getAdjustedFontSize('--numero-size-base-default');
+            const durationPerStep = 350;
+            let siguienteTimeout = durationPerStep;
+
+            switch (paso) {
+                case 0: numeroEl.style.fontSize = smallSize; break;
+                case 1: numeroEl.style.fontSize = giantSize; break;
+                case 2: numeroEl.style.fontSize = smallSize; break;
+                case 3: numeroEl.style.fontSize = giantSize; break;
+                case 4: numeroEl.style.fontSize = smallSize; break;
+                case 5: numeroEl.style.fontSize = giantSize; break;
+                case 6:
+                    numeroEl.style.fontSize = baseSize;
+                    timeoutLatido = null;
+                    return;
+            }
+            timeoutLatido = setTimeout(() => latir(paso + 1), siguienteTimeout);
+        }
+
+        function iniciarEfectoSorteoConcurrente(min, max, numeroFinal) {
+            numeroFinalActual = numeroFinal;
+            currentScaleFactor = calculateScaleFactor(numeroFinal);
+
+            generarBtn.disabled = true;
+            resetBtn.disabled = true;
+            numeroResultadoDiv.classList.add('spinning');
+            mensajeDiv.textContent = '';
+            numeroResultadoDiv.style.fontSize = getAdjustedFontSize('--numero-size-base-default');
+
+            const duracionTotalAnimacion = 2100;
+            const intervaloTiempoSlot = 75;
+            let tiempoPasado = 0;
+
+            intervaloSlotMachine = setInterval(() => {
+                const numeroTemporal = obtenerNumeroAleatorio(min, max);
+                numeroResultadoDiv.textContent = numeroTemporal;
+                // Aplicar color aleatorio en cada tick
+                numeroResultadoDiv.style.color = generarColorVibranteAleatorio();
+
+                tiempoPasado += intervaloTiempoSlot;
+
+                if (tiempoPasado >= duracionTotalAnimacion) {
+                    clearInterval(intervaloSlotMachine);
+                    intervaloSlotMachine = null;
+
+                    const finalDelay = getCssVariableValue('--size-transition-duration') * 1000 + 50;
+
+                    setTimeout(() => {
+                        // Solo finalizar UI si el latido también terminó
+                        if (timeoutLatido === null) {
+                            finalizarActualizacionUI();
+                        }
+                        // Si no ha terminado, finalizarActualizacionUI se llamará
+                        // cuando el timeout del latido termine o si se llama a detenerAnimaciones.
+                    }, finalDelay);
+                }
+            }, intervaloTiempoSlot);
+
+            // Iniciar latido
+            latir(0);
+        }
+
+
+        // --- LÓGICA PRINCIPAL DEL SORTEO ---
+        function sacarNumero() {
+            detenerAnimaciones();
+            let min, max;
+            try { min = BigInt(minNumInput.value); max = BigInt(maxNumInput.value); }
+            catch (e) { mostrarMensaje("Por favor, introduce números válidos."); return; }
+            let minNum = Number(min); let maxNum = Number(max);
+            if (isNaN(minNum) || isNaN(maxNum)) { mostrarMensaje("Por favor, introduce números válidos."); return; }
+            if (minNum > maxNum) { mostrarMensaje("El número 'Desde' no puede ser mayor que 'Hasta'."); return; }
+            const range = maxNum - minNum;
+            if (range > Number.MAX_SAFE_INTEGER) { mostrarMensaje("El rango entre números es demasiado grande."); return; }
+            if (minNum !== minActual || maxNum !== maxActual) { reiniciarSorteoInterno(minNum, maxNum, false); }
+            const totalNumerosPosibles = maxActual - minActual + 1;
+            if (numerosSorteados.length >= totalNumerosPosibles) { mostrarMensaje("¡Ya se han sorteado todos los números!"); return; }
+            let numeroNuevo; let intentos = 0; const maxIntentos = Math.max(totalNumerosPosibles * 5, 100);
+            do {
+                numeroNuevo = obtenerNumeroAleatorio(minActual, maxActual); intentos++;
+                if (intentos > maxIntentos) { console.error("Máximo de intentos alcanzado."); mostrarMensaje("Error al generar número único. Intenta reiniciar."); detenerAnimaciones(); return; }
+            } while (numerosSorteados.includes(numeroNuevo));
+            numerosSorteados.push(numeroNuevo);
+            numerosAnterioresListaDiv.textContent = numerosSorteados.join(', ');
+            iniciarEfectoSorteoConcurrente(minActual, maxActual, numeroNuevo);
+        }
+
+         function reiniciarSorteoInterno(nuevoMin = null, nuevoMax = null, mostrarMsg = true) {
+             detenerAnimaciones();
+            numerosSorteados = []; numeroFinalActual = null; currentScaleFactor = 1;
+            let minInputVal, maxInputVal;
+            try { minInputVal = Number(BigInt(minNumInput.value)); } catch { minInputVal = NaN; }
+            try { maxInputVal = Number(BigInt(maxNumInput.value)); } catch { maxInputVal = NaN; }
+            minActual = nuevoMin !== null ? nuevoMin : (isNaN(minInputVal) ? 1 : minInputVal);
+            maxActual = nuevoMax !== null ? nuevoMax : (isNaN(maxInputVal) ? 10 : maxInputVal);
+            if (minNumInput.value !== String(minActual)) minNumInput.value = String(minActual);
+            if (maxNumInput.value !== String(maxActual)) maxNumInput.value = String(maxActual);
+            numeroResultadoDiv.textContent = '--';
+            numeroResultadoDiv.style.fontSize = getAdjustedFontSize('--numero-size-base-default');
+            numeroResultadoDiv.style.color = ''; // Resetear color
+            numerosAnterioresListaDiv.textContent = 'Ninguno';
+            if (mostrarMsg) {
+                mensajeDiv.textContent = 'Sorteo reiniciado.';
+                setTimeout(() => { if (mensajeDiv.textContent === 'Sorteo reiniciado.') { mensajeDiv.textContent = ''; } }, 2000);
+            } else { mensajeDiv.textContent = ''; }
+            generarBtn.disabled = false; resetBtn.disabled = false;
+        }
+
+        // --- LÓGICA PARA CAMBIO DE TEMA ---
+        function applyTheme(theme) {
+            if (theme === 'dark') { document.body.classList.add('dark-mode'); themeToggleBtn.textContent = sunIcon; localStorage.setItem('theme', 'dark'); }
+            else { document.body.classList.remove('dark-mode'); themeToggleBtn.textContent = moonIcon; localStorage.setItem('theme', 'light'); }
+        }
+
+        // --- INICIALIZACIÓN Y EVENT LISTENERS ---
+        const currentTheme = localStorage.getItem('theme');
+        applyTheme(currentTheme || 'light');
+        generarBtn.addEventListener('click', sacarNumero);
+        resetBtn.addEventListener('click', () => {
+             let currentMin, currentMax;
+             try { currentMin = Number(BigInt(minNumInput.value)); } catch { currentMin = 1; }
+             try { currentMax = Number(BigInt(maxNumInput.value)); } catch { currentMax = 10; }
+            reiniciarSorteoInterno(currentMin, currentMax, true);
+        });
+        themeToggleBtn.addEventListener('click', () => {
+            applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark');
+        });
+        reiniciarSorteoInterno(null, null, false); // Establecer estado inicial
+
+    </script>
+
+</body>
+</html>
