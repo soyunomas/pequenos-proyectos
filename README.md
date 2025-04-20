@@ -30,7 +30,7 @@
 3.  **Matrix:**
     [`matrix.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/matrix.html)
 4.  **Sorteo de Números sin repetición:**
-    [`Sorteo.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/Sorteo.html)
+    [`sorteo.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/sorteo.html)
 5. **Concatenador de archivos subidos**
    [`concatenador.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/concatenador.html)
 
