@@ -31,6 +31,8 @@
     [`matrix.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/matrix.html)
 4.  **Sorteo de Números sin repetición:**
     [`Sorteo.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/Sorteo.html)
+5. **Concatenador de archivos subidos**
+   [`Sorteo.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/concatenador.html)
 
 # System Prompts para IA - Roles de Desarrollo
 
