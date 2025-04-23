@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Handshake TLS/SSL (HTTPS)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #f8f9fa; --color-panel-bg: #ffffff; --color-client-bg: #e0f7fa; /* Light Cyan */
+            --color-server-bg: #fff9c4; /* Light Yellow */ --color-network-bg: #e8eaf6; /* Light Indigo */
+            --color-border: #ccc; --color-tls-hello: #c8e6c9; /* Light Green */ --color-tls-hello-border: #a5d6a7;
+            --color-tls-cert: #b3e5fc; /* Light Blue */ --color-tls-cert-border: #81d4fa;
+            --color-tls-keyex: #ffecb3; /* Amber */ --color-tls-keyex-border: #ffe082;
+            --color-tls-finished: #d1c4e9; /* Deep Purple Light */ --color-tls-finished-border: #b39ddb;
+            --color-tls-alert: #ffcdd2; /* Red Light */ --color-tls-alert-border: #ef9a9a;
+            --color-tls-encrypted: #cfd8dc; /* Blue Grey Light */ --color-tls-encrypted-border: #b0bec5;
+            --color-pdu-text: #333; --color-state-ok: #28a745; --color-state-error: #dc3545; --color-state-warn: #ffc107;
+            --color-state-process: #0dcaf0;
+        }
+        body { padding-top: 20px; background-color: var(--color-bg); }
+        .device-representation, .network-link, .control-panel { height: 580px; margin-bottom: 15px; border-radius: 5px; padding: 10px; display: flex; flex-direction: column; border: 1px solid var(--color-border); position: relative; font-size: 0.9em; }
+        .control-panel { background-color: var(--color-panel-bg); overflow-y: auto; padding-bottom: 15px; }
+        .device-representation { align-items: center; padding-top: 60px; }
+        .client-representation { background-color: var(--color-client-bg); }
+        .server-representation { background-color: var(--color-server-bg); }
+        .network-link { align-items: center; justify-content: center; font-weight: bold; color: #555; background-color: var(--color-network-bg); }
+        .device-title { position: absolute; top: 8px; left: 10px; font-weight: bold; font-size: 1.1em; }
+        .device-info { position: absolute; top: 35px; left: 10px; font-family: monospace; font-size: 0.85em; color: #444; line-height: 1.3; }
+        .device-extra-info { margin-top: 40px; width: 95%; border: 1px dashed #aaa; padding: 8px; font-size: 0.8em; background-color: rgba(255,255,255,0.7); max-height: 130px; overflow-y: auto; text-align: center; }
+        .device-extra-info h6 { font-size: 1em; margin-bottom: 5px; text-align: center; }
+        /* --- ESTADO CON FORMATO HTML --- */
+        .device-extra-info pre {
+            font-size: 0.9em;
+            margin: 0;
+            white-space: pre-wrap; /* Allow wrapping */
+            word-break: break-word; /* Break long words */
+            text-align: center; /* Center align text */
+        }
+        .status-ok { color: var(--color-state-ok); font-weight: bold; }
+        .status-error { color: var(--color-state-error); font-weight: bold; }
+        .status-warn { color: var(--color-state-warn); font-weight: bold; }
+        .status-process { color: var(--color-state-process); font-weight: bold; }
+        .control-panel .button-group { margin-top: auto; padding-top: 10px; position: sticky; bottom: 0; background-color: var(--color-panel-bg); padding-bottom: 5px; z-index: 1; text-align: center; }
+        .control-panel .button-group .btn { font-size: 0.85em; padding: 0.3rem 0.6rem; }
+        #visualization-area { position: relative; min-height: 600px; margin-bottom: 20px; }
+        #pdu-svg-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 10; }
+        #pdu-group, .pdu-clone { cursor: default; }
+        .pdu-rect { stroke-width: 1.5; rx: 3; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.15)); width: 110px; height: 45px; /* Adjusted size */ }
+        .pdu-tls-clienthello .pdu-rect, .pdu-tls-serverhello .pdu-rect { fill: var(--color-tls-hello); stroke: var(--color-tls-hello-border); }
+        .pdu-tls-certificate .pdu-rect { fill: var(--color-tls-cert); stroke: var(--color-tls-cert-border); }
+        .pdu-tls-clientkeyexchange .pdu-rect, .pdu-tls-serverkeyexchange .pdu-rect { fill: var(--color-tls-keyex); stroke: var(--color-tls-keyex-border); }
+        .pdu-tls-finished .pdu-rect, .pdu-tls-changecipherspec .pdu-rect { fill: var(--color-tls-finished); stroke: var(--color-tls-finished-border); }
+        .pdu-tls-alert .pdu-rect { fill: var(--color-tls-alert); stroke: var(--color-tls-alert-border); }
+        .pdu-http-encrypted .pdu-rect { fill: var(--color-tls-encrypted); stroke: var(--color-tls-encrypted-border); }
+        .pdu-default .pdu-rect { fill: #e0e0e0; stroke: #bdbdbd; } /* Default style */
+        .pdu-text { font-family: monospace; font-size: 9px; fill: var(--color-pdu-text); text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .pdu-text-type { font-weight: bold; font-size: 10px; }
+        .pdu-text-detail { font-size: 8px; }
+        .control-panel h5 { font-size: 1.1rem; margin-bottom: 0.75rem; position: sticky; top:0; background-color: var(--color-panel-bg); padding: 5px 0; z-index: 1;}
+        .control-panel h6 { font-size: 1rem; margin-top: 0.5rem; margin-bottom: 0.5rem; font-weight: bold;}
+        .control-panel label { font-weight: bold; margin-bottom: 0.25rem; display: block; }
+        .control-panel select { margin-bottom: 1rem; }
+        .control-panel p { margin-bottom: 0.6rem; font-size: 0.85em; line-height: 1.4; }
+        #step-description { min-height: 100px; font-size: 0.8em; line-height: 1.35; } /* Adjusted height */
+        .control-panel #step-description ul { padding-left: 1.1em; margin-bottom: 0; }
+        .control-panel #step-description li { margin-bottom: 0.2em; }
+        .pdu-info { font-family: monospace; font-size: 0.9em; color: #555; background-color: #eee; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
+
+        /* --- Estilos Acordeón PDU --- */
+        #pdu-accordion-container { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+        /* --- TAMAÑO FUENTE BOTÓN ACORDEÓN REDUCIDO --- */
+        .accordion-button {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.5em; 
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .accordion-button:not(.collapsed) { background-color: #e9ecef; box-shadow: none; }
+        .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
+        .accordion-body { padding: 0.5rem 0.8rem; background-color: #fff; }
+        #pdu-accordion-container dl { margin-bottom: 0; }
+        #pdu-accordion-container dt { font-weight: bold; font-size: 0.75em; color: #555; width: 85px; /* Adjusted width */ float: left; clear: left; margin-right: 5px; text-align: right; line-height: 1.3; }
+        #pdu-accordion-container dd { font-family: monospace; font-size: 0.8em; margin-left: 93px; /* Adjusted margin */ margin-bottom: 2px; word-wrap: break-word; line-height: 1.3; }
+        #pdu-accordion-container .cert-detail { font-size: 0.7em; color: #666; }
+        #pdu-accordion-container .cipher-list { display: block; white-space: normal; }
+        #pdu-accordion-container .alert-fatal { color: var(--color-state-error); font-weight: bold; }
+        #pdu-accordion-container .alert-warning { color: var(--color-state-warn); font-weight: bold; }
+        #pdu-accordion-container .encrypted-placeholder { font-style: italic; color: #777; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">Visualizador Handshake TLS/SSL (HTTPS)</h1>
+
+        <div id="visualization-area">
+             <div class="row justify-content-center"> <!-- Centered row -->
+                <!-- Columna 0: Panel de Control -->
+                <div class="col-md-3"> <!-- Wider control panel -->
+                    <div class="control-panel">
+                          <h5>Panel de Control</h5>
+                        <label for="scenario-select">Escenario:</label>
+                        <select id="scenario-select" class="form-select form-select-sm mb-2">
+                            <option value="tls_success">Handshake Exitoso</option>
+                            <option value="tls_cert_invalid">Fallo: Certificado Inválido</option>
+                            <option value="tls_cipher_mismatch">Fallo: Desacuerdo de Cifrado</option>
+                            <!-- Add more scenarios later if needed -->
+                        </select>
+                        <h6 id="step-title" class="mt-2">Paso 0: Inicio</h6>
+                        <p><strong>Mensaje TLS:</strong> <span id="pdu-name" class="pdu-info">Ninguno</span></p>
+                        <div id="step-description" style="min-height: 120px;">Selecciona un escenario y usa los botones para avanzar.</div>
+                        <p><strong>Acción:</strong> <span id="action-details">-</span></p>
+                        <div id="pdu-accordion-container" style="display: none;">
+                            <div class="accordion accordion-flush" id="pdu-accordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="pdu-accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pdu-accordion-collapse" aria-expanded="false" aria-controls="pdu-accordion-collapse">
+                                            Detalles del Mensaje TLS
+                                        </button>
+                                    </h2>
+                                    <div id="pdu-accordion-collapse" class="accordion-collapse collapse" aria-labelledby="pdu-accordion-header" data-bs-parent="#pdu-accordion">
+                                        <div class="accordion-body">
+                                            <dl id="header-fields-list">
+                                                <dt>Info:</dt><dd>N/A</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="button-group">
+                            <button id="prev-step" class="btn btn-info me-1" disabled>Ant</button>
+                            <button id="next-step" class="btn btn-primary me-1">Sig</button>
+                            <button id="reset" class="btn btn-secondary" disabled>Reset</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Columna 1: Cliente -->
+                <div class="col-md-3">
+                    <div class="device-representation client-representation" id="client">
+                        <div class="device-title">Cliente (Navegador)</div>
+                        <div class="device-info" id="client-info">Intentando conectar a:<br><span id="target-server"></span></div>
+                        <div class="device-extra-info">
+                             <h6>Estado Cliente</h6>
+                             <pre id="client-status">Idle</pre>
+                         </div>
+                    </div>
+                </div>
+                <!-- Columna 2: Red -->
+                <div class="col-md-1"> <div class="network-link" id="network-link">Red<br>(Internet)</div> </div>
+                <!-- Columna 3: Servidor -->
+                <div class="col-md-3">
+                    <div class="device-representation server-representation" id="server">
+                        <div class="device-title">Servidor Web (HTTPS)</div>
+                        <div class="device-info" id="server-info">Escuchando en:<br><span id="listening-server"></span></div>
+                         <div class="device-extra-info">
+                             <h6>Estado Servidor</h6>
+                             <pre id="server-status">Listening</pre>
+                         </div>
+                    </div>
+                </div>
+            </div>
+            <svg id="pdu-svg-container" width="100%" height="100%">
+                 <g id="pdu-template" style="display: none;">
+                     <rect class="pdu-rect"/>
+                     <text class="pdu-text pdu-text-type" x="55" y="18">?</text> <!-- Adjusted position -->
+                     <text class="pdu-text pdu-text-detail" x="55" y="35">?</text> <!-- Adjusted position -->
+                 </g>
+                 <g id="pdu-group" visibility="hidden">
+                      <rect class="pdu-rect"/>
+                      <text class="pdu-text pdu-text-type" x="55" y="18">?</text>
+                      <text class="pdu-text pdu-text-detail" x="55" y="35">?</text>
+                 </g>
+            </svg>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- JAVASCRIPT ---
+        // --- DOM Elements ---
+        const pduGroup = document.getElementById('pdu-group');
+        const pduTemplate = document.getElementById('pdu-template');
+        const svgContainer = document.getElementById('pdu-svg-container');
+        const scenarioSelect = document.getElementById('scenario-select');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset');
+        const stepTitle = document.getElementById('step-title');
+        const pduName = document.getElementById('pdu-name');
+        const pduAccordionContainer = document.getElementById('pdu-accordion-container');
+        const headerFieldsList = document.getElementById('header-fields-list');
+        const stepDescription = document.getElementById('step-description');
+        const actionDetails = document.getElementById('action-details');
+        const clientStatusEl = document.getElementById('client-status'); // Renamed for clarity
+        const serverStatusEl = document.getElementById('server-status'); // Renamed for clarity
+        const targetServerDisplay = document.getElementById('target-server');
+        const listeningServerDisplay = document.getElementById('listening-server');
+        const visualizationArea = document.getElementById('visualization-area');
+
+        // --- State ---
+        let currentScenario = scenarioSelect.value;
+        let currentStep = 0;
+        let totalSteps = 0;
+        let clientState = {}; // To hold temporary client state if needed
+        let serverState = {}; // To hold temporary server state if needed
+
+        // --- Datos Fijos y Constantes ---
+        const topoData = { // Simplified topology
+            'client': { elementId: 'client', name: 'Cliente Navegador' },
+            'server': { elementId: 'server', name: 'Servidor HTTPS' },
+            'network': { elementId: 'network-link', name: 'Red' }
+        };
+        const DEFAULT_SERVER_NAME = "www.ejemplo-seguro.com";
+        const PDU_WIDTH = 110; const PDU_HEIGHT = 45; // Adjusted size
+        const TRAVEL_TRANSITION = 'transform 0.9s ease-in-out';
+        const NO_TRANSITION = 'none';
+        const PDU_Y_OFFSET = 150; // Adjusted Y position for the new layout
+
+        // --- Funciones Auxiliares (UI Updates) ---
+
+        // --- CORREGIDO: Usa innerHTML para interpretar las etiquetas de estado ---
+        function updateDeviceStatus(deviceId, statusText, statusClass = '') {
+             const statusElement = document.getElementById(`${deviceId}-status`);
+             if (statusElement) {
+                 // Usar innerHTML para que renderice los <span>
+                 statusElement.innerHTML = statusText;
+                 // Ya no necesitamos aplicar la clase aquí si el texto ya contiene el span
+                 // statusElement.className = statusClass; // Reset classes and apply new one
+             }
+         }
+
+        function initializeDeviceInfos() {
+             targetServerDisplay.textContent = DEFAULT_SERVER_NAME;
+             listeningServerDisplay.textContent = DEFAULT_SERVER_NAME;
+             updateDeviceStatus('client', 'Idle');
+             updateDeviceStatus('server', 'Listening');
+         }
+
+        function updateInfoPanel(config) {
+             if (!config || !stepTitle || !pduName || !stepDescription || !actionDetails) return;
+             stepTitle.textContent = `Paso ${currentStep}: ${config.title}`;
+             pduName.textContent = config.pdu?.info || 'Ninguno';
+             // Use innerHTML for bullet points in description
+             stepDescription.innerHTML = config.description || "<ul><li>-</li></ul>";
+             actionDetails.textContent = config.action || "-";
+         }
+
+         function getComponentCenterX(elementId) {
+             const element = document.getElementById(elementId);
+             if (!element || !visualizationArea) {
+                 console.warn(`Element not found: ${elementId} or visualization-area`);
+                 return 100; // Default value
+             }
+             try {
+                 const svgRect = visualizationArea.getBoundingClientRect();
+                 const elementRect = element.getBoundingClientRect();
+                 if (elementRect.width === 0) {
+                      console.warn(`Element ${elementId} has zero width.`);
+                     return 100;
+                 }
+                 // Calculate center X relative to the visualization area's left edge
+                 return (elementRect.left - svgRect.left + (elementRect.width / 2));
+             } catch(e) {
+                 console.error(`Error getting position for ${elementId}:`, e);
+                 return 100;
+             }
+         }
+
+        function updatePduSvgVisuals(pduElement, pduData) {
+             if (!pduElement || !pduData) return;
+
+             const rect = pduElement.querySelector('.pdu-rect');
+             const typeText = pduElement.querySelector('.pdu-text-type');
+             const detailText = pduElement.querySelector('.pdu-text-detail');
+
+             if (!rect || !typeText || !detailText) {
+                 console.error("SVG PDU template elements missing inside:", pduElement);
+                 return;
+             }
+
+             // Reset classes from previous state first
+             pduElement.className.baseVal = pduElement.className.baseVal.replace(/pdu-tls-\S+/g, '').replace('pdu-http-encrypted', '').replace('pdu-default','').trim();
+             rect.className.baseVal = 'pdu-rect'; // Reset rect specific classes if any were added
+
+             let pduType = pduData.info || '?';
+             let pduDetail = pduData.detail || '';
+             let pduClass = 'pdu-default'; // Default class
+
+             // Determine PDU Type and Apply Class to the group
+             switch (pduData.type) {
+                 case 'ClientHello': pduClass = 'pdu-tls-clienthello'; break;
+                 case 'ServerHello': pduClass = 'pdu-tls-serverhello'; break;
+                 case 'Certificate': pduClass = 'pdu-tls-certificate'; break;
+                 case 'ServerKeyExchange': pduClass = 'pdu-tls-serverkeyexchange'; break;
+                 case 'ServerHelloDone': pduClass = 'pdu-tls-serverhello'; break; // Style like hello
+                 case 'ClientKeyExchange': pduClass = 'pdu-tls-clientkeyexchange'; break;
+                 case 'ChangeCipherSpec': pduClass = 'pdu-tls-changecipherspec'; break;
+                 case 'Finished': pduClass = 'pdu-tls-finished'; break;
+                 case 'Alert': pduClass = 'pdu-tls-alert'; break;
+                 case 'HTTP Encrypted': pduClass = 'pdu-http-encrypted'; break;
+                 default: pduClass = 'pdu-default'; // Keep default for unknown
+             }
+
+             pduElement.classList.add(pduClass);
+             typeText.textContent = pduType;
+             detailText.textContent = pduDetail;
+         }
+
+        function displayHeaderDetails(pduData) {
+             headerFieldsList.innerHTML = ''; // Clear previous details
+
+             if (!pduData || !pduData.data || !pduAccordionContainer) {
+                 if (pduAccordionContainer) pduAccordionContainer.style.display = 'none';
+                 return;
+             }
+
+             pduAccordionContainer.style.display = 'block'; // Show accordion if there's data
+             let html = '';
+
+             // Common Fields (Example)
+             if (pduData.type) {
+                 html += `<dt>Tipo TLS:</dt><dd>${pduData.type}</dd>`;
+             }
+
+             // Specific Fields based on Type
+             const data = pduData.data;
+             switch (pduData.type) {
+                 case 'ClientHello':
+                     if (data.versions) html += `<dt>Versiones:</dt><dd>${data.versions.join(', ')}</dd>`;
+                     if (data.ciphers) html += `<dt>Cifrados Prop:</dt><dd class="cipher-list">${data.ciphers.join(',<br>')}</dd>`;
+                     if (data.sessionId) html += `<dt>Session ID:</dt><dd>${data.sessionId}</dd>`;
+                     break;
+                 case 'ServerHello':
+                     if (data.version) html += `<dt>Versión Elegida:</dt><dd>${data.version}</dd>`;
+                     if (data.cipher) html += `<dt>Cifrado Elegido:</dt><dd>${data.cipher}</dd>`;
+                     if (data.sessionId) html += `<dt>Session ID:</dt><dd>${data.sessionId}</dd>`;
+                     break;
+                 case 'Certificate':
+                     if (data.subject) html += `<dt>Sujeto:</dt><dd>${data.subject}</dd>`;
+                     if (data.issuer) html += `<dt>Emisor:</dt><dd>${data.issuer}</dd>`;
+                     if (data.validity) html += `<dt>Validez:</dt><dd>${data.validity}</dd>`;
+                     if (data.publicKeyInfo) html += `<dt>Clave Pública:</dt><dd class="cert-detail">${data.publicKeyInfo}</dd>`;
+                     if (data.signatureAlg) html += `<dt>Alg Firma:</dt><dd class="cert-detail">${data.signatureAlg}</dd>`;
+                     break;
+                 case 'ClientKeyExchange':
+                 case 'ServerKeyExchange':
+                      if (data.keyInfo) html += `<dt>Info Clave:</dt><dd class="encrypted-placeholder">${data.keyInfo}</dd>`;
+                      break;
+                 case 'Finished':
+                      if (data.verifyData) html += `<dt>Verify Data:</dt><dd class="encrypted-placeholder">${data.verifyData}</dd>`;
+                      break;
+                 case 'Alert':
+                      if (data.level) html += `<dt>Nivel:</dt><dd class="${data.level === 'Fatal' ? 'alert-fatal' : 'alert-warning'}">${data.level}</dd>`;
+                      if (data.description) html += `<dt>Descripción:</dt><dd>${data.description}</dd>`;
+                      break;
+                 case 'HTTP Encrypted':
+                      if (data.payload) html += `<dt>Payload:</dt><dd class="encrypted-placeholder">${data.payload}</dd>`;
+                      break;
+                 case 'ServerHelloDone':
+                      html += `<dt>Info:</dt><dd>Marca el fin de los mensajes Hello del servidor.</dd>`;
+                      break;
+                 case 'ChangeCipherSpec':
+                      html += `<dt>Info:</dt><dd>Indica que los mensajes siguientes estarán cifrados.</dd>`;
+                     break;
+             }
+
+             headerFieldsList.innerHTML = html || '<dt>Info:</dt><dd>N/A</dd>'; // Fallback if no specific data
+         }
+
+        function movePdu(pduElement, startX, startY, endX, endY, transitionStyle, isVisible = true) {
+            if (!pduElement || isNaN(startX) || isNaN(startY) || isNaN(endX) || isNaN(endY)) {
+                console.warn("Invalid data for movePdu:", {startX, startY, endX, endY});
+                // Try to hide it if coordinates are bad?
+                 if (pduElement) pduElement.setAttribute('visibility', 'hidden');
+                 return;
+             }
+            const initialTranslateX = startX - PDU_WIDTH / 2;
+            pduElement.style.transition = NO_TRANSITION; // Move instantly to start
+            pduElement.setAttribute('transform', `translate(${initialTranslateX}, ${startY})`);
+            pduElement.setAttribute('visibility', isVisible ? 'visible' : 'hidden');
+
+            // Force reflow/repaint might be needed sometimes, esp. if hiding/showing
+            pduElement.getBoundingClientRect();
+
+            requestAnimationFrame(() => {
+                const finalTranslateX = endX - PDU_WIDTH / 2;
+                pduElement.style.transition = transitionStyle; // Apply desired transition
+                pduElement.setAttribute('transform', `translate(${finalTranslateX}, ${endY})`);
+            });
+        }
+
+        // --- Scenario Definitions (No changes needed here for this request) ---
+        const scenarios = {
+            'tls_success': {
+                 name: "Handshake Exitoso",
+                 serverName: "www.ejemplo-seguro.com",
+                 steps: [
+                     { title: "Inicio Conexión", pdu: null, action: "Cliente quiere conectar", description: "<ul><li>Usuario navega a <code>https://www.ejemplo-seguro.com</code>.</li><li>El navegador (Cliente) necesita establecer una conexión segura con el Servidor.</li></ul>", clientStatus: "Idle", serverStatus: "Listening" },
+                     { title: "ClientHello Enviado",
+                       pdu: { info:"ClientHello", type: 'ClientHello', detail:"Propone Cifrados", data: { versions: ['TLS 1.2', 'TLS 1.3'], ciphers: ['CipherSuite_A (Fuerte)', 'CipherSuite_B (Fuerte)', 'CipherSuite_C (Compat.)'], sessionId: 'none' } },
+                       action: "Cliente -> Servidor", description: "<ul><li><b>Qué:</b> El Cliente envía el primer mensaje.</li><li><b>Info Clave:</b> Versiones TLS soportadas, lista de suites de cifrado (preferencias), datos aleatorios.</li><li><b>Por qué:</b> Para iniciar la negociación y decirle al servidor qué algoritmos conoce.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Enviando Hello", serverStatus: "Listening" },
+                     { title: "Servidor Procesa Hello", pdu: null, action: "Servidor recibe ClientHello", description: "<ul><li>El Servidor recibe el ClientHello.</li><li>Compara la lista de cifrados del cliente con la suya propia.</li><li>Elige la versión de TLS y la suite de cifrado más segura que ambos soporten.</li></ul>", clientStatus:"Esperando Respuesta", serverStatus: "<span class='status-process'>Procesando Hello...</span>" },
+                     { title: "ServerHello Enviado",
+                       pdu: { info:"ServerHello", type: 'ServerHello', detail:"Elige Cifrado", data: { version: 'TLS 1.2', cipher: 'CipherSuite_B (Fuerte)', sessionId: 'SERVERID_123' } },
+                       action: "Servidor -> Cliente", description: "<ul><li><b>Qué:</b> El Servidor responde confirmando parámetros.</li><li><b>Info Clave:</b> Versión TLS elegida, suite de cifrado elegida, datos aleatorios del servidor, ID de sesión (opcional).</li><li><b>Por qué:</b> Para acordar los algoritmos a usar y continuar el handshake.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Esperando Respuesta", serverStatus: "Enviando Hello" },
+                     { title: "Certificado Enviado",
+                       pdu: { info:"Certificate", type: 'Certificate', detail:"Prueba Identidad", data: { subject: 'CN=www.ejemplo-seguro.com', issuer: 'CN=Trusted CA G1', validity: 'Válido hasta 2025', publicKeyInfo: 'RSA 2048-bit Key [...]', signatureAlg: 'SHA256withRSA' } },
+                       action: "Servidor -> Cliente", description: "<ul><li><b>Qué:</b> El Servidor envía su certificado digital.</li><li><b>Info Clave:</b> Nombre del sitio (Sujeto), Quién lo emitió (Emisor), Validez, la *Clave Pública* del servidor.</li><li><b>Por qué:</b> Para probar su identidad al Cliente. La CA (Autoridad Certificadora) garantiza que la clave pública pertenece a ese dominio.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Recibiendo Certificado", serverStatus: "Enviando Certificado" },
+                      // Skipping ServerKeyExchange & ServerHelloDone for simplicity in this basic view
+                      { title: "Cliente Verifica Cert.", pdu: null, action: "Cliente valida certificado", description: "<ul><li>El Cliente recibe el certificado.</li><li>Realiza varias comprobaciones: <ul><li>¿Confía en la CA Emisora?</li><li>¿El nombre del certificado coincide con el sitio (<code>www.ejemplo-seguro.com</code>)?</li><li>¿El certificado no ha expirado?</li><li>(Simplificado) ¡Todo OK!</li></ul></li><li>Genera una 'Clave Pre-Maestra' secreta.</li></ul>",
+                       clientStatus: "<span class='status-process'>Verificando Cert...</span> <span class='status-ok'>✔ OK</span><br>Generando Clave...", serverStatus: "Esperando Cliente" },
+                      { title: "ClientKeyExchange",
+                       pdu: { info:"ClientKeyExchange", type: 'ClientKeyExchange', detail:"Envía Secreto Cifrado", data: { keyInfo: '(Clave Pre-Maestra cifrada con Clave Pública del Servidor)' } },
+                       action: "Cliente -> Servidor", description: "<ul><li><b>Qué:</b> El Cliente envía la Clave Pre-Maestra.</li><li><b>Info Clave:</b> La clave pre-maestra está *cifrada* usando la Clave Pública del Servidor (del certificado).</li><li><b>Por qué:</b> Para compartir de forma segura el secreto inicial. Solo el servidor (con su clave privada) puede descifrar esto.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Enviando Clave", serverStatus: "Esperando Cliente" },
+                      { title: "ChangeCipherSpec (C)",
+                       pdu: { info:"ChangeCipherSpec", type: 'ChangeCipherSpec', detail:"Activando Cifrado", data: {} },
+                       action: "Cliente -> Servidor", description: "<ul><li><b>Qué:</b> Mensaje corto que indica un cambio.</li><li><b>Info Clave:</b> No lleva datos, es una señal.</li><li><b>Por qué:</b> Para decirle al servidor que el *siguiente* mensaje del cliente ya estará cifrado con las claves derivadas de la Pre-Maestra.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Activando Cifrado", serverStatus: "Esperando CipherSpec" },
+                     { title: "Finished (C) Enviado",
+                       pdu: { info:"Finished", type: 'Finished', detail:"Verificación (Cifrado)", data: { verifyData: '(Hash de mensajes anteriores, cifrado)' } },
+                       action: "Cliente -> Servidor", description: "<ul><li><b>Qué:</b> Primer mensaje cifrado del Cliente.</li><li><b>Info Clave:</b> Contiene un hash de todos los mensajes del handshake intercambiados hasta ahora. Está *cifrado* con la nueva clave simétrica.</li><li><b>Por qué:</b> Para verificar que el handshake no ha sido manipulado y que ambos lados calcularon las mismas claves.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Enviando Verificación", serverStatus: "Recibiendo Clave/Finished" },
+                    { title: "Servidor Descifra/Verifica", pdu: null, action: "Servidor procesa mensajes", description: "<ul><li>El Servidor usa su Clave Privada para descifrar el `ClientKeyExchange` y obtener la Clave Pre-Maestra.</li><li>Ambos derivan las mismas Claves Maestras y de Sesión (simétricas).</li><li>Servidor recibe `ChangeCipherSpec`.</li><li>Servidor descifra y verifica el `Finished` del cliente. ¡Todo OK!</li></ul>",
+                      clientStatus:"Esperando Verificación Servidor", serverStatus: "<span class='status-process'>Descifrando/Verificando...</span> <span class='status-ok'>✔ OK</span>" },
+                    { title: "ChangeCipherSpec (S)",
+                       pdu: { info:"ChangeCipherSpec", type: 'ChangeCipherSpec', detail:"Activando Cifrado", data: {} },
+                       action: "Servidor -> Cliente", description: "<ul><li><b>Qué:</b> Señal del Servidor.</li><li><b>Por qué:</b> Para decirle al cliente que el *siguiente* mensaje del servidor estará cifrado.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Esperando CipherSpec Servidor", serverStatus: "Activando Cifrado" },
+                     { title: "Finished (S) Enviado",
+                       pdu: { info:"Finished", type: 'Finished', detail:"Verificación (Cifrado)", data: { verifyData: '(Hash de mensajes anteriores, cifrado)' } },
+                       action: "Servidor -> Cliente", description: "<ul><li><b>Qué:</b> Primer mensaje cifrado del Servidor.</li><li><b>Info Clave:</b> Contiene un hash del handshake. Cifrado con la clave simétrica.</li><li><b>Por qué:</b> Para que el cliente verifique que el handshake fue correcto por parte del servidor.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Recibiendo Verificación", serverStatus: "Enviando Verificación" },
+                     { title: "¡Handshake Completo!", pdu: null, action: "Cliente verifica Finished", description: "<ul><li>Cliente recibe `ChangeCipherSpec`.</li><li>Cliente descifra y verifica el `Finished` del servidor. ¡Todo OK!</li><li><b>¡La conexión segura (HTTPS) está establecida!</b></li></ul>",
+                       clientStatus:"<span class='status-ok'>¡Conexión Segura! ✔</span>", serverStatus: "<span class='status-ok'>¡Conexión Segura! ✔</span>" },
+                     { title: "Comunicación Cifrada",
+                       pdu: { info:"HTTP GET /", type: 'HTTP Encrypted', detail:"Solicitud Cifrada", data: { payload: '(GET /index.html HTTP/1.1 ... cifrado)'} },
+                       action: "Cliente -> Servidor", description: "<ul><li>Ahora la comunicación HTTP normal (peticiones y respuestas) viaja cifrada dentro del túnel TLS.</li><li>Los atacantes en la red no pueden leer el contenido.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Enviando datos cifrados", serverStatus: "Recibiendo datos cifrados" },
+                    { title: "Respuesta Cifrada",
+                       pdu: { info:"HTTP 200 OK", type: 'HTTP Encrypted', detail:"Respuesta Cifrada", data: { payload: '(HTTP/1.1 200 OK ... &lt;html&gt;... cifrado)'} },
+                       action: "Servidor -> Cliente", description: "<ul><li>La respuesta del servidor también viaja cifrada.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Recibiendo datos cifrados", serverStatus: "Enviando datos cifrados" },
+                 ]
+             },
+            'tls_cert_invalid': {
+                 name: "Fallo: Certificado Inválido",
+                 serverName: "www.expirado.com",
+                 steps: [
+                     // Pasos 1-5 son iguales a 'tls_success' pero con el nuevo serverName
+                     { title: "Inicio Conexión", pdu: null, action: "Cliente quiere conectar", description: "<ul><li>Usuario navega a <code>https://www.expirado.com</code>.</li><li>Cliente inicia conexión.</li></ul>", clientStatus: "Idle", serverStatus: "Listening" },
+                     { title: "ClientHello Enviado",
+                       pdu: { info:"ClientHello", type: 'ClientHello', detail:"Propone Cifrados", data: { versions: ['TLS 1.2'], ciphers: ['CipherSuite_A', 'CipherSuite_B'] } },
+                       action: "Cliente -> Servidor", description: "<ul><li>Cliente envía sus capacidades.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Enviando Hello", serverStatus: "Listening" },
+                     { title: "Servidor Procesa Hello", pdu: null, action: "Servidor recibe ClientHello", description: "<ul><li>Servidor elige parámetros comunes.</li></ul>", clientStatus:"Esperando Respuesta", serverStatus: "<span class='status-process'>Procesando Hello...</span>" },
+                     { title: "ServerHello Enviado",
+                       pdu: { info:"ServerHello", type: 'ServerHello', detail:"Elige Cifrado", data: { version: 'TLS 1.2', cipher: 'CipherSuite_B' } },
+                       action: "Servidor -> Cliente", description: "<ul><li>Servidor confirma la elección.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Esperando Respuesta", serverStatus: "Enviando Hello" },
+                     { title: "Certificado Enviado",
+                       pdu: { info:"Certificate", type: 'Certificate', detail:"Prueba Identidad", data: { subject: 'CN=www.expirado.com', issuer: 'CN=Old CA', validity: 'Expirado en 2020', publicKeyInfo: 'RSA Key [...]', signatureAlg: 'SHA1withRSA' } }, // Certificado Expirado y/o con firma débil
+                       action: "Servidor -> Cliente", description: "<ul><li>Servidor envía su certificado (que está caducado).</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Recibiendo Certificado", serverStatus: "Enviando Certificado" },
+                      // --- Punto Clave del Fallo ---
+                     { title: "Cliente Verifica Cert.", pdu: null, action: "Cliente valida certificado", description: "<ul><li>Cliente recibe el certificado.</li><li>Realiza comprobaciones:<ul><li>¿Confía en la CA? (Quizás sí)</li><li>¿Nombre coincide? (Sí)</li><li><b>¿Está vigente? (¡No!)</b></li></ul></li><li><b>¡Error de Validación!</b> El certificado está expirado.</li></ul>",
+                       clientStatus: "<span class='status-process'>Verificando Cert...</span> <span class='status-error'>✖ ERROR</span>", serverStatus: "Esperando Cliente" },
+                     { title: "Alerta Enviada (Cliente)",
+                       pdu: { info:"Alert", type: 'Alert', detail:"Error Certificado", data: { level: 'Fatal', description: 'certificate_expired' } },
+                       action: "Cliente -> Servidor", description: "<ul><li><b>Qué:</b> Cliente envía un mensaje de alerta.</li><li><b>Info Clave:</b> Indica un error fatal: el certificado ha expirado.</li><li><b>Por qué:</b> Para notificar al servidor el motivo del fallo y abortar el handshake.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Enviando Alerta", serverStatus: "Recibiendo Alerta" },
+                     { title: "Handshake Fallido", pdu: null, action: "Conexión Abortada", description: "<ul><li>El servidor recibe la alerta fatal.</li><li>El handshake TLS no se puede completar.</li><li>No se establece ninguna conexión segura HTTPS.</li><li>El navegador mostrará una advertencia al usuario.</li></ul>",
+                       clientStatus: "<span class='status-error'>Error: Certificado Inválido ✖</span>", serverStatus: "<span class='status-error'>Handshake Fallido (Alerta Recibida)</span>" }
+                 ]
+             },
+            'tls_cipher_mismatch': {
+                 name: "Fallo: Desacuerdo de Cifrado",
+                 serverName: "www.moderno-seguro.com",
+                 steps: [
+                     { title: "Inicio Conexión", pdu: null, action: "Cliente quiere conectar", description: "<ul><li>Cliente (navegador antiguo) intenta conectar a <code>https://www.moderno-seguro.com</code>.</li></ul>", clientStatus: "Idle", serverStatus: "Listening" },
+                     { title: "ClientHello Enviado",
+                       pdu: { info:"ClientHello", type: 'ClientHello', detail:"Propone Cifrados Débiles", data: { versions: ['TLS 1.0', 'TLS 1.1'], ciphers: ['Cipher_Weak_1 (Obsoleto)', 'Cipher_Weak_2 (Inseguro)'] } }, // Cliente antiguo
+                       action: "Cliente -> Servidor", description: "<ul><li>Cliente envía sus capacidades limitadas/anticuadas.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'client', dstHost: 'server', clientStatus:"Enviando Hello", serverStatus: "Listening" },
+                     // --- Punto Clave del Fallo ---
+                     { title: "Servidor Procesa Hello", pdu: null, action: "Servidor recibe ClientHello", description: "<ul><li>Servidor recibe el ClientHello.</li><li>Compara la lista de cifrados débiles del cliente (<code>Cipher_Weak_1, Cipher_Weak_2</code>) con su lista configurada de cifrados fuertes (ej. <code>Cipher_Strong_X, Cipher_Strong_Y</code>).</li><li><b>¡Error! No hay ninguna suite de cifrado en común.</b></li></ul>",
+                       clientStatus:"Esperando Respuesta", serverStatus: "<span class='status-process'>Procesando Hello...</span> <span class='status-error'>✖ Sin Cifrados Comunes</span>" },
+                     { title: "Alerta Enviada (Servidor)",
+                       pdu: { info:"Alert", type: 'Alert', detail:"Fallo Negociación", data: { level: 'Fatal', description: 'handshake_failure' } },
+                       action: "Servidor -> Cliente", description: "<ul><li><b>Qué:</b> El Servidor envía una alerta fatal.</li><li><b>Info Clave:</b> Indica 'handshake_failure' porque no se pudo acordar una suite de cifrado.</li><li><b>Por qué:</b> Para notificar al cliente que la negociación falló y abortar.</li></ul>",
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'server', dstHost: 'client', clientStatus:"Recibiendo Alerta", serverStatus: "Enviando Alerta" },
+                     { title: "Handshake Fallido", pdu: null, action: "Conexión Abortada", description: "<ul><li>El cliente recibe la alerta fatal.</li><li>El handshake TLS no se puede completar.</li><li>No se establece conexión segura HTTPS.</li><li>El navegador mostrará un error de conexión (ej. ERR_SSL_VERSION_OR_CIPHER_MISMATCH).</li></ul>",
+                       clientStatus: "<span class='status-error'>Error: No hay cifrados compatibles ✖</span>", serverStatus: "<span class='status-error'>Handshake Fallido (Sin Cifrados Comunes)</span>" }
+                 ]
+             }
+        };
+
+
+        // --- Animation Execution ---
+        function executeStep(stepIndex, isMovingBack = false) {
+             const scenarioData = scenarios[currentScenario];
+             if (!scenarioData || !scenarioData.steps || !Array.isArray(scenarioData.steps)) {
+                 console.error("Datos de escenario inválidos:", currentScenario);
+                 return;
+             }
+             totalSteps = scenarioData.steps.length - 1;
+             if (stepIndex < 0 || stepIndex > totalSteps) {
+                 return; // Index out of bounds
+             }
+
+             currentStep = stepIndex;
+             const config = scenarioData.steps[currentStep];
+             if (!config) {
+                 console.error("Configuración de paso no encontrada:", currentStep);
+                 return;
+             }
+             const pduData = config.pdu;
+
+             // Update target/listening server names based on scenario
+             targetServerDisplay.textContent = scenarioData.serverName || DEFAULT_SERVER_NAME;
+             listeningServerDisplay.textContent = scenarioData.serverName || DEFAULT_SERVER_NAME;
+
+             // --- State Management & UI Updates (before animation) ---
+             if (!isMovingBack && currentStep === 0) { // Reset state ONLY at the beginning
+                  clientState = {}; serverState = {};
+                  // Reset device statuses
+                  updateDeviceStatus('client', 'Idle');
+                  updateDeviceStatus('server', 'Listening');
+                  // Collapse accordion
+                  const accordionCollapse = document.getElementById('pdu-accordion-collapse');
+                  if (accordionCollapse?.classList.contains('show')) {
+                       new bootstrap.Collapse(accordionCollapse).hide();
+                  }
+                  const accordionButton = document.getElementById('pdu-accordion-header')?.querySelector('button');
+                   if (accordionButton && !accordionButton.classList.contains('collapsed')) {
+                       accordionButton.classList.add('collapsed');
+                       accordionButton.setAttribute('aria-expanded', 'false');
+                   }
+              }
+
+             // Update device statuses for the current step using innerHTML
+             if (config.clientStatus) {
+                 updateDeviceStatus('client', config.clientStatus); // Pass the HTML string directly
+             }
+              if (config.serverStatus) {
+                 updateDeviceStatus('server', config.serverStatus); // Pass the HTML string directly
+              }
+
+             // Update control panel info
+             updateInfoPanel(config);
+             displayHeaderDetails(pduData); // Update accordion details
+
+             // Hide the main PDU group if PDU is not visible for this step
+             if(pduGroup) pduGroup.setAttribute('visibility', (!config.visible || !pduData) ? 'hidden' : 'visible');
+
+             // --- PDU Animation / Visibility ---
+             if (config.visible && pduData && config.srcHost && config.dstHost) {
+                 const startX = getComponentCenterX(config.srcHost);
+                 const endX = getComponentCenterX(config.dstHost);
+                 const startY = PDU_Y_OFFSET;
+                 const endY = PDU_Y_OFFSET;
+                 const transition = (isMovingBack || config.transition === NO_TRANSITION) ? NO_TRANSITION : (config.transition || TRAVEL_TRANSITION);
+
+                 updatePduSvgVisuals(pduGroup, pduData); // Update visuals for the main PDU
+                 movePdu(pduGroup, startX, startY, endX, endY, transition, true); // Move the main PDU
+             } else { // PDU not visible or no movement defined
+                  if (pduGroup) pduGroup.setAttribute('visibility', 'hidden');
+             }
+
+             // --- Update Buttons ---
+             prevButton.disabled = currentStep === 0;
+             nextButton.disabled = currentStep >= totalSteps;
+             resetButton.disabled = currentStep === 0;
+         }
+
+        // --- Event Listeners ---
+        scenarioSelect.addEventListener('change', (e) => {
+             currentScenario = e.target.value;
+             currentStep = 0;
+             setTimeout(() => executeStep(0, false), 50); // Start new scenario from step 0
+         });
+
+        nextButton.addEventListener('click', () => {
+             if (scenarios[currentScenario]?.steps) {
+                 totalSteps = scenarios[currentScenario].steps.length - 1;
+                 if (currentStep < totalSteps) {
+                     executeStep(currentStep + 1, false);
+                 }
+             }
+         });
+
+        prevButton.addEventListener('click', () => {
+             if (currentStep > 0) {
+                  // Moving back shows previous visual step, state is not perfectly rewound
+                  executeStep(currentStep - 1, true);
+             }
+         });
+
+        resetButton.addEventListener('click', () => {
+             currentStep = 0;
+             setTimeout(() => executeStep(0, false), 50); // Reset state and start from step 0
+         });
+
+        // --- Initial Setup ---
+        window.addEventListener('load', () => {
+             initializeDeviceInfos();
+             currentScenario = scenarioSelect.value;
+              if (scenarios[currentScenario]?.steps) {
+                 totalSteps = scenarios[currentScenario].steps.length - 1;
+                  setTimeout(() => {
+                      executeStep(0); // Execute step 0 on load
+                      displayHeaderDetails(scenarios[currentScenario].steps[0].pdu); // Ensure accordion state is correct
+                  }, 200); // Delay to allow layout rendering
+             } else {
+                 console.error(`Initial scenario data not found for: ${currentScenario}`);
+                 stepDescription.innerHTML = `<span class='status-error'>Error: No se pudieron cargar datos para el escenario '${currentScenario}'.</span>`;
+            }
+        });
+
+    </script>
+</body>
+</html>

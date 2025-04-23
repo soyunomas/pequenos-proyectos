@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Ping con Enrutamiento Estático</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #f8f9fa; --color-panel-bg: #ffffff; --color-host-bg: #e9ecef;
+            --color-router-bg: #d6deeb; --color-lan-bg: #dfe7ff; --color-wan-bg: #ffeeba;
+            --color-border: #ccc; --color-icmp-req: #f8d7da; --color-icmp-req-border: #d99;
+            --color-icmp-reply: #cff4fc; --color-icmp-reply-border: #9ce; --color-icmp-error: #f5c6cb;
+            --color-icmp-error-border: #d99; --color-arp: #fff3cd; --color-arp-border: #d1b878;
+            --color-pdu-text: #333; --color-ttl-low: #ffc107; --color-ttl-expired: #dc3545;
+            --color-broadcast: #dc3545;
+        }
+        body { padding-top: 20px; background-color: var(--color-bg); }
+        .device-representation, .network-link, .control-panel { height: 580px; margin-bottom: 15px; border-radius: 5px; padding: 10px; display: flex; flex-direction: column; border: 1px solid var(--color-border); position: relative; font-size: 0.9em; }
+        .control-panel { background-color: var(--color-panel-bg); overflow-y: auto; padding-bottom: 15px; }
+        .device-representation { align-items: center; padding-top: 60px; }
+        .host-representation { background-color: var(--color-host-bg); }
+        .router-representation { background-color: var(--color-router-bg); }
+        .network-link { align-items: center; justify-content: center; font-weight: bold; color: #555; }
+        .wan-link { background-color: var(--color-wan-bg); }
+        .device-title { position: absolute; top: 8px; left: 10px; font-weight: bold; font-size: 1.1em; }
+        .device-info { position: absolute; top: 35px; left: 10px; font-family: monospace; font-size: 0.85em; color: #444; line-height: 1.3; }
+        .device-extra-info { margin-top: 10px; width: 95%; border: 1px dashed #aaa; padding: 8px; font-size: 0.8em; background-color: rgba(255,255,255,0.5); max-height: 130px; overflow-y: auto; }
+        .arp-cache-display { margin-top: 90px; }
+        .routing-table-display { margin-top: 15px; }
+        .firewall-status-display { margin-top: 15px; }
+        .device-extra-info h6 { font-size: 1em; margin-bottom: 5px; text-align: center; }
+        .device-extra-info pre { font-size: 0.9em; margin: 0; white-space: pre-wrap; word-break: break-all; }
+        .device-extra-info table { width: 100%; font-size: 0.8em; }
+        .device-extra-info th, .device-extra-info td { padding: 2px 4px; border: 1px solid #ddd; text-align: left;}
+        .device-extra-info th { background-color: #f1f1f1; }
+        .control-panel .button-group { margin-top: auto; padding-top: 10px; position: sticky; bottom: 0; background-color: var(--color-panel-bg); padding-bottom: 5px; z-index: 1; text-align: center; }
+        .control-panel .button-group .btn { font-size: 0.85em; padding: 0.3rem 0.6rem; }
+        #visualization-area { position: relative; min-height: 600px; margin-bottom: 20px; }
+        #pdu-svg-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 10; }
+        #pdu-group, .pdu-clone { cursor: default; }
+        .pdu-rect { stroke-width: 1.5; rx: 3; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.15)); width: 100px; height: 40px; fill: #f0f0f0; }
+        .pdu-ip-icmp-req .pdu-rect { fill: var(--color-icmp-req); stroke: var(--color-icmp-req-border); }
+        .pdu-ip-icmp-reply .pdu-rect { fill: var(--color-icmp-reply); stroke: var(--color-icmp-reply-border); }
+        .pdu-ip-icmp-error .pdu-rect { fill: var(--color-icmp-error); stroke: var(--color-icmp-error-border); }
+        .pdu-ethernet-arp .pdu-rect { fill: var(--color-arp); stroke: var(--color-arp-border); }
+        .pdu-text { font-family: monospace; font-size: 8px; fill: var(--color-pdu-text); text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .pdu-text-type { font-weight: bold; font-size: 9px; }
+        .pdu-text-detail { font-size: 7px; }
+        .pdu-ttl { font-weight: bold; }
+        .pdu-ttl-low { fill: var(--color-ttl-low); }
+        .pdu-ttl-expired { fill: var(--color-ttl-expired); }
+        .pdu-firewalled { opacity: 0.4; filter: grayscale(80%); }
+        .control-panel h5 { font-size: 1.1rem; margin-bottom: 0.75rem; position: sticky; top:0; background-color: var(--color-panel-bg); padding: 5px 0; z-index: 1;}
+        .control-panel h6 { font-size: 1rem; margin-top: 0.5rem; margin-bottom: 0.5rem; font-weight: bold;}
+        .control-panel label { font-weight: bold; margin-bottom: 0.25rem; display: block; }
+        .control-panel select { margin-bottom: 1rem; }
+        /* --- TAMAÑO FUENTE PDU/ACCIÓN REDUCIDO --- */
+        .control-panel p {
+            margin-bottom: 0.4rem; /* Reducido */
+            font-size: 0.75em; /* Reducido */
+            line-height: 1.3; /* Ajustado */
+        }
+        #step-description { min-height: 80px; font-size: 0.8em; line-height: 1.35; }
+        .control-panel #step-description ul { padding-left: 1.1em; margin-bottom: 0; }
+        .control-panel #step-description li { margin-bottom: 0.2em; }
+        .pdu-info { font-family: monospace; font-size: 0.9em; color: #555; background-color: #eee; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
+
+        #pdu-accordion-container { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+        .accordion-button {
+             padding: 0.3rem 0.6rem;
+             font-size: 0.5em; 
+             background-color: #f8f9fa; color: #333;
+             line-height: 1.3;
+        }
+        .accordion-button:not(.collapsed) { background-color: #e9ecef; box-shadow: none; }
+        .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
+        .accordion-body { padding: 0.5rem 0.8rem; background-color: #fff; }
+        #pdu-accordion-container dl { margin-bottom: 0; }
+        #pdu-accordion-container dt {
+            font-weight: bold;
+            font-size: 0.68em;
+            color: #555;
+            width: 70px;
+            float: left;
+            clear: left;
+            margin-right: 5px;
+            text-align: right;
+            line-height: 1.3;
+            font-family: monospace;
+        }
+        #pdu-accordion-container dd {
+            font-family: monospace;
+            font-size: 0.68em;
+            margin-left: 78px;
+            margin-bottom: 2px;
+            word-wrap: break-word;
+            line-height: 1.3;
+        }
+        #pdu-accordion-container dd .ether-broadcast { color: var(--color-broadcast); font-weight: bold; }
+        #pdu-accordion-container dd .ttl-low { color: var(--color-ttl-low); font-weight: bold;}
+        #pdu-accordion-container dd .ttl-expired { color: var(--color-ttl-expired); font-weight: bold;}
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">Visualizador Ping con Enrutamiento Estático</h1>
+
+        <div id="visualization-area">
+             <div class="row">
+                <div class="col-md-2">
+                    <div class="control-panel">
+                        <h5></h5>
+                        <label for="scenario-select">Escenario:</label>
+                        <select id="scenario-select" class="form-select form-select-sm mb-2">
+                            <option value="ping_success">Ping Exitoso</option>
+                            <option value="ping_no_route_r1">Fallo: Sin Ruta en R1</option>
+                            <option value="ping_wrong_route_r2">Fallo: Ruta Incorrecta R2</option>
+                            <option value="ping_routing_loop">Fallo: Bucle de Rutas</option>
+                            <option value="ping_firewall_r2">Fallo: Firewall en R2</option>
+                            <option value="ping_ttl_expired">Fallo: TTL Expirado</option>
+                        </select>
+                        <h6 id="step-title" class="mt-2">Paso 0: Inicio</h6>
+                        <p><strong>PDU:</strong> <span id="pdu-name" class="pdu-info">Ninguno</span></p>
+                        <div id="step-description" style="min-height: 80px;">Selecciona un escenario y usa los botones para avanzar.</div>
+                        <p><strong>Acción:</strong> <span id="action-details">-</span></p>
+
+                        <div id="pdu-accordion-container" style="display: none;">
+                            <div class="accordion accordion-flush" id="pdu-accordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="pdu-accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pdu-accordion-collapse" aria-expanded="false" aria-controls="pdu-accordion-collapse">
+                                            Cabecera(s) PDU
+                                        </button>
+                                    </h2>
+                                    <div id="pdu-accordion-collapse" class="accordion-collapse collapse" aria-labelledby="pdu-accordion-header" data-bs-parent="#pdu-accordion">
+                                        <div class="accordion-body">
+                                            <dl id="header-fields-list">
+                                                <dt>Info:</dt><dd>N/A</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button id="prev-step" class="btn btn-info me-1" disabled>Ant</button>
+                            <button id="next-step" class="btn btn-primary me-1">Sig</button>
+                            <button id="reset" class="btn btn-secondary" disabled>Reset</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="device-representation host-representation" id="host-a">
+                        <div class="device-title">Host A</div>
+                        <div class="device-info" id="host-a-info">IP: <span class="ip"></span><br>MAC: <span class="mac"></span><br>GW: <span class="gw"></span></div>
+                        <div class="device-extra-info arp-cache-display">
+                            <h6>Caché ARP</h6>
+                            <pre id="arp-cache-a">Vacía</pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="device-representation router-representation" id="router-1">
+                        <div class="device-title">Router R1</div>
+                        <div class="device-info" id="router-1-info">eth0: IP <span class="ip-eth0"></span><br>&nbsp;&nbsp;&nbsp;&nbsp;MAC <span class="mac-eth0"></span><br>eth1: IP <span class="ip-eth1"></span><br>&nbsp;&nbsp;&nbsp;&nbsp;MAC <span class="mac-eth1"></span></div>
+                        <div class="device-extra-info arp-cache-display">
+                            <h6>Caché ARP</h6>
+                            <pre id="arp-cache-r1">Vacía</pre>
+                        </div>
+                        <div class="device-extra-info routing-table-display">
+                            <h6>Tabla Enrutamiento</h6>
+                            <table id="routing-table-r1"><thead><tr><th>Red</th><th>Máscara</th><th>NH</th><th>IF</th></tr></thead><tbody></tbody></table>
+                        </div>
+                        <div class="device-extra-info firewall-status-display">
+                            <h6>FW: <span id="firewall-status-r1">Inactivo</span></h6>
+                            <pre id="firewall-rules-r1"></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-1"> <div class="network-link wan-link" id="wan-link">WAN</div> </div>
+                <div class="col-md-2">
+                    <div class="device-representation router-representation" id="router-2">
+                        <div class="device-title">Router R2</div>
+                        <div class="device-info" id="router-2-info">eth0: IP <span class="ip-eth0"></span><br>&nbsp;&nbsp;&nbsp;&nbsp;MAC <span class="mac-eth0"></span><br>eth1: IP <span class="ip-eth1"></span><br>&nbsp;&nbsp;&nbsp;&nbsp;MAC <span class="mac-eth1"></span></div>
+                        <div class="device-extra-info arp-cache-display">
+                             <h6>Caché ARP</h6>
+                            <pre id="arp-cache-r2">Vacía</pre>
+                        </div>
+                        <div class="device-extra-info routing-table-display">
+                             <h6>Tabla Enrutamiento</h6>
+                            <table id="routing-table-r2"><thead><tr><th>Red</th><th>Máscara</th><th>NH</th><th>IF</th></tr></thead><tbody></tbody></table>
+                        </div>
+                        <div class="device-extra-info firewall-status-display">
+                            <h6>FW: <span id="firewall-status-r2">Inactivo</span></h6>
+                            <pre id="firewall-rules-r2"></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="device-representation host-representation" id="host-b">
+                        <div class="device-title">Host B</div>
+                        <div class="device-info" id="host-b-info">IP: <span class="ip"></span><br>MAC: <span class="mac"></span><br>GW: <span class="gw"></span></div>
+                        <div class="device-extra-info arp-cache-display">
+                             <h6>Caché ARP</h6>
+                            <pre id="arp-cache-b">Vacía</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <svg id="pdu-svg-container" width="100%" height="100%">
+                 <g id="pdu-template" style="display: none;">
+                     <rect class="pdu-rect"/>
+                     <text class="pdu-text pdu-text-type" x="50" y="15">?</text>
+                     <text class="pdu-text pdu-text-detail pdu-ttl" x="50" y="30">TTL: ?</text>
+                 </g>
+                 <g id="pdu-group" visibility="hidden">
+                     <rect class="pdu-rect"/>
+                     <text class="pdu-text pdu-text-type" x="50" y="15">?</text>
+                     <text class="pdu-text pdu-text-detail pdu-ttl" x="50" y="30">TTL: ?</text>
+                 </g>
+            </svg>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const pduGroup = document.getElementById('pdu-group');
+        const pduTemplate = document.getElementById('pdu-template');
+        const svgContainer = document.getElementById('pdu-svg-container');
+        const scenarioSelect = document.getElementById('scenario-select');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset');
+        const stepTitle = document.getElementById('step-title');
+        const pduName = document.getElementById('pdu-name');
+        const pduAccordionContainer = document.getElementById('pdu-accordion-container');
+        const headerFieldsList = document.getElementById('header-fields-list');
+        const stepDescription = document.getElementById('step-description');
+        const actionDetails = document.getElementById('action-details');
+        const arpCachesPre = {
+            'host-a': document.getElementById('arp-cache-a'),
+            'router-1': document.getElementById('arp-cache-r1'),
+            'router-2': document.getElementById('arp-cache-r2'),
+            'host-b': document.getElementById('arp-cache-b')
+        };
+        const routingTablesBody = {
+            'router-1': document.getElementById('routing-table-r1')?.querySelector('tbody'),
+            'router-2': document.getElementById('routing-table-r2')?.querySelector('tbody')
+        };
+        const firewallStatus = {
+            'router-1': document.getElementById('firewall-status-r1'),
+            'router-2': document.getElementById('firewall-status-r2')
+        };
+        const firewallRulesPre = {
+            'router-1': document.getElementById('firewall-rules-r1'),
+            'router-2': document.getElementById('firewall-rules-r2')
+        };
+        const visualizationArea = document.getElementById('visualization-area');
+
+        let currentScenario = scenarioSelect.value;
+        let currentStep = 0;
+        let totalSteps = 0;
+        let arpCaches = { 'host-a': new Map(), 'router-1': new Map(), 'router-2': new Map(), 'host-b': new Map() };
+        let routingTables = { 'router-1': [], 'router-2': [] };
+        let firewalls = { 'router-1': { active: false, rules: [] }, 'router-2': { active: false, rules: [] } };
+        let activePduClones = [];
+
+        const topoData = {
+            'host-a': { ip: '192.168.1.10', mac: '0A:0A:0A:0A:0A:0A', gw: '192.168.1.1', elementId: 'host-a' },
+            'router-1': {
+                 interfaces: {
+                     eth0: { ip: '192.168.1.1', mac: 'R1:R1:R1:AA:AA:00', network: '192.168.1.0/24' },
+                     eth1: { ip: '10.0.0.1', mac: 'R1:R1:R1:BB:BB:01', network: '10.0.0.0/24' }
+                 },
+                 elementId: 'router-1'
+             },
+            'router-2': {
+                 interfaces: {
+                     eth0: { ip: '10.0.0.2', mac: 'R2:R2:R2:AA:AA:00', network: '10.0.0.0/24' },
+                     eth1: { ip: '192.168.2.1', mac: 'R2:R2:R2:BB:BB:01', network: '192.168.2.0/24' }
+                 },
+                 elementId: 'router-2'
+             },
+            'host-b': { ip: '192.168.2.20', mac: '0B:0B:0B:0B:0B:0B', gw: '192.168.2.1', elementId: 'host-b' }
+        };
+        const BROADCAST_MAC = 'FF:FF:FF:FF:FF:FF';
+        const DEFAULT_TTL = 64;
+        const PDU_WIDTH = 100; const PDU_HEIGHT = 40;
+        const TRAVEL_TRANSITION = 'transform 0.9s ease-in-out';
+        const NO_TRANSITION = 'none';
+        const PDU_Y_OFFSET = 180;
+
+        function updateArpCacheDisplay(hostId) {
+             const preElement = arpCachesPre[hostId];
+             if (!preElement) return;
+             const cache = arpCaches[hostId];
+             if (!cache || cache.size === 0) {
+                 preElement.textContent = 'Vacía';
+             } else {
+                 let text = '';
+                 cache.forEach((mac, ip) => { text += `${ip} -> ${mac}\n`; });
+                 preElement.textContent = text.trim();
+             }
+         }
+
+        function updateAllArpDisplays() {
+             Object.keys(arpCachesPre).forEach(updateArpCacheDisplay);
+         }
+
+        function updateRoutingTableDisplay(routerId) {
+            const tableBody = routingTablesBody[routerId];
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+            const routes = routingTables[routerId];
+            if (!routes || routes.length === 0) {
+                 tableBody.innerHTML = '<tr><td colspan="4"><i>Sin rutas</i></td></tr>';
+                 return;
+            }
+            routes.forEach(route => {
+                const row = tableBody.insertRow();
+                row.insertCell().textContent = route.network;
+                row.insertCell().textContent = route.mask;
+                row.insertCell().textContent = route.nextHop || 'Directo';
+                row.insertCell().textContent = route.interface;
+            });
+        }
+
+        function updateAllRoutingTables() {
+            Object.keys(routingTablesBody).forEach(updateRoutingTableDisplay);
+        }
+
+        function updateFirewallDisplay(routerId) {
+            const statusSpan = firewallStatus[routerId];
+            const rulesPre = firewallRulesPre[routerId];
+            if (!statusSpan || !rulesPre) return;
+            const fw = firewalls[routerId];
+             if (!fw) {
+                 statusSpan.textContent = 'Inactivo';
+                 rulesPre.textContent = '';
+                 rulesPre.style.display = 'none';
+                 return;
+             }
+            statusSpan.textContent = fw.active ? 'Activo' : 'Inactivo';
+            if (fw.active && fw.rules && fw.rules.length > 0) {
+                rulesPre.textContent = fw.rules.map(rule =>
+                     `${rule.action.toUpperCase()} proto=${rule.protocol || 'any'} src=${rule.src || 'any'} dst=${rule.dst || 'any'} if=${rule.interface || 'any'}`
+                 ).join('\n');
+                 rulesPre.style.display = 'block';
+            } else {
+                 rulesPre.textContent = '';
+                 rulesPre.style.display = 'none';
+            }
+        }
+
+        function updateAllFirewalls() {
+            Object.keys(firewallStatus).forEach(updateFirewallDisplay);
+        }
+
+        function initializeDeviceInfos() {
+             const hostAInfo = document.getElementById('host-a-info');
+             if (hostAInfo) {
+                 hostAInfo.querySelector('.ip').textContent = topoData['host-a'].ip;
+                 hostAInfo.querySelector('.mac').textContent = topoData['host-a'].mac;
+                 hostAInfo.querySelector('.gw').textContent = topoData['host-a'].gw;
+             }
+             const hostBInfo = document.getElementById('host-b-info');
+             if (hostBInfo) {
+                 hostBInfo.querySelector('.ip').textContent = topoData['host-b'].ip;
+                 hostBInfo.querySelector('.mac').textContent = topoData['host-b'].mac;
+                 hostBInfo.querySelector('.gw').textContent = topoData['host-b'].gw;
+             }
+             const r1Info = document.getElementById('router-1-info');
+             if (r1Info) {
+                 r1Info.querySelector('.ip-eth0').textContent = topoData['router-1'].interfaces.eth0.ip;
+                 r1Info.querySelector('.mac-eth0').textContent = topoData['router-1'].interfaces.eth0.mac;
+                 r1Info.querySelector('.ip-eth1').textContent = topoData['router-1'].interfaces.eth1.ip;
+                 r1Info.querySelector('.mac-eth1').textContent = topoData['router-1'].interfaces.eth1.mac;
+             }
+             const r2Info = document.getElementById('router-2-info');
+             if (r2Info) {
+                 r2Info.querySelector('.ip-eth0').textContent = topoData['router-2'].interfaces.eth0.ip;
+                 r2Info.querySelector('.mac-eth0').textContent = topoData['router-2'].interfaces.eth0.mac;
+                 r2Info.querySelector('.ip-eth1').textContent = topoData['router-2'].interfaces.eth1.ip;
+                 r2Info.querySelector('.mac-eth1').textContent = topoData['router-2'].interfaces.eth1.mac;
+             }
+        }
+
+        function updateInfoPanel(config) {
+             if (!config || !stepTitle || !pduName || !stepDescription || !actionDetails) return;
+             stepTitle.textContent = `Paso ${currentStep}: ${config.title}`;
+             pduName.textContent = config.pdu?.info || 'Ninguno';
+             stepDescription.innerHTML = config.description || "-";
+             actionDetails.textContent = config.action || "-";
+         }
+
+        function getComponentCenterX(elementId) {
+            const element = document.getElementById(elementId);
+            if (elementId === 'wan-link') {
+                const r1 = document.getElementById('router-1');
+                const r2 = document.getElementById('router-2');
+                if (!r1 || !r2 || !visualizationArea) return 100;
+                try {
+                    const areaRect = visualizationArea.getBoundingClientRect();
+                    const r1Rect = r1.getBoundingClientRect();
+                    const r2Rect = r2.getBoundingClientRect();
+                    const r1Right = r1Rect.right - areaRect.left;
+                    const r2Left = r2Rect.left - areaRect.left;
+                    return r1Right + (r2Left - r1Right) / 2;
+                } catch(e) {
+                     console.error(`Error calculating WAN link center:`, e);
+                     return 100;
+                 }
+            }
+
+            if (!element || !visualizationArea) {
+                return 100;
+            }
+            try {
+                const svgRect = visualizationArea.getBoundingClientRect();
+                const elementRect = element.getBoundingClientRect();
+                if (elementRect.width === 0) {
+                     console.warn(`Element ${elementId} has zero width. Recalculating may be needed.`);
+                    return 100;
+                }
+                return (elementRect.left - svgRect.left + (elementRect.width / 2));
+            } catch(e) {
+                 console.error(`Error getting position for ${elementId}:`, e);
+                 return 100;
+             }
+        }
+
+        function updatePduSvgVisuals(pduElement, pduData) {
+            if (!pduElement || !pduData) return;
+
+            const rect = pduElement.querySelector('.pdu-rect');
+            const typeText = pduElement.querySelector('.pdu-text-type');
+            const ttlText = pduElement.querySelector('.pdu-ttl');
+
+            if (!rect || !typeText || !ttlText) {
+                console.error("SVG PDU template elements missing inside:", pduElement);
+                return;
+            }
+
+             rect.classList.remove('pdu-ip-icmp-req', 'pdu-ip-icmp-reply', 'pdu-ip-icmp-error', 'pdu-ethernet-arp');
+             pduElement.classList.remove('pdu-firewalled');
+             ttlText.classList.remove('pdu-ttl-low', 'pdu-ttl-expired');
+
+            let pduType = pduData.info || '?';
+            let ttlValue = '-';
+            let isFirewalled = pduData.firewalled || false;
+
+            if (pduData.etherType === 'ARP') {
+                rect.classList.add('pdu-ethernet-arp');
+                pduType = pduData.arp?.opcode === 1 ? 'ARP Req' : 'ARP Reply';
+                ttlText.textContent = 'TTL: N/A';
+            } else if (pduData.etherType === 'IP') {
+                ttlValue = pduData.ip?.ttl ?? '-';
+                 if (pduData.ip?.protocol === 'ICMP') {
+                     if (pduData.icmp?.type === 8) {
+                         rect.classList.add('pdu-ip-icmp-req');
+                         pduType = 'ICMP Req';
+                     } else if (pduData.icmp?.type === 0) {
+                         rect.classList.add('pdu-ip-icmp-reply');
+                         pduType = 'ICMP Reply';
+                     } else if (pduData.icmp?.type === 3 || pduData.icmp?.type === 11) {
+                         rect.classList.add('pdu-ip-icmp-error');
+                         if (pduData.icmp.type === 3) {
+                             if(pduData.icmp.code === 0) pduType = 'ICMP Net Unr';
+                             else if(pduData.icmp.code === 1) pduType = 'ICMP Host Unr';
+                             else if(pduData.icmp.code === 13) pduType = 'ICMP Adm Prohib';
+                             else pduType = 'ICMP Unreach';
+                         }
+                         else if (pduData.icmp.type === 11) pduType = 'ICMP TTL Ex';
+                         else pduType = 'ICMP Err';
+                     } else {
+                         pduType = 'ICMP Oth';
+                         rect.classList.add('pdu-ip-icmp-error');
+                     }
+                 } else {
+                      pduType = 'IP Oth';
+                 }
+                 ttlText.textContent = `TTL: ${ttlValue}`;
+                 if (ttlValue !== '-' && ttlValue <= 0) {
+                     ttlText.classList.add('pdu-ttl-expired');
+                 } else if (ttlValue !== '-' && ttlValue <= 10) {
+                     ttlText.classList.add('pdu-ttl-low');
+                 }
+            } else {
+                 ttlText.textContent = 'TTL: N/A';
+                 pduType = 'L2 Frame';
+            }
+
+            typeText.textContent = pduType;
+
+            if (isFirewalled) {
+                pduElement.classList.add('pdu-firewalled');
+            }
+        }
+
+        function displayHeaderDetails(pduData) {
+            headerFieldsList.innerHTML = '';
+
+            if (!pduData || !pduAccordionContainer) {
+                if (pduAccordionContainer) pduAccordionContainer.style.display = 'none';
+                return;
+            }
+
+            pduAccordionContainer.style.display = 'block';
+            let html = '';
+
+            if (pduData.srcMac || pduData.dstMac) {
+                 html += '<dt style="font-weight:bold; color:#007bff;">L2 Eth:</dt><dd></dd>';
+                 html += `<dt>Dst MAC:</dt><dd class="${pduData.dstMac === BROADCAST_MAC ? 'ether-broadcast' : ''}">${pduData.dstMac || '-'}</dd>`;
+                 html += `<dt>Src MAC:</dt><dd>${pduData.srcMac || '-'}</dd>`;
+                 html += `<dt>Type:</dt><dd>${pduData.etherType || '-'}</dd>`;
+            }
+
+            if (pduData.etherType === 'IP' && pduData.ip) {
+                 html += '<dt style="font-weight:bold; color:#198754;">L3 IP:</dt><dd></dd>';
+                 html += `<dt>Dst IP:</dt><dd>${pduData.ip.dstIp || '-'}</dd>`;
+                 html += `<dt>Src IP:</dt><dd>${pduData.ip.srcIp || '-'}</dd>`;
+                 html += `<dt>Protocol:</dt><dd>${pduData.ip.protocol || '-'}</dd>`;
+                 const ttl = pduData.ip.ttl ?? '-';
+                 let ttlClass = '';
+                 if (ttl !== '-' && ttl <= 0) ttlClass = 'ttl-expired';
+                 else if (ttl !== '-' && ttl <= 10) ttlClass = 'ttl-low';
+                 html += `<dt>TTL:</dt><dd class="${ttlClass}">${ttl}</dd>`;
+            }
+
+            if (pduData.etherType === 'IP' && pduData.ip?.protocol === 'ICMP' && pduData.icmp) {
+                html += '<dt style="font-weight:bold; color:#dc3545;">L4 ICMP:</dt><dd></dd>';
+                html += `<dt>Type:</dt><dd>${pduData.icmp.type ?? '-'}</dd>`;
+                html += `<dt>Code:</dt><dd>${pduData.icmp.code ?? '-'}</dd>`;
+                html += `<dt>ID:</dt><dd>${pduData.icmp.id ?? '-'}</dd>`;
+                html += `<dt>Seq:</dt><dd>${pduData.icmp.seq ?? '-'}</dd>`;
+                html += `<dt>Checksum:</dt><dd>${pduData.icmp.checksum || '-'}</dd>`;
+             } else if (pduData.etherType === 'ARP' && pduData.arp) {
+                 html += '<dt style="font-weight:bold; color:#ffc107;">L2 ARP:</dt><dd></dd>';
+                 html += `<dt>Opcode:</dt><dd>${pduData.arp.opcode === 1 ? '1 (Request)' : (pduData.arp.opcode === 2 ? '2 (Reply)' : pduData.arp.opcode)}</dd>`;
+                 html += `<dt>Sender MAC:</dt><dd>${pduData.arp.senderMac || '-'}</dd>`;
+                 html += `<dt>Sender IP:</dt><dd>${pduData.arp.senderIp || '-'}</dd>`;
+                 html += `<dt>Target MAC:</dt><dd class="${pduData.arp.targetMac === '00:00:00:00:00:00' ? 'ether-broadcast' : ''}">${pduData.arp.targetMac || '-'}</dd>`;
+                 html += `<dt>Target IP:</dt><dd>${pduData.arp.targetIp || '-'}</dd>`;
+             }
+
+            headerFieldsList.innerHTML = html;
+        }
+
+        function movePdu(pduElement, startX, startY, endX, endY, transitionStyle, isVisible = true) {
+             if (!pduElement || isNaN(startX) || isNaN(startY) || isNaN(endX) || isNaN(endY)) {
+                 console.warn("Invalid data for movePdu:", {startX, startY, endX, endY});
+                 return;
+             }
+             const initialTranslateX = startX - PDU_WIDTH / 2;
+             pduElement.style.transition = NO_TRANSITION;
+             pduElement.setAttribute('transform', `translate(${initialTranslateX}, ${startY})`);
+             pduElement.setAttribute('visibility', isVisible ? 'visible' : 'hidden');
+
+             pduElement.getBoundingClientRect();
+
+             requestAnimationFrame(() => {
+                 const finalTranslateX = endX - PDU_WIDTH / 2;
+                 pduElement.style.transition = transitionStyle;
+                 pduElement.setAttribute('transform', `translate(${finalTranslateX}, ${endY})`);
+             });
+        }
+
+        function broadcastPdu(sourceHostId, targetHostIds, pduData, transitionStyle) {
+            const startX = getComponentCenterX(sourceHostId);
+            const startY = PDU_Y_OFFSET;
+
+             activePduClones.forEach(clone => clone.remove());
+             activePduClones = [];
+
+            if (!pduTemplate) {
+                console.error("PDU template not found!");
+                return;
+            }
+
+            targetHostIds.forEach((targetId, index) => {
+                const endX = getComponentCenterX(targetId);
+                const endY = PDU_Y_OFFSET;
+
+                const clone = pduTemplate.cloneNode(true);
+                if (!clone) {
+                    console.error("Failed to clone PDU template");
+                    return;
+                }
+                clone.setAttribute('id', `pdu-clone-${currentStep}-${index}-${Date.now()}`);
+                clone.style.display = 'block';
+                clone.classList.add('pdu-clone');
+                svgContainer.appendChild(clone);
+                activePduClones.push(clone);
+
+                updatePduSvgVisuals(clone, pduData);
+                movePdu(clone, startX, startY, endX, endY, transitionStyle, true);
+            });
+        }
+
+        const scenarios = {
+            'ping_success': {
+                name: "Ping Exitoso",
+                routingTableR1: [
+                    { network: '192.168.2.0', mask: '255.255.255.0', nextHop: '10.0.0.2', interface: 'eth1' },
+                    { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' },
+                    { network: '192.168.1.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' }
+                ],
+                routingTableR2: [
+                    { network: '192.168.1.0', mask: '255.255.255.0', nextHop: '10.0.0.1', interface: 'eth0' },
+                    { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' },
+                    { network: '192.168.2.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' }
+                ],
+                firewallR1: { active: false, rules: [] }, firewallR2: { active: false, rules: [] },
+                steps: [
+                    { title: "Inicio", pdu: null, action: "-", description: "<ul><li>Host A (192.168.1.10) quiere hacer ping a Host B (192.168.2.20).</li></ul>" },
+                    { title: "Necesita GW MAC (A)", action: "A: ¿MAC para 192.168.1.1?", description: "<ul><li>Host B está en una red diferente (192.168.2.0/24).</li><li>A necesita enviar el paquete a su Gateway (192.168.1.1).</li><li>A consulta su caché ARP buscando la MAC de 192.168.1.1.</li><li>La caché está vacía (Cache Miss).</li></ul>", pdu: null },
+                    { title: "Prepara ARP Req (A)", action: "A: Crear ARP Request", description: "<ul><li>A prepara una trama ARP Request para descubrir la MAC de 192.168.1.1.</li><li>Campos ARP: Target IP=192.168.1.1, Target MAC=00:.., Sender IP=192.168.1.10, Sender MAC=MAC A.</li></ul>",
+                        pdu: { info:"ARP Req Prep", etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['host-a'].mac, senderIp: topoData['host-a'].ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['router-1'].interfaces.eth0.ip } }, visible: false },
+                    { title: "Broadcast ARP Req (A)", action: "A -> Broadcast(ARP Req)", description: "<ul><li>A encapsula el ARP Request en Ethernet.</li><li>MAC Dst = FF:FF:FF:FF:FF:FF (Broadcast).</li><li>MAC Src = MAC A.</li><li>Envía por LAN A.</li></ul>",
+                        pdu: { info:"ARP Req (GW)", srcMac: topoData['host-a'].mac, dstMac: BROADCAST_MAC, etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['host-a'].mac, senderIp: topoData['host-a'].ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['router-1'].interfaces.eth0.ip } },
+                        broadcast: true, srcHost: 'host-a', targets: ['router-1'], visible: true, transition: TRAVEL_TRANSITION },
+                    { title: "R1 Procesa ARP Req", action: "R1: Recibe ARP Req", description: "<ul><li>R1(eth0) recibe broadcast. IP destino coincide.</li><li>Procesa ARP Request.</li><li>Aprende MAC de A: añade (192.168.1.10 -> MAC A) a caché ARP.</li><li>Prepara ARP Reply.</li></ul>",
+                        updateCache: { host: 'router-1', ip: topoData['host-a'].ip, mac: topoData['host-a'].mac }, pdu: null },
+                    { title: "R1 Envía ARP Reply", action: "R1 -> ARP Reply -> A", description: "<ul><li>R1 envía ARP Reply unicast a A.</li><li>MAC Dst = MAC A. MAC Src = MAC R1(eth0).</li><li>Campos ARP: Target=A, Sender=R1(eth0).</li></ul>",
+                        pdu: { info:"ARP Reply (GW)", srcMac: topoData['router-1'].interfaces.eth0.mac, dstMac: topoData['host-a'].mac, etherType: 'ARP', arp: { opcode: 2, senderMac: topoData['router-1'].interfaces.eth0.mac, senderIp: topoData['router-1'].interfaces.eth0.ip, targetMac: topoData['host-a'].mac, targetIp: topoData['host-a'].ip } },
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'host-a' },
+                    { title: "A Procesa ARP Reply", action: "A: Recibe ARP Reply", description: "<ul><li>A recibe ARP Reply.</li><li>Añade (192.168.1.1 -> MAC R1 eth0) a su caché ARP.</li></ul>",
+                        updateCache: { host: 'host-a', ip: topoData['router-1'].interfaces.eth0.ip, mac: topoData['router-1'].interfaces.eth0.mac }, pdu: null },
+                    { title: "A Envía ICMP Req", action: "A -> ICMP Req -> R1", description: "<ul><li>A tiene MAC del Gateway.</li><li>Crea ICMP Echo Request (Ping).</li><li>Encapsula IP: Src=A, Dst=B, Proto=ICMP, TTL=64.</li><li>Encapsula Ethernet: Src=MAC A, Dst=MAC R1(eth0).</li><li>Envía trama a R1.</li></ul>",
+                        pdu: { info:"ICMP Echo Req", srcMac: topoData['host-a'].mac, dstMac: topoData['router-1'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}},
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'host-a', dstHost: 'router-1' },
+                    { title: "R1 Recibe/Enruta", action: "R1: Consulta Ruta", description: "<ul><li>R1(eth0) recibe trama. MAC Dst coincide.</li><li>Decapsula Eth. Procesa IP: TTL-- a 63.</li><li>Consulta tabla enrutamiento para red 192.168.2.0/24.</li><li>Encuentra ruta: via NH <strong>10.0.0.2</strong> por interfaz <strong>eth1</strong>.</li></ul>",
+                        pdu: { info:"ICMP Echo Req (TTL=63)", etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}}, visible: false },
+                    { title: "R1 Necesita MAC R2", action: "R1: ¿MAC para 10.0.0.2?", description: "<ul><li>R1 necesita enviar a NH (10.0.0.2, R2).</li><li>Consulta caché ARP para 10.0.0.2 -> Cache Miss.</li></ul>", pdu: null },
+                    { title: "R1 Prepara ARP Req (R2)", action: "R1: Crear ARP Request", description: "<ul><li>R1 prepara ARP Req para 10.0.0.2 via eth1.</li><li>Campos ARP: Target IP=10.0.0.2, Sender IP=10.0.0.1, Sender MAC=MAC R1 eth1.</li></ul>",
+                         pdu: { info:"ARP Req Prep", etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['router-1'].interfaces.eth1.mac, senderIp: topoData['router-1'].interfaces.eth1.ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['router-2'].interfaces.eth0.ip } }, visible: false },
+                    { title: "R1 Broadcast ARP (WAN)", action: "R1 -> Broadcast(ARP Req)", description: "<ul><li>R1 encapsula ARP Req en Ethernet (Broadcast).</li><li>Envía por eth1 (WAN).</li></ul>",
+                        pdu: { info:"ARP Req (R2)", srcMac: topoData['router-1'].interfaces.eth1.mac, dstMac: BROADCAST_MAC, etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['router-1'].interfaces.eth1.mac, senderIp: topoData['router-1'].interfaces.eth1.ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['router-2'].interfaces.eth0.ip } },
+                        broadcast: true, srcHost: 'router-1', targets: ['router-2'], visible: true, transition: TRAVEL_TRANSITION },
+                    { title: "R2 Procesa ARP Req", action: "R2: Recibe ARP Req", description: "<ul><li>R2(eth0) recibe ARP Req. IP destino coincide.</li><li>Procesa. Aprende MAC R1(eth1).</li><li>Prepara ARP Reply.</li></ul>",
+                        updateCache: { host: 'router-2', ip: topoData['router-1'].interfaces.eth1.ip, mac: topoData['router-1'].interfaces.eth1.mac }, pdu: null },
+                    { title: "R2 Envía ARP Reply", action: "R2 -> ARP Reply -> R1", description: "<ul><li>R2 envía ARP Reply unicast a R1 (eth1).</li><li>MAC Dst=MAC R1 eth1, Src=MAC R2 eth0.</li></ul>",
+                        pdu: { info:"ARP Reply (R2)", srcMac: topoData['router-2'].interfaces.eth0.mac, dstMac: topoData['router-1'].interfaces.eth1.mac, etherType: 'ARP', arp: { opcode: 2, senderMac: topoData['router-2'].interfaces.eth0.mac, senderIp: topoData['router-2'].interfaces.eth0.ip, targetMac: topoData['router-1'].interfaces.eth1.mac, targetIp: topoData['router-1'].interfaces.eth1.ip } },
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-2', dstHost: 'router-1' },
+                    { title: "R1 Procesa ARP Reply", action: "R1: Recibe ARP Reply", description: "<ul><li>R1(eth1) recibe ARP Reply.</li><li>Añade (10.0.0.2 -> MAC R2 eth0) a caché ARP.</li></ul>",
+                        updateCache: { host: 'router-1', ip: topoData['router-2'].interfaces.eth0.ip, mac: topoData['router-2'].interfaces.eth0.mac }, pdu: null },
+                    { title: "R1 Reenvía ICMP Req", action: "R1 -> ICMP Req -> R2", description: "<ul><li>R1 tiene MAC de R2 (NH).</li><li>Re-encapsula IP (TTL=63) en Ethernet.</li><li>MAC Dst = MAC R2 eth0, Src = MAC R1 eth1.</li><li>Envía por eth1 a R2.</li></ul>",
+                        pdu: { info:"ICMP Echo Req", srcMac: topoData['router-1'].interfaces.eth1.mac, dstMac: topoData['router-2'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}},
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'router-2' },
+                    { title: "R2 Recibe/Enruta", action: "R2: Consulta Ruta", description: "<ul><li>R2(eth0) recibe trama. MAC Dst coincide.</li><li>Decapsula Eth. Procesa IP: TTL-- a 62.</li><li>Consulta tabla enrutamiento para 192.168.2.20.</li><li>Ruta encontrada: Red 192.168.2.0/24 <strong>directamente conectada</strong> a <strong>eth1</strong>.</li></ul>",
+                        pdu: { info:"ICMP Echo Req (TTL=62)", etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-2}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}}, visible: false },
+                    { title: "R2 Necesita MAC B", action: "R2: ¿MAC para 192.168.2.20?", description: "<ul><li>Red destino conectada directamente. Necesita MAC de B.</li><li>Consulta caché ARP para 192.168.2.20 -> Cache Miss.</li></ul>", pdu: null },
+                     { title: "R2 Prepara ARP Req (B)", action: "R2: Crear ARP Request", description: "<ul><li>R2 prepara ARP Req para B por eth1.</li><li>Campos ARP: Target=B, Sender=R2(eth1).</li></ul>",
+                         pdu: { info:"ARP Req Prep", etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['router-2'].interfaces.eth1.mac, senderIp: topoData['router-2'].interfaces.eth1.ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['host-b'].ip } }, visible: false },
+                    { title: "R2 Broadcast ARP (LAN B)", action: "R2 -> Broadcast(ARP Req)", description: "<ul><li>R2 encapsula ARP Req en Ethernet (Broadcast).</li><li>Envía por eth1 (LAN B).</li></ul>",
+                        pdu: { info:"ARP Req (B)", srcMac: topoData['router-2'].interfaces.eth1.mac, dstMac: BROADCAST_MAC, etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['router-2'].interfaces.eth1.mac, senderIp: topoData['router-2'].interfaces.eth1.ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['host-b'].ip } },
+                        broadcast: true, srcHost: 'router-2', targets: ['host-b'], visible: true, transition: TRAVEL_TRANSITION },
+                    { title: "B Procesa ARP Req", action: "B: Recibe ARP Req", description: "<ul><li>B recibe ARP Req. IP destino coincide.</li><li>Procesa. Aprende MAC GW R2(eth1).</li><li>Prepara ARP Reply.</li></ul>",
+                        updateCache: { host: 'host-b', ip: topoData['router-2'].interfaces.eth1.ip, mac: topoData['router-2'].interfaces.eth1.mac }, pdu: null },
+                    { title: "B Envía ARP Reply", action: "B -> ARP Reply -> R2", description: "<ul><li>B envía ARP Reply unicast a R2 (eth1).</li><li>MAC Dst = MAC R2 eth1, Src = MAC B.</li></ul>",
+                        pdu: { info:"ARP Reply (B)", srcMac: topoData['host-b'].mac, dstMac: topoData['router-2'].interfaces.eth1.mac, etherType: 'ARP', arp: { opcode: 2, senderMac: topoData['host-b'].mac, senderIp: topoData['host-b'].ip, targetMac: topoData['router-2'].interfaces.eth1.mac, targetIp: topoData['router-2'].interfaces.eth1.ip } },
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'host-b', dstHost: 'router-2' },
+                    { title: "R2 Procesa ARP Reply", action: "R2: Recibe ARP Reply", description: "<ul><li>R2(eth1) recibe ARP Reply.</li><li>Añade (192.168.2.20 -> MAC B) a caché ARP.</li></ul>",
+                        updateCache: { host: 'router-2', ip: topoData['host-b'].ip, mac: topoData['host-b'].mac }, pdu: null },
+                    { title: "R2 Reenvía ICMP Req", action: "R2 -> ICMP Req -> B", description: "<ul><li>R2 tiene MAC de B.</li><li>Re-encapsula IP (TTL=62) en Ethernet.</li><li>MAC Dst = MAC B, Src = MAC R2 eth1.</li><li>Envía por eth1 a B.</li></ul>",
+                        pdu: { info:"ICMP Echo Req", srcMac: topoData['router-2'].interfaces.eth1.mac, dstMac: topoData['host-b'].mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-2}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}},
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-2', dstHost: 'host-b' },
+                    { title: "B Recibe ICMP Req", action: "B: Procesa ICMP Req", description: "<ul><li>B recibe trama. MAC Dst coincide.</li><li>Decapsula Eth, IP, ICMP. Es Echo Req para él.</li></ul>", pdu: null },
+                    { title: "B Prepara ICMP Reply", action: "B: Crear ICMP Reply", description: "<ul><li>B crea ICMP Echo Reply (Type 0).</li><li>Encapsula IP: Src=B, Dst=A, TTL=64.</li></ul>",
+                        pdu: { info:"ICMP Echo Reply Prep", etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}}, visible: false },
+                    { title: "B Necesita MAC GW (R2)", action: "B: ¿MAC para 192.168.2.1?", description: "<ul><li>A en otra red. B debe enviar a GW (R2, 192.168.2.1).</li><li>Consulta caché ARP -> Cache Hit! (Paso 21).</li></ul>", pdu: null },
+                    { title: "B Envía ICMP Reply", action: "B -> ICMP Reply -> R2", description: "<ul><li>B encapsula IP Reply en Ethernet.</li><li>MAC Dst = MAC R2 eth1 (caché), Src = MAC B.</li><li>Envía a R2.</li></ul>",
+                        pdu: { info:"ICMP Echo Reply", srcMac: topoData['host-b'].mac, dstMac: topoData['router-2'].interfaces.eth1.mac, etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}},
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'host-b', dstHost: 'router-2' },
+                    { title: "R2 Recibe/Enruta Reply", action: "R2: Consulta Ruta", description: "<ul><li>R2(eth1) recibe Reply.</li><li>Decapsula Eth. Procesa IP (TTL-- a 63).</li><li>Consulta tabla enrutamiento para 192.168.1.10 (A).</li><li>Ruta: 192.168.1.0/24 via NH <strong>10.0.0.1</strong> (R1) por <strong>eth0</strong>.</li></ul>",
+                         pdu: { info:"ICMP Echo Reply (TTL=63)", etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}}, visible: false },
+                    { title: "R2 Necesita MAC R1", action: "R2: ¿MAC para 10.0.0.1?", description: "<ul><li>R2 necesita enviar a NH (R1, 10.0.0.1).</li><li>Consulta caché ARP -> Cache Hit! (Paso 13).</li></ul>", pdu: null },
+                    { title: "R2 Reenvía ICMP Reply", action: "R2 -> ICMP Reply -> R1", description: "<ul><li>R2 re-encapsula IP Reply (TTL=63) en Ethernet.</li><li>MAC Dst = MAC R1 eth1 (caché), Src = MAC R2 eth0.</li><li>Envía por eth0 a R1.</li></ul>",
+                        pdu: { info:"ICMP Echo Reply", srcMac: topoData['router-2'].interfaces.eth0.mac, dstMac: topoData['router-1'].interfaces.eth1.mac, etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}},
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-2', dstHost: 'router-1' },
+                    { title: "R1 Recibe/Enruta Reply", action: "R1: Consulta Ruta", description: "<ul><li>R1(eth1) recibe Reply.</li><li>Decapsula Eth. Procesa IP (TTL-- a 62).</li><li>Consulta tabla enrutamiento para 192.168.1.10 (A).</li><li>Ruta: Red 192.168.1.0/24 <strong>directamente conectada</strong> a <strong>eth0</strong>.</li></ul>",
+                         pdu: { info:"ICMP Echo Reply (TTL=62)", etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-2}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}}, visible: false },
+                     { title: "R1 Necesita MAC A", action: "R1: ¿MAC para 192.168.1.10?", description: "<ul><li>R1 necesita enviar a host final A.</li><li>Consulta caché ARP -> Cache Hit! (Paso 5).</li></ul>", pdu: null },
+                    { title: "R1 Reenvía ICMP Reply", action: "R1 -> ICMP Reply -> A", description: "<ul><li>R1 re-encapsula IP Reply (TTL=62) en Ethernet.</li><li>MAC Dst = MAC A (caché), Src = MAC R1 eth0.</li><li>Envía por eth0 a A.</li></ul>",
+                        pdu: { info:"ICMP Echo Reply", srcMac: topoData['router-1'].interfaces.eth0.mac, dstMac: topoData['host-a'].mac, etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-2}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}},
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'host-a' },
+                    { title: "A Recibe ICMP Reply", action: "A: Recibe ICMP Reply", description: "<ul><li>A recibe trama. MAC Dst coincide.</li><li>Decapsula Eth, IP, ICMP. Es Echo Reply a su ping.</li><li>¡Ping exitoso!</li></ul>", pdu: null },
+                    { title: "Fin Ping Exitoso", pdu: null, action: "Fin", description: "<ul><li>El proceso de Ping se completó correctamente.</li></ul>" }
+                ]
+            },
+            'ping_no_route_r1': {
+                name: "Fallo: Sin Ruta en R1",
+                routingTableR1: [
+                    { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' },
+                    { network: '192.168.1.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' }
+                ],
+                routingTableR2: [
+                    { network: '192.168.1.0', mask: '255.255.255.0', nextHop: '10.0.0.1', interface: 'eth0' },
+                    { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' },
+                    { network: '192.168.2.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' }
+                ],
+                firewallR1: { active: false, rules: [] }, firewallR2: { active: false, rules: [] },
+                steps: [
+                    { title: "Inicio", pdu: null, action: "-", description: "<ul><li>A (192.168.1.10) ping a B (192.168.2.20).</li></ul>" },
+                    { title: "Necesita GW MAC (A)", action: "A: ¿MAC para 192.168.1.1?", description: "<ul><li>B red diferente. Necesita MAC GW (R1).</li><li>Consulta caché ARP -> Cache Miss.</li></ul>", pdu: null },
+                    { title: "Prepara ARP Req (A)", action: "A: Crear ARP Request", description: "<ul><li>A prepara ARP Request para 192.168.1.1.</li></ul>",
+                        pdu: { info:"ARP Req Prep", etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['host-a'].mac, senderIp: topoData['host-a'].ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['router-1'].interfaces.eth0.ip } }, visible: false },
+                    { title: "Broadcast ARP Req (A)", action: "A -> Broadcast(ARP Req)", description: "<ul><li>A envía ARP Request broadcast por LAN A.</li></ul>",
+                        pdu: { info:"ARP Req (GW)", srcMac: topoData['host-a'].mac, dstMac: BROADCAST_MAC, etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['host-a'].mac, senderIp: topoData['host-a'].ip, targetMac: '00:00:00:00:00:00', targetIp: topoData['router-1'].interfaces.eth0.ip } },
+                        broadcast: true, srcHost: 'host-a', targets: ['router-1'], visible: true, transition: TRAVEL_TRANSITION },
+                    { title: "R1 Procesa ARP Req", action: "R1: Recibe ARP Req", description: "<ul><li>R1(eth0) recibe, procesa. Aprende MAC A. Prepara Reply.</li></ul>",
+                        updateCache: { host: 'router-1', ip: topoData['host-a'].ip, mac: topoData['host-a'].mac }, pdu: null },
+                    { title: "R1 Envía ARP Reply", action: "R1 -> ARP Reply -> A", description: "<ul><li>R1 envía ARP Reply unicast a A.</li></ul>",
+                        pdu: { info:"ARP Reply (GW)", srcMac: topoData['router-1'].interfaces.eth0.mac, dstMac: topoData['host-a'].mac, etherType: 'ARP', arp: { opcode: 2, senderMac: topoData['router-1'].interfaces.eth0.mac, senderIp: topoData['router-1'].interfaces.eth0.ip, targetMac: topoData['host-a'].mac, targetIp: topoData['host-a'].ip } },
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'host-a' },
+                    { title: "A Procesa ARP Reply", action: "A: Recibe ARP Reply", description: "<ul><li>A recibe y guarda MAC R1 en caché.</li></ul>",
+                        updateCache: { host: 'host-a', ip: topoData['router-1'].interfaces.eth0.ip, mac: topoData['router-1'].interfaces.eth0.mac }, pdu: null },
+                    { title: "A Envía ICMP Req", action: "A -> ICMP Req -> R1", description: "<ul><li>A crea ICMP Req. Encapsula (IP Dst=B, Eth Dst=MAC R1a). Envía a R1.</li></ul>",
+                        pdu: { info:"ICMP Echo Req", srcMac: topoData['host-a'].mac, dstMac: topoData['router-1'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}},
+                        visible: true, transition: TRAVEL_TRANSITION, srcHost: 'host-a', dstHost: 'router-1' },
+                    { title: "R1 Recibe/Enruta", action: "R1: Consulta Ruta", description: "<ul><li>R1(eth0) recibe. Decapsula Eth, Procesa IP (TTL-- a 63).</li><li>Consulta tabla enrutamiento para 192.168.2.20.</li><li><strong>¡Error! No hay ruta</strong> para 192.168.2.0/24.</li></ul>",
+                        pdu: { info:"ICMP Echo Req (TTL=63)", etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}}, visible: false },
+                    { title: "R1 Genera Error", action: "R1: Crear ICMP Error", description: "<ul><li>R1 no puede enrutar. Descarta ICMP Req original.</li><li>Genera ICMP Error (Type 3, Code 0: Net Unreachable).</li><li>IP Src = IP R1 eth0, IP Dst = IP A.</li></ul>",
+                         pdu: { info: "ICMP Net Unr Prep", etherType: 'IP', ip: { srcIp: topoData['router-1'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 3, code: 0, checksum: 0xE5F6 } }, visible: false },
+                    { title: "R1 Necesita MAC A", action: "R1: ¿MAC para 192.168.1.10?", description: "<ul><li>R1 necesita enviar error ICMP a A.</li><li>Consulta caché ARP -> Cache Hit! (Paso 5).</li></ul>", pdu: null },
+                    { title: "R1 Envía Error ICMP", action: "R1 -> ICMP Error -> A", description: "<ul><li>R1 encapsula ICMP Error en Ethernet.</li><li>MAC Dst = MAC A, Src = MAC R1 eth0. Envía por eth0.</li></ul>",
+                         pdu: { info: "ICMP Net Unreach", srcMac: topoData['router-1'].interfaces.eth0.mac, dstMac: topoData['host-a'].mac, etherType: 'IP', ip: { srcIp: topoData['router-1'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 3, code: 0, checksum: 0xE5F6 } },
+                         visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'host-a' },
+                    { title: "A Recibe Error", action: "A: Recibe ICMP Error", description: "<ul><li>A recibe ICMP Error 'Net Unreachable'.</li><li>Ping informa del error.</li></ul>", pdu: null },
+                    { title: "Fin Sin Ruta", pdu: null, action: "Fin", description: "<ul><li>Ping falló: R1 no tenía ruta al destino.</li></ul>" }
+                ]
+            },
+            'ping_wrong_route_r2': {
+                name: "Fallo: Ruta Incorrecta R2",
+                routingTableR1: [
+                    { network: '192.168.2.0', mask: '255.255.255.0', nextHop: '10.0.0.2', interface: 'eth1' },
+                    { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' },
+                    { network: '192.168.1.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' }
+                ],
+                routingTableR2: [
+                    { network: '192.168.1.0', mask: '255.255.255.0', nextHop: '10.0.0.5', interface: 'eth0' },
+                    { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' },
+                    { network: '192.168.2.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' }
+                ],
+                firewallR1: { active: false, rules: [] }, firewallR2: { active: false, rules: [] },
+                steps: [
+                     { title: "Inicio -> Reply Llega a R2", action: "Setup", description: "<ul><li>Simulamos flujo hasta ICMP Reply (B->A) llega a R2.</li><li>Cachés ARP relevantes pobladas.</li></ul>",
+                         initializeCache: [
+                            { host: 'host-a', ip: topoData['router-1'].interfaces.eth0.ip, mac: topoData['router-1'].interfaces.eth0.mac },
+                            { host: 'router-1', ip: topoData['host-a'].ip, mac: topoData['host-a'].mac },
+                            { host: 'router-1', ip: topoData['router-2'].interfaces.eth0.ip, mac: topoData['router-2'].interfaces.eth0.mac },
+                            { host: 'router-2', ip: topoData['router-1'].interfaces.eth1.ip, mac: topoData['router-1'].interfaces.eth1.mac },
+                            { host: 'router-2', ip: topoData['host-b'].ip, mac: topoData['host-b'].mac },
+                            { host: 'host-b', ip: topoData['router-2'].interfaces.eth1.ip, mac: topoData['router-2'].interfaces.eth1.mac }
+                         ],
+                         pdu: { info:"ICMP Echo Reply", srcMac: topoData['host-b'].mac, dstMac: topoData['router-2'].interfaces.eth1.mac, etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}},
+                         visible: false
+                     },
+                     { title: "R2 Recibe/Enruta Reply", action: "R2: Consulta Ruta", description: "<ul><li>R2(eth1) recibe Reply (B->A).</li><li>Decapsula Eth, Procesa IP (TTL-- a 63).</li><li>Consulta tabla para 192.168.1.10 (A).</li><li><strong>¡Error! Ruta encontrada:</strong> 192.168.1.0/24 via NH <strong>10.0.0.5</strong> (inválido) por eth0.</li></ul>",
+                         pdu: { info:"ICMP Echo Reply (TTL=63)", etherType: 'IP', ip: {srcIp: topoData['host-b'].ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 0, code:0, id: 1, seq: 1, checksum: 0xC3D4}}, visible: false },
+                    { title: "R2 Necesita MAC NH", action: "R2: ¿MAC para 10.0.0.5?", description: "<ul><li>R2 necesita enviar a NH incorrecto (10.0.0.5).</li><li>Consulta caché ARP -> Cache Miss.</li></ul>", pdu: null },
+                    { title: "R2 Prepara ARP Req (Inválido)", action: "R2: Crear ARP Request", description: "<ul><li>R2 prepara ARP Req para IP inexistente 10.0.0.5 via eth0.</li></ul>",
+                         pdu: { info:"ARP Req Prep", etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['router-2'].interfaces.eth0.mac, senderIp: topoData['router-2'].interfaces.eth0.ip, targetMac: '00:00:00:00:00:00', targetIp: '10.0.0.5' } }, visible: false },
+                    { title: "R2 Broadcast ARP (WAN)", action: "R2 -> Broadcast(ARP Req)", description: "<ul><li>R2 envía ARP Req broadcast por eth0 (WAN).</li><li>Nadie responde para 10.0.0.5.</li></ul>",
+                        pdu: { info:"ARP Req (Inválido)", srcMac: topoData['router-2'].interfaces.eth0.mac, dstMac: BROADCAST_MAC, etherType: 'ARP', arp: { opcode: 1, senderMac: topoData['router-2'].interfaces.eth0.mac, senderIp: topoData['router-2'].interfaces.eth0.ip, targetMac: '00:00:00:00:00:00', targetIp: '10.0.0.5' } },
+                        broadcast: true, srcHost: 'router-2', targets: ['router-1'], visible: true, transition: TRAVEL_TRANSITION },
+                    { title: "ARP Timeout", action: "R2: ARP Timeout", description: "<ul><li>R2 espera ARP Reply para 10.0.0.5, pero nunca llega -> Timeout.</li><li>No puede resolver MAC del NH incorrecto.</li></ul>", pdu: null },
+                    { title: "R2 Genera Error", action: "R2: Crear ICMP Error", description: "<ul><li>R2 no puede reenviar ICMP Reply. Lo descarta.</li><li>Genera ICMP Error (Type 3, Code 1: Host Unreachable).</li><li>IP Src = IP R2 eth1, IP Dst = IP B (origen del paquete fallido).</li></ul>",
+                         pdu: { info: "ICMP Host Unr Prep", etherType: 'IP', ip: { srcIp: topoData['router-2'].interfaces.eth1.ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 3, code: 1, checksum: 0xF1A2 } }, visible: false },
+                    { title: "R2 Necesita MAC B", action: "R2: ¿MAC para 192.168.2.20?", description: "<ul><li>R2 necesita enviar ICMP Error a B.</li><li>Consulta caché ARP -> Cache Hit! (Simulado).</li></ul>", pdu: null },
+                    { title: "R2 Envía Error ICMP", action: "R2 -> ICMP Error -> B", description: "<ul><li>R2 encapsula ICMP Error en Ethernet.</li><li>MAC Dst = MAC B, Src = MAC R2 eth1. Envía por eth1.</li></ul>",
+                         pdu: { info: "ICMP Host Unreach", srcMac: topoData['router-2'].interfaces.eth1.mac, dstMac: topoData['host-b'].mac, etherType: 'IP', ip: { srcIp: topoData['router-2'].interfaces.eth1.ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 3, code: 1, checksum: 0xF1A2 } },
+                         visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-2', dstHost: 'host-b' },
+                    { title: "B Recibe Error", action: "B: Recibe ICMP Error", description: "<ul><li>B recibe 'Host Unreachable'.</li><li>Ping original de A fallará (timeout).</li></ul>", pdu: null },
+                    { title: "Fin Ruta Incorrecta", pdu: null, action: "Fin", description: "<ul><li>Ping falla: R2 tiene ruta a NH inexistente (10.0.0.5) para red A, ARP falla.</li></ul>" }
+                ]
+            },
+             'ping_routing_loop': {
+                 name: "Fallo: Bucle de Rutas",
+                 routingTableR1: [
+                     { network: '172.16.10.0', mask: '255.255.255.0', nextHop: '10.0.0.2', interface: 'eth1' },
+                     { network: '192.168.2.0', mask: '255.255.255.0', nextHop: '10.0.0.2', interface: 'eth1' },
+                     { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' },
+                     { network: '192.168.1.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' }
+                 ],
+                 routingTableR2: [
+                     { network: '172.16.10.0', mask: '255.255.255.0', nextHop: '10.0.0.1', interface: 'eth0' },
+                     { network: '192.168.1.0', mask: '255.255.255.0', nextHop: '10.0.0.1', interface: 'eth0' },
+                     { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' },
+                     { network: '192.168.2.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' }
+                 ],
+                  firewallR1: { active: false, rules: [] }, firewallR2: { active: false, rules: [] },
+                  steps: [
+                     { title: "Inicio Bucle", pdu: null, action: "-", description: "<ul><li>A ping a IP inexistente (172.16.10.5). R1/R2 se apuntan mutuamente para esa red.</li><li>TTL inicial bajo (3).</li></ul>" },
+                     { title: "A Envía ICMP Req (Loop)", action: "A -> ICMP Req -> R1", description: "<ul><li>A envía ICMP Req (Dst 172.16.10.5, TTL=3) a GW (R1).</li><li>(Caché ARP A->R1 poblada).</li></ul>",
+                          pdu: { info:"ICMP Req", srcMac: topoData['host-a'].mac, dstMac: topoData['router-1'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: '172.16.10.5', protocol: 'ICMP', ttl: 3}, icmp: {type: 8, code:0, id: 5, seq: 1, checksum: 0x1122}},
+                          initializeCache: [
+                             { host: 'host-a', ip: topoData['router-1'].interfaces.eth0.ip, mac: topoData['router-1'].interfaces.eth0.mac },
+                             { host: 'router-1', ip: topoData['host-a'].ip, mac: topoData['host-a'].mac },
+                             { host: 'router-1', ip: topoData['router-2'].interfaces.eth0.ip, mac: topoData['router-2'].interfaces.eth0.mac },
+                             { host: 'router-2', ip: topoData['router-1'].interfaces.eth1.ip, mac: topoData['router-1'].interfaces.eth1.mac },
+                          ],
+                         visible: true, transition: TRAVEL_TRANSITION, srcHost: 'host-a', dstHost: 'router-1' },
+                      { title: "R1 Enruta a R2", action: "R1 -> ICMP Req -> R2", description: "<ul><li>R1 recibe. Procesa IP (TTL-- a 2).</li><li>Consulta tabla: Ruta 172.16.10.0/24 -> NH 10.0.0.2 (R2) via eth1.</li><li>Re-encapsula (MAC Dst=R2 eth0) y envía por eth1.</li></ul>",
+                          pdu: { info:"ICMP Req", srcMac: topoData['router-1'].interfaces.eth1.mac, dstMac: topoData['router-2'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: '172.16.10.5', protocol: 'ICMP', ttl: 2}, icmp: {type: 8, code:0, id: 5, seq: 1, checksum: 0x1122}},
+                          visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'router-2' },
+                      { title: "R2 Enruta a R1", action: "R2 -> ICMP Req -> R1", description: "<ul><li>R2(eth0) recibe. Procesa IP (TTL-- a 1).</li><li>Consulta tabla: Ruta 172.16.10.0/24 -> NH 10.0.0.1 (R1) via eth0.</li><li>Re-encapsula (MAC Dst=R1 eth1) y envía por eth0. ¡Bucle!</li></ul>",
+                          pdu: { info:"ICMP Req", srcMac: topoData['router-2'].interfaces.eth0.mac, dstMac: topoData['router-1'].interfaces.eth1.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: '172.16.10.5', protocol: 'ICMP', ttl: 1}, icmp: {type: 8, code:0, id: 5, seq: 1, checksum: 0x1122}},
+                          visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-2', dstHost: 'router-1' },
+                      { title: "R1 Recibe (TTL=1)", action: "R1: Recibe ICMP Req", description: "<ul><li>R1(eth1) recibe paquete de nuevo, ahora con TTL=1.</li></ul>",
+                          pdu: { info:"ICMP Req (TTL=1)", etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: '172.16.10.5', protocol: 'ICMP', ttl: 1}, icmp: {type: 8, code:0, id: 5, seq: 1, checksum: 0x1122}}, visible: false },
+                      { title: "R1 TTL Expira!", action: "R1: TTL -> 0", description: "<ul><li>R1 procesa IP. Decrementa TTL de 1 a 0.</li><li>¡TTL expirado! Paquete no reenviable.</li><li>R1 descarta ICMP Req original.</li></ul>", pdu: null },
+                      { title: "R1 Genera Error TTL", action: "R1: Crear ICMP Error", description: "<ul><li>R1 genera ICMP Error (Type 11, Code 0: Time Exceeded).</li><li>IP Src = IP R1 eth0 (hacia A), IP Dst = IP A.</li></ul>",
+                          pdu: { info: "ICMP TTL Ex Prep", etherType: 'IP', ip: { srcIp: topoData['router-1'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 11, code: 0, checksum: 0xB4C5 } }, visible: false },
+                      { title: "R1 Envía Error ICMP", action: "R1 -> ICMP Error -> A", description: "<ul><li>R1 encapsula ICMP Error en Ethernet (MAC Dst=A) y envía por eth0.</li></ul>",
+                          pdu: { info: "ICMP TTL Exceeded", srcMac: topoData['router-1'].interfaces.eth0.mac, dstMac: topoData['host-a'].mac, etherType: 'IP', ip: { srcIp: topoData['router-1'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 11, code: 0, checksum: 0xB4C5 } },
+                          visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'host-a' },
+                      { title: "A Recibe Error TTL", action: "A: Recibe ICMP Error", description: "<ul><li>A recibe 'Time Exceeded'.</li><li>Ping informa error (bucle o camino largo).</li></ul>", pdu: null },
+                      { title: "Fin Bucle", pdu: null, action: "Fin", description: "<ul><li>Ping falla: Rutas en R1/R2 crean bucle, TTL expira.</li></ul>" }
+                  ]
+             },
+             'ping_firewall_r2': {
+                 name: "Fallo: Firewall en R2",
+                  routingTableR1: [
+                     { network: '192.168.2.0', mask: '255.255.255.0', nextHop: '10.0.0.2', interface: 'eth1' },
+                     { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' },
+                     { network: '192.168.1.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' }
+                 ],
+                 routingTableR2: [
+                     { network: '192.168.1.0', mask: '255.255.255.0', nextHop: '10.0.0.1', interface: 'eth0' },
+                     { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' },
+                     { network: '192.168.2.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' }
+                 ],
+                 firewallR1: { active: false, rules: [] },
+                 firewallR2: {
+                     active: true,
+                     rules: [ { action: 'deny', protocol: 'icmp', src: 'any', dst: 'any', interface: 'eth0'} ]
+                 },
+                 steps: [
+                      { title: "Inicio -> Req Llega a R2", action: "Setup", description: "<ul><li>Simulamos flujo hasta ICMP Req (A->B) llega a R2(eth0).</li><li>Cachés ARP pobladas.</li></ul>",
+                          initializeCache: [
+                             { host: 'host-a', ip: topoData['router-1'].interfaces.eth0.ip, mac: topoData['router-1'].interfaces.eth0.mac },
+                             { host: 'router-1', ip: topoData['host-a'].ip, mac: topoData['host-a'].mac },
+                             { host: 'router-1', ip: topoData['router-2'].interfaces.eth0.ip, mac: topoData['router-2'].interfaces.eth0.mac },
+                             { host: 'router-2', ip: topoData['router-1'].interfaces.eth1.ip, mac: topoData['router-1'].interfaces.eth1.mac },
+                          ],
+                          pdu: { info:"ICMP Echo Req", srcMac: topoData['router-1'].interfaces.eth1.mac, dstMac: topoData['router-2'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}},
+                          visible: false
+                      },
+                     { title: "R2 Recibe/Firewall", action: "R2: Chequeo Firewall", description: "<ul><li>R2(eth0) recibe trama.</li><li>Chequea reglas FW para eth0.</li><li><strong>¡Coincidencia!</strong> Regla 'deny icmp interface eth0' bloquea paquete.</li><li>ICMP Req descartado (dropped).</li></ul>",
+                         pdu: { info:"ICMP Echo Req", srcMac: topoData['router-1'].interfaces.eth1.mac, dstMac: topoData['router-2'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1}, icmp: {type: 8, code:0, id: 1, seq: 1, checksum: 0xA1B2}, firewalled: true},
+                         visible: true, transition: NO_TRANSITION, srcHost: 'router-2', dstHost: 'router-2' },
+                      { title: "R2 Genera Error FW", action: "R2: Crear ICMP Error", description: "<ul><li>FW bloqueó paquete. R2 genera ICMP Error (Type 3, Code 13: Adm Prohibited).</li><li>IP Src = IP R2 eth0, IP Dst = IP A.</li></ul>",
+                          pdu: { info: "ICMP Adm Prohib Prep", etherType: 'IP', ip: { srcIp: topoData['router-2'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 3, code: 13, checksum: 0xD7E8 } }, visible: false },
+                      { title: "R2 Necesita MAC R1", action: "R2: ¿MAC para 10.0.0.1?", description: "<ul><li>R2 necesita enviar error a A via R1 (10.0.0.1).</li><li>Consulta caché ARP -> Cache Hit! (Simulado).</li></ul>", pdu: null },
+                      { title: "R2 Envía Error ICMP", action: "R2 -> ICMP Error -> R1", description: "<ul><li>R2 encapsula ICMP Error en Ethernet (MAC Dst=R1 eth1). Envía por eth0.</li></ul>",
+                          pdu: { info: "ICMP Adm Prohib", srcMac: topoData['router-2'].interfaces.eth0.mac, dstMac: topoData['router-1'].interfaces.eth1.mac, etherType: 'IP', ip: { srcIp: topoData['router-2'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 3, code: 13, checksum: 0xD7E8 } },
+                          visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-2', dstHost: 'router-1' },
+                      { title: "R1 Recibe/Enruta Error", action: "R1: Consulta Ruta", description: "<ul><li>R1(eth1) recibe ICMP Error.</li><li>Procesa IP (TTL-- a 63). Consulta ruta para A.</li><li>Ruta: 192.168.1.0/24 directa en eth0.</li></ul>",
+                          pdu: { info:"ICMP Adm Prohib (TTL=63)", etherType: 'IP', ip: { srcIp: topoData['router-2'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1 }, icmp: { type: 3, code: 13, checksum: 0xD7E8 } }, visible: false },
+                      { title: "R1 Necesita MAC A", action: "R1: ¿MAC para 192.168.1.10?", description: "<ul><li>R1 necesita MAC de A para enviar error.</li><li>Consulta caché ARP -> Cache Hit! (Simulado).</li></ul>", pdu: null },
+                      { title: "R1 Reenvía Error ICMP", action: "R1 -> ICMP Error -> A", description: "<ul><li>R1 encapsula ICMP Error en Ethernet (MAC Dst=A). Envía por eth0.</li></ul>",
+                          pdu: { info: "ICMP Adm Prohib", srcMac: topoData['router-1'].interfaces.eth0.mac, dstMac: topoData['host-a'].mac, etherType: 'IP', ip: { srcIp: topoData['router-2'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL-1 }, icmp: { type: 3, code: 13, checksum: 0xD7E8 } },
+                          visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'host-a' },
+                      { title: "A Recibe Error FW", action: "A: Recibe ICMP Error", description: "<ul><li>A recibe 'Administratively Prohibited'.</li><li>Ping informa error por firewall.</li></ul>", pdu: null },
+                      { title: "Fin Firewall", pdu: null, action: "Fin", description: "<ul><li>Ping falla: Regla firewall en R2 bloqueó ICMP Req.</li></ul>" }
+                 ]
+             },
+             'ping_ttl_expired': {
+                 name: "Fallo: TTL Expirado",
+                  routingTableR1: [
+                     { network: '192.168.2.0', mask: '255.255.255.0', nextHop: '10.0.0.2', interface: 'eth1' },
+                     { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' },
+                     { network: '192.168.1.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' }
+                 ],
+                 routingTableR2: [
+                     { network: '192.168.1.0', mask: '255.255.255.0', nextHop: '10.0.0.1', interface: 'eth0' },
+                     { network: '10.0.0.0', mask: '255.255.255.0', nextHop: null, interface: 'eth0' },
+                     { network: '192.168.2.0', mask: '255.255.255.0', nextHop: null, interface: 'eth1' }
+                 ],
+                 firewallR1: { active: false, rules: [] }, firewallR2: { active: false, rules: [] },
+                 steps: [
+                     { title: "Inicio TTL Bajo", pdu: null, action: "-", description: "<ul><li>A ping a B, pero con TTL inicial <strong>TTL=1</strong>.</li></ul>" },
+                     { title: "A Envía ICMP Req (TTL=1)", action: "A -> ICMP Req -> R1", description: "<ul><li>A crea ICMP Req.</li><li>Encapsula IP (Dst=B, TTL=1).</li><li>Encapsula Ethernet (Dst=MAC R1a). Envía a R1.</li><li>(Caché ARP A->R1 poblada).</li></ul>",
+                          pdu: { info:"ICMP Req", srcMac: topoData['host-a'].mac, dstMac: topoData['router-1'].interfaces.eth0.mac, etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: 1}, icmp: {type: 8, code:0, id: 8, seq: 1, checksum: 0x4455}},
+                          initializeCache: [
+                             { host: 'host-a', ip: topoData['router-1'].interfaces.eth0.ip, mac: topoData['router-1'].interfaces.eth0.mac },
+                             { host: 'router-1', ip: topoData['host-a'].ip, mac: topoData['host-a'].mac },
+                          ],
+                         visible: true, transition: TRAVEL_TRANSITION, srcHost: 'host-a', dstHost: 'router-1' },
+                      { title: "R1 Recibe (TTL=1)", action: "R1: Recibe ICMP Req", description: "<ul><li>R1(eth0) recibe trama con TTL=1.</li></ul>",
+                          pdu: { info:"ICMP Req (TTL=1)", etherType: 'IP', ip: {srcIp: topoData['host-a'].ip, dstIp: topoData['host-b'].ip, protocol: 'ICMP', ttl: 1}, icmp: {type: 8, code:0, id: 8, seq: 1, checksum: 0x4455}}, visible: false },
+                      { title: "R1 TTL Expira!", action: "R1: TTL -> 0", description: "<ul><li>R1 procesa IP. Decrementa TTL de 1 a 0.</li><li><strong>¡TTL expirado!</strong> No puede reenviar.</li><li>R1 descarta ICMP Req original.</li></ul>", pdu: null },
+                      { title: "R1 Genera Error TTL", action: "R1: Crear ICMP Error", description: "<ul><li>R1 genera ICMP Error (Type 11, Code 0: Time Exceeded).</li><li>IP Src = IP R1 eth0, IP Dst = IP A.</li></ul>",
+                          pdu: { info: "ICMP TTL Ex Prep", etherType: 'IP', ip: { srcIp: topoData['router-1'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 11, code: 0, checksum: 0xB4C5 } }, visible: false },
+                      { title: "R1 Envía Error ICMP", action: "R1 -> ICMP Error -> A", description: "<ul><li>R1 encapsula ICMP Error en Ethernet (MAC Dst=A) y envía por eth0.</li></ul>",
+                          pdu: { info: "ICMP TTL Exceeded", srcMac: topoData['router-1'].interfaces.eth0.mac, dstMac: topoData['host-a'].mac, etherType: 'IP', ip: { srcIp: topoData['router-1'].interfaces.eth0.ip, dstIp: topoData['host-a'].ip, protocol: 'ICMP', ttl: DEFAULT_TTL }, icmp: { type: 11, code: 0, checksum: 0xB4C5 } },
+                          visible: true, transition: TRAVEL_TRANSITION, srcHost: 'router-1', dstHost: 'host-a' },
+                      { title: "A Recibe Error TTL", action: "A: Recibe ICMP Error", description: "<ul><li>A recibe 'Time Exceeded'.</li><li>Ping informa error (TTL insuficiente).</li></ul>", pdu: null },
+                      { title: "Fin TTL Expirado", pdu: null, action: "Fin", description: "<ul><li>Ping falla: TTL inicial bajo expiró en R1.</li></ul>" }
+                 ]
+             }
+        };
+
+        function executeStep(stepIndex, isMovingBack = false) {
+            const scenarioData = scenarios[currentScenario];
+            if (!scenarioData || !scenarioData.steps || !Array.isArray(scenarioData.steps)) {
+                console.error("Datos de escenario inválidos:", currentScenario);
+                return;
+            }
+            totalSteps = scenarioData.steps.length - 1;
+            if (stepIndex < 0 || stepIndex > totalSteps) {
+                return;
+            }
+
+            currentStep = stepIndex;
+            const config = scenarioData.steps[currentStep];
+            if (!config) {
+                 console.error("Configuración de paso no encontrada para el índice:", currentStep);
+                 return;
+             }
+            const pduData = config.pdu;
+
+            activePduClones.forEach(clone => clone.remove());
+            activePduClones = [];
+
+            if (!isMovingBack && currentStep === 0) {
+                  arpCaches = { 'host-a': new Map(), 'router-1': new Map(), 'router-2': new Map(), 'host-b': new Map() };
+                  routingTables['router-1'] = JSON.parse(JSON.stringify(scenarioData.routingTableR1 || []));
+                  routingTables['router-2'] = JSON.parse(JSON.stringify(scenarioData.routingTableR2 || []));
+                  firewalls['router-1'] = JSON.parse(JSON.stringify(scenarioData.firewallR1 || { active: false, rules: [] }));
+                  firewalls['router-2'] = JSON.parse(JSON.stringify(scenarioData.firewallR2 || { active: false, rules: [] }));
+
+                 if (config.initializeCache && Array.isArray(config.initializeCache)) {
+                     config.initializeCache.forEach(entry => {
+                          if (arpCaches[entry.host]) {
+                             arpCaches[entry.host].set(entry.ip, entry.mac);
+                          }
+                     });
+                 }
+                 const accordionCollapse = document.getElementById('pdu-accordion-collapse');
+                 const accordionButton = document.getElementById('pdu-accordion-header')?.querySelector('button');
+                 if (accordionCollapse?.classList.contains('show')) {
+                     new bootstrap.Collapse(accordionCollapse).hide();
+                 }
+                 if (accordionButton && !accordionButton.classList.contains('collapsed')) {
+                     accordionButton.classList.add('collapsed');
+                     accordionButton.setAttribute('aria-expanded', 'false');
+                 }
+             }
+
+            if (!isMovingBack && config.updateCache) {
+                if (arpCaches[config.updateCache.host]) {
+                     arpCaches[config.updateCache.host].set(config.updateCache.ip, config.updateCache.mac);
+                }
+            }
+
+            updateAllArpDisplays(); updateAllRoutingTables(); updateAllFirewalls();
+
+            updateInfoPanel(config);
+            displayHeaderDetails(pduData);
+
+            if(pduGroup) pduGroup.setAttribute('visibility', (config.broadcast || !config.visible || !pduData) ? 'hidden' : 'visible');
+
+            if (config.visible && pduData) {
+                let srcHostId = config.srcHost;
+                if (!srcHostId && pduData.srcMac) {
+                    srcHostId = Object.keys(topoData).find(id =>
+                        topoData[id].mac === pduData.srcMac ||
+                        (topoData[id].interfaces && Object.values(topoData[id].interfaces).some(iface => iface.mac === pduData.srcMac))
+                    ) || 'host-a';
+                } else if (!srcHostId) {
+                    srcHostId = 'host-a';
+                }
+
+                if(config.broadcast && config.targets && config.targets.length > 0) {
+                     broadcastPdu(srcHostId, config.targets, pduData, config.transition || TRAVEL_TRANSITION);
+                 } else if (config.dstHost) {
+                     const startX = getComponentCenterX(srcHostId);
+                     const endX = getComponentCenterX(config.dstHost);
+                     const startY = PDU_Y_OFFSET;
+                     const endY = PDU_Y_OFFSET;
+                     const transition = (isMovingBack || config.transition === NO_TRANSITION) ? NO_TRANSITION : (config.transition || TRAVEL_TRANSITION);
+                     updatePduSvgVisuals(pduGroup, pduData);
+                     movePdu(pduGroup, startX, startY, endX, endY, transition, true);
+                 } else {
+                      const staticX = getComponentCenterX(srcHostId);
+                      const staticY = PDU_Y_OFFSET;
+                      updatePduSvgVisuals(pduGroup, pduData);
+                      movePdu(pduGroup, staticX, staticY, staticX, staticY, NO_TRANSITION, true);
+                      pduGroup.setAttribute('visibility', 'visible');
+                 }
+            } else {
+                 if (pduGroup) pduGroup.setAttribute('visibility', 'hidden');
+            }
+
+            prevButton.disabled = currentStep === 0;
+            nextButton.disabled = currentStep >= totalSteps;
+            resetButton.disabled = currentStep === 0;
+         }
+
+        scenarioSelect.addEventListener('change', (e) => {
+            currentScenario = e.target.value;
+            currentStep = 0;
+            setTimeout(() => executeStep(0, false), 50);
+        });
+
+        nextButton.addEventListener('click', () => {
+            if (scenarios[currentScenario]?.steps) {
+                totalSteps = scenarios[currentScenario].steps.length - 1;
+                if (currentStep < totalSteps) {
+                    executeStep(currentStep + 1, false);
+                }
+            }
+        });
+
+        prevButton.addEventListener('click', () => {
+            if (currentStep > 0) {
+                 executeStep(currentStep - 1, true);
+            }
+        });
+
+        resetButton.addEventListener('click', () => {
+            currentStep = 0;
+            setTimeout(() => executeStep(0, false), 50);
+        });
+
+        window.addEventListener('load', () => {
+             initializeDeviceInfos();
+             currentScenario = scenarioSelect.value;
+              if (scenarios[currentScenario]?.steps) {
+                 totalSteps = scenarios[currentScenario].steps.length - 1;
+                  setTimeout(() => {
+                      executeStep(0);
+                      updateAllArpDisplays();
+                      updateAllRoutingTables();
+                      updateAllFirewalls();
+                      displayHeaderDetails(scenarios[currentScenario].steps[0].pdu);
+                  }, 200);
+             } else {
+                 console.error(`Initial scenario data not found for: ${currentScenario}`);
+                 stepDescription.innerHTML = `<span style="color:red;">Error: No se pudieron cargar los datos para el escenario '${currentScenario}'.</span>`;
+            }
+        });
+    </script>
+</body>
+</html>
