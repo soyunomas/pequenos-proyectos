@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Funcionamiento Switch L2</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #f0f4f8;
+            --color-panel-bg: #ffffff;
+            --color-switch-bg: #e3f2fd;
+            --color-host-a-bg: #fff9c4;
+            --color-host-b-bg: #c8e6c9;
+            --color-host-c-bg: #f8bbd0;
+            --color-border: #ccc;
+            --color-port-idle: #90a4ae;
+            --color-port-active: #4caf50;
+            --color-frame-unicast: #c8e6c9;
+            --color-frame-unicast-border: #81c784;
+            --color-frame-flood: #ffecb3;
+            --color-frame-flood-border: #ffd54f;
+            --color-text: #212529;
+            --color-mac-table-header: #b0bec5;
+            --color-state-ok: #28a745;
+            --color-state-error: #dc3545;
+            --color-state-warn: #ffc107;
+            --color-state-process: #0dcaf0;
+            --color-state-learn: #9c27b0;
+        }
+        body { padding-top: 15px; background-color: var(--color-bg); font-size: 0.9rem; }
+        .control-panel, .switch-representation, .host-representation {
+            border: 1px solid var(--color-border); background-color: var(--color-panel-bg);
+            border-radius: 5px; padding: 12px; margin-bottom: 15px; min-height: 650px;
+            display: flex; flex-direction: column; position: relative;
+        }
+        .control-panel { overflow-y: auto; }
+        .switch-representation { background-color: var(--color-switch-bg); align-items: center; padding-top: 50px;}
+        .host-representation { align-items: center; padding-top: 50px; }
+        .host-a { background-color: var(--color-host-a-bg); }
+        .host-b { background-color: var(--color-host-b-bg); }
+        .host-c { background-color: var(--color-host-c-bg); }
+        .comp-title { position: absolute; top: 10px; left: 12px; font-weight: bold; font-size: 1.1em; }
+        .comp-info { position: absolute; top: 35px; left: 12px; font-family: monospace; font-size: 0.8em; color: #444; line-height: 1.3; }
+        .status-box { margin-top: 20px; width: 95%; border: 1px dashed #aaa; padding: 8px; font-size: 0.85em; background-color: rgba(255,255,255,0.8); min-height: 60px; overflow-y: auto; text-align: center; }
+        .status-box h6 { font-size: 1em; margin-bottom: 5px; text-align: center; }
+        .status-box pre { font-size: 0.9em; margin: 0; white-space: pre-wrap; word-break: break-word; text-align: center; }
+        .status-ok { color: var(--color-state-ok); font-weight: bold; }
+        .status-error { color: var(--color-state-error); font-weight: bold; }
+        .status-warn { color: var(--color-state-warn); font-weight: bold; }
+        .status-process { color: var(--color-state-process); font-weight: bold; }
+        .status-learn { color: var(--color-state-learn); font-weight: bold; }
+        .control-panel .button-group { margin-top: auto; padding-top: 10px; position: sticky; bottom: 0; background-color: var(--color-panel-bg); padding-bottom: 5px; z-index: 1; text-align: center; }
+        .control-panel .button-group .btn { font-size: 0.85em; padding: 0.3rem 0.6rem; }
+        #visualization-area { position: relative; min-height: 680px; margin-bottom: 20px; }
+        #item-svg-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 10; }
+        .frame-group, .frame-clone { cursor: default; }
+        .frame-rect { stroke-width: 1.5; rx: 3; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.15)); width: 220px; height: 55px; }
+        .frame-unicast .frame-rect { fill: var(--color-frame-unicast); stroke: var(--color-frame-unicast-border); }
+        .frame-flood .frame-rect { fill: var(--color-frame-flood); stroke: var(--color-frame-flood-border); }
+        .frame-text { font-family: monospace; font-size: 10px; fill: var(--color-text); text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .frame-text-label { font-weight: bold; text-anchor: start; font-size: 9px; fill: var(--color-text); }
+        .frame-text-value { text-anchor: start; font-size: 9px; fill: var(--color-text); }
+        .control-panel h5 { font-size: 1.1rem; margin-bottom: 0.75rem; position: sticky; top:0; background-color: var(--color-panel-bg); padding: 5px 0; z-index: 1;}
+        .control-panel h6 { font-size: 1rem; margin-top: 0.5rem; margin-bottom: 0.5rem; font-weight: bold;}
+        .control-panel label { font-weight: bold; margin-bottom: 0.25rem; display: block; }
+        .control-panel select { margin-bottom: 1rem; }
+        .control-panel p { margin-bottom: 0.6rem; font-size: 0.85em; line-height: 1.4; }
+        #step-description { min-height: 100px; font-size: 0.8em; line-height: 1.35; }
+        .control-panel #step-description ul { padding-left: 1.1em; margin-bottom: 0; }
+        .control-panel #step-description li { margin-bottom: 0.2em; }
+        .frame-info { font-family: monospace; font-size: 0.9em; color: #555; background-color: #eee; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
+        #mac-table-container { margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
+        #mac-table { width: 100%; font-size: 0.8em; }
+        #mac-table th { background-color: var(--color-mac-table-header); padding: 4px 6px; text-align: left; }
+        #mac-table td { padding: 3px 6px; border-bottom: 1px solid #eee; font-family: monospace; }
+        #mac-table tr:last-child td { border-bottom: none; }
+        .mac-table-placeholder td { font-style: italic; color: #777; text-align: center; }
+        .switch-ports { margin-top: 20px; width: 95%; font-size: 0.8em; text-align: center; }
+        .switch-ports span { display: inline-block; padding: 3px 6px; margin: 2px; border-radius: 3px; border: 1px solid #aaa; background-color: var(--color-port-idle); color: white; font-weight: bold; }
+        .switch-ports span.active { background-color: var(--color-port-active); border-color: #388e3c; }
+        .connection-line { stroke: #555; stroke-width: 2; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-3">Visualizador Funcionamiento Switch L2 (Ethernet)</h1>
+        <div id="visualization-area" class="row justify-content-center">
+            <div class="col-lg-2 col-md-3">
+                <div class="control-panel">
+                    <h5>Panel de Control</h5>
+                    <label for="scenario-select">Escenario:</label>
+                    <select id="scenario-select" class="form-select form-select-sm mb-2">
+                        <option value="a_to_b_initial">1. A -> B (Tabla Vacía)</option>
+                        <option value="b_to_a_reply">2. B -> A (Respuesta)</option>
+                        <option value="a_to_b_known">3. A -> B (Conocido)</option>
+                        <option value="c_to_a">4. C -> A</option>
+                        <option value="a_to_c">5. A -> C</option>
+                    </select>
+                    <h6 id="step-title" class="mt-2">Paso 0: Inicio</h6>
+                    <p><strong>Trama en tránsito:</strong> <span id="frame-name" class="frame-info">Ninguna</span></p>
+                    <div id="step-description" style="min-height: 120px;">Selecciona un escenario y usa los botones para avanzar.</div>
+                    <p><strong>Acción:</strong> <span id="action-details">-</span></p>
+                    <div id="mac-table-container">
+                        <h6>Tabla MAC del Switch</h6>
+                        <table id="mac-table">
+                            <thead><tr><th>MAC Address</th><th>Puerto</th></tr></thead>
+                            <tbody><tr class="mac-table-placeholder"><td colspan="2">(Vacía)</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div class="button-group">
+                        <button id="prev-step" class="btn btn-info me-1" disabled>Ant</button>
+                        <button id="next-step" class="btn btn-primary me-1">Sig</button>
+                        <button id="reset" class="btn btn-secondary" disabled>Reset</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3">
+                <div class="host-representation host-a" id="host_a">
+                    <div class="comp-title">Host A</div>
+                    <div class="comp-info" id="host-a-info">MAC: 0A:0A:0A:0A:0A:0A<br>IP: 192.168.1.10</div>
+                    <div class="status-box"><h6>Estado Host A</h6><pre id="host_a-status">Preparado</pre></div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-3">
+                 <div class="switch-representation" id="switch">
+                    <div class="comp-title">Switch L2</div>
+                    <div class="switch-ports" id="switch-ports">
+                        Puertos: <span>1</span> <span>2</span> <span>3</span> <span>4</span>
+                    </div>
+                     <div class="status-box"><h6>Estado Switch</h6><pre id="switch-status">Inactivo</pre></div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3">
+                <div class="host-representation host-b" id="host_b">
+                    <div class="comp-title">Host B</div>
+                    <div class="comp-info" id="host-b-info">MAC: 0B:0B:0B:0B:0B:0B<br>IP: 192.168.1.11</div>
+                    <div class="status-box"><h6>Estado Host B</h6><pre id="host_b-status">Esperando</pre></div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3">
+                 <div class="host-representation host-c" id="host_c">
+                    <div class="comp-title">Host C</div>
+                    <div class="comp-info" id="host-c-info">MAC: 0C:0C:0C:0C:0C:0C<br>IP: 192.168.1.12</div>
+                    <div class="status-box"><h6>Estado Host C</h6><pre id="host_c-status">Esperando</pre></div>
+                </div>
+            </div>
+            <svg id="item-svg-container" width="100%" height="100%">
+                 <defs>
+                    <g id="frame-template">
+                        <rect class="frame-rect"/>
+                        <text class="frame-text frame-text-label" x="10" y="15">Dst MAC:</text>
+                        <text class="frame-text frame-text-value frame-dst-mac" x="75" y="15">?</text>
+                        <text class="frame-text frame-text-label" x="10" y="30">Src MAC:</text>
+                        <text class="frame-text frame-text-value frame-src-mac" x="75" y="30">?</text>
+                        <text class="frame-text frame-text-label" x="10" y="45">Tipo:</text>
+                        <text class="frame-text frame-text-value frame-type" x="75" y="45">?</text>
+                    </g>
+                 </defs>
+                 <g id="frame-group" visibility="hidden" class="frame-group">
+                     <use xlink:href="#frame-template"/>
+                 </g>
+                 <line id="line-a" class="connection-line"/>
+                 <line id="line-b" class="connection-line"/>
+                 <line id="line-c" class="connection-line"/>
+            </svg>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const frameGroup = document.getElementById('frame-group');
+        const frameTemplate = document.getElementById('frame-template');
+        const svgContainer = document.getElementById('item-svg-container');
+        const scenarioSelect = document.getElementById('scenario-select');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset');
+        const stepTitle = document.getElementById('step-title');
+        const frameName = document.getElementById('frame-name');
+        const stepDescription = document.getElementById('step-description');
+        const actionDetails = document.getElementById('action-details');
+        const switchStatusEl = document.getElementById('switch-status');
+        const macTableBody = document.getElementById('mac-table').querySelector('tbody');
+        const visualizationArea = document.getElementById('visualization-area');
+        const switchPortsContainer = document.getElementById('switch-ports');
+
+        let currentScenario = scenarioSelect.value;
+        let currentStep = 0;
+        let totalSteps = 0;
+        let hostStates = {};
+        let switchState = { macTable: new Map() };
+        let activeClones = [];
+
+        const FRAME_WIDTH = 220; const FRAME_HEIGHT = 55;
+        const TRAVEL_TRANSITION = 'transform 0.8s ease-in-out';
+        const NO_TRANSITION = 'none';
+        const FRAME_Y_OFFSET = 150;
+        const FLOOD_OFFSET_Y = 25;
+
+        const HOST_CONFIG = {
+            host_a: { id: 'host_a', mac: '0A:0A:0A:0A:0A:0A', port: 1 },
+            host_b: { id: 'host_b', mac: '0B:0B:0B:0B:0B:0B', port: 2 },
+            host_c: { id: 'host_c', mac: '0C:0C:0C:0C:0C:0C', port: 3 },
+            switch: { id: 'switch'}
+        };
+        const ALL_HOST_IDS = ['host_a', 'host_b', 'host_c'];
+
+        function updateComponentStatus(componentId, statusText) {
+            const statusElement = document.getElementById(`${componentId}-status`);
+             if (statusElement) { statusElement.innerHTML = statusText; }
+        }
+
+        function initializeSimulation() {
+            switchState = { macTable: new Map(), ports: [1, 2, 3, 4], status: 'Inactivo' };
+            hostStates = {};
+            ALL_HOST_IDS.forEach(id => {
+                hostStates[id] = { status: (id === 'host_a' ? 'Preparado' : 'Esperando') };
+                updateComponentStatus(id, hostStates[id].status);
+            });
+            updateComponentStatus('switch', switchState.status);
+            updateMacTableDisplay();
+            updatePortDisplay();
+            clearActiveClones();
+            if (frameGroup) frameGroup.setAttribute('visibility', 'hidden');
+        }
+
+        function updateMacTableDisplay() {
+            macTableBody.innerHTML = '';
+            if (switchState.macTable.size === 0) {
+                macTableBody.innerHTML = '<tr class="mac-table-placeholder"><td colspan="2">(Vacía)</td></tr>';
+            } else {
+                const sortedEntries = Array.from(switchState.macTable.entries()).sort((a, b) => a[1] - b[1]);
+                sortedEntries.forEach(([mac, port]) => {
+                    const row = macTableBody.insertRow();
+                    row.insertCell(0).textContent = mac;
+                    row.insertCell(1).textContent = port;
+                });
+            }
+        }
+
+         function updatePortDisplay(activePorts = []) {
+             const portSpans = switchPortsContainer.querySelectorAll('span');
+             portSpans.forEach(span => {
+                 const portNum = parseInt(span.textContent);
+                 if (activePorts.includes(portNum)) {
+                     span.classList.add('active');
+                 } else {
+                     span.classList.remove('active');
+                 }
+             });
+         }
+
+        function updateInfoPanel(config) {
+             if (!config || !stepTitle || !frameName || !stepDescription || !actionDetails) return;
+             stepTitle.textContent = `Paso ${currentStep}: ${config.title}`;
+             frameName.textContent = config.frame?.info || 'Ninguna';
+             stepDescription.innerHTML = config.description || "<ul><li>-</li></ul>";
+             actionDetails.textContent = config.action || "-";
+        }
+
+         function getComponentCenter(elementId) {
+             const element = document.getElementById(elementId);
+             if (!element || !visualizationArea) return { x: 100, y: 100 };
+             try {
+                 const svgRect = visualizationArea.getBoundingClientRect();
+                 const elementRect = element.getBoundingClientRect();
+                 if (elementRect.width === 0 || elementRect.height === 0) return { x: 100, y: 100 };
+                 const x = elementRect.left - svgRect.left + (elementRect.width / 2);
+                 const y = elementRect.top - svgRect.top + (elementRect.height / 2);
+                 return { x, y };
+             } catch(e) { console.error(`Error pos ${elementId}:`, e); return { x: 100, y: 100 }; }
+         }
+
+         function updateFrameSvgVisuals(frameElement, frameData) {
+            if (!frameElement || !frameData || frameElement.tagName.toLowerCase() !== 'g') {
+                return;
+            }
+            const targetElement = frameElement;
+
+            const dstMacText = targetElement.querySelector('.frame-dst-mac');
+            const srcMacText = targetElement.querySelector('.frame-src-mac');
+            const typeText = targetElement.querySelector('.frame-type');
+            const rectElement = targetElement.querySelector('.frame-rect') || targetElement.querySelector('use')?.correspondingUseElement?.querySelector('.frame-rect');
+
+            if (dstMacText) dstMacText.textContent = frameData.destMac || '?';
+            if (srcMacText) srcMacText.textContent = frameData.srcMac || '?';
+            if (typeText) typeText.textContent = frameData.type || 'Ethernet II';
+
+            let currentClasses = frameElement.getAttribute('class') || '';
+            currentClasses = currentClasses.replace(/frame-(unicast|flood)/g, '').trim();
+            const frameClass = frameData.isFlood ? 'frame-flood' : 'frame-unicast';
+            frameElement.setAttribute('class', `${currentClasses} ${frameClass}`);
+
+        }
+
+         function clearActiveClones() {
+            activeClones.forEach(clone => clone.remove());
+            activeClones = [];
+         }
+
+        function moveFrame(frameElement, startX, startY, endX, endY, transitionStyle, isVisible = true, callback = null) {
+             if (!frameElement || isNaN(startX) || isNaN(startY) || isNaN(endX) || isNaN(endY)) {
+                if (frameElement) frameElement.setAttribute('visibility', 'hidden');
+                if (callback) setTimeout(callback, 0);
+                 return;
+             }
+             const initialTranslateX = startX - FRAME_WIDTH / 2;
+             const initialTranslateY = startY - FRAME_HEIGHT / 2;
+             frameElement.style.transition = NO_TRANSITION;
+             frameElement.setAttribute('transform', `translate(${initialTranslateX}, ${initialTranslateY})`);
+             frameElement.setAttribute('visibility', isVisible ? 'visible' : 'hidden');
+
+             requestAnimationFrame(() => {
+                 const finalTranslateX = endX - FRAME_WIDTH / 2;
+                 const finalTranslateY = endY - FRAME_HEIGHT / 2;
+                 frameElement.style.transition = transitionStyle;
+                 frameElement.setAttribute('transform', `translate(${finalTranslateX}, ${finalTranslateY})`);
+
+                 if (callback) {
+                     const onTransitionEnd = (event) => {
+                         if (event.target === frameElement && event.propertyName === 'transform') {
+                             frameElement.removeEventListener('transitionend', onTransitionEnd);
+                             callback();
+                         }
+                     };
+                     if (transitionStyle !== NO_TRANSITION && transitionStyle !== 'none') {
+                         const style = window.getComputedStyle(frameElement);
+                         const duration = parseFloat(style.transitionDuration) * 1000;
+                         const delay = parseFloat(style.transitionDelay) * 1000;
+
+                         if (duration + delay > 0) {
+                             frameElement.addEventListener('transitionend', onTransitionEnd);
+                         } else {
+                             setTimeout(callback, 0);
+                         }
+                     } else {
+                          setTimeout(callback, 0);
+                     }
+                 }
+             });
+        }
+
+         function drawConnectionLines() {
+            const switchCenter = getComponentCenter('switch');
+            ALL_HOST_IDS.forEach(hostId => {
+                const line = document.getElementById(`line-${hostId.split('_')[1]}`);
+                if (line) {
+                    const hostCenter = getComponentCenter(hostId);
+                    line.setAttribute('x1', hostCenter.x);
+                    line.setAttribute('y1', hostCenter.y);
+                    line.setAttribute('x2', switchCenter.x);
+                    line.setAttribute('y2', switchCenter.y);
+                }
+            });
+         }
+
+        const scenarios = {
+            'a_to_b_initial': {
+                 name: "1. A -> B (Tabla Vacía)",
+                 steps: [
+                     { title: "Inicio", frame: null, action: "Host A quiere enviar a Host B.", description: `<ul><li>La tabla MAC del switch está vacía.</li><li>Host A prepara una trama con Dest MAC = MAC de B, Src MAC = MAC de A.</li></ul>`,
+                       switchStatus: "Inactivo", hostAStatus: "Preparado", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [] },
+                     { title: "Trama enviada al Switch", frame: { info: "A -> B", srcMac: HOST_CONFIG.host_a.mac, destMac: HOST_CONFIG.host_b.mac, type: "ARP/IP" }, action: "Host A -> Switch (Puerto 1)", description: `<ul><li>Host A envía la trama a su puerto conectado (Puerto 1).</li></ul>`,
+                       visible: true, move: { src: 'host_a', dst: 'switch' },
+                       switchStatus: "Recibiendo en P1...", hostAStatus: "Enviando...", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                     { title: "Switch Aprende MAC Origen", frame: null, action: "Switch examina Src MAC", description: `<ul><li>El Switch recibe la trama en el Puerto 1.</li><li>Examina la <b>MAC Origen</b> (${HOST_CONFIG.host_a.mac}).</li><li><span class="status-learn">Aprende</span>: Asocia MAC de A con Puerto 1 y la añade a su tabla MAC.</li></ul>`,
+                       switchStatus: `<span class="status-learn">Aprendiendo MAC de A en P1</span>`, hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: "Esperando",
+                       updateMac: { mac: HOST_CONFIG.host_a.mac, port: HOST_CONFIG.host_a.port }, activePorts: [1] },
+                     { title: "Switch Busca MAC Destino", frame: null, action: "Switch busca MAC de B", description: `<ul><li>El Switch busca la <b>MAC Destino</b> (${HOST_CONFIG.host_b.mac}) en su tabla MAC.</li><li>No la encuentra.</li></ul>`,
+                       switchStatus: `Buscando ${HOST_CONFIG.host_b.mac}... <span class="status-warn">No encontrada</span>`, hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                     { title: "Inundación (Flooding)", frame: { info: "A -> ?", srcMac: HOST_CONFIG.host_a.mac, destMac: HOST_CONFIG.host_b.mac, type: "ARP/IP", isFlood: true }, action: "Switch -> Todos (Excepto P1)", description: `<ul><li>Como no sabe dónde está la MAC Destino, el switch realiza <b>Flooding</b>.</li><li>Reenvía la trama por <b>todos</b> los puertos, excepto el puerto por donde llegó (P1).</li></ul>`,
+                       visible: true, flood: { srcPort: 1, targetPorts: [HOST_CONFIG.host_b.port, HOST_CONFIG.host_c.port] },
+                       switchStatus: `<span class="status-warn">Inundando trama (Flooding)</span>`, hostAStatus: "Enviado", hostBStatus: "Recibiendo...", hostCStatus: "Recibiendo...", updateMac: null, activePorts: [1, 2, 3] },
+                     { title: "Hosts Reciben/Descartan", frame: null, action: "Hosts B y C procesan trama", description: `<ul><li><b>Host B:</b> Recibe la trama. La MAC Destino coincide con la suya. ¡La procesa!</li><li><b>Host C:</b> Recibe la trama. La MAC Destino <b>no</b> coincide. La descarta silenciosamente.</li></ul>`,
+                       switchStatus: "Inundación completada", hostAStatus: "Enviado", hostBStatus: `<span class="status-ok">Trama Recibida ✔</span>`, hostCStatus: `<span class="status-warn">Trama Descartada ✖</span>`, updateMac: null, activePorts: [] },
+                 ]
+             },
+            'b_to_a_reply': {
+                name: "2. B -> A (Respuesta)",
+                 steps: [
+                     { title: "Inicio (B Responde)", frame: null, action: "Host B quiere responder a Host A.", description: `<ul><li>La tabla MAC del switch ya contiene la entrada de Host A (MAC: ${HOST_CONFIG.host_a.mac}, Puerto: ${HOST_CONFIG.host_a.port}).</li><li>Host B prepara una trama con Dest MAC = MAC de A, Src MAC = MAC de B.</li></ul>`,
+                       switchStatus: "Inactivo", hostAStatus: "Esperando", hostBStatus: "Preparado", hostCStatus: "Esperando",
+                       initialMacTable: [[HOST_CONFIG.host_a.mac, HOST_CONFIG.host_a.port]], updateMac: null, activePorts: [] },
+                     { title: "Trama enviada al Switch", frame: { info: "B -> A", srcMac: HOST_CONFIG.host_b.mac, destMac: HOST_CONFIG.host_a.mac, type: "ARP Reply/IP" }, action: "Host B -> Switch (Puerto 2)", description: `<ul><li>Host B envía la trama a su puerto conectado (Puerto 2).</li></ul>`,
+                       visible: true, move: { src: 'host_b', dst: 'switch' },
+                       switchStatus: "Recibiendo en P2...", hostAStatus: "Esperando", hostBStatus: "Enviando...", hostCStatus: "Esperando", updateMac: null, activePorts: [2] },
+                     { title: "Switch Aprende MAC Origen", frame: null, action: "Switch examina Src MAC", description: `<ul><li>El Switch recibe la trama en el Puerto 2.</li><li>Examina la <b>MAC Origen</b> (${HOST_CONFIG.host_b.mac}).</li><li><span class="status-learn">Aprende</span>: Asocia MAC de B con Puerto 2 y la añade a su tabla MAC.</li></ul>`,
+                       switchStatus: `<span class="status-learn">Aprendiendo MAC de B en P2</span>`, hostAStatus: "Esperando", hostBStatus: "Enviado", hostCStatus: "Esperando",
+                       updateMac: { mac: HOST_CONFIG.host_b.mac, port: HOST_CONFIG.host_b.port }, activePorts: [2] },
+                     { title: "Switch Busca MAC Destino", frame: null, action: "Switch busca MAC de A", description: `<ul><li>El Switch busca la <b>MAC Destino</b> (${HOST_CONFIG.host_a.mac}) en su tabla MAC.</li><li>¡La encuentra! Está asociada al Puerto 1.</li></ul>`,
+                       switchStatus: `Buscando ${HOST_CONFIG.host_a.mac}... <span class="status-ok">Encontrada en P1 ✔</span>`, hostAStatus: "Esperando", hostBStatus: "Enviado", hostCStatus: "Esperando", updateMac: null, activePorts: [2] },
+                     { title: "Envío Dirigido (Unicast)", frame: { info: "B -> A", srcMac: HOST_CONFIG.host_b.mac, destMac: HOST_CONFIG.host_a.mac, type: "ARP Reply/IP", isFlood: false }, action: "Switch -> Puerto 1 (Host A)", description: `<ul><li>Como el switch conoce el puerto de destino, reenvía la trama <b>únicamente</b> por el Puerto 1.</li><li>Esto se llama <b>Forwarding</b> o envío unicast dirigido.</li></ul>`,
+                       visible: true, move: { src: 'switch', dst: 'host_a' },
+                       switchStatus: `<span class="status-ok">Reenviando a P1 (Unicast)</span>`, hostAStatus: "Recibiendo...", hostBStatus: "Enviado", hostCStatus: "Esperando", updateMac: null, activePorts: [1, 2] },
+                     { title: "Host A Recibe", frame: null, action: "Host A procesa la trama", description: `<ul><li>Host A recibe la trama por su interfaz.</li><li>La MAC Destino coincide. ¡La procesa!</li><li>La comunicación es bidireccional y eficiente.</li></ul>`,
+                       switchStatus: "Envío completado", hostAStatus: `<span class="status-ok">Trama Recibida ✔</span>`, hostBStatus: "Enviado", hostCStatus: "Esperando", updateMac: null, activePorts: [] },
+                 ]
+            },
+            'a_to_b_known': {
+                 name: "3. A -> B (Conocido)",
+                 steps: [
+                     { title: "Inicio (Ambos Conocidos)", frame: null, action: "Host A quiere enviar de nuevo a Host B.", description: `<ul><li>La tabla MAC del switch ya contiene las entradas de Host A y Host B.</li><li>Host A prepara otra trama para B.</li></ul>`,
+                       switchStatus: "Inactivo", hostAStatus: "Preparado", hostBStatus: "Esperando", hostCStatus: "Esperando",
+                       initialMacTable: [
+                           [HOST_CONFIG.host_a.mac, HOST_CONFIG.host_a.port],
+                           [HOST_CONFIG.host_b.mac, HOST_CONFIG.host_b.port]
+                       ], updateMac: null, activePorts: [] },
+                     { title: "Trama enviada al Switch", frame: { info: "A -> B", srcMac: HOST_CONFIG.host_a.mac, destMac: HOST_CONFIG.host_b.mac, type: "Data" }, action: "Host A -> Switch (Puerto 1)", description: `<ul><li>Host A envía la trama al Puerto 1.</li></ul>`,
+                       visible: true, move: { src: 'host_a', dst: 'switch' },
+                       switchStatus: "Recibiendo en P1...", hostAStatus: "Enviando...", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                     { title: "Switch Verifica MAC Origen", frame: null, action: "Switch examina Src MAC", description: `<ul><li>El Switch recibe la trama en el Puerto 1.</li><li>Examina la <b>MAC Origen</b> (${HOST_CONFIG.host_a.mac}).</li><li>Ya existe en la tabla asociada al Puerto 1. No hay cambios (solo actualiza el 'timer' de la entrada, no visualizado aquí).</li></ul>`,
+                       switchStatus: `MAC Origen ${HOST_CONFIG.host_a.mac} ya conocida en P1`, hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                     { title: "Switch Busca MAC Destino", frame: null, action: "Switch busca MAC de B", description: `<ul><li>El Switch busca la <b>MAC Destino</b> (${HOST_CONFIG.host_b.mac}) en su tabla MAC.</li><li>¡La encuentra! Está asociada al Puerto 2.</li></ul>`,
+                       switchStatus: `Buscando ${HOST_CONFIG.host_b.mac}... <span class="status-ok">Encontrada en P2 ✔</span>`, hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                     { title: "Envío Dirigido (Unicast)", frame: { info: "A -> B", srcMac: HOST_CONFIG.host_a.mac, destMac: HOST_CONFIG.host_b.mac, type: "Data", isFlood: false }, action: "Switch -> Puerto 2 (Host B)", description: `<ul><li>El switch reenvía la trama <b>únicamente</b> por el Puerto 2 (Unicast Forwarding).</li><li>La comunicación es directa y eficiente.</li></ul>`,
+                       visible: true, move: { src: 'switch', dst: 'host_b' },
+                       switchStatus: `<span class="status-ok">Reenviando a P2 (Unicast)</span>`, hostAStatus: "Enviado", hostBStatus: "Recibiendo...", hostCStatus: "Esperando", updateMac: null, activePorts: [1, 2] },
+                     { title: "Host B Recibe", frame: null, action: "Host B procesa la trama", description: `<ul><li>Host B recibe la trama de datos.</li><li>La comunicación se establece de forma eficiente sin inundar la red.</li></ul>`,
+                       switchStatus: "Envío completado", hostAStatus: "Enviado", hostBStatus: `<span class="status-ok">Trama Recibida ✔</span>`, hostCStatus: "Esperando", updateMac: null, activePorts: [] },
+                 ]
+            },
+             'c_to_a': {
+                 name: "4. C -> A",
+                 steps: [
+                     { title: "Inicio (C a A)", frame: null, action: "Host C quiere enviar a Host A.", description: `<ul><li>La tabla MAC del switch tiene entradas para A y B, pero no para C.</li><li>Host C prepara una trama para A.</li></ul>`,
+                       switchStatus: "Inactivo", hostAStatus: "Esperando", hostBStatus: "Esperando", hostCStatus: "Preparado",
+                       initialMacTable: [
+                           [HOST_CONFIG.host_a.mac, HOST_CONFIG.host_a.port],
+                           [HOST_CONFIG.host_b.mac, HOST_CONFIG.host_b.port]
+                       ], updateMac: null, activePorts: [] },
+                     { title: "Trama enviada al Switch", frame: { info: "C -> A", srcMac: HOST_CONFIG.host_c.mac, destMac: HOST_CONFIG.host_a.mac, type: "Data" }, action: "Host C -> Switch (Puerto 3)", description: `<ul><li>Host C envía la trama al Puerto 3.</li></ul>`,
+                       visible: true, move: { src: 'host_c', dst: 'switch' },
+                       switchStatus: "Recibiendo en P3...", hostAStatus: "Esperando", hostBStatus: "Esperando", hostCStatus: "Enviando...", updateMac: null, activePorts: [3] },
+                     { title: "Switch Aprende MAC Origen", frame: null, action: "Switch examina Src MAC", description: `<ul><li>El Switch recibe la trama en el Puerto 3.</li><li>Examina la <b>MAC Origen</b> (${HOST_CONFIG.host_c.mac}).</li><li><span class="status-learn">Aprende</span>: Asocia MAC de C con Puerto 3 y la añade a su tabla MAC.</li></ul>`,
+                       switchStatus: `<span class="status-learn">Aprendiendo MAC de C en P3</span>`, hostAStatus: "Esperando", hostBStatus: "Esperando", hostCStatus: "Enviado",
+                       updateMac: { mac: HOST_CONFIG.host_c.mac, port: HOST_CONFIG.host_c.port }, activePorts: [3] },
+                     { title: "Switch Busca MAC Destino", frame: null, action: "Switch busca MAC de A", description: `<ul><li>El Switch busca la <b>MAC Destino</b> (${HOST_CONFIG.host_a.mac}) en su tabla MAC.</li><li>¡La encuentra! Está asociada al Puerto 1.</li></ul>`,
+                       switchStatus: `Buscando ${HOST_CONFIG.host_a.mac}... <span class="status-ok">Encontrada en P1 ✔</span>`, hostAStatus: "Esperando", hostBStatus: "Esperando", hostCStatus: "Enviado", updateMac: null, activePorts: [3] },
+                     { title: "Envío Dirigido (Unicast)", frame: { info: "C -> A", srcMac: HOST_CONFIG.host_c.mac, destMac: HOST_CONFIG.host_a.mac, type: "Data", isFlood: false }, action: "Switch -> Puerto 1 (Host A)", description: `<ul><li>El switch reenvía la trama <b>únicamente</b> por el Puerto 1 (Unicast Forwarding).</li></ul>`,
+                       visible: true, move: { src: 'switch', dst: 'host_a' },
+                       switchStatus: `<span class="status-ok">Reenviando a P1 (Unicast)</span>`, hostAStatus: "Recibiendo...", hostBStatus: "Esperando", hostCStatus: "Enviado", updateMac: null, activePorts: [1, 3] },
+                     { title: "Host A Recibe", frame: null, action: "Host A procesa la trama", description: `<ul><li>Host A recibe la trama de Host C directamente.</li></ul>`,
+                       switchStatus: "Envío completado", hostAStatus: `<span class="status-ok">Trama Recibida ✔</span>`, hostBStatus: "Esperando", hostCStatus: "Enviado", updateMac: null, activePorts: [] },
+                 ]
+            },
+            'a_to_c': {
+                 name: "5. A -> C",
+                 steps: [
+                     { title: "Inicio (A a C)", frame: null, action: "Host A quiere enviar a Host C.", description: `<ul><li>La tabla MAC del switch tiene entradas para A, B y C.</li><li>Host A prepara una trama para C.</li></ul>`,
+                       switchStatus: "Inactivo", hostAStatus: "Preparado", hostBStatus: "Esperando", hostCStatus: "Esperando",
+                       initialMacTable: [
+                           [HOST_CONFIG.host_a.mac, HOST_CONFIG.host_a.port],
+                           [HOST_CONFIG.host_b.mac, HOST_CONFIG.host_b.port],
+                           [HOST_CONFIG.host_c.mac, HOST_CONFIG.host_c.port]
+                       ], updateMac: null, activePorts: [] },
+                     { title: "Trama enviada al Switch", frame: { info: "A -> C", srcMac: HOST_CONFIG.host_a.mac, destMac: HOST_CONFIG.host_c.mac, type: "Data" }, action: "Host A -> Switch (Puerto 1)", description: `<ul><li>Host A envía la trama al Puerto 1.</li></ul>`,
+                       visible: true, move: { src: 'host_a', dst: 'switch' },
+                       switchStatus: "Recibiendo en P1...", hostAStatus: "Enviando...", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                    { title: "Switch Verifica MAC Origen", frame: null, action: "Switch examina Src MAC", description: `<ul><li>El Switch recibe la trama en el Puerto 1. Verifica la MAC origen (${HOST_CONFIG.host_a.mac}). Ya la conoce.</li></ul>`,
+                       switchStatus: `MAC Origen ${HOST_CONFIG.host_a.mac} ya conocida en P1`, hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                     { title: "Switch Busca MAC Destino", frame: null, action: "Switch busca MAC de C", description: `<ul><li>El Switch busca la <b>MAC Destino</b> (${HOST_CONFIG.host_c.mac}) en su tabla MAC.</li><li>¡La encuentra! Está asociada al Puerto 3.</li></ul>`,
+                       switchStatus: `Buscando ${HOST_CONFIG.host_c.mac}... <span class="status-ok">Encontrada en P3 ✔</span>`, hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: "Esperando", updateMac: null, activePorts: [1] },
+                     { title: "Envío Dirigido (Unicast)", frame: { info: "A -> C", srcMac: HOST_CONFIG.host_a.mac, destMac: HOST_CONFIG.host_c.mac, type: "Data", isFlood: false }, action: "Switch -> Puerto 3 (Host C)", description: `<ul><li>El switch reenvía la trama <b>únicamente</b> por el Puerto 3 (Unicast Forwarding).</li></ul>`,
+                       visible: true, move: { src: 'switch', dst: 'host_c' },
+                       switchStatus: `<span class="status-ok">Reenviando a P3 (Unicast)</span>`, hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: "Recibiendo...", updateMac: null, activePorts: [1, 3] },
+                     { title: "Host C Recibe", frame: null, action: "Host C procesa la trama", description: `<ul><li>Host C recibe la trama de Host A directamente.</li><li>La tabla MAC completa permite una comunicación eficiente.</li></ul>`,
+                       switchStatus: "Envío completado", hostAStatus: "Enviado", hostBStatus: "Esperando", hostCStatus: `<span class="status-ok">Trama Recibida ✔</span>`, updateMac: null, activePorts: [] },
+                 ]
+            }
+        };
+
+        function executeStep(stepIndex, isMovingBack = false) {
+             const scenarioData = scenarios[currentScenario];
+             if (!scenarioData || !scenarioData.steps) { return; }
+             totalSteps = scenarioData.steps.length - 1;
+             if (stepIndex < 0 || stepIndex > totalSteps) { return; }
+
+             currentStep = stepIndex;
+             const config = scenarioData.steps[currentStep];
+             if (!config) { return; }
+
+              clearActiveClones();
+             if (frameGroup) frameGroup.setAttribute('visibility', 'hidden');
+
+              if (currentStep === 0 && !isMovingBack) {
+                  initializeSimulation();
+                  if (config.initialMacTable) {
+                       config.initialMacTable.forEach(([mac, port]) => switchState.macTable.set(mac, port));
+                       updateMacTableDisplay();
+                  }
+              }
+
+              if (!isMovingBack && config.updateMac) {
+                 switchState.macTable.set(config.updateMac.mac, config.updateMac.port);
+              }
+              if (isMovingBack) {
+                  switchState.macTable.clear();
+                  let targetMacTableStateMap = new Map();
+
+                  let initialTable = [];
+                  if (currentStep === 0 && scenarioData.steps[0].initialMacTable) {
+                      initialTable = scenarioData.steps[0].initialMacTable;
+                  } else if (currentStep > 0) {
+                      const prevStepConfig = scenarioData.steps[currentStep - 1];
+                       if (prevStepConfig.initialMacTable) {
+                          initialTable = prevStepConfig.initialMacTable;
+                      } else if (scenarioData.steps[0].initialMacTable) {
+                          initialTable = scenarioData.steps[0].initialMacTable;
+                      }
+                  }
+                  initialTable.forEach(([mac, port]) => targetMacTableStateMap.set(mac, port));
+
+                  for(let i = 0; i < currentStep; i++) {
+                       if (scenarioData.steps[i].updateMac) {
+                            targetMacTableStateMap.set(scenarioData.steps[i].updateMac.mac, scenarioData.steps[i].updateMac.port);
+                       }
+                  }
+                  targetMacTableStateMap.forEach((port, mac) => switchState.macTable.set(mac, port));
+              }
+
+
+             updateInfoPanel(config);
+             updateComponentStatus('switch', config.switchStatus || switchState.status);
+             updateComponentStatus('host_a', config.hostAStatus || hostStates['host_a']?.status || 'Desconocido');
+             updateComponentStatus('host_b', config.hostBStatus || hostStates['host_b']?.status || 'Desconocido');
+             updateComponentStatus('host_c', config.hostCStatus || hostStates['host_c']?.status || 'Desconocido');
+             updateMacTableDisplay();
+             updatePortDisplay(config.activePorts || []);
+
+             const transition = isMovingBack ? NO_TRANSITION : TRAVEL_TRANSITION;
+
+             if (config.visible) {
+                 if (config.move && config.frame && frameGroup) {
+                      const startCenter = getComponentCenter(config.move.src);
+                      const endCenter = getComponentCenter(config.move.dst);
+                      updateFrameSvgVisuals(frameGroup, config.frame);
+                      moveFrame(frameGroup, startCenter.x, startCenter.y, endCenter.x, endCenter.y, transition, true);
+                 } else if (config.flood && config.frame) {
+                    const switchCenter = getComponentCenter('switch');
+                    const srcHostId = ALL_HOST_IDS.find(id => HOST_CONFIG[id].port === config.flood.srcPort);
+
+                    config.flood.targetPorts.forEach((port, index) => {
+                         const targetHostId = ALL_HOST_IDS.find(id => HOST_CONFIG[id].port === port);
+                         if(targetHostId) {
+                             const targetHostCenter = getComponentCenter(targetHostId);
+                             const useElement = document.createElementNS("http://www.w3.org/2000/svg", "use");
+                             useElement.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#frame-template');
+
+                             const cloneGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                             cloneGroup.appendChild(useElement);
+                             cloneGroup.setAttribute('id', `clone-${port}-${Date.now()}`);
+                             cloneGroup.style.transition = NO_TRANSITION;
+                             cloneGroup.setAttribute('transform', `translate(${switchCenter.x - FRAME_WIDTH/2}, ${switchCenter.y - FRAME_HEIGHT/2})`);
+                             cloneGroup.setAttribute('class', 'frame-clone');
+                             svgContainer.appendChild(cloneGroup);
+                             activeClones.push(cloneGroup);
+
+                             updateFrameSvgVisuals(cloneGroup, config.frame);
+
+                              requestAnimationFrame(() => {
+                                 moveFrame(cloneGroup, switchCenter.x, switchCenter.y, targetHostCenter.x, targetHostCenter.y + (index * FLOOD_OFFSET_Y), transition, true);
+                             });
+                         }
+                     });
+                 }
+             } else {
+                 if(frameGroup) frameGroup.setAttribute('visibility', 'hidden');
+             }
+
+             prevButton.disabled = currentStep === 0;
+             nextButton.disabled = currentStep >= totalSteps;
+             resetButton.disabled = currentStep === 0;
+         }
+
+        scenarioSelect.addEventListener('change', (e) => {
+             currentScenario = e.target.value; currentStep = 0;
+             setTimeout(() => executeStep(0, false), 50);
+         });
+        nextButton.addEventListener('click', () => {
+             if (scenarios[currentScenario]?.steps) { totalSteps = scenarios[currentScenario].steps.length - 1; if (currentStep < totalSteps) { executeStep(currentStep + 1, false); } }
+         });
+        prevButton.addEventListener('click', () => {
+             if (currentStep > 0) { executeStep(currentStep - 1, true); }
+         });
+        resetButton.addEventListener('click', () => {
+             currentStep = 0;
+             setTimeout(() => executeStep(0, false), 50);
+         });
+
+        window.addEventListener('load', () => {
+             initializeSimulation();
+             currentScenario = scenarioSelect.value;
+              if (scenarios[currentScenario]?.steps) {
+                  totalSteps = scenarios[currentScenario].steps.length - 1;
+                  setTimeout(() => {
+                     drawConnectionLines();
+                     executeStep(0);
+                   }, 200);
+              } else {
+                 if(stepDescription) stepDescription.innerHTML = `<span class='status-error'>Error loading scenario data.</span>`;
+              }
+        });
+         window.addEventListener('resize', drawConnectionLines);
+
+    </script>
+</body>
+</html>
