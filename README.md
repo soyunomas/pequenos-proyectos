@@ -20,9 +20,11 @@
     [`Handshake-TLS-SSL-HTTPS.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Handshake-TLS-SSL-HTTPS.html)
     [`Ping_static_route.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Ping_static_route.html)
   
-6.  **Vlans:**
+5.  **Vlans:**
     [`Vlans.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Vlans.html)
 
+6.  **Cifrado:** 
+   [`Cifrado_Simetrico_Asimetrico_Hibrido_firma.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Cifrado_Simetrico_Asimetrico_Hibrido_firma.html)
 
 ### **Carpeta: BASES DE DATOS**
 
