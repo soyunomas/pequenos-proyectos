@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Encapsulamiento/Desencapsulamiento con Router L3</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-app: #f0f0a0; /* Amarillo claro */
+            --color-transport: #d0f0d0; /* Verde claro */
+            --color-network: #f8f8c0; /* Amarillo más pálido */
+            --color-link: #f8d8e8; /* Rosa claro */
+            --color-physical: #e8d8f8; /* Lila claro */
+            --color-data: #a0c0f0; /* Azul claro */
+            --color-l4-hdr: #f0a0a0; /* Rojo claro */
+            --color-l3-hdr: #f0c8a0; /* Naranja claro */
+            --color-l2-hdr: #a0f0e0; /* Turquesa claro */
+            --color-l2-trl: #c0a0f0; /* Morado claro */
+            --color-bits: #6c757d; /* Gris Bootstrap secundario */
+            --color-router-bg: #e0e0e0; /* Gris claro para el router */
+            --color-router-border: #888;
+        }
+
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+
+        /* Altura fija para stacks y medio para alineación */
+        .layer-stack, .network-medium, .control-panel {
+            height: 550px; /* Altura consistente para las 4 columnas */
+            margin-bottom: 15px;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .layer-stack {
+            border: 1px solid #ccc;
+            background-color: #fff;
+        }
+
+        .network-medium {
+            background-color: #e9ecef;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 20px;
+        }
+
+
+        .layer {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 5px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 4px;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 80px;
+        }
+
+        .layer-app { background-color: var(--color-app); }
+        .layer-transport { background-color: var(--color-transport); }
+        .layer-network { background-color: var(--color-network); }
+        .layer-link { background-color: var(--color-link); }
+        .layer-physical { background-color: var(--color-physical); }
+
+
+         /* Estilos para el Router */
+        #router-device {
+            border: 2px solid var(--color-router-border);
+            background-color: var(--color-router-bg);
+            border-radius: 8px;
+            padding: 15px;
+            width: 80%;
+            max-width: 220px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Capas DENTRO del router */
+        #router-device .layer {
+             min-height: 65px;
+             flex-grow: 0;
+             margin-bottom: 10px;
+             font-size: 0.9em;
+             color: #333;
+        }
+        #router-device .layer:last-child {
+             margin-bottom: 0;
+        }
+         /* Colores específicos para capas de router */
+        #layer-network-router { background-color: var(--color-network); }
+        #layer-link-router { background-color: var(--color-link); }
+        #layer-physical-router { background-color: var(--color-physical); }
+
+
+        #visualization-area {
+            position: relative;
+             min-height: 570px;
+             margin-bottom: 20px;
+        }
+
+        #pdu-svg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: visible;
+            z-index: 10;
+        }
+
+        #pdu-group {
+            cursor: default;
+        }
+
+        .pdu-block {
+            stroke: #333;
+            stroke-width: 1;
+            shape-rendering: crispEdges;
+            cursor: help;
+            pointer-events: all;
+        }
+        .pdu-text {
+            font-family: sans-serif;
+            font-size: 10px;
+            fill: #000;
+            pointer-events: none;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .pdu-data { fill: var(--color-data); }
+        .pdu-l4-hdr { fill: var(--color-l4-hdr); }
+        .pdu-l3-hdr { fill: var(--color-l3-hdr); }
+        .pdu-l2-hdr { fill: var(--color-l2-hdr); }
+        .pdu-l2-trl { fill: var(--color-l2-trl); }
+
+        .pdu-bits {
+             stroke: var(--color-bits);
+             stroke-width: 4;
+             fill: none;
+             stroke-dasharray: 5 3;
+        }
+
+        /* Estilos del Panel de Control */
+        .control-panel {
+            border: 1px solid #ccc;
+            background-color: #fff;
+            overflow-y: auto;
+        }
+        .control-panel h5 {
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            position: sticky;
+            top: 0;
+            background-color: white;
+            padding-bottom: 5px;
+            z-index: 1;
+        }
+        .control-panel p {
+             margin-bottom: 0.6rem;
+             font-size: 0.85em;
+             line-height: 1.4;
+             /* white-space: pre-line; Ya no es necesario con innerHTML */
+        }
+         .control-panel .btn {
+             font-size: 0.85em;
+             padding: 0.3rem 0.6rem;
+        }
+         .control-panel div:last-child {
+            margin-top: auto;
+            padding-top: 10px;
+            position: sticky;
+            bottom: 0;
+            background-color: white;
+            padding-bottom: 5px;
+            z-index: 1;
+         }
+
+
+        .pdu-info {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #555;
+            background-color: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        #info-tooltip {
+            position: fixed;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            white-space: nowrap;
+            display: none;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">Encapsulamiento/Desencapsulamiento con Router L3</h1>
+
+        <div id="visualization-area">
+            <div class="row">
+
+                <!-- Columna 1: Panel de Control -->
+                <div class="col-md-3">
+                    <div class="control-panel">
+                        <h5 id="step-title">Paso 0: Inicio</h5>
+                        <p><strong>PDU Actual:</strong> <span id="pdu-name" class="pdu-info">Ninguna</span></p>
+                        <p id="step-description">Haz clic en 'Siguiente Paso' para iniciar la simulación.</p>
+                        <p><strong>Acción Clave:</strong> <span id="action-details">-</span></p>
+                        <div> <!-- Contenedor para botones -->
+                            <button id="prev-step" class="btn btn-info me-2">Paso Anterior</button>
+                            <button id="next-step" class="btn btn-primary me-2">Siguiente Paso</button>
+                            <button id="reset" class="btn btn-secondary">Reiniciar</button>
+                        </div>
+                    </div>
+                </div> <!-- Fin Columna 1 -->
+
+                <!-- Columna 2: Emisor -->
+                <div class="col-md-3">
+                     <div class="layer-stack">
+                        <div class="layer layer-app" id="layer-app-sender">App</div>
+                        <div class="layer layer-transport" id="layer-transport-sender">Transporte</div>
+                        <div class="layer layer-network" id="layer-network-sender">Red</div>
+                        <div class="layer layer-link" id="layer-link-sender">Enlace</div>
+                        <div class="layer layer-physical" id="layer-physical-sender">Física</div>
+                        <div class="text-center mt-2"><strong>Emisor</strong></div>
+                    </div>
+                </div> <!-- Fin Columna 2 -->
+
+                <!-- Columna 3: Medio con Router -->
+                <div class="col-md-3">
+                    <div class="network-medium" id="network-medium">
+                         <div class="text-center mb-3"><strong>Medio de Red con Router L3</strong></div>
+                         <div id="router-device">
+                             <div class="layer layer-network" id="layer-network-router">Red (Router)</div>
+                             <div class="layer layer-link" id="layer-link-router">Enlace (Router)</div>
+                             <div class="layer layer-physical" id="layer-physical-router">Física (Router)</div>
+                         </div>
+                    </div>
+                </div> <!-- Fin Columna 3 -->
+
+                <!-- Columna 4: Receptor -->
+                <div class="col-md-3">
+                    <div class="layer-stack">
+                        <div class="layer layer-app" id="layer-app-receiver">App</div>
+                        <div class="layer layer-transport" id="layer-transport-receiver">Transporte</div>
+                        <div class="layer layer-network" id="layer-network-receiver">Red</div>
+                        <div class="layer layer-link" id="layer-link-receiver">Enlace</div>
+                        <div class="layer layer-physical" id="layer-physical-receiver">Física</div>
+                        <div class="text-center mt-2"><strong>Receptor</strong></div>
+                    </div>
+                </div> <!-- Fin Columna 4 -->
+
+            </div> <!-- Fin Fila Principal -->
+
+            <!-- Contenedor SVG Absoluto -->
+            <svg id="pdu-svg-container" width="100%" height="100%">
+                <defs>
+                    <path id="bits-path-def" d="M 0 0 q 10 -10 20 0 t 20 0 t 20 0 t 20 0 t 20 0" stroke="none" fill="none" />
+                </defs>
+                <g id="pdu-group" transform="translate(0, 0)" visibility="hidden">
+                     <rect id="l2-hdr" class="pdu-block pdu-l2-hdr" height="30" width="40" data-info="Cabecera L2 (Ethernet): MAC Destino, MAC Origen, Tipo"/>
+                     <text class="pdu-text" id="l2-hdr-text">L2H</text>
+                     <rect id="l3-hdr" class="pdu-block pdu-l3-hdr" height="30" width="40" data-info="Cabecera L3 (IP): IP Origen, IP Destino, TTL"/>
+                     <text class="pdu-text" id="l3-hdr-text">L3H</text>
+                     <rect id="l4-hdr" class="pdu-block pdu-l4-hdr" height="30" width="40" data-info="Cabecera L4 (TCP/UDP): Puerto Origen, Puerto Destino, Checksum"/>
+                     <text class="pdu-text" id="l4-hdr-text">L4H</text>
+                     <rect id="data" class="pdu-block pdu-data" height="30" width="60" data-info="Datos de Aplicación (Ej: GET / HTTP/1.1)"/>
+                     <text class="pdu-text" id="data-text">Datos</text>
+                     <rect id="l2-trl" class="pdu-block pdu-l2-trl" height="30" width="30" data-info="Cola L2 (Ethernet): FCS (Frame Check Sequence)"/>
+                     <text class="pdu-text" id="l2-trl-text">L2T</text>
+                     <use id="bits-path" href="#bits-path-def" class="pdu-bits" visibility="hidden"/>
+                     <text id="bits-text-placeholder" class="pdu-text" y="45" visibility="hidden" fill="#555" font-size="12" text-anchor="middle">--- Bits ---</text>
+                </g>
+            </svg>
+        </div> <!-- Fin de visualization-area -->
+
+        <!-- Tooltip -->
+        <div id="info-tooltip"></div>
+
+    </div> <!-- Fin de container-fluid -->
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- JAVASCRIPT ---
+        // --- DOM Elements ---
+        const pduGroup = document.getElementById('pdu-group');
+        const svgContainer = document.getElementById('pdu-svg-container');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset');
+        const stepTitle = document.getElementById('step-title');
+        const pduName = document.getElementById('pdu-name');
+        const stepDescription = document.getElementById('step-description');
+        const actionDetails = document.getElementById('action-details');
+        const infoTooltip = document.getElementById('info-tooltip');
+
+        // PDU Blocks/Texts Elements References
+        const pduElements = {
+            l2Hdr: { rect: document.getElementById('l2-hdr'), text: document.getElementById('l2-hdr-text') },
+            l3Hdr: { rect: document.getElementById('l3-hdr'), text: document.getElementById('l3-hdr-text') },
+            l4Hdr: { rect: document.getElementById('l4-hdr'), text: document.getElementById('l4-hdr-text') },
+            data:  { rect: document.getElementById('data'),  text: document.getElementById('data-text') },
+            l2Trl: { rect: document.getElementById('l2-trl'), text: document.getElementById('l2-trl-text') },
+            bits:  { path: document.getElementById('bits-path'), text: document.getElementById('bits-text-placeholder') }
+        };
+
+        // --- State ---
+        let currentStep = 0;
+        const totalSteps = 23;
+
+        // --- Constants ---
+        const PDU_HEIGHT = 30;
+        const PDU_Y_OFFSET = 15;
+        const BLOCK_WIDTHS = {
+            l2Hdr: 40, l3Hdr: 40, l4Hdr: 40, data: 60, l2Trl: 30
+        };
+        const BITS_WIDTH = 120;
+        const DEFAULT_TRANSITION = 'transform 0.8s ease-in-out';
+        const TRAVEL_TRANSITION = 'transform 1.2s linear';
+        const DEVICE_TRANSITION = 'transform 0.6s ease-in-out';
+        const NO_TRANSITION = 'none';
+
+        // --- Layer Positions Calculation ---
+        function getLayerPosition(layerId) {
+            const layerElement = document.getElementById(layerId);
+            const visualizationArea = document.getElementById('visualization-area');
+            if (!layerElement || !visualizationArea) {
+                console.error(`Element not found for ID: ${layerId} or visualization-area. Returning {0,0}.`);
+                return { x: 0, y: 0 };
+            }
+            try {
+                const svgRect = visualizationArea.getBoundingClientRect();
+                const layerRect = layerElement.getBoundingClientRect();
+                const relativeX = layerRect.left - svgRect.left + (layerRect.width / 2);
+                const relativeY = layerRect.top - svgRect.top + (layerRect.height / 2) - PDU_Y_OFFSET;
+                 if (isNaN(relativeX) || isNaN(relativeY)) {
+                      console.error(`Calculated NaN coordinates for ${layerId}. LayerRect:`, layerRect, "SvgRect:", svgRect);
+                      return { x: 0, y: 0 };
+                 }
+                return { x: relativeX, y: relativeY };
+            } catch (error) {
+                 console.error(`Error getting position for ${layerId}:`, error);
+                 return { x: 0, y: 0 };
+            }
+        }
+
+        // --- PDU Layout and Visibility ---
+        function setElementVisibility(elementKey, isVisible) {
+             const visibility = isVisible ? 'visible' : 'hidden';
+             const elements = pduElements[elementKey];
+             if (elements) {
+                 if (elements.rect) elements.rect.setAttribute('visibility', visibility);
+                 if (elements.text) elements.text.setAttribute('visibility', visibility);
+                 if (elements.path) elements.path.setAttribute('visibility', visibility);
+             }
+        }
+
+        function updatePduLayout(visibleBlocks = []) {
+            let currentX = 0;
+            let totalWidth = 0;
+            const blockOrder = ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl'];
+            const showBits = visibleBlocks.includes('bits');
+            Object.keys(pduElements).forEach(key => {
+                 setElementVisibility(key, visibleBlocks.includes(key));
+            });
+            if (showBits) {
+                totalWidth = BITS_WIDTH;
+                const bitsPath = pduElements.bits.path;
+                const bitsText = pduElements.bits.text;
+                if (bitsPath) {
+                    bitsPath.setAttribute('transform', `translate(${(BITS_WIDTH - 100) / 2}, ${PDU_HEIGHT / 2})`);
+                    bitsPath.setAttribute('visibility', 'visible');
+                }
+                 if (bitsText) {
+                     bitsText.setAttribute('x', BITS_WIDTH / 2);
+                     bitsText.setAttribute('visibility', 'visible');
+                 }
+            } else {
+                blockOrder.forEach(id => {
+                    if (visibleBlocks.includes(id)) {
+                        const width = BLOCK_WIDTHS[id];
+                        const rect = pduElements[id].rect;
+                        const text = pduElements[id].text;
+                        if (rect) {
+                            rect.setAttribute('x', currentX);
+                            rect.setAttribute('y', 0);
+                            rect.setAttribute('visibility', 'visible');
+                        }
+                        if (text) {
+                            text.setAttribute('x', currentX + width / 2);
+                            text.setAttribute('y', PDU_HEIGHT / 2);
+                            text.setAttribute('visibility', width < 20 ? 'hidden' : 'visible');
+                        }
+                        currentX += width;
+                        totalWidth += width;
+                    }
+                });
+            }
+            return totalWidth;
+        }
+
+
+        // --- PDU Movement ---
+        function movePduTo(targetX, targetY, pduWidth, transitionStyle = DEFAULT_TRANSITION) {
+             if (isNaN(targetX) || isNaN(targetY) || isNaN(pduWidth)) {
+                 console.error(`Invalid coordinates or width for movePduTo: X=${targetX}, Y=${targetY}, Width=${pduWidth}`);
+                 return;
+             }
+             const centeredX = targetX - (pduWidth / 2);
+             pduGroup.style.transition = transitionStyle;
+             pduGroup.setAttribute('transform', `translate(${centeredX}, ${targetY})`);
+        }
+
+        // --- Info Panel Update ---
+        function updateInfoPanel(stepConfig) {
+            stepTitle.textContent = `Paso ${currentStep}: ${stepConfig.title}`;
+            pduName.textContent = stepConfig.pdu;
+            // Usar innerHTML para interpretar las etiquetas <strong>
+            stepDescription.innerHTML = stepConfig.description;
+            actionDetails.textContent = stepConfig.action;
+        }
+
+        // --- Step Definitions con <strong> y corrección en Router L2 ---
+        const steps = [
+            // --- ENCAPSULAMIENTO EMISOR (Pasos 0-5) ---
+            { // 0
+                title: "Inicio", pdu: "Ninguna", description: "Estado inicial de la simulación.<br>No hay datos ni PDU activa.", action: "-",
+                targetLayer: null, pduVisible: false, transition: NO_TRANSITION, visiblePduParts: []
+            },
+            { // 1
+                title: "Datos Aplicación (Emisor)", pdu: "Datos", description: "1. La capa de Aplicación (L7) del emisor genera los datos que se van a enviar (Ej: una solicitud HTTP GET).", action: "Generación datos.",
+                targetLayer: 'layer-app-sender', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['data']
+            },
+            { // 2
+                title: "Encapsulación Transporte (Emisor)", pdu: "Segmento/Datagrama", description: "Los datos bajan a la capa de Transporte (L4).<br>1. L4 añade su cabecera (L4H) con información como los puertos de origen y destino (Ej: TCP o UDP).<br>2. La PDU resultante se llama Segmento (TCP) o Datagrama (UDP).", action: "Añadiendo L4H.",
+                targetLayer: 'layer-transport-sender', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['l4Hdr', 'data']
+            },
+            { // 3
+                title: "Encapsulación Red (Emisor)", pdu: "Paquete", description: "El segmento/datagrama baja a la capa de Red (L3).<br>1. L3 añade su cabecera (L3H) con las direcciones IP de origen y destino.<br>2. La PDU resultante se llama Paquete (IP).", action: "Añadiendo L3H.",
+                targetLayer: 'layer-network-sender', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['l3Hdr', 'l4Hdr', 'data']
+            },
+            { // 4
+                title: "Encapsulación Enlace (Emisor)", pdu: "Trama", description: "El paquete baja a la capa de Enlace de Datos (L2).<br>1. L2 añade su cabecera (L2H) con las direcciones MAC de origen y destino (del <strong>siguiente salto</strong>, que es el router).<br>2. L2 añade una cola (L2T) para la verificación de errores (FCS).<br>3. La PDU resultante se llama Trama (Ethernet).", action: "Añadiendo L2H y L2T.",
+                targetLayer: 'layer-link-sender', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl']
+            },
+            { // 5
+                title: "Preparación Física (Emisor)", pdu: "Trama", description: "La trama baja a la capa Física (L1).<br>1. L1 toma la trama y la codifica en señales eléctricas/ópticas/radio (bits) para su transmisión por el medio físico.", action: "Codificación a señales.",
+                targetLayer: 'layer-physical-sender', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl']
+            },
+            // --- VIAJE AL ROUTER (Paso 6) ---
+            { // 6
+                title: "Viaje al Router L3", pdu: "Bits", description: "Las señales (representadas como 'Bits') viajan desde la capa física del emisor a través del medio de red hacia la interfaz física del router.", action: "Transmisión (1).",
+                targetLayer: 'layer-physical-router', pduVisible: true, transition: TRAVEL_TRANSITION, visiblePduParts: ['bits']
+            },
+            // --- PROCESAMIENTO ROUTER (Pasos 7-13) ---
+            { // 7
+                title: "Recepción Física (Router)", pdu: "Bits -> Trama", description: "El router recibe las señales en su capa Física (L1).<br>1. L1 decodifica las señales y reconstruye la Trama original enviada por el emisor.", action: "Decodificación.",
+                targetLayer: 'layer-physical-router', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl']
+            },
+            { // 8
+                title: "Llegada a Enlace (Router)", pdu: "Trama", description: "La trama reconstruida sube de la capa Física (L1) a la capa de Enlace de Datos (L2) del router para su procesamiento.", action: "Subiendo a L2.",
+                targetLayer: 'layer-link-router', pduVisible: true, transition: DEVICE_TRANSITION, visiblePduParts: ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl']
+            },
+            { // 9
+                title: "Desencapsulación Enlace (Router)", pdu: "Trama -> Paquete", description: "El router procesa la trama en su capa de Enlace (L2):<br>1. Verifica la dirección MAC de destino.<br>2. Comprueba la integridad de la trama (FCS).<br>3. Si todo es correcto, elimina la cabecera (L2H) y la cola (L2T). El Paquete IP queda expuesto.", action: "Quitando L2H y L2T.",
+                targetLayer: 'layer-link-router', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['l3Hdr', 'l4Hdr', 'data']
+            },
+            { // 10
+                title: "Subida a Red (Router)", pdu: "Paquete", description: "El Paquete resultante (sin L2) sube de la capa de Enlace (L2) a la capa de Red (L3) del router.", action: "Subiendo a L3.",
+                targetLayer: 'layer-network-router', pduVisible: true, transition: DEVICE_TRANSITION, visiblePduParts: ['l3Hdr', 'l4Hdr', 'data']
+            },
+            { // 11
+                title: "Procesamiento Red (Router)", pdu: "Paquete", description: "El router procesa el paquete en su capa de Red (L3):<br>1. Examina la dirección IP de destino (L3H).<br>2. Consulta su tabla de enrutamiento.<br>3. Decrementa el TTL.", action: "Decisión de ruteo.",
+                targetLayer: 'layer-network-router', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['l3Hdr', 'l4Hdr', 'data']
+            },
+            { // 12
+                title: "Re-encapsulación Enlace (Router)", pdu: "Paquete", description: "El paquete baja de la capa de Red (L3) a la capa de Enlace (L2) de la interfaz de <strong>salida</strong>.", action: "Bajando a L2.",
+                targetLayer: 'layer-link-router', pduVisible: true, transition: DEVICE_TRANSITION, visiblePduParts: ['l3Hdr', 'l4Hdr', 'data']
+            },
+             { // 13
+                title: "Preparación Trama Salida (Router)", pdu: "Trama", description: "La capa de Enlace (L2) crea una <strong>nueva</strong> trama:<br>1. Añade <strong>nueva</strong> L2H (MAC Origen=Router Salida, MAC Destino=Receptor).<br>2. Añade <strong>nueva</strong> L2T (FCS).<br>3. La nueva trama baja a L1.", action: "Añadiendo L2H/L2T. Bajando a L1.",
+                targetLayer: 'layer-physical-router', pduVisible: true, transition: DEVICE_TRANSITION, visiblePduParts: ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl']
+            },
+             // --- VIAJE AL RECEPTOR (Paso 14) ---
+             { // 14
+                title: "Viaje al Receptor", pdu: "Bits", description: "Las señales ('Bits') de la <strong>nueva</strong> trama viajan desde el router al receptor.", action: "Transmisión (2).",
+                targetLayer: 'layer-physical-receiver', pduVisible: true, transition: TRAVEL_TRANSITION, visiblePduParts: ['bits']
+            },
+             // --- DESENCAPSULAMIENTO RECEPTOR (Pasos 15-22) ---
+            { // 15
+                title: "Recepción Física (Receptor)", pdu: "Bits -> Trama", description: "Receptor L1 recibe señales y reconstruye la Trama.", action: "Decodificación.",
+                targetLayer: 'layer-physical-receiver', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl']
+            },
+            { // 16
+                title: "Llegada Enlace (Receptor)", pdu: "Trama", description: "La trama sube de L1 a L2 del receptor.", action: "Subiendo a L2.",
+                targetLayer: 'layer-link-receiver', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['l2Hdr', 'l3Hdr', 'l4Hdr', 'data', 'l2Trl']
+            },
+            { // 17
+                title: "Desencapsulación Enlace (Receptor)", pdu: "Trama -> Paquete", description: "Receptor L2 verifica MAC Dst, FCS y quita L2H/L2T.", action: "Quitando L2H y L2T.",
+                targetLayer: 'layer-link-receiver', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['l3Hdr', 'l4Hdr', 'data']
+            },
+            { // 18
+                title: "Subida a Red (Receptor)", pdu: "Paquete", description: "El Paquete (sin L2) sube a L3 del receptor.", action: "Subiendo a L3.",
+                targetLayer: 'layer-network-receiver', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['l3Hdr', 'l4Hdr', 'data']
+            },
+            { // 19
+                title: "Desencapsulación Red (Receptor)", pdu: "Paquete -> Segmento", description: "Receptor L3 verifica IP Dst y quita L3H.", action: "Quitando L3H.",
+                targetLayer: 'layer-network-receiver', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['l4Hdr', 'data']
+            },
+            { // 20
+                title: "Subida a Transporte (Receptor)", pdu: "Segmento/Datagrama", description: "El Segmento/Datagrama (sin L3) sube a L4.", action: "Subiendo a L4.",
+                targetLayer: 'layer-transport-receiver', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['l4Hdr', 'data']
+            },
+            { // 21
+                title: "Desencapsulación Transporte (Receptor)", pdu: "Segmento -> Datos", description: "Receptor L4 identifica App por puerto Dst y quita L4H.", action: "Quitando L4H.",
+                targetLayer: 'layer-transport-receiver', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['data']
+            },
+            { // 22
+                title: "Entrega Aplicación (Receptor)", pdu: "Datos", description: "Los Datos originales (sin L4) se entregan a la aplicación en L7.", action: "Entregando datos.",
+                targetLayer: 'layer-app-receiver', pduVisible: true, transition: DEFAULT_TRANSITION, visiblePduParts: ['data']
+            },
+             { // 23
+                title: "Proceso Completo", pdu: "Datos", description: "Los datos han sido recibidos y procesados.<br>Fin de la simulación.", action: "Fin.",
+                targetLayer: 'layer-app-receiver', pduVisible: true, transition: NO_TRANSITION, visiblePduParts: ['data']
+            },
+        ];
+
+        // --- Animation Execution ---
+        function executeStep(stepIndex, isMovingBack = false) {
+            if (stepIndex < 0 || stepIndex > totalSteps) {
+                console.error("Invalid step index:", stepIndex);
+                return;
+            }
+
+            currentStep = stepIndex;
+            const config = steps[stepIndex];
+
+            pduGroup.style.transition = NO_TRANSITION;
+            if (pduElements.bits.path) pduElements.bits.path.style.transition = NO_TRANSITION;
+
+            const visibleParts = config.visiblePduParts || [];
+            const pduWidth = updatePduLayout(visibleParts);
+
+            updateInfoPanel(config); // Llama a la función actualizada
+
+            const currentTransition = isMovingBack ? NO_TRANSITION : config.transition;
+            let targetX = 0, targetY = 0;
+
+            if (config.targetLayer) {
+                const coords = getLayerPosition(config.targetLayer);
+                targetX = coords.x;
+                targetY = coords.y;
+            } else if (stepIndex === 0) {
+                 const initialCoords = getLayerPosition('layer-app-sender');
+                 targetX = initialCoords.x;
+                 targetY = initialCoords.y - 80;
+            }
+
+            if (config.pduVisible && !isNaN(targetX) && !isNaN(targetY)) {
+                requestAnimationFrame(() => {
+                    movePduTo(targetX, targetY, pduWidth, currentTransition);
+                });
+            }
+
+            pduGroup.setAttribute('visibility', config.pduVisible ? 'visible' : 'hidden');
+
+
+            // Animación de Bits - Indices ya actualizados
+             if (visibleParts.includes('bits') && !isMovingBack && (stepIndex === 6 || stepIndex === 14)) {
+                 const bitsPath = pduElements.bits.path;
+                 if (bitsPath) {
+                     bitsPath.style.transition = NO_TRANSITION;
+                     bitsPath.style.strokeDashoffset = '200';
+                     requestAnimationFrame(() => {
+                         const travelDurationMatch = TRAVEL_TRANSITION.match(/\d+\.?\d*/);
+                         const travelDuration = travelDurationMatch ? parseFloat(travelDurationMatch[0]) : 1.2;
+                         bitsPath.style.transition = `stroke-dashoffset ${travelDuration}s linear`;
+                         bitsPath.style.strokeDashoffset = '0';
+                     });
+                 }
+             }
+
+
+            prevButton.disabled = stepIndex === 0;
+            nextButton.disabled = stepIndex >= totalSteps;
+            resetButton.disabled = stepIndex === 0;
+        }
+
+        // --- Event Listeners ---
+        nextButton.addEventListener('click', () => {
+            if (currentStep < totalSteps) {
+                executeStep(currentStep + 1, false);
+            }
+        });
+
+        prevButton.addEventListener('click', () => {
+            if (currentStep > 0) {
+                executeStep(currentStep - 1, true);
+            }
+        });
+
+        resetButton.addEventListener('click', () => {
+            executeStep(0, true);
+        });
+
+         // Tooltip Logic
+         svgContainer.addEventListener('mousemove', (e) => {
+             let targetElement = e.target.closest('.pdu-block');
+             if (targetElement && targetElement.getAttribute('visibility') === 'visible') {
+                 const info = targetElement.getAttribute('data-info');
+                 if (info) {
+                     infoTooltip.textContent = info;
+                     infoTooltip.style.display = 'block';
+                     infoTooltip.style.left = `${e.clientX + 15}px`;
+                     infoTooltip.style.top = `${e.clientY + 10}px`;
+                 }
+             } else {
+                 infoTooltip.style.display = 'none';
+             }
+         });
+         svgContainer.addEventListener('mouseleave', () => {
+            infoTooltip.style.display = 'none';
+         });
+
+
+        // --- Initial Setup ---
+        window.addEventListener('load', () => {
+             executeStep(0);
+        });
+
+    </script>
+</body>
+</html>
