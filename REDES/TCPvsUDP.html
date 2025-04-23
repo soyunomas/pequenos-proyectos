@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Cabeceras TCP vs UDP</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #f8f9fa;
+            --color-panel-bg: #ffffff;
+            --color-host-bg: #e9ecef;
+            --color-network-bg: #d1e7dd;
+            --color-border: #ccc;
+            --color-tcp-pdu: #f8d7da;
+            --color-tcp-border: #d99;
+            --color-udp-pdu: #cff4fc;
+            --color-udp-border: #9ce;
+            --color-pdu-text: #333;
+        }
+
+        body {
+            padding-top: 20px;
+            background-color: var(--color-bg);
+        }
+
+        /* Contenedores principales */
+        .control-panel, .host-representation, .network-medium {
+            height: 600px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--color-border);
+        }
+
+        .control-panel {
+            background-color: var(--color-panel-bg);
+            overflow-y: auto;
+            padding-bottom: 15px; /* Restaurar padding */
+        }
+
+        .host-representation {
+            background-color: var(--color-host-bg);
+            align-items: center;
+            justify-content: center;
+            padding-top: 30px;
+             position: relative;
+        }
+        .host-representation h5 {
+             position: absolute;
+             top: 15px;
+             left: 50%;
+             transform: translateX(-50%);
+             width: 100%;
+             text-align: center;
+        }
+        .transport-layer-placeholder {
+            border: 2px dashed #aaa;
+            padding: 20px 40px;
+            text-align: center;
+            color: #777;
+            font-style: italic;
+            width: 90%;
+        }
+
+        .network-medium {
+            background-color: var(--color-network-bg);
+            align-items: center;
+            justify-content: space-between; /* Empujar "RED" arriba y grupo botones abajo */
+            padding-top: 30px;
+            position: relative;
+            font-size: 1.5em;
+            color: #557;
+            font-weight: bold;
+        }
+         /* Estilos para botones DENTRO de .network-medium (más simple) */
+         .network-medium .button-group {
+             width: 95%;
+             text-align: center;
+             padding: 10px 0; /* Añadir padding vertical */
+             /* Quitar position absolute temporalmente */
+             /* background-color: rgba(209, 231, 221, 0.8); */
+             /* z-index: 5; */
+         }
+         .network-medium .button-group .btn {
+             font-size: 0.85em;
+             padding: 0.3rem 0.6rem;
+         }
+
+
+        #visualization-area {
+            position: relative;
+             min-height: 620px;
+             margin-bottom: 20px;
+        }
+
+        #pdu-svg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: visible;
+            z-index: 10;
+        }
+
+        #pdu-group {
+            cursor: default;
+        }
+
+        /* Estilos PDU SVG */
+        .pdu-rect {
+            stroke-width: 2;
+            rx: 5;
+             filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.2));
+             width: 80px;
+             height: 40px;
+        }
+        .pdu-tcp .pdu-rect { fill: var(--color-tcp-pdu); stroke: var(--color-tcp-border); }
+        .pdu-udp .pdu-rect { fill: var(--color-udp-pdu); stroke: var(--color-udp-border); }
+
+        .pdu-text { text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .pdu-text-protocol { font-weight: bold; font-size: 11px; fill: #333; }
+        .pdu-text-flags { font-family: monospace; font-size: 9px; font-weight: bold; fill: #c00; }
+        .pdu-lost { opacity: 0.3; transition: opacity 0.5s ease-out; }
+
+
+        /* Estilos del Panel de Control */
+        .control-panel h5 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .control-panel h6 { font-size: 1rem; margin-top: 0.5rem; margin-bottom: 0.5rem; font-weight: bold;}
+        .control-panel label { font-weight: bold; margin-bottom: 0.25rem; display: block; }
+        .control-panel select { margin-bottom: 1rem; }
+        .control-panel p { margin-bottom: 0.6rem; font-size: 0.85em; line-height: 1.4; }
+        .pdu-info { font-family: monospace; font-size: 0.9em; color: #555; background-color: #eee; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
+
+        /* Estilos para Detalles de Cabecera */
+        #pdu-header-details {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        #pdu-header-details dl { margin-bottom: 0; }
+        #pdu-header-details dt {
+            font-weight: bold; font-size: 0.75em; color: #555;
+            width: 95px; float: left; clear: left; margin-right: 5px;
+            text-align: right; line-height: 1.3;
+        }
+        #pdu-header-details dd {
+            font-family: monospace; font-size: 0.8em; margin-left: 105px;
+            margin-bottom: 2px; word-wrap: break-word; line-height: 1.3;
+        }
+        #pdu-header-details dd .flag-set { color: green; font-weight: bold; }
+        #pdu-header-details dd .flag-unset { color: #aaa; }
+
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">Visualizador Cabeceras TCP vs UDP</h1>
+
+        <div id="visualization-area">
+            <div class="row">
+
+                <!-- Columna 1: Panel de Control -->
+                <div class="col-md-3">
+                    <div class="control-panel">
+                        <h5>Control y Descripción</h5>
+                        <label for="scenario-select">Seleccionar Escenario:</label>
+                        <select id="scenario-select" class="form-select form-select-sm mb-3">
+                            <option value="tcp_handshake">TCP: Handshake (3 vías)</option>
+                            <option value="udp_transfer">UDP: Transferencia Simple</option>
+                            <option value="tcp_transfer_ack">TCP: Transferencia con ACK</option>
+                            <option value="udp_loss">UDP: Pérdida de Paquete</option>
+                             <option value="tcp_loss_retransmit">TCP: Pérdida y Retransmisión</option>
+                             <option value="tcp_close">TCP: Cierre de Conexión</option>
+                        </select>
+
+                        <h6 id="step-title" class="mt-2">Paso 0: Inicio</h6>
+                        <p><strong>PDU Actual:</strong> <span id="pdu-name" class="pdu-info">Ninguna</span></p>
+                        <p id="step-description" style="min-height: 80px;">Selecciona un escenario y haz clic en 'Siguiente Paso'.</p>
+                        <p><strong>Acción Clave:</strong> <span id="action-details">-</span></p>
+
+                        <div id="pdu-header-details">
+                            <h6>Cabecera Detallada:</h6>
+                            <dl id="header-fields-list">
+                                <dt>Protocolo:</dt><dd>Ninguno</dd>
+                            </dl>
+                        </div>
+                        <!-- Botones movidos a la columna network-medium -->
+                    </div>
+                </div> <!-- Fin Columna 1 -->
+
+                <!-- Columna 2: Cliente -->
+                <div class="col-md-3">
+                     <div class="host-representation" id="client-host">
+                        <h5>Cliente</h5>
+                        <div class="transport-layer-placeholder">Capa Transporte (L4)</div>
+                     </div>
+                </div> <!-- Fin Columna 2 -->
+
+                <!-- Columna 3: Red -->
+                <div class="col-md-3">
+                    <div class="network-medium" id="network-medium">
+                        <span>RED</span> <!-- Poner texto en span para flexbox -->
+                        <!-- Botones movidos aquí -->
+                         <div class="button-group">
+                            <button id="prev-step" class="btn btn-info me-2" disabled>Anterior</button>
+                            <button id="next-step" class="btn btn-primary me-2">Siguiente</button>
+                            <button id="reset" class="btn btn-secondary" disabled>Reiniciar</button>
+                        </div>
+                    </div>
+                </div> <!-- Fin Columna 3 -->
+
+                <!-- Columna 4: Servidor -->
+                <div class="col-md-3">
+                     <div class="host-representation" id="server-host">
+                        <h5>Servidor</h5>
+                         <div class="transport-layer-placeholder">Capa Transporte (L4)</div>
+                    </div>
+                </div> <!-- Fin Columna 4 -->
+
+            </div> <!-- Fin Fila Principal -->
+
+            <!-- Contenedor SVG Absoluto -->
+            <svg id="pdu-svg-container" width="100%" height="100%">
+                 <!-- PDU -->
+                <g id="pdu-group" transform="translate(0, 0)" visibility="hidden">
+                    <rect id="pdu-rect" class="pdu-rect"/>
+                    <text id="pdu-protocol" class="pdu-text pdu-text-protocol" x="40" y="15">?</text>
+                    <text id="pdu-flags" class="pdu-text pdu-text-flags" x="40" y="28" visibility="hidden">[FLAGS]</text>
+                </g>
+            </svg>
+        </div> <!-- Fin de visualization-area -->
+
+    </div> <!-- Fin de container-fluid -->
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- JAVASCRIPT ---
+        // --- DOM Elements ---
+        const pduGroup = document.getElementById('pdu-group');
+        const pduRect = document.getElementById('pdu-rect');
+        const pduProtocolText = document.getElementById('pdu-protocol');
+        const pduFlagsText = document.getElementById('pdu-flags');
+
+        const svgContainer = document.getElementById('pdu-svg-container');
+        const scenarioSelect = document.getElementById('scenario-select');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset');
+
+        const stepTitle = document.getElementById('step-title');
+        const pduName = document.getElementById('pdu-name');
+        const headerFieldsList = document.getElementById('header-fields-list');
+        const stepDescription = document.getElementById('step-description');
+        const actionDetails = document.getElementById('action-details');
+
+        // --- State ---
+        let currentScenario = scenarioSelect.value;
+        let currentStep = 0;
+        let totalSteps = 0;
+
+        // --- Constants ---
+        const PDU_WIDTH = 80;
+        const PDU_HEIGHT = 40;
+        const TRAVEL_TRANSITION = 'transform 1.0s ease-in-out';
+        const NO_TRANSITION = 'none';
+        const PDU_Y_OFFSET = 180;
+
+        // --- Positions Calculation ---
+        function getComponentCenterX(elementId) {
+            const element = document.getElementById(elementId);
+            const visualizationArea = document.getElementById('visualization-area');
+            if (!element || !visualizationArea) {
+                console.warn(`Element not found: ${elementId} or visualization-area`);
+                return 100; // Valor por defecto arbitrario
+            }
+            try {
+                const svgRect = visualizationArea.getBoundingClientRect();
+                const elementRect = element.getBoundingClientRect();
+                if (elementRect.width === 0) { // Comprobar si el layout está listo
+                    console.warn(`Element ${elementId} has zero width.`);
+                    return 100;
+                }
+                return (elementRect.left - svgRect.left + (elementRect.width / 2));
+            } catch(e) {
+                 console.error(`Error getting position for ${elementId}:`, e);
+                 return 100;
+             }
+        }
+
+        // --- PDU Visuals Update (SVG - Simplificado) ---
+        function updatePduSvgVisuals(pduData) {
+            // Añadir comprobación robusta
+            if (!pduData || !pduGroup) {
+                if(pduGroup) pduGroup.setAttribute('visibility', 'hidden');
+                return;
+            }
+            pduGroup.classList.remove('pdu-tcp', 'pdu-udp', 'pdu-lost');
+            if (pduData.protocol === 'TCP') {
+                pduGroup.classList.add('pdu-tcp');
+                pduProtocolText.textContent = 'TCP';
+                if (pduData.flags && pduData.flags.length > 0) {
+                    pduFlagsText.textContent = `[${pduData.flags.join(',')}]`;
+                    pduFlagsText.setAttribute('visibility', 'visible');
+                } else {
+                    pduFlagsText.setAttribute('visibility', 'hidden');
+                }
+            } else if (pduData.protocol === 'UDP') {
+                pduGroup.classList.add('pdu-udp');
+                pduProtocolText.textContent = 'UDP';
+                pduFlagsText.setAttribute('visibility', 'hidden');
+            } else {
+                 pduProtocolText.textContent = '?';
+                 pduFlagsText.setAttribute('visibility', 'hidden');
+            }
+             if (pduData.lost) {
+                 pduGroup.classList.add('pdu-lost');
+             }
+        }
+
+
+        // --- Display Header Details (Panel de Control) ---
+        function displayHeaderDetails(pduData) {
+             if (!headerFieldsList) return; // Asegurarse que el elemento existe
+             headerFieldsList.innerHTML = ''; // Limpiar detalles anteriores
+             // Comprobación robusta de pduData
+            if (!pduData) {
+                headerFieldsList.innerHTML = '<dt>Protocolo:</dt><dd>Ninguno</dd>';
+                return;
+            }
+
+            try { // Envolver en try-catch por si acaso
+                let detailsHtml = `<dt>Protocolo:</dt><dd>${pduData.protocol}</dd>`;
+                detailsHtml += `<dt>Puerto Origen:</dt><dd>${pduData.srcPort ?? '-'}</dd>`;
+                detailsHtml += `<dt>Puerto Destino:</dt><dd>${pduData.dstPort ?? '-'}</dd>`;
+
+                if (pduData.protocol === 'TCP') {
+                    detailsHtml += `<dt>Seq Number:</dt><dd>${pduData.seq ?? '-'}</dd>`;
+                    detailsHtml += `<dt>Ack Number:</dt><dd>${(pduData.flags && pduData.flags.includes('ACK')) ? (pduData.ack ?? '-') : '(No válido)'}</dd>`;
+                    detailsHtml += `<dt>Header Len:</dt><dd>${pduData.headerLen ? pduData.headerLen * 4 + ' bytes' : '20 bytes (min)'}</dd>`;
+                    const allFlags = ['SYN', 'ACK', 'FIN', 'RST', 'PSH', 'URG', 'ECE', 'CWR', 'NS'];
+                    let flagsDisplay = '';
+                    allFlags.forEach(flag => {
+                        const isSet = pduData.flags && pduData.flags.includes(flag);
+                        flagsDisplay += `<span class="${isSet ? 'flag-set' : 'flag-unset'}">${flag}</span> `;
+                    });
+                    detailsHtml += `<dt>Flags:</dt><dd>${flagsDisplay.trim()}</dd>`;
+                    detailsHtml += `<dt>Window Size:</dt><dd>${pduData.windowSize ?? '-'}</dd>`;
+                    detailsHtml += `<dt>Checksum:</dt><dd>${pduData.checksum ? '0x' + pduData.checksum.toString(16).toUpperCase() : '-'}</dd>`;
+                    detailsHtml += `<dt>Urgent Pointer:</dt><dd>${(pduData.flags && pduData.flags.includes('URG')) ? (pduData.urgentPointer ?? '0') : '(No válido)'}</dd>`;
+                } else if (pduData.protocol === 'UDP') {
+                    detailsHtml += `<dt>Length:</dt><dd>${pduData.length ? pduData.length + ' bytes' : '-'}</dd>`;
+                    detailsHtml += `<dt>Checksum:</dt><dd>${pduData.checksum ? '0x' + pduData.checksum.toString(16).toUpperCase() : '-'}</dd>`;
+                }
+                 headerFieldsList.innerHTML = detailsHtml;
+             } catch (error) {
+                 console.error("Error displaying header details:", error, "PDU Data:", pduData);
+                 headerFieldsList.innerHTML = '<dt>Error:</dt><dd>No se pudieron mostrar detalles.</dd>';
+             }
+        }
+
+
+        // --- PDU Movement ---
+        function movePdu(startX, startY, endX, endY, transitionStyle, isVisible = true) {
+            // Añadir comprobación robusta
+             if (!pduGroup || isNaN(startX) || isNaN(startY) || isNaN(endX) || isNaN(endY)) {
+                 console.warn("Invalid data for movePdu:", {startX, startY, endX, endY});
+                 return;
+             }
+             const initialTranslateX = startX - PDU_WIDTH / 2;
+             pduGroup.style.transition = NO_TRANSITION;
+             pduGroup.setAttribute('transform', `translate(${initialTranslateX}, ${startY})`);
+             if(isVisible) pduGroup.setAttribute('visibility', 'visible');
+             else pduGroup.setAttribute('visibility', 'hidden');
+
+             pduGroup.getBoundingClientRect(); // Reflow
+             requestAnimationFrame(() => {
+                 const finalTranslateX = endX - PDU_WIDTH / 2;
+                 pduGroup.style.transition = transitionStyle;
+                 pduGroup.setAttribute('transform', `translate(${finalTranslateX}, ${endY})`);
+             });
+        }
+
+        // --- Info Panel Update ---
+        function updateInfoPanel(config) {
+            // Añadir comprobación robusta
+            if (!config || !stepTitle || !pduName || !stepDescription || !actionDetails) return;
+            stepTitle.textContent = `Paso ${currentStep}: ${config.title}`;
+            pduName.textContent = config.pdu?.info || 'Ninguna';
+            stepDescription.innerHTML = config.description || "-";
+            actionDetails.textContent = config.action || "-";
+        }
+
+        // --- Scenario Definitions (Completas y con Descripciones Mejoradas) ---
+        const scenarios = {
+            'tcp_handshake': {
+                name: "TCP Handshake (3 vías)",
+                steps: [
+                    { title: "Inicio", pdu: null, visible: false, description:"Cliente quiere conectar al servidor (Ej: Navegador a servidor web).", action:"-"},
+                    {
+                        title: "Envío SYN", action: "Cliente -> SYN -> Servidor", description:"1. Cliente envía <strong>SYN</strong> para iniciar y sincronizar.<br>2. Propone su Nº Secuencia inicial (ISN Cliente = 100).",
+                        pdu: { protocol: 'TCP', info: 'SYN', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50000, dstPort: 80, seq: 100, ack: null, headerLen: 5,
+                               flags: ['SYN'], windowSize: 64000, checksum: 0xABCD, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                    {
+                        title: "Envío SYN-ACK", action: "Servidor -> SYN-ACK -> Cliente", description:"1. Servidor recibe SYN, acepta conexión.<br>2. Responde con <strong>SYN</strong> (sincroniza su ISN = 300) y <strong>ACK</strong> (confirma SYN cliente).<br>3. ACK = 101 (ISN Cliente + 1).",
+                        pdu: { protocol: 'TCP', info: 'SYN-ACK', srcHost: 'server', dstHost: 'client',
+                               srcPort: 80, dstPort: 50000, seq: 300, ack: 101, headerLen: 5,
+                               flags: ['SYN', 'ACK'], windowSize: 32000, checksum: 0xBCDE, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                    {
+                        title: "Envío ACK", action: "Cliente -> ACK -> Servidor", description:"1. Cliente recibe SYN-ACK.<br>2. Confirma el SYN del servidor con <strong>ACK</strong>.<br>3. ACK = 301 (ISN Servidor + 1).<br><strong>Conexión establecida.</strong>",
+                        pdu: { protocol: 'TCP', info: 'ACK', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50000, dstPort: 80, seq: 101, ack: 301, headerLen: 5,
+                               flags: ['ACK'], windowSize: 64200, checksum: 0xCDEF, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                    { title: "Conexión Establecida", pdu: null, visible: false, description:"¡Listo para enviar/recibir datos!", action:"Fin Handshake" }
+                ]
+            },
+            'udp_transfer': {
+                name: "Transferencia UDP Simple",
+                steps: [
+                     { title: "Inicio", pdu: null, visible: false, description:"Cliente envía datos que no requieren confirmación (Ej: Consulta DNS, paquete de voz).", action:"-"},
+                     {
+                        title: "Envío Datagrama 1", action: "Cliente -> UDP 1 -> Servidor", description:"1. Cliente envía datos (100 bytes).",
+                        pdu: { protocol: 'UDP', info: 'UDP Datos 1', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50001, dstPort: 53, length: 100, checksum: 0x1234 }, // Puerto 53 = DNS
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                    {
+                        title: "Envío Datagrama 2", action: "Cliente -> UDP 2 -> Servidor", description:"1. Cliente envía más datos (80 bytes).<br>2. No espera ACK.",
+                        pdu: { protocol: 'UDP', info: 'UDP Datos 2', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50001, dstPort: 53, length: 80, checksum: 0x5678 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     { title: "Transferencia (no confiable)", pdu: null, visible: false, description:"Datagramas enviados.<br>Recepción no garantizada.", action:"Fin" }
+                ]
+            },
+             'tcp_transfer_ack': {
+                name: "TCP Transferencia con ACK",
+                 steps: [
+                     { title: "Inicio", pdu: null, visible: false, description:"Cliente envía datos importantes (Ej: Parte de una página web).<br><em>(Asume conexión establecida)</em>", action:"-"},
+                     {
+                        title: "Envío Datos TCP (Cliente)", action: "Cliente -> Datos(50B) -> Servidor", description:"1. Cliente envía 50 bytes.<br>2. Flags: <strong>PSH</strong> (entregar ya a app), <strong>ACK</strong>.<br>3. SEQ=101.",
+                        pdu: { protocol: 'TCP', info: 'TCP Datos (50B)', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50000, dstPort: 80, seq: 101, ack: 301, headerLen: 5,
+                               flags: ['PSH', 'ACK'], windowSize: 64200, checksum: 0xDEF0, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío ACK (Servidor)", action: "Servidor -> ACK -> Cliente", description:"1. Servidor recibe los 50 bytes.<br>2. Envía <strong>ACK</strong> para confirmar.<br>3. ACK = 151 (101 + 50).",
+                        pdu: { protocol: 'TCP', info: 'ACK (151)', srcHost: 'server', dstHost: 'client',
+                               srcPort: 80, dstPort: 50000, seq: 301, ack: 151, headerLen: 5,
+                               flags: ['ACK'], windowSize: 32500, checksum: 0xEF12, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                    { title: "Transferencia Confirmada", pdu: null, visible: false, description:"Cliente sabe que el servidor recibió los datos.", action:"Fin" }
+                 ]
+             },
+             'udp_loss': {
+                name: "UDP Pérdida Paquete",
+                 steps: [
+                     { title: "Inicio", pdu: null, visible: false, description:"Simulando red congestionada para UDP (Ej: Streaming de vídeo).", action:"-"},
+                     {
+                        title: "Envío Datagrama 1", action: "Cliente -> UDP 1 -> Servidor", description:"Datagrama 1 enviado (Llega OK).",
+                        pdu: { protocol: 'UDP', info: 'UDP Vídeo 1', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50002, dstPort: 9001, length: 1024, checksum: 0x1122 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío Datagrama 2 (Se pierde)", action: "Cliente -> UDP 2 (X)", description:"Datagrama 2 enviado, pero se pierde (X).",
+                        pdu: { protocol: 'UDP', info: 'UDP Vídeo 2', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50002, dstPort: 9001, length: 1024, checksum: 0x3344, lost: true },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío Datagrama 3", action: "Cliente -> UDP 3 -> Servidor", description:"Datagrama 3 enviado (Llega OK).",
+                        pdu: { protocol: 'UDP', info: 'UDP Vídeo 3', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50002, dstPort: 9001, length: 1024, checksum: 0x5566 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     { title: "Resultado UDP", pdu: null, visible: false, description:"Servidor sólo tiene fragmentos 1 y 3 del vídeo.<br>El vídeo tendrá glitches.", action:"Fin" }
+                 ]
+             },
+             'tcp_loss_retransmit': {
+                name: "TCP Pérdida y Retransmisión",
+                 steps: [
+                    { title: "Inicio", pdu: null, visible: false, description:"Simulando red congestionada para TCP (Ej: Descarga de archivo).<br><em>(Asume conexión establecida)</em>", action:"-"},
+                    {
+                        title: "Envío Datos 1 (OK)", action: "Cliente -> Datos 1 -> Servidor", description:"Cliente envía 1er bloque (50B, SEQ=101).",
+                        pdu: { protocol: 'TCP', info: 'TCP Archivo 1', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50003, dstPort: 88, seq: 101, ack: 301, headerLen: 5,
+                               flags: ['PSH','ACK'], windowSize: 64000, checksum: 0xABCD, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío ACK (OK)", action: "Servidor -> ACK -> Cliente", description:"Servidor confirma bloque 1 (ACK=151).",
+                        pdu: { protocol: 'TCP', info: 'ACK (151)', srcHost: 'server', dstHost: 'client',
+                               srcPort: 88, dstPort: 50003, seq: 301, ack: 151, headerLen: 5,
+                               flags: ['ACK'], windowSize: 32000, checksum: 0xBCDE, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío Datos 2 (Se Pierde)", action: "Cliente -> Datos 2 (X)", description:"Cliente envía 2º bloque (50B, SEQ=151), pero se pierde (X).",
+                        pdu: { protocol: 'TCP', info: 'TCP Archivo 2', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50003, dstPort: 88, seq: 151, ack: 301, headerLen: 5,
+                               flags: ['PSH','ACK'], windowSize: 64000, checksum: 0xCDEF, urgentPointer: 0, lost: true },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Timeout Esperando ACK", description: "Cliente no recibe ACK para SEQ=151.<br>Temporizador expira (Timeout).", action: "Cliente: Timeout!",
+                        pdu: null, visible: false
+                    },
+                    {
+                        title: "Retransmisión Datos 2", action: "Cliente -> Datos 2 (Retrans.) -> Servidor", description:"Cliente retransmite bloque 2 (SEQ=151).",
+                        pdu: { protocol: 'TCP', info: 'TCP Archivo 2 [R]', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50003, dstPort: 88, seq: 151, ack: 301, headerLen: 5,
+                               flags: ['PSH','ACK'], windowSize: 64000, checksum: 0xCDEF, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío ACK (Retrans.)", action: "Servidor -> ACK -> Cliente", description:"Servidor recibe bloque 2, confirma (ACK=201).",
+                        pdu: { protocol: 'TCP', info: 'ACK (201)', srcHost: 'server', dstHost: 'client',
+                               srcPort: 88, dstPort: 50003, seq: 301, ack: 201, headerLen: 5,
+                               flags: ['ACK'], windowSize: 32000, checksum: 0xDEF1, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     { title: "Recuperación Completa", pdu: null, visible: false, description:"El archivo llegará completo gracias a TCP.", action:"Fin" }
+                 ]
+             },
+             'tcp_close': {
+                name: "TCP Cierre de Conexión",
+                 steps: [
+                    { title: "Inicio", pdu: null, visible: false, description:"Cliente ha terminado de enviar/recibir datos (Ej: Página web cargada).<br><em>(Asume conexión establecida)</em>", action:"-"},
+                    {
+                        title: "Envío FIN (Cliente)", action: "Cliente -> FIN -> Servidor", description:"Cliente inicia cierre: envía <strong>FIN, ACK</strong>.",
+                        pdu: { protocol: 'TCP', info: 'FIN, ACK', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50004, dstPort: 99, seq: 201, ack: 351, headerLen: 5,
+                               flags: ['FIN', 'ACK'], windowSize: 64000, checksum: 0x1A2B, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                    {
+                        title: "Envío ACK (Servidor)", action: "Servidor -> ACK -> Cliente", description:"Servidor confirma FIN con <strong>ACK=202</strong>.<br>Entra en CLOSE_WAIT (puede seguir enviando).",
+                        pdu: { protocol: 'TCP', info: 'ACK', srcHost: 'server', dstHost: 'client',
+                               srcPort: 99, dstPort: 50004, seq: 351, ack: 202, headerLen: 5,
+                               flags: ['ACK'], windowSize: 32000, checksum: 0x3C4D, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío FIN (Servidor)", action: "Servidor -> FIN -> Cliente", description:"Servidor termina y envía su <strong>FIN, ACK</strong>.",
+                        pdu: { protocol: 'TCP', info: 'FIN, ACK', srcHost: 'server', dstHost: 'client',
+                               srcPort: 99, dstPort: 50004, seq: 351, ack: 202, headerLen: 5,
+                               flags: ['FIN', 'ACK'], windowSize: 32000, checksum: 0x5E6F, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     {
+                        title: "Envío ACK (Cliente)", action: "Cliente -> ACK -> Servidor", description:"Cliente recibe FIN, envía el último <strong>ACK=352</strong>.<br>Entra en TIME_WAIT.",
+                        pdu: { protocol: 'TCP', info: 'ACK', srcHost: 'client', dstHost: 'server',
+                               srcPort: 50004, dstPort: 99, seq: 202, ack: 352, headerLen: 5,
+                               flags: ['ACK'], windowSize: 64000, checksum: 0x7890, urgentPointer: 0 },
+                        visible: true, transition: TRAVEL_TRANSITION
+                    },
+                     { title: "Conexión Cerrada", pdu: null, visible: false, description:"La conexión TCP está cerrada.", action:"Fin" }
+                 ]
+             }
+        };
+
+        // --- Animation Execution ---
+        function executeStep(stepIndex, isMovingBack = false) {
+            const scenarioData = scenarios[currentScenario];
+             // Añadir comprobación robusta al inicio
+            if (!scenarioData || !scenarioData.steps || !Array.isArray(scenarioData.steps)) {
+                console.error("Datos de escenario inválidos:", currentScenario);
+                return;
+            }
+            totalSteps = scenarioData.steps.length - 1;
+            if (stepIndex < 0 || stepIndex > totalSteps) {
+                console.warn("Índice de paso fuera de rango:", stepIndex);
+                return;
+            }
+
+            currentStep = stepIndex;
+             // Comprobar si el paso existe
+             const config = scenarioData.steps[currentStep];
+             if (!config) {
+                 console.error("Configuración de paso no encontrada para el índice:", currentStep);
+                 return;
+             }
+
+            const pduData = config.pdu;
+
+            try { // Envolver las actualizaciones en try-catch
+                updateInfoPanel(config);
+                displayHeaderDetails(pduData);
+                updatePduSvgVisuals(pduData);
+
+                if (config.visible && pduData) {
+                    let startX, endX;
+                    const startY = PDU_Y_OFFSET;
+                    const endY = PDU_Y_OFFSET;
+                    const clientX = getComponentCenterX('client-host');
+                    const serverX = getComponentCenterX('server-host');
+
+                     // Añadir comprobaciones para clientX y serverX
+                     if (clientX === 0 || serverX === 0) {
+                         console.warn("Coordenadas X de host no válidas:", {clientX, serverX});
+                         // Quizás reintentar tras un breve delay si es un problema de carga
+                         // setTimeout(() => executeStep(stepIndex, isMovingBack), 100);
+                         // return; // O simplemente no mover
+                     }
+
+                    if (pduData.srcHost === 'client') startX = clientX;
+                    else if (pduData.srcHost === 'server') startX = serverX;
+                    else startX = clientX;
+
+                    if (pduData.dstHost === 'client') endX = clientX;
+                    else if (pduData.dstHost === 'server') endX = serverX;
+                    else endX = startX;
+
+                    const transition = (stepIndex === 0 || isMovingBack) ? NO_TRANSITION : (config.transition || NO_TRANSITION);
+                    movePdu(startX, startY, endX, endY, transition, config.visible);
+
+                    if (pduData.lost && !isMovingBack && actionDetails) {
+                        actionDetails.textContent += " (¡Paquete Perdido!)";
+                    }
+                } else {
+                    if (pduGroup) pduGroup.setAttribute('visibility', 'hidden');
+                }
+
+                // Actualizar botones (asegurarse que existen)
+                if(prevButton && nextButton && resetButton) {
+                    prevButton.disabled = currentStep === 0;
+                    nextButton.disabled = currentStep >= totalSteps;
+                    resetButton.disabled = currentStep === 0;
+                }
+            } catch (error) {
+                console.error(`Error ejecutando el paso ${currentStep}:`, error, "Config:", config);
+                // Podríamos mostrar un mensaje de error al usuario aquí
+            }
+        }
+
+
+        // --- Event Listeners ---
+        if (scenarioSelect) {
+            scenarioSelect.addEventListener('change', (e) => {
+                currentScenario = e.target.value;
+                currentStep = 0;
+                // Añadir un pequeño delay antes de ejecutar el primer paso del nuevo escenario
+                // para dar tiempo a que cualquier actualización pendiente se complete.
+                setTimeout(() => executeStep(0, true), 50);
+            });
+        }
+        if (nextButton) {
+            nextButton.addEventListener('click', () => {
+                if (scenarios[currentScenario] && scenarios[currentScenario].steps) {
+                    totalSteps = scenarios[currentScenario].steps.length - 1;
+                    if (currentStep < totalSteps) {
+                        executeStep(currentStep + 1, false);
+                    }
+                }
+            });
+        }
+        if (prevButton) {
+            prevButton.addEventListener('click', () => {
+                if (currentStep > 0) {
+                    executeStep(currentStep - 1, true);
+                }
+            });
+        }
+       if (resetButton) {
+            resetButton.addEventListener('click', () => {
+                currentStep = 0;
+                // Usar delay aquí también podría ser útil
+                setTimeout(() => executeStep(0, true), 50);
+            });
+       }
+
+        // --- Initial Setup ---
+        window.addEventListener('load', () => {
+             console.log("Window loaded. Initializing simulation...");
+             if (scenarioSelect) {
+                 currentScenario = scenarioSelect.value;
+             } else {
+                 console.error("Scenario select element not found!");
+                 return;
+             }
+
+             if (scenarios[currentScenario] && scenarios[currentScenario].steps) {
+                 totalSteps = scenarios[currentScenario].steps.length - 1;
+                 console.log(`Initial scenario: ${currentScenario}, Steps: ${totalSteps + 1}`);
+                 // Usar un pequeño timeout para asegurar que todo esté listo
+                  setTimeout(() => {
+                      console.log("Executing initial step 0...");
+                      executeStep(0);
+                  }, 100); // Aumentar delay si sigue habiendo problemas
+             } else {
+                  console.error(`Initial scenario data not found for: ${currentScenario}`);
+             }
+        });
+
+    </script>
+</body>
+</html>
