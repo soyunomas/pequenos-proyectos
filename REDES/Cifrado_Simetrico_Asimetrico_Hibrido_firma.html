@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Cifrado: Simétrico, Asimétrico, Híbrido y Firma</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #f8f9fa; --color-panel-bg: #ffffff; --color-arturo-bg: #e0f7fa;
+            --color-francisca-bg: #fff9c4; --color-network-bg: #e8eaf6;
+            --color-border: #ccc;
+            --color-item-plain: #e0e0e0; --color-item-plain-border: #bdbdbd;
+            --color-item-cipher-sym: #cfd8dc; --color-item-cipher-sym-border: #b0bec5;
+            --color-item-cipher-asym: #d1c4e9; --color-item-cipher-asym-border: #b39ddb;
+            --color-key-sym: #ffecb3; --color-key-sym-border: #ffe082;
+            --color-key-pub: #c8e6c9; --color-key-pub-border: #a5d6a7;
+            --color-key-priv-display: #f44336;
+            --color-key-sym-compromised: #ffcdd2; --color-key-sym-compromised-border: #ef9a9a;
+            --color-item-signature: #f8bbd0; --color-item-signature-border: #f48fb1;
+            --color-item-text: #333; --color-state-ok: #28a745; --color-state-error: #dc3545; --color-state-warn: #ffc107;
+            --color-state-process: #0dcaf0;
+        }
+        body { padding-top: 20px; background-color: var(--color-bg); }
+        .actor-representation, .network-link, .control-panel { height: 580px; margin-bottom: 15px; border-radius: 5px; padding: 10px; display: flex; flex-direction: column; border: 1px solid var(--color-border); position: relative; font-size: 0.9em; }
+        .control-panel { background-color: var(--color-panel-bg); overflow-y: auto; padding-bottom: 15px; }
+        .actor-representation { align-items: center; padding-top: 60px; }
+        .arturo-representation { background-color: var(--color-arturo-bg); }
+        .francisca-representation { background-color: var(--color-francisca-bg); }
+        .network-link { align-items: center; justify-content: center; font-weight: bold; color: #555; background-color: var(--color-network-bg); }
+        .actor-title { position: absolute; top: 8px; left: 10px; font-weight: bold; font-size: 1.1em; }
+        .actor-info { position: absolute; top: 35px; left: 10px; font-family: monospace; font-size: 0.85em; color: #444; line-height: 1.3; }
+        .actor-extra-info { margin-top: 40px; width: 95%; border: 1px dashed #aaa; padding: 8px; font-size: 0.8em; background-color: rgba(255,255,255,0.7); max-height: 130px; overflow-y: auto; text-align: center; }
+        .actor-extra-info h6 { font-size: 1em; margin-bottom: 5px; text-align: center; }
+        .actor-extra-info pre { font-size: 0.9em; margin: 0; white-space: pre-wrap; word-break: break-word; text-align: center; }
+        .status-ok { color: var(--color-state-ok); font-weight: bold; }
+        .status-error { color: var(--color-state-error); font-weight: bold; }
+        .status-warn { color: var(--color-state-warn); font-weight: bold; }
+        .status-process { color: var(--color-state-process); font-weight: bold; }
+        .key-private { color: var(--color-key-priv-display); font-weight: bold; }
+        .key-public { color: var(--color-key-pub-border); font-weight: bold; }
+        .key-symmetric { color: var(--color-key-sym-border); font-weight: bold; }
+        .control-panel .button-group { margin-top: auto; padding-top: 10px; position: sticky; bottom: 0; background-color: var(--color-panel-bg); padding-bottom: 5px; z-index: 1; text-align: center; }
+        .control-panel .button-group .btn { font-size: 0.85em; padding: 0.3rem 0.6rem; }
+        #visualization-area { position: relative; min-height: 600px; margin-bottom: 20px; }
+        #item-svg-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 10; }
+        #item-group, .item-clone { cursor: default; }
+        .item-rect { stroke-width: 1.5; rx: 3; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.15)); width: 120px; height: 50px; }
+        .item-message-plain .item-rect { fill: var(--color-item-plain); stroke: var(--color-item-plain-border); }
+        .item-message-cipher-sym .item-rect { fill: var(--color-item-cipher-sym); stroke: var(--color-item-cipher-sym-border); }
+        .item-message-cipher-asym .item-rect { fill: var(--color-item-cipher-asym); stroke: var(--color-item-cipher-asym-border); }
+        .item-key-symmetric .item-rect { fill: var(--color-key-sym); stroke: var(--color-key-sym-border); }
+        .item-key-public .item-rect { fill: var(--color-key-pub); stroke: var(--color-key-pub-border); }
+        .item-key-symmetric-compromised .item-rect { fill: var(--color-key-sym-compromised); stroke: var(--color-key-sym-compromised-border); }
+        .item-digital-signature .item-rect { fill: var(--color-item-signature); stroke: var(--color-item-signature-border); }
+        .item-text { font-family: monospace; font-size: 10px; fill: var(--color-item-text); text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .item-text-type { font-weight: bold; font-size: 11px; }
+        .item-text-detail { font-size: 9px; }
+        .control-panel h5 { font-size: 1.1rem; margin-bottom: 0.75rem; position: sticky; top:0; background-color: var(--color-panel-bg); padding: 5px 0; z-index: 1;}
+        .control-panel h6 { font-size: 1rem; margin-top: 0.5rem; margin-bottom: 0.5rem; font-weight: bold;}
+        .control-panel label { font-weight: bold; margin-bottom: 0.25rem; display: block; }
+        .control-panel select { margin-bottom: 1rem; }
+        .control-panel p { margin-bottom: 0.6rem; font-size: 0.85em; line-height: 1.4; }
+        #step-description { min-height: 120px; font-size: 0.8em; line-height: 1.35; }
+        .control-panel #step-description ul { padding-left: 1.1em; margin-bottom: 0; }
+        .control-panel #step-description li { margin-bottom: 0.2em; }
+        .item-info { font-family: monospace; font-size: 0.9em; color: #555; background-color: #eee; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
+        #item-accordion-container { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+        .accordion-button { padding: 0.3rem 0.6rem; font-size: 0.5em; background-color: #f8f9fa; color: #333; }
+        .accordion-button:not(.collapsed) { background-color: #e9ecef; box-shadow: none; }
+        .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
+        .accordion-body { padding: 0.5rem 0.8rem; background-color: #fff; }
+        #item-accordion-container dl { margin-bottom: 0; }
+        #item-accordion-container dt { font-weight: bold; font-size: 0.8em; color: #555; width: 95px; float: left; clear: left; margin-right: 5px; text-align: right; line-height: 1.3; }
+        #item-accordion-container dd { font-family: monospace; font-size: 0.85em; margin-left: 103px; margin-bottom: 2px; word-wrap: break-word; line-height: 1.3; }
+        #item-accordion-container .content-placeholder { font-style: italic; color: #777; }
+        #item-accordion-container .key-info { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">Visualizador Cifrado: Simétrico, Asimétrico, Híbrido y Firma</h1>
+        <div id="visualization-area">
+             <div class="row justify-content-center">
+                <div class="col-md-3">
+                    <div class="control-panel">
+                          <h5>Panel de Control</h5>
+                        <label for="scenario-select">Escenario:</label>
+                        <select id="scenario-select" class="form-select form-select-sm mb-2">
+                            <option value="symmetric_success">Cifrado Simétrico (Éxito)</option>
+                            <option value="symmetric_key_fail">Simétrico (Fallo Intercambio Clave)</option>
+                            <option value="asymmetric_confidentiality">Cifrado Asimétrico (Confidencialidad)</option>
+                            <option value="hybrid_francisca_public">Cifrado Híbrido (Francisca Pública)</option>
+                            <option value="hybrid_arturo_public">Cifrado Híbrido (Arturo Pública)</option>
+                            <option value="signature_non_repudiation">Firma Digital / No Repudio</option>
+                        </select>
+                        <h6 id="step-title" class="mt-2">Paso 0: Inicio</h6>
+                        <p><strong>Elemento en Tránsito:</strong> <span id="item-name" class="item-info">Ninguno</span></p>
+                        <div id="step-description" style="min-height: 120px;">Selecciona un escenario y usa los botones para avanzar.</div>
+                        <p><strong>Acción:</strong> <span id="action-details">-</span></p>
+                        <div id="item-accordion-container" style="display: none;">
+                            <div class="accordion accordion-flush" id="item-accordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="item-accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#item-accordion-collapse" aria-expanded="false" aria-controls="item-accordion-collapse">
+                                            Detalles del Elemento
+                                        </button>
+                                    </h2>
+                                    <div id="item-accordion-collapse" class="accordion-collapse collapse" aria-labelledby="item-accordion-header" data-bs-parent="#item-accordion">
+                                        <div class="accordion-body">
+                                            <dl id="item-fields-list">
+                                                <dt>Info:</dt><dd>N/A</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="button-group">
+                            <button id="prev-step" class="btn btn-info me-1" disabled>Ant</button>
+                            <button id="next-step" class="btn btn-primary me-1">Sig</button>
+                            <button id="reset" class="btn btn-secondary" disabled>Reset</button>
+                        </div>
+                    </div>
+                </div>
+                 <div class="col-md-3">
+                    <div class="actor-representation arturo-representation" id="arturo">
+                        <div class="actor-title">Arturo</div>
+                        <div class="actor-info" id="arturo-info">Intentando comunicar con:<br>Francisca</div>
+                        <div class="actor-extra-info">
+                             <h6>Estado Arturo</h6>
+                             <pre id="arturo-status">Preparado</pre>
+                         </div>
+                    </div>
+                </div>
+                <div class="col-md-1"> <div class="network-link" id="network-link">Red<br>(Observada?)</div> </div>
+                <div class="col-md-3">
+                    <div class="actor-representation francisca-representation" id="francisca">
+                        <div class="actor-title">Francisca</div>
+                        <div class="actor-info" id="francisca-info">Esperando comunicación</div>
+                         <div class="actor-extra-info">
+                             <h6>Estado Francisca</h6>
+                             <pre id="francisca-status">Esperando</pre>
+                         </div>
+                    </div>
+                </div>
+            </div>
+            <svg id="item-svg-container" width="100%" height="100%">
+                 <g id="item-template" style="display: none;">
+                     <rect class="item-rect"/>
+                     <text class="item-text item-text-type" x="60" y="20">?</text>
+                     <text class="item-text item-text-detail" x="60" y="38">?</text>
+                 </g>
+                 <g id="item-group" visibility="hidden">
+                      <rect class="item-rect"/>
+                      <text class="item-text item-text-type" x="60" y="20">?</text>
+                      <text class="item-text item-text-detail" x="60" y="38">?</text>
+                 </g>
+            </svg>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const itemGroup = document.getElementById('item-group');
+        const itemTemplate = document.getElementById('item-template');
+        const svgContainer = document.getElementById('item-svg-container');
+        const scenarioSelect = document.getElementById('scenario-select');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset');
+        const stepTitle = document.getElementById('step-title');
+        const itemName = document.getElementById('item-name');
+        const itemAccordionContainer = document.getElementById('item-accordion-container');
+        const itemFieldsList = document.getElementById('item-fields-list');
+        const stepDescription = document.getElementById('step-description');
+        const actionDetails = document.getElementById('action-details');
+        const arturoStatusEl = document.getElementById('arturo-status');
+        const franciscaStatusEl = document.getElementById('francisca-status');
+        const visualizationArea = document.getElementById('visualization-area');
+
+        let currentScenario = scenarioSelect.value;
+        let currentStep = 0;
+        let totalSteps = 0;
+        let arturoState = {};
+        let franciscaState = {};
+
+        const ITEM_WIDTH = 120; const ITEM_HEIGHT = 50;
+        const TRAVEL_TRANSITION = 'transform 0.9s ease-in-out';
+        const NO_TRANSITION = 'none';
+        const ITEM_Y_OFFSET = 150;
+
+        function updateActorStatus(actorId, statusText) {
+            const statusElement = document.getElementById(`${actorId}-status`);
+             if (statusElement) { statusElement.innerHTML = statusText; }
+        }
+        function initializeActorInfos() {
+            arturoState = { keys: {} };
+            franciscaState = { keys: {} };
+            updateActorStatus('arturo', 'Preparado');
+            updateActorStatus('francisca', 'Esperando');
+             const accordionCollapse = document.getElementById('item-accordion-collapse');
+             if (accordionCollapse?.classList.contains('show')) { new bootstrap.Collapse(accordionCollapse).hide(); }
+             const accordionButton = document.getElementById('item-accordion-header')?.querySelector('button');
+              if (accordionButton && !accordionButton.classList.contains('collapsed')) {
+                  accordionButton.classList.add('collapsed');
+                  accordionButton.setAttribute('aria-expanded', 'false');
+              }
+        }
+        function updateInfoPanel(config) {
+             if (!config || !stepTitle || !itemName || !stepDescription || !actionDetails) return;
+             stepTitle.textContent = `Paso ${currentStep}: ${config.title}`;
+             itemName.textContent = config.item?.info || 'Ninguno';
+             stepDescription.innerHTML = config.description || "<ul><li>-</li></ul>";
+             actionDetails.textContent = config.action || "-";
+        }
+         function getComponentCenterX(elementId) {
+             const element = document.getElementById(elementId);
+             if (!element || !visualizationArea) return 100;
+             try {
+                 const svgRect = visualizationArea.getBoundingClientRect();
+                 const elementRect = element.getBoundingClientRect();
+                 if (elementRect.width === 0) return 100;
+                 return (elementRect.left - svgRect.left + (elementRect.width / 2));
+             } catch(e) { console.error(`Error pos ${elementId}:`, e); return 100; }
+         }
+        function updateItemSvgVisuals(itemElement, itemData) {
+             if (!itemElement || !itemData) return;
+             const rect = itemElement.querySelector('.item-rect');
+             const typeText = itemElement.querySelector('.item-text-type');
+             const detailText = itemElement.querySelector('.item-text-detail');
+             if (!rect || !typeText || !detailText) return;
+
+             itemElement.className.baseVal = itemElement.className.baseVal.replace(/item-\S+/g, '').trim();
+             rect.className.baseVal = 'item-rect';
+
+             let itemTypeLabel = itemData.info || '?';
+             let itemDetailLabel = itemData.detail || '';
+             let itemClass = 'item-default';
+
+             switch (itemData.type) {
+                 case 'PlainMessage': itemClass = 'item-message-plain'; break;
+                 case 'SymmetricKey': itemClass = 'item-key-symmetric'; break;
+                 case 'SymmetricKeyCompromised': itemClass = 'item-key-symmetric-compromised'; break;
+                 case 'PublicKey': itemClass = 'item-key-public'; break;
+                 case 'CipherMessageSym': itemClass = 'item-message-cipher-sym'; break;
+                 case 'CipherMessageAsym': itemClass = 'item-message-cipher-asym'; break;
+                 case 'DigitalSignature': itemClass = 'item-digital-signature'; break;
+                 default: itemClass = 'item-message-plain';
+             }
+             itemElement.classList.add(itemClass);
+             typeText.textContent = itemTypeLabel;
+             detailText.textContent = itemDetailLabel;
+        }
+        function displayItemDetails(itemData) {
+            itemFieldsList.innerHTML = '';
+             if (!itemData || !itemData.data || !itemAccordionContainer) {
+                 if (itemAccordionContainer) itemAccordionContainer.style.display = 'none';
+                 return;
+             }
+             itemAccordionContainer.style.display = 'block';
+             let html = ''; const data = itemData.data;
+             if (itemData.type) { html += `<dt>Tipo:</dt><dd class="key-info">${itemData.type}</dd>`; }
+             switch (itemData.type) {
+                 case 'PlainMessage':
+                     if (data.content) html += `<dt>Contenido:</dt><dd>${data.content}</dd>`;
+                     if (data.from) html += `<dt>De:</dt><dd>${data.from}</dd>`;
+                     break;
+                 case 'SymmetricKey': case 'SymmetricKeyCompromised':
+                     if (data.value) html += `<dt>Valor:</dt><dd>${data.value}</dd>`;
+                     html += `<dt>Secreta:</dt><dd>Sí (Compartida)</dd>`;
+                     break;
+                 case 'PublicKey':
+                     if (data.owner) html += `<dt>Dueño:</dt><dd>${data.owner}</dd>`;
+                     if (data.value) html += `<dt>Valor:</dt><dd class="content-placeholder">${data.value.substring(0,20)}...</dd>`;
+                     html += `<dt>Secreta:</dt><dd>No (Pública)</dd>`;
+                     break;
+                 case 'CipherMessageSym':
+                     html += `<dt>Contenido:</dt><dd class="content-placeholder">(Cifrado con Clave Simétrica)</dd>`;
+                     if (data.from) html += `<dt>De:</dt><dd>${data.from}</dd>`;
+                     break;
+                 case 'CipherMessageAsym':
+                     html += `<dt>Contenido:</dt><dd class="content-placeholder">(Cifrado con Clave Pública)</dd>`;
+                      if (data.contentType) html += `<dt>Contiene:</dt><dd>${data.contentType}</dd>`;
+                     if (data.from) html += `<dt>De:</dt><dd>${data.from}</dd>`;
+                     if (data.for) html += `<dt>Para:</dt><dd>${data.for}</dd>`;
+                     break;
+                 case 'DigitalSignature':
+                     html += `<dt>Contenido:</dt><dd class="content-placeholder">(Hash de mensaje cifrado con Clave Privada)</dd>`;
+                     if (data.signer) html += `<dt>Firmado por:</dt><dd>${data.signer}</dd>`;
+                     if (data.hashAlgorithm) html += `<dt>Alg. Hash:</dt><dd>${data.hashAlgorithm}</dd>`;
+                     break;
+             }
+             itemFieldsList.innerHTML = html || '<dt>Info:</dt><dd>N/A</dd>';
+        }
+        function moveItem(itemElement, startX, startY, endX, endY, transitionStyle, isVisible = true) {
+             if (!itemElement || isNaN(startX) || isNaN(startY) || isNaN(endX) || isNaN(endY)) { if (itemElement) itemElement.setAttribute('visibility', 'hidden'); return; }
+             const initialTranslateX = startX - ITEM_WIDTH / 2;
+             itemElement.style.transition = NO_TRANSITION;
+             itemElement.setAttribute('transform', `translate(${initialTranslateX}, ${startY})`);
+             itemElement.setAttribute('visibility', isVisible ? 'visible' : 'hidden');
+             itemElement.getBoundingClientRect();
+             requestAnimationFrame(() => {
+                 const finalTranslateX = endX - ITEM_WIDTH / 2;
+                 itemElement.style.transition = transitionStyle;
+                 itemElement.setAttribute('transform', `translate(${finalTranslateX}, ${endY})`);
+             });
+        }
+
+        function getActorStatusWithKeys(actorId, baseStatus) {
+            const state = (actorId === 'arturo') ? arturoState : franciscaState;
+            let keyHtml = "";
+            if (state.keys.symmetric) { keyHtml += `<span class='key-symmetric'>🔑 Clave Simétrica</span><br>`; }
+            if (state.keys.public) { keyHtml += `<span class='key-public'>🔓 Clave Pública (${state.keys.owner === 'self' ? 'Propia' : 'de '+state.keys.owner})</span><br>`; }
+            if (state.keys.private) { keyHtml += `<span class='key-private'>🗝️ Clave Privada</span><br>`; }
+            return baseStatus + (keyHtml ? "<hr style='margin: 3px 0; border-color: #bbb;'>" + keyHtml : "");
+        }
+
+        const SYMMETRIC_KEY_VALUE = "ClaveSimétrica123";
+        const PUBLIC_KEY_F_VALUE = "PubKey_Francisca_XYZ";
+        const PRIVATE_KEY_F_VALUE = "PrivKey_Francisca_ABC";
+        const PUBLIC_KEY_A_VALUE = "PubKey_Arturo_789";
+        const PRIVATE_KEY_A_VALUE = "PrivKey_Arturo_456";
+        const TEMP_SYM_KEY_VALUE = "TempKeyABC987";
+        const MESSAGE_TO_SIGN = "'Contrato Importante'";
+        const HASH_ALGORITHM = "SHA-256";
+
+        const scenarios = {
+            'symmetric_success': {
+                 name: "Cifrado Simétrico (Éxito)",
+                 steps: [
+                     { title: "Inicio", item: null, action: "Ambos ya conocen la clave", description: `<ul><li>Arturo y Francisca han compartido una <b>clave simétrica secreta</b> de forma segura previamente (¡magia!).</li><li>Ambos poseen la misma clave.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Tiene clave'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Tiene clave'),
+                       initialState: () => { arturoState.keys.symmetric = SYMMETRIC_KEY_VALUE; franciscaState.keys.symmetric = SYMMETRIC_KEY_VALUE; } },
+                     { title: "Arturo quiere enviar", item: { info:"Mensaje Claro", type: 'PlainMessage', detail:"'Hola Francisca'", data: { content: "'Hola Francisca'", from: 'Arturo' } }, action: "Arturo prepara mensaje", description: `<ul><li>Arturo tiene un mensaje secreto para Francisca.</li></ul>`,
+                       visible: false, arturoStatus: () => getActorStatusWithKeys('arturo', 'Tiene mensaje'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando') },
+                    { title: "Arturo Cifra", item: null, action: "Arturo usa la clave simétrica", description: `<ul><li>Arturo usa la <b>clave simétrica</b> 🔑 compartida para cifrar el mensaje.</li><li>El mensaje original se vuelve ilegible.</li></ul>`,
+                      arturoStatus: () => getActorStatusWithKeys('arturo', "<span class='status-process'>Cifrando...</span>"), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando') },
+                    { title: "Mensaje Cifrado Enviado", item: { info:"Mensaje Cifrado", type: 'CipherMessageSym', detail:"(Simétrico)", data: { from: 'Arturo' } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo envía el mensaje cifrado 🔒 por la red.</li><li>Un observador ('Eve') puede ver el paquete, pero no su contenido.</li></ul>`,
+                      visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                      arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo...') },
+                    { title: "Francisca Descifra", item: null, action: "Francisca usa la clave simétrica", description: `<ul><li>Francisca recibe el mensaje cifrado 🔒.</li><li>Usa la <b>misma clave simétrica</b> 🔑 que Arturo para descifrarlo.</li></ul>`,
+                      arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', "<span class='status-process'>Descifrando...</span>") },
+                    { title: "Mensaje Recibido", item: null, action: "Francisca lee el mensaje", description: `<ul><li>Francisca recupera el mensaje original: 'Hola Francisca'.</li><li>¡La comunicación fue confidencial!</li></ul>`,
+                      arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', "<span class='status-ok'>Mensaje recibido ✔</span><br>'Hola Francisca'") },
+                 ]
+             },
+            'symmetric_key_fail': {
+                 name: "Simétrico (Fallo Intercambio Clave)",
+                 steps: [
+                      { title: "Inicio", item: null, action: "Arturo necesita enviar clave", description: `<ul><li>Arturo quiere enviar un mensaje secreto, pero Francisca no tiene la clave simétrica.</li><li>Arturo decide enviarle la clave directamente.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Tiene clave'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Sin clave'),
+                       initialState: () => { arturoState.keys.symmetric = SYMMETRIC_KEY_VALUE; franciscaState.keys = {}; } },
+                     { title: "Clave Enviada Insegura", item: { info:"Clave Simétrica", type: 'SymmetricKeyCompromised', detail:"¡Secreta!", data: { value: SYMMETRIC_KEY_VALUE } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo envía la <b>clave secreta</b> 🔑 directamente por la red.</li><li><span class='status-warn'>¡Peligro!</span> La red no es segura, cualquiera puede estar escuchando.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Clave enviada'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo clave...') },
+                     { title: "Clave Interceptada", item: null, action: "'Eve' (Observador) copia la clave", description: `<ul><li>Un observador en la red ('Eve') intercepta y copia la clave secreta 🔑 mientras viaja.</li><li><span class='status-error'>¡Clave Comprometida!</span></li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Clave enviada'), franciscaStatus: () => getActorStatusWithKeys('francisca', "<span class='status-warn'>Recibiendo clave...</span> (Eve la tiene!)") },
+                      { title: "Francisca Recibe Clave", item: null, action: "Francisca guarda la clave", description: `<ul><li>Francisca recibe la clave y la guarda. Ahora ambos la tienen.</li><li>Sin embargo, Eve también la tiene.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Listo para cifrar'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Tiene clave (comprometida)'),
+                       postAction: () => { franciscaState.keys.symmetric = SYMMETRIC_KEY_VALUE; }
+                       },
+                      { title: "Mensaje Cifrado Enviado", item: { info:"Mensaje Cifrado", type: 'CipherMessageSym', detail:"(Simétrico)", data: { from: 'Arturo' } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo cifra un mensaje ('Secreto') y lo envía usando la clave (comprometida).</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo...') },
+                      { title: "¡Eve Descifra!", item: null, action: "'Eve' usa la clave copiada", description: `<ul><li>Eve intercepta el mensaje cifrado 🔒.</li><li>Como Eve copió la clave 🔑 antes, ahora puede descifrar el mensaje.</li><li><span class='status-error'>¡La confidencialidad se ha perdido!</span></li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo... (Eve lee!)') },
+                      { title: "Francisca Descifra", item: null, action: "Francisca usa la clave", description: `<ul><li>Francisca recibe y descifra el mensaje correctamente con su clave.</li><li>Ella no sabe que Eve también pudo leerlo.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', "<span class='status-ok'>Mensaje recibido ✔</span><br>'Secreto' (pero Eve lo leyó)") },
+                 ]
+            },
+            'asymmetric_confidentiality': {
+                 name: "Cifrado Asimétrico (Confidencialidad)",
+                 steps: [
+                     { title: "Inicio", item: null, action: "Francisca genera claves", description: `<ul><li>Francisca quiere recibir mensajes secretos. Genera un par de claves: una <b>Pública</b> 🔓 y una <b>Privada</b> 🗝️.</li><li>La clave privada la guarda celosamente.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Esperando clave pública'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Generando claves...'),
+                       initialState: () => { arturoState.keys = {}; franciscaState.keys = { private: PRIVATE_KEY_F_VALUE, public: PUBLIC_KEY_F_VALUE, owner: 'self' }; } },
+                     { title: "Francisca Publica Clave", item: { info:"Clave Pública", type: 'PublicKey', detail:"De Francisca", data: { owner: 'Francisca', value: PUBLIC_KEY_F_VALUE } }, action: "Francisca -> Arturo", description: `<ul><li>Francisca comparte su <b>clave pública</b> 🔓.</li><li>Esta clave no es secreta, cualquiera puede tenerla (Arturo, Eve...).</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'francisca', dstHost: 'arturo',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Recibiendo clave pública...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Clave pública enviada') },
+                     { title: "Arturo Recibe Clave Pub", item: null, action: "Arturo guarda la clave pública", description: `<ul><li>Arturo recibe y guarda la clave pública 🔓 de Francisca.</li><li>Eve también podría haberla copiado, pero no importa.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Tiene clave pública de F.'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando mensaje'),
+                       postAction: () => { arturoState.keys.public = PUBLIC_KEY_F_VALUE; arturoState.keys.owner = 'Francisca'; } },
+                     { title: "Arturo Cifra Mensaje", item: null, action: "Arturo usa la Clave Pública de F.", description: `<ul><li>Arturo quiere enviar 'Plan Secreto' a Francisca.</li><li>Usa la <b>clave pública</b> 🔓 de Francisca para cifrar el mensaje.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', "<span class='status-process'>Cifrando con Pública...</span>"), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando mensaje') },
+                     { title: "Mensaje Cifrado Enviado", item: { info:"Mensaje Cifrado", type: 'CipherMessageAsym', detail:"(Asimétrico)", data: { from: 'Arturo', for: 'Francisca' } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo envía el mensaje cifrado 🔒 por la red.</li><li>Ni Arturo ni Eve pueden descifrarlo con la clave pública.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo...') },
+                     { title: "Francisca Descifra", item: null, action: "Francisca usa su Clave Privada", description: `<ul><li>Francisca recibe el mensaje cifrado 🔒.</li><li>Usa su <b>clave privada secreta</b> 🗝️ (que solo ella tiene) para descifrarlo.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', "<span class='status-process'>Descifrando con Privada...</span>") },
+                      { title: "Mensaje Recibido", item: null, action: "Francisca lee el mensaje", description: `<ul><li>Francisca recupera el mensaje original: 'Plan Secreto'.</li><li>¡La comunicación fue confidencial gracias a la criptografía asimétrica! Solo el poseedor de la clave privada pudo leerlo.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', "<span class='status-ok'>Mensaje recibido ✔</span><br>'Plan Secreto'") },
+                 ]
+            },
+            'hybrid_francisca_public': {
+                 name: "Cifrado Híbrido (Francisca Pública)",
+                 steps: [
+                      { title: "Inicio: Francisca Pública", item: null, action: "Francisca genera par de claves", description: `<ul><li><b>Objetivo Híbrido:</b> Establecer una clave simétrica secreta usando claves asimétricas para el intercambio inicial.</li><li>Francisca genera su par de claves (Pública 🔓 / Privada 🗝️) y quiere que Arturo le envíe secretos.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Esperando clave pública'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Generando claves...'),
+                       initialState: () => { arturoState.keys = {}; franciscaState.keys = { private: PRIVATE_KEY_F_VALUE, public: PUBLIC_KEY_F_VALUE, owner: 'self' }; } },
+                     { title: "Francisca Envía Pública", item: { info:"Clave Pública", type: 'PublicKey', detail:"De Francisca", data: { owner: 'Francisca', value: PUBLIC_KEY_F_VALUE } }, action: "Francisca -> Arturo", description: `<ul><li>Francisca envía su clave pública 🔓 a Arturo.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'francisca', dstHost: 'arturo',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Recibiendo clave pública...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Clave pública enviada') },
+                     { title: "Arturo Recibe Pública", item: null, action: "Arturo guarda la clave pública", description: `<ul><li>Arturo recibe y guarda la clave pública 🔓 de Francisca.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Tiene clave pública de F.'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando'),
+                       postAction: () => { arturoState.keys.public = PUBLIC_KEY_F_VALUE; arturoState.keys.owner = 'Francisca'; } },
+                     { title: "Arturo Genera Clave Simétrica", item: null, action: "Arturo crea una clave de sesión", description: `<ul><li>Arturo necesita una clave simétrica 🔑' para cifrar datos eficientemente. La genera localmente.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Generando clave simétrica...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando'),
+                       postAction: () => { arturoState.keys.symmetric = TEMP_SYM_KEY_VALUE; } },
+                     { title: "Arturo Cifra la Simétrica", item: null, action: "Arturo usa la Clave Pública de F.", description: `<ul><li>Para enviar 🔑' a Francisca de forma segura, la cifra usando la <b>clave pública</b> 🔓 de Francisca (Cifrado Asimétrico).</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Cifrando clave simétrica...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando') },
+                      { title: "Clave Simétrica Cifrada Enviada", item: { info:"Clave Simétrica Cifrada", type: 'CipherMessageAsym', detail:"(Contiene 🔑')", data: { from: 'Arturo', for: 'Francisca', contentType: 'SymmetricKey' } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo envía la clave simétrica cifrada 🔒🔑'. Solo Francisca podrá abrirla.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Clave simétrica enviada'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo clave cifrada...') },
+                      { title: "Francisca Descifra Simétrica", item: null, action: "Francisca usa su Clave Privada", description: `<ul><li>Francisca usa su <b>clave privada</b> 🗝️ para descifrar y obtener la clave simétrica temporal 🔑'.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Esperando confirmación'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Descifrando clave simétrica...'),
+                        postAction: () => { franciscaState.keys.symmetric = TEMP_SYM_KEY_VALUE; }
+                        },
+                     { title: "¡Clave Simétrica Compartida!", item: null, action: "Ambos tienen la misma clave secreta", description: `<ul><li>¡Éxito! Ambos comparten 🔑' de forma segura. La fase de intercambio de clave (usando asimétrica) ha terminado.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', '<span class="status-ok">Clave compartida ✔</span>'), franciscaStatus: () => getActorStatusWithKeys('francisca', '<span class="status-ok">Clave compartida ✔</span>') },
+                      { title: "Comunicación Simétrica Rápida", item: { info:"Mensaje Cifrado", type: 'CipherMessageSym', detail:"(Simétrico)", data: { from: 'Arturo', content: '¡Funciona!' } }, action: "Arturo -> Francisca", description: `<ul><li>Ahora usan la clave simétrica 🔑' compartida (Cifrado Simétrico) para la comunicación real, que es más eficiente.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Enviando mensaje simétrico'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo mensaje simétrico...') },
+                      { title: "Mensaje Descifrado", item: null, action: "Francisca descifra con la clave simétrica", description: `<ul><li>Francisca usa 🔑' para descifrar.</li><li>El Cifrado Híbrido ha permitido una comunicación segura y eficiente.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', '<span class="status-ok">Mensaje simétrico OK ✔</span><br>\'¡Funciona!\'') },
+                 ]
+             },
+            'hybrid_arturo_public': {
+                 name: "Cifrado Híbrido (Arturo Pública)",
+                 steps: [
+                      { title: "Inicio: Arturo Público", item: null, action: "Arturo genera par de claves", description: `<ul><li><b>Objetivo Híbrido:</b> Establecer una clave simétrica secreta usando claves asimétricas.</li><li>Esta vez, <b>Arturo</b> genera su par de claves (Pública 🔓 / Privada 🗝️) y quiere que Francisca le envíe secretos.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Generando claves...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando clave pública'),
+                       initialState: () => { franciscaState.keys = {}; arturoState.keys = { private: PRIVATE_KEY_A_VALUE, public: PUBLIC_KEY_A_VALUE, owner: 'self' }; } },
+                     { title: "Arturo Envía Pública", item: { info:"Clave Pública", type: 'PublicKey', detail:"De Arturo", data: { owner: 'Arturo', value: PUBLIC_KEY_A_VALUE } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo envía su clave pública 🔓 a Francisca.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Clave pública enviada'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo clave pública...') },
+                     { title: "Francisca Recibe Pública", item: null, action: "Francisca guarda la clave pública", description: `<ul><li>Francisca recibe y guarda la clave pública 🔓 de Arturo.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Esperando'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Tiene clave pública de A.'),
+                       postAction: () => { franciscaState.keys.public = PUBLIC_KEY_A_VALUE; franciscaState.keys.owner = 'Arturo'; } },
+                     { title: "Francisca Genera Clave Simétrica", item: null, action: "Francisca crea una clave de sesión", description: `<ul><li>Ahora <b>Francisca</b> genera la clave simétrica temporal 🔑' que quiere usar.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Esperando'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Generando clave simétrica...'),
+                       postAction: () => { franciscaState.keys.symmetric = TEMP_SYM_KEY_VALUE; } },
+                     { title: "Francisca Cifra la Simétrica", item: null, action: "Francisca usa la Clave Pública de A.", description: `<ul><li>Francisca cifra la clave simétrica 🔑' usando la <b>clave pública</b> 🔓 de Arturo para enviarla de forma segura.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Esperando'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Cifrando clave simétrica...') },
+                      { title: "Clave Simétrica Cifrada Enviada", item: { info:"Clave Simétrica Cifrada", type: 'CipherMessageAsym', detail:"(Contiene 🔑')", data: { from: 'Francisca', for: 'Arturo', contentType: 'SymmetricKey' } }, action: "Francisca -> Arturo", description: `<ul><li>Francisca envía la clave simétrica cifrada 🔒🔑'. Solo Arturo podrá abrirla.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'francisca', dstHost: 'arturo',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Recibiendo clave cifrada...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Clave simétrica enviada') },
+                      { title: "Arturo Descifra Simétrica", item: null, action: "Arturo usa su Clave Privada", description: `<ul><li>Arturo usa su <b>clave privada</b> 🗝️ para descifrar y obtener la clave simétrica temporal 🔑'.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Descifrando clave simétrica...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando confirmación'),
+                        postAction: () => { arturoState.keys.symmetric = TEMP_SYM_KEY_VALUE; }
+                        },
+                     { title: "¡Clave Simétrica Compartida!", item: null, action: "Ambos tienen la misma clave secreta", description: `<ul><li>¡Éxito! Ambos comparten 🔑' de forma segura. Intercambio de clave asimétrico completado.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', '<span class="status-ok">Clave compartida ✔</span>'), franciscaStatus: () => getActorStatusWithKeys('francisca', '<span class="status-ok">Clave compartida ✔</span>') },
+                      { title: "Comunicación Simétrica Rápida", item: { info:"Mensaje Cifrado", type: 'CipherMessageSym', detail:"(Simétrico)", data: { from: 'Francisca', content: 'Clave recibida!' } }, action: "Francisca -> Arturo", description: `<ul><li>Ahora usan la clave simétrica 🔑' compartida para la comunicación eficiente.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'francisca', dstHost: 'arturo',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Recibiendo mensaje simétrico...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Enviando mensaje simétrico') },
+                      { title: "Mensaje Descifrado", item: null, action: "Arturo descifra con la clave simétrica", description: `<ul><li>Arturo usa 🔑' para descifrar. El Cifrado Híbrido funcionó.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', '<span class="status-ok">Mensaje simétrico OK ✔</span><br>\'Clave recibida!\''), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Mensaje enviado') },
+                 ]
+            },
+            'signature_non_repudiation': {
+                 name: "Firma Digital / No Repudio",
+                 steps: [
+                      { title: "Inicio: Arturo quiere firmar", item: null, action: "Arturo genera par de claves", description: `<ul><li><b>Objetivo:</b> Arturo quiere enviar un mensaje a Francisca de forma que ella pueda verificar que él lo envió (autenticación) y que no fue modificado (integridad), y él no pueda negarlo (no repudio).</li><li>Arturo genera su par de claves (Pública 🔓 / Privada 🗝️).</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Generando claves...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando clave pública'),
+                       initialState: () => { franciscaState.keys = {}; arturoState.keys = { private: PRIVATE_KEY_A_VALUE, public: PUBLIC_KEY_A_VALUE, owner: 'self' }; } },
+                     { title: "Arturo Envía Pública", item: { info:"Clave Pública", type: 'PublicKey', detail:"De Arturo", data: { owner: 'Arturo', value: PUBLIC_KEY_A_VALUE } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo envía su clave pública 🔓 a Francisca. Ella la necesita para *verificar* la firma después.</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Clave pública enviada'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo clave pública...') },
+                     { title: "Francisca Recibe Pública", item: null, action: "Francisca guarda la clave pública", description: `<ul><li>Francisca recibe y guarda la clave pública 🔓 de Arturo.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Listo para firmar'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Tiene clave pública de A.'),
+                       postAction: () => { franciscaState.keys.public = PUBLIC_KEY_A_VALUE; franciscaState.keys.owner = 'Arturo'; } },
+                     { title: "Arturo Prepara Mensaje", item: null, action: "Arturo tiene el mensaje", description: `<ul><li>Arturo tiene el mensaje que quiere firmar: ${MESSAGE_TO_SIGN}.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Preparando mensaje...'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando mensaje') },
+                     { title: "Arturo Calcula Hash", item: null, action: "Arturo aplica función hash", description: `<ul><li>Arturo calcula un <b>hash</b> (un resumen corto de longitud fija, ej. ${HASH_ALGORITHM}) del mensaje.</li><li>El hash es único para ese mensaje específico.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', `<span class='status-process'>Calculando Hash...</span>`), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando mensaje') },
+                     { title: "Arturo Firma el Hash", item: null, action: "Arturo cifra el hash con su Privada", description: `<ul><li>Arturo usa su <b>CLAVE PRIVADA</b> 🗝️ para cifrar el hash calculado.</li><li><b>¡Esta es la Firma Digital!</b> Solo Arturo puede crearla.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', `<span class='status-process'>Firmando Hash...</span>`), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Esperando mensaje') },
+                     { title: "Mensaje + Firma Enviados", item: { info:"Firma Digital", type: 'DigitalSignature', detail:"De Arturo", data: { signer: 'Arturo', hashAlgorithm: HASH_ALGORITHM } }, action: "Arturo -> Francisca", description: `<ul><li>Arturo envía el <b>mensaje original</b> (${MESSAGE_TO_SIGN}) junto con la <b>firma digital</b> (el hash cifrado).</li><li>(Visualmente se muestra la firma, pero ambos viajan).</li></ul>`,
+                       visible: true, transition: TRAVEL_TRANSITION, srcHost: 'arturo', dstHost: 'francisca',
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje y Firma enviados'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Recibiendo paquete...') },
+                     { title: "Francisca Recibe", item: null, action: "Francisca separa mensaje y firma", description: `<ul><li>Francisca recibe el mensaje ${MESSAGE_TO_SIGN} y la firma digital adjunta.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', 'Paquete recibido') },
+                     { title: "Francisca Calcula Hash", item: null, action: "Francisca aplica la misma función hash", description: `<ul><li>Francisca calcula el <b>hash</b> del mensaje recibido usando la misma función (${HASH_ALGORITHM}) que usó Arturo.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', `<span class='status-process'>Calculando Hash...</span>`) },
+                     { title: "Francisca Verifica Firma", item: null, action: "Francisca descifra firma con Pública de A.", description: `<ul><li>Francisca usa la <b>CLAVE PÚBLICA</b> 🔓 de Arturo (que recibió antes) para descifrar la firma digital.</li><li>El resultado debe ser el hash original que Arturo calculó y firmó.</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', `<span class='status-process'>Verificando Firma...</span>`) },
+                     { title: "Francisca Compara Hashes", item: null, action: "Compara Hash_Calculado vs Hash_Descifrado", description: `<ul><li>Francisca compara los dos hashes:<ul><li>El que calculó ella a partir del mensaje recibido.</li><li>El que obtuvo al descifrar la firma con la clave pública de Arturo.</li></ul></li><li><b>Si coinciden:</b> ¡La firma es válida!</li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Enviado'), franciscaStatus: () => getActorStatusWithKeys('francisca', `<span class='status-process'>Comparando Hashes...</span>`) },
+                     { title: "¡Firma Válida! No Repudio", item: null, action: "Conclusión", description: `<ul><li>Los hashes coinciden. Francisca sabe que:<ul><li><b>Autenticación:</b> El mensaje vino de Arturo (solo su privada pudo firmar).</li><li><b>Integridad:</b> El mensaje no fue modificado (los hashes coinciden).</li><li><b>No Repudio:</b> Arturo no puede negar haber enviado ese mensaje exacto.</li></ul></li></ul>`,
+                       arturoStatus: () => getActorStatusWithKeys('arturo', 'Mensaje Firmado y Verificado'), franciscaStatus: () => getActorStatusWithKeys('francisca', `<span class='status-ok'>¡Firma Verificada! ✔</span><br>Mensaje Auténtico e Íntegro`) },
+                 ]
+            }
+        };
+
+        function executeStep(stepIndex, isMovingBack = false) {
+             const scenarioData = scenarios[currentScenario];
+             if (!scenarioData || !scenarioData.steps || !Array.isArray(scenarioData.steps)) { console.error("Datos de escenario inválidos:", currentScenario); return; }
+             totalSteps = scenarioData.steps.length - 1;
+             if (stepIndex < 0 || stepIndex > totalSteps) { return; }
+
+             const oldStep = currentStep;
+             currentStep = stepIndex;
+             const config = scenarioData.steps[currentStep];
+             if (!config) { console.error("Configuración de paso no encontrada:", currentStep); return; }
+
+              if (!isMovingBack && currentStep === 0) {
+                  initializeActorInfos();
+                  if (config.initialState) { config.initialState(); }
+                  if (config.postAction) { config.postAction(); }
+              }
+              if (!isMovingBack && oldStep < currentStep && scenarios[currentScenario].steps[oldStep]?.postAction) {
+                    scenarios[currentScenario].steps[oldStep].postAction();
+              }
+
+             if (config.arturoStatus) { updateActorStatus('arturo', config.arturoStatus()); }
+             if (config.franciscaStatus) { updateActorStatus('francisca', config.franciscaStatus()); }
+             updateInfoPanel(config);
+             displayItemDetails(config.item);
+             if(itemGroup) itemGroup.setAttribute('visibility', (!config.visible || !config.item) ? 'hidden' : 'visible');
+
+             if (config.visible && config.item && config.srcHost && config.dstHost) {
+                 const startX = getComponentCenterX(config.srcHost); const endX = getComponentCenterX(config.dstHost);
+                 const startY = ITEM_Y_OFFSET; const endY = ITEM_Y_OFFSET;
+                 const transition = (isMovingBack || config.transition === NO_TRANSITION) ? NO_TRANSITION : (config.transition || TRAVEL_TRANSITION);
+                 updateItemSvgVisuals(itemGroup, config.item);
+                 moveItem(itemGroup, startX, startY, endX, endY, transition, true);
+             } else {
+                  if (itemGroup) itemGroup.setAttribute('visibility', 'hidden');
+             }
+
+             prevButton.disabled = currentStep === 0;
+             nextButton.disabled = currentStep >= totalSteps;
+             resetButton.disabled = currentStep === 0;
+         }
+
+        scenarioSelect.addEventListener('change', (e) => {
+             currentScenario = e.target.value; currentStep = 0; setTimeout(() => executeStep(0, false), 50);
+         });
+        nextButton.addEventListener('click', () => {
+             if (scenarios[currentScenario]?.steps) { totalSteps = scenarios[currentScenario].steps.length - 1; if (currentStep < totalSteps) { executeStep(currentStep + 1, false); } }
+         });
+        prevButton.addEventListener('click', () => {
+             if (currentStep > 0) { executeStep(currentStep - 1, true); }
+         });
+        resetButton.addEventListener('click', () => {
+             currentStep = 0; setTimeout(() => executeStep(0, false), 50);
+         });
+
+        window.addEventListener('load', () => {
+             initializeActorInfos(); currentScenario = scenarioSelect.value;
+              if (scenarios[currentScenario]?.steps) { totalSteps = scenarios[currentScenario].steps.length - 1; setTimeout(() => { executeStep(0); }, 200); }
+              else { console.error(`Initial scenario data not found for: ${currentScenario}`); stepDescription.innerHTML = `<span class='status-error'>Error loading scenario data.</span>`; }
+        });
+
+    </script>
+</body>
+</html>
