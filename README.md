@@ -11,7 +11,7 @@
 2.  **Encapsulamiento:**
     [`Encapsulamiento.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento.html)
     [`Encapsulamiento_Switch.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Switch.html)
-    [`Encapsulamiento_Rourer.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Router.html)
+    [`Encapsulamiento_Router.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Router.html)
 3.  **Enrutamiento:**
     [`Enrutamiento.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Enrutamiento.html)
 
