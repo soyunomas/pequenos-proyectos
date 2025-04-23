@@ -14,10 +14,11 @@
     [`Encapsulamiento_Rourer.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Router.html)
 3.  **Enrutamiento:**
     [`Enrutamiento.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Enrutamiento.html)
-    
+
 4.  **Protocolos**
     [`TCPvsUDP.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/TCPvsUDP.html)
-    [`Ping.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Ping.html)
+    [`Handshake-TLS-SSL-HTTPS.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Handshake-TLS-SSL-HTTPS.html)
+    [`Ping_static_route.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Ping_static_route.html)
   
 6.  **Vlans:**
     [`Vlans.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Vlans.html)
