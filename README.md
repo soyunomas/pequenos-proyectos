@@ -10,9 +10,13 @@
     [`Calculadora_IP.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Calculadora_IP.html)
 2.  **Encapsulamiento:**
     [`Encapsulamiento.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento.html)
-3.  **Enrutamiento:**
+    [`Encapsulamiento_Switch.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Switch.html)
+    [`Encapsulamiento_Rourer.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Router.html)
+4.  **Enrutamiento:**
     [`Enrutamiento.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Enrutamiento.html)
-4.  **Vlans:**
+5.  **Protocolos**
+6.  [`TCPvsUDP.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/TCPvsUDP.html)
+7.  **Vlans:**
     [`Vlans.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Vlans.html)
 
 
