@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PresentaFácil Ultra v3 - Editor Reveal.js</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+    <!-- Reveal.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+    <!-- Tema por defecto (se cambiará dinámicamente) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/white.css" id="reveal-theme-link">
+
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/material-palenight.min.css">
+
+    <style>
+        /* Estilos personalizados */
+        html, body { height: 100%; overflow: hidden; }
+        body { display: flex; flex-direction: column; background-color: #f8f9fa; }
+        main.container-fluid { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;}
+        .main-row { flex-grow: 1; min-height: 0; }
+        .editor-column, .preview-column { display: flex; flex-direction: column; height: 100%; overflow-y: auto; padding-bottom: 1rem; }
+        .editor-area { flex-grow: 1; position: relative; min-height: 300px; border: 1px solid #ced4da; border-radius: 0.25rem; overflow: hidden; }
+        .CodeMirror { height: 100% !important; font-size: 14px; }
+        .toolbar { margin-bottom: 0.5rem; }
+        .toolbar .btn-group .btn { padding: 0.25rem 0.5rem; font-size: 0.9em; }
+        .config-section { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #dee2e6;}
+        .config-section label { margin-bottom: 0.2rem; font-weight: bold; font-size: 0.9em; }
+        .config-section .form-select, .config-section .form-check, .config-section .input-group { margin-bottom: 0.5rem; }
+        .preview-section { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+        .reveal-preview-wrapper { flex-grow: 1; border: 1px solid #dee2e6; background-color: #fff; position: relative; overflow: hidden; min-height: 300px; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); }
+        .reveal { margin: auto; /* Centrar el canvas de Reveal */ }
+        .reveal .slides { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #loadSourceInput, #imageUploadInput { display: none; }
+        .bottom-controls .btn, .bottom-controls .form-label { margin-right: 0.5rem; margin-bottom: 0.5rem; }
+        footer { padding: 0.5rem 0; background-color: #e9ecef; text-align: center; font-size: 0.8em; border-top: 1px solid #dee2e6; flex-shrink: 0; }
+         #status-message { font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <header class="bg-light text-dark p-2 mb-2 border-bottom">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <h1 class="h5 mb-0">PresentaFácil Ultra v3</h1>
+            <div id="status-message" class="small text-muted">Listo.</div>
+        </div>
+    </header>
+
+    <main class="container-fluid">
+        <div class="row g-3 main-row">
+            <!-- Columna del Editor -->
+            <div class="col-lg-6 editor-column">
+                 <div class="toolbar">
+                     <div class="btn-group btn-group-sm me-2" role="group" aria-label="Formato Texto">
+                         <button type="button" class="btn btn-secondary" id="toolbar-bold" title="Negrita (Ctrl+B)"><b>B</b></button>
+                         <button type="button" class="btn btn-secondary" id="toolbar-italic" title="Cursiva (Ctrl+I)"><i>I</i></button>
+                         <button type="button" class="btn btn-secondary" id="toolbar-code" title="Código">`code`</button>
+                     </div>
+                      <div class="btn-group btn-group-sm me-2" role="group" aria-label="Elementos">
+                         <button type="button" class="btn btn-secondary" id="toolbar-list" title="Lista">* List</button>
+                         <button type="button" class="btn btn-secondary" id="toolbar-fragment" title="Añadir Fragmento {fr}">&#10022; Frag</button>
+                         <button type="button" class="btn btn-secondary" id="toolbar-image" title="Insertar Imagen">🖼️ Img</button>
+                     </div>
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Estructura">
+                         <button type="button" class="btn btn-secondary" id="toolbar-hseparator" title="Separador Horizontal (---)">H</button>
+                         <button type="button" class="btn btn-secondary" id="toolbar-vseparator" title="Separador Vertical (----)">V</button>
+                     </div>
+                 </div>
+                 <div class="editor-area mb-2">
+                     <textarea id="editor"></textarea>
+                     <input type="file" id="imageUploadInput" accept="image/*">
+                 </div>
+                 <div class="config-section">
+                    <div class="row g-2">
+                        <div class="col-md-6"><label for="theme-selector">Tema Visual:</label><select id="theme-selector" class="form-select form-select-sm"></select></div>
+                        <div class="col-md-6"><label for="transition-selector">Transición:</label><select id="transition-selector" class="form-select form-select-sm"></select></div>
+                        <div class="col-md-6"><label for="background-input">Fondo Global:</label><input type="text" id="background-input" class="form-control form-control-sm" placeholder="Color o url()"></div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch me-3"><input class="form-check-input" type="checkbox" role="switch" id="controls-checkbox" checked><label class="form-check-label small" for="controls-checkbox">Controles</label></div>
+                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="progress-checkbox" checked><label class="form-check-label small" for="progress-checkbox">Progreso</label></div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="bottom-controls mt-auto pt-2 d-flex flex-wrap align-items-center border-top">
+                     <button id="saveSourceBtn" class="btn btn-sm btn-outline-secondary" title="Guarda Markdown y Configuración en formato JSON dentro de un .md">Guardar (.md)</button>
+                     <label for="loadSourceInput" id="loadSourceBtn" class="btn btn-sm btn-outline-secondary mb-0">Cargar (.md)</label>
+                     <input type="file" id="loadSourceInput" accept=".md,.txt,.json,.pfpro">
+                     <button id="exportHtmlBtn" class="btn btn-sm btn-success">Exportar (.html)</button>
+                 </div>
+             </div>
+
+            <!-- Columna de la Vista Previa -->
+             <div class="col-lg-6 preview-column">
+                  <div class="preview-section">
+                     <div id="reveal-preview-container" class="reveal-preview-wrapper">
+                         <div id="reveal-preview" class="reveal">
+                             <div class="slides" id="slides-container"><section><h2>Cargando...</h2></section></div>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+         </div>
+     </main>
+
+    <footer class="mt-auto">
+         <p class="mb-0">PresentaFácil Ultra v3 | <code>---</code> Horiz | <code>----</code> Vert | Config: 960x700</p>
+    </footer>
+
+    <!-- Bibliotecas JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.5/lib/marked.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/edit/continuelist.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Configuración y Constantes ---
+            const APP_VERSION = 3; // Incrementar versión por corrección lógica
+            const AUTOREFRESH_DELAY = 750;
+            const REVEAL_THEMES = { 'white': 'Blanco (Claro)', 'black': 'Negro (Oscuro)', 'league': 'League (Oscuro)', 'sky': 'Sky (Claro)', 'beige': 'Beige (Claro)', 'simple': 'Simple (Claro)', 'serif': 'Serif (Claro)', 'solarized': 'Solarized (Oscuro)', 'moon': 'Moon (Oscuro)', 'night': 'Night (Oscuro)', 'blood': 'Blood (Oscuro)' };
+            const REVEAL_TRANSITIONS = ['none', 'fade', 'slide', 'convex', 'concave', 'zoom'];
+            const HORIZONTAL_SEPARATOR = /^\s*---\s*$/m; // --- = Horizontal
+            const VERTICAL_SEPARATOR = /^\s*----\s*$/m;   // ---- = Vertical
+            const FRAGMENT_MARKER = '{fr}';
+            const NOTE_PREFIX_REGEX = /^(Note|Notes):\s*/i;
+            const DEFAULT_THEME = 'white';
+            const DEFAULT_TRANSITION = 'slide';
+            const REVEAL_WIDTH = 960;
+            const REVEAL_HEIGHT = 700;
+
+             // --- Referencias DOM ---
+            const editorElement = document.getElementById('editor'); const slidesContainer = document.getElementById('slides-container'); const saveSourceBtn = document.getElementById('saveSourceBtn'); const loadSourceInput = document.getElementById('loadSourceInput'); const loadSourceBtn = document.getElementById('loadSourceBtn'); const exportHtmlBtn = document.getElementById('exportHtmlBtn'); const revealPreviewElement = document.getElementById('reveal-preview'); const statusMessage = document.getElementById('status-message'); const themeSelector = document.getElementById('theme-selector'); const transitionSelector = document.getElementById('transition-selector'); const controlsCheckbox = document.getElementById('controls-checkbox'); const progressCheckbox = document.getElementById('progress-checkbox'); const backgroundInput = document.getElementById('background-input'); const themeLink = document.getElementById('reveal-theme-link'); const toolbarBold = document.getElementById('toolbar-bold'); const toolbarItalic = document.getElementById('toolbar-italic'); const toolbarCode = document.getElementById('toolbar-code'); const toolbarList = document.getElementById('toolbar-list'); const toolbarFragment = document.getElementById('toolbar-fragment'); const toolbarImage = document.getElementById('toolbar-image'); const toolbarHSeparator = document.getElementById('toolbar-hseparator'); const toolbarVSeparator = document.getElementById('toolbar-vseparator'); const imageUploadInput = document.getElementById('imageUploadInput');
+            let revealInstance = null;
+            let editorInstance = null;
+
+            // --- Funciones Auxiliares ---
+            function setStatus(message) { statusMessage.textContent = message; }
+            function escapeHtml(unsafe) { if (typeof unsafe !== 'string') return ''; return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+            function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
+            function populateSelector(selectElement, options, defaultValue) { selectElement.innerHTML = ''; for (const [value, text] of Object.entries(options)) { const option = document.createElement('option'); option.value = value; option.textContent = text; if (value === defaultValue) { option.selected = true; } selectElement.appendChild(option); } }
+            function updateThemeLink(themeName) { const themeUrl = `https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/${themeName}.css`; if (themeLink.href !== themeUrl) { themeLink.href = themeUrl; console.log(`Tema cambiado a: ${themeName}.css`); } }
+            function getCurrentConfig() { return { theme: themeSelector.value || DEFAULT_THEME, transition: transitionSelector.value || DEFAULT_TRANSITION, controls: controlsCheckbox.checked, progress: progressCheckbox.checked, background: backgroundInput.value.trim() || null, width: REVEAL_WIDTH, height: REVEAL_HEIGHT }; }
+            function destroyRevealInstance() { if (revealInstance && typeof revealInstance.destroy === 'function') { try { revealInstance.destroy(); console.log("Instancia Reveal destruida."); } catch(e){ console.warn("Error al destruir Reveal:", e); } revealInstance = null; } }
+
+             function initializePreviewReveal(config, initialSlideIndex = 0, initialVSlideIndex = 0) {
+                 destroyRevealInstance();
+                 const previewConfig = { ...config }; delete previewConfig.plugins;
+                 console.log("Inicializando Preview Reveal (sin clave plugins):", previewConfig);
+                 try {
+                    revealInstance = new Reveal(revealPreviewElement, previewConfig);
+                    revealInstance.initialize().then(() => {
+                        console.log("Preview Reveal inicializado."); revealInstance.layout();
+                    }).catch(initError => { console.error("Error Init Preview:", initError); slidesContainer.innerHTML = `<section><h2>Error Inicialización</h2><pre>${escapeHtml(initError.message)}</pre></section>`; setStatus('Error Init Reveal'); });
+                 } catch(e) { console.error("Error crítico creando Preview Reveal:", e); slidesContainer.innerHTML = `<section><h2>Error Crítico Reveal</h2><pre>${escapeHtml(e.message)}</pre></section>`; setStatus('Error Fatal Reveal'); revealInstance = null; }
+             }
+
+             function updateOrCreateRevealInstance(config, slideIndex = 0, vSlideIndex = 0) {
+                 updateThemeLink(config.theme);
+                 const revealConfig = { embedded: true, keyboardCondition: 'focused', controls: config.controls, progress: config.progress, history: false, center: true, transition: config.transition, backgroundTransition: 'fade', width: config.width || REVEAL_WIDTH, height: config.height || REVEAL_HEIGHT, margin: 0.04, ...(config.background && { background: config.background }) };
+                 // NO incluir 'plugins' aquí
+                 if (revealInstance) {
+                     try {
+                        console.log("Configurando Preview Reveal (sin clave plugins):", revealConfig);
+                        revealInstance.configure(revealConfig);
+                        revealInstance.sync(); revealInstance.layout();
+                        const indices = revealInstance.getIndices();
+                        const numHorizontal = revealInstance.getHorizontalSlides().length;
+                        const numVertical = indices.h < numHorizontal ? (revealInstance.getVerticalSlides(revealInstance.getHorizontalSlides()[indices.h])?.length || 1) : 1;
+                        const targetH = Math.min(indices.h || slideIndex, numHorizontal - 1);
+                        const targetV = Math.min(indices.v || vSlideIndex, numVertical - 1);
+                        revealInstance.slide(targetH, targetV, 0);
+                        console.log(`Preview Reveal reconfigurado. Slide: H=${targetH}, V=${targetV}`);
+                     } catch(e) { console.error("Error reconfigurando preview, re-inicializando...", e); initializePreviewReveal(revealConfig, slideIndex, vSlideIndex); }
+                 } else {
+                     initializePreviewReveal(revealConfig, slideIndex, vSlideIndex);
+                 }
+             }
+
+             // --- Renderer Personalizado Marked.js ---
+             const customRenderer = new marked.Renderer(); const originalParagraph = customRenderer.paragraph.bind(customRenderer); const originalListitem = customRenderer.listitem.bind(customRenderer); customRenderer.paragraph = (text) => { const noteMatch = text.match(NOTE_PREFIX_REGEX); if (noteMatch) { const noteText = text.substring(noteMatch[0].length).trim(); return `<aside class="notes">${escapeHtml(noteText)}</aside>`; } if (text.endsWith(FRAGMENT_MARKER)) { const cleanText = text.substring(0, text.length - FRAGMENT_MARKER.length); const pTag = originalParagraph(cleanText); return pTag.replace('<p>', '<p class="fragment">'); } return originalParagraph(text); }; customRenderer.listitem = (text, task, checked) => { if (text.endsWith(FRAGMENT_MARKER)) { const cleanText = text.substring(0, text.length - FRAGMENT_MARKER.length); const liTag = originalListitem(cleanText, task, checked); return liTag.replace('<li>', '<li class="fragment">'); } return originalListitem(text, task, checked); }; marked.use({ renderer: customRenderer });
+
+            // --- Funciones Principales ---
+            // *** CORREGIDO: updatePreview con lógica de separación correcta ***
+            function updatePreview() {
+                 if (!editorInstance) return;
+                 setStatus('Actualizando vista previa...');
+                 const rawContent = editorInstance.getValue();
+                 const currentConfig = getCurrentConfig();
+                 let currentH = 0, currentV = 0;
+                 if (revealInstance && typeof revealInstance.getIndices === 'function') {
+                     try { const indices = revealInstance.getIndices(); currentH = indices.h || 0; currentV = indices.v || 0; } catch (e) {}
+                 }
+
+                 slidesContainer.innerHTML = ''; // Limpiar contenedor
+                 let generatedSlideCount = 0;
+
+                 // 1. Dividir por HORIZONTAL_SEPARATOR (---) para obtener columnas/secciones principales
+                 const horizontalSections = rawContent.split(HORIZONTAL_SEPARATOR);
+
+                 horizontalSections.forEach((horizontalContent) => {
+                     const trimmedHorizontalContent = horizontalContent.trim();
+                     if (trimmedHorizontalContent === '') return; // Saltar secciones horizontales vacías
+
+                     // 2. Dividir CADA sección horizontal por VERTICAL_SEPARATOR (----)
+                     const verticalSlides = trimmedHorizontalContent.split(VERTICAL_SEPARATOR);
+                     const trimmedVerticalSlides = verticalSlides.map(s => s.trim()).filter(s => s !== ''); // Filtrar vacíos
+
+                     if (trimmedVerticalSlides.length === 0) return; // Saltar si la sección vertical está vacía (no debería pasar si trimmedHorizontalContent no era vacío)
+
+                     if (trimmedVerticalSlides.length === 1) {
+                         // Si NO hay separadores verticales (----), es un slide horizontal simple
+                         const section = document.createElement('section');
+                         try {
+                             section.innerHTML = marked.parse(trimmedVerticalSlides[0]);
+                             slidesContainer.appendChild(section);
+                             generatedSlideCount++;
+                         } catch (e) {
+                             console.error(`Error parseando slide horizontal simple:`, e);
+                             section.innerHTML = `<h2>Error MD</h2><pre><code>${escapeHtml(trimmedVerticalSlides[0])}</code></pre><p><small>${escapeHtml(e.message)}</small></p>`;
+                             slidesContainer.appendChild(section);
+                         }
+                     } else {
+                         // Si SÍ hay separadores verticales (----), crear estructura anidada
+                         const outerSection = document.createElement('section'); // Sección horizontal contenedora
+                         trimmedVerticalSlides.forEach(slideMarkdown => {
+                             const innerSection = document.createElement('section'); // Slide vertical
+                             try {
+                                 innerSection.innerHTML = marked.parse(slideMarkdown);
+                                 outerSection.appendChild(innerSection);
+                                 generatedSlideCount++;
+                             } catch (e) {
+                                 console.error(`Error parseando slide vertical:`, e);
+                                 innerSection.innerHTML = `<h2>Error MD</h2><pre><code>${escapeHtml(slideMarkdown)}</code></pre><p><small>${escapeHtml(e.message)}</small></p>`;
+                                 outerSection.appendChild(innerSection);
+                             }
+                         });
+                         slidesContainer.appendChild(outerSection);
+                     }
+                 });
+
+
+                 if (generatedSlideCount === 0 && slidesContainer.children.length === 0) {
+                     slidesContainer.innerHTML = '<section><h2>Vacío</h2><p>Escribe Markdown.</p></section>';
+                     generatedSlideCount = 1;
+                 }
+                 updateOrCreateRevealInstance(currentConfig, currentH, currentV);
+                 setStatus(`Listo (${generatedSlideCount} diapositivas).`);
+             }
+
+
+            // --- Inicialización ---
+            populateSelector(themeSelector, REVEAL_THEMES, DEFAULT_THEME);
+            populateSelector(transitionSelector, REVEAL_TRANSITIONS.reduce((obj, val) => { obj[val] = val.charAt(0).toUpperCase() + val.slice(1); return obj; }, {}), DEFAULT_TRANSITION);
+            const debouncedUpdatePreview = debounce(updatePreview, AUTOREFRESH_DELAY);
+            function handleEditorChange() { setStatus('Escribiendo...'); debouncedUpdatePreview(); }
+            try {
+                 editorInstance = CodeMirror.fromTextArea(editorElement, { mode: 'markdown', theme: 'material-palenight', lineNumbers: true, lineWrapping: true, extraKeys: {"Enter": "newlineAndIndentContinueMarkdownList"} });
+                 editorInstance.setSize("100%", "100%");
+                 editorInstance.on('change', handleEditorChange);
+                 editorInstance.addKeyMap({ "Ctrl-B": () => formatSelection('bold'), "Cmd-B": () => formatSelection('bold'), "Ctrl-I": () => formatSelection('italic'), "Cmd-I": () => formatSelection('italic') });
+                 const sampleContent = `# Slide Horizontal 1\n\nContenido normal.\n\nNote: Esta es una nota para el primer slide.\n\n---\n\n## Slide Horizontal 2 {fr}\nEste título aparecerá después.\n\n*   Item 1\n*   Item 2 {fr}\n*   Item 3 {fr}\n\n----\n\n# Slide Vertical 2.1\nPrimer slide VERTICAL bajo el Slide Horizontal 2.\n\n----\n\n# Slide Vertical 2.2\nSegundo slide VERTICAL.\n\n\`\`\`python\nprint("Hola vertical!")\n\`\`\`\n\nNote: Nota para el slide vertical 2.2\n\n---\n\n# Slide Horizontal 3\nÚltima columna horizontal.`;
+                 editorInstance.setValue(sampleContent);
+                 updatePreview();
+            } catch(e) { console.error("Error CM:", e); editorElement.value = "Error editor."; setStatus("Error Editor"); /* Desactivar botones si falla CM */ }
+
+            // --- Funciones Toolbar ---
+            function formatSelection(type) { if (!editorInstance) return; const selection = editorInstance.getSelection(); const cursor = editorInstance.getCursor(); let replacement = selection; switch (type) { case 'bold': replacement = `**${selection}**`; editorInstance.replaceSelection(replacement); break; case 'italic': replacement = `*${selection}*`; editorInstance.replaceSelection(replacement); break; case 'code': replacement = `\`${selection}\``; editorInstance.replaceSelection(replacement); break; case 'list': const lineList = editorInstance.getLine(cursor.line); if (selection) { replacement = selection.split('\n').map(l => '* ' + l).join('\n'); editorInstance.replaceSelection(replacement); } else { editorInstance.replaceRange('* ' + lineList, {line: cursor.line, ch: 0}, {line: cursor.line, ch: lineList.length}); editorInstance.setCursor({line: cursor.line, ch: lineList.length + 2}); } break; case 'fragment': if (selection) { replacement = selection.split('\n').map(l => l.trimEnd() + ' ' + FRAGMENT_MARKER).join('\n'); editorInstance.replaceSelection(replacement); } else { const lineFrag = editorInstance.getLine(cursor.line); editorInstance.replaceRange(' ' + FRAGMENT_MARKER, {line: cursor.line, ch: lineFrag.length}); editorInstance.setCursor({line: cursor.line, ch: lineFrag.length + FRAGMENT_MARKER.length + 1}); } break; case 'hseparator': const currentPosH = editorInstance.getCursor(); const currentLineContentH = editorInstance.getLine(currentPosH.line); let insertTextH = "\n---\n"; if(currentLineContentH.trim() !== ''){ insertTextH = "\n\n---\n"; } editorInstance.replaceRange(insertTextH, currentPosH); break; case 'vseparator': const currentPosV = editorInstance.getCursor(); const currentLineContentV = editorInstance.getLine(currentPosV.line); let insertTextV = "\n----\n"; if(currentLineContentV.trim() !== ''){ insertTextV = "\n\n----\n"; } editorInstance.replaceRange(insertTextV, currentPosV); break; case 'image': imageUploadInput.click(); break; } if(type !== 'list' && type !== 'fragment' && type !== 'hseparator' && type !== 'vseparator' && type !== 'image') editorInstance.focus(); }
+
+            // --- Manejo Carga Imagen ---
+            function handleImageUpload(event) { const file = event.target.files[0]; if (!file || !editorInstance) { event.target.value = null; return; } setStatus('Procesando imagen...'); const reader = new FileReader(); reader.onload = (e) => { const dataUrl = e.target.result; const altText = file.name.replace(/\.[^/.]+$/, ""); const markdownImage = `![${altText}](${dataUrl})`; editorInstance.replaceSelection(markdownImage); setStatus(`Imagen ${file.name} insertada.`); event.target.value = null; updatePreview(); }; reader.onerror = (e) => { console.error("Error leyendo imagen:", e); setStatus(`Error al cargar ${file.name}.`); alert("Error al cargar la imagen."); event.target.value = null; }; reader.readAsDataURL(file); }
+
+            // --- Guardar/Cargar/Exportar ---
+            function saveSource() { if (!editorInstance) return; setStatus('Guardando...'); try { const content = editorInstance.getValue(); const config = getCurrentConfig(); const dataToSave = { version: APP_VERSION, config: config, markdown: content }; const jsonString = JSON.stringify(dataToSave, null, 2); const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'presentacion_ultra.md'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setStatus('Presentación guardada (con config).'); } catch (e) { console.error("Error guardando:", e); setStatus('Error guardando.'); alert("Error al guardar."); } }
+            function applyLoadedConfig(config) { themeSelector.value = config?.theme || DEFAULT_THEME; transitionSelector.value = config?.transition || DEFAULT_TRANSITION; controlsCheckbox.checked = config?.controls === undefined ? true : config.controls; progressCheckbox.checked = config?.progress === undefined ? true : config.progress; backgroundInput.value = config?.background || ''; const loadedWidth = config?.width || REVEAL_WIDTH; const loadedHeight = config?.height || REVEAL_HEIGHT; setStatus('Configuración cargada.'); return { width: loadedWidth, height: loadedHeight }; }
+            function loadSource(event) { if (!editorInstance) return; setStatus('Cargando...'); const file = event.target.files[0]; if (!file) { setStatus('Carga cancelada.'); return; } const reader = new FileReader(); reader.onload = (e) => { const content = e.target.result; event.target.value = null; let loadedConfig = {}; try { const data = JSON.parse(content); if (data && typeof data === 'object' && data.hasOwnProperty('markdown') && data.hasOwnProperty('config')) { editorInstance.setValue(data.markdown || ''); loadedConfig = applyLoadedConfig(data.config || {}); setStatus(`Presentación ${file.name} (con config) cargada.`); } else { console.warn("Formato JSON no esperado, cargando como MD plano."); editorInstance.setValue(content); setStatus(`Archivo ${file.name} (MD plano) cargado.`); } } catch (parseError) { console.log("Fallo parseo JSON, asumiendo MD plano.", parseError.message); editorInstance.setValue(content); setStatus(`Archivo ${file.name} (MD plano) cargado.`); } const currentUIConfig = getCurrentConfig(); updateOrCreateRevealInstance({ ...currentUIConfig, ...loadedConfig }, 0, 0); }; reader.onerror = (e) => { console.error("Error lectura:", e); setStatus(`Error lectura ${file.name}.`); alert("Error leer archivo."); event.target.value = null; }; reader.readAsText(file); }
+
+            // *** CORREGIDO: exportHtml con lógica de separación correcta ***
+            function exportHtml() {
+                 if (!editorInstance) return; setStatus('Exportando HTML...');
+                 try {
+                     const rawContent = editorInstance.getValue(); const config = getCurrentConfig();
+                     let slidesHtml = ''; let parseErrors = 0;
+
+                     // 1. Dividir por HORIZONTAL_SEPARATOR (---)
+                     const horizontalSections = rawContent.split(HORIZONTAL_SEPARATOR);
+
+                     horizontalSections.forEach((horizontalContent) => {
+                         const trimmedHorizontalContent = horizontalContent.trim();
+                         if (trimmedHorizontalContent === '') return;
+
+                         // 2. Dividir CADA sección horizontal por VERTICAL_SEPARATOR (----)
+                         const verticalSlides = trimmedHorizontalContent.split(VERTICAL_SEPARATOR);
+                         const trimmedVerticalSlides = verticalSlides.map(s => s.trim()).filter(s => s !== '');
+                         if (trimmedVerticalSlides.length === 0) return;
+
+                         if (trimmedVerticalSlides.length === 1) {
+                             // Slide horizontal simple
+                             try { slidesHtml += `<section>${marked.parse(trimmedVerticalSlides[0])}</section>\n`; }
+                             catch (e) { parseErrors++; slidesHtml += `<section class="has-error"><h2>Error MD</h2><pre><code>${escapeHtml(trimmedVerticalSlides[0])}</code></pre><p><small>${escapeHtml(e.message)}</small></p></section>\n`; }
+                         } else {
+                             // Slides verticales anidados
+                             slidesHtml += '<section>\n'; // Abrir sección horizontal
+                             trimmedVerticalSlides.forEach(slideMarkdown => {
+                                 try { slidesHtml += `  <section>${marked.parse(slideMarkdown)}</section>\n`; } // Sección vertical interna
+                                 catch (e) { parseErrors++; slidesHtml += `  <section class="has-error"><h2>Error MD</h2><pre><code>${escapeHtml(slideMarkdown)}</code></pre><p><small>${escapeHtml(e.message)}</small></p></section>\n`; }
+                             });
+                             slidesHtml += '</section>\n'; // Cerrar sección horizontal
+                         }
+                     });
+
+
+                     // Opciones para exportación: Incluir W/H fijo, NO incluir 'plugins' explícito
+                     const revealInitOptions = { controls: config.controls, progress: config.progress, history: true, center: true, transition: config.transition, width: config.width || REVEAL_WIDTH, height: config.height || REVEAL_HEIGHT };
+                     if(config.background) { revealInitOptions.background = config.background; }
+                     const optionsJsonString = JSON.stringify(revealInitOptions);
+
+                     const exportTemplate = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Mi Presentación</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/${config.theme}.css" id="theme">
+    <style> body { margin: 0; } .reveal section.has-error { background-color: #f8d7da; color: #721c24; } </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">${slidesHtml}</div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"><\/script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"><\/script>
+    <script>
+        Reveal.initialize(${optionsJsonString}); // Usar JSON sin 'plugins'
+    <\/script>
+</body>
+</html>`;
+                     const blob = new Blob([exportTemplate], { type: 'text/html;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'presentacion_ultra.html'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setStatus(`Exportado ${parseErrors > 0 ? ' (con errores)' : ''}.`);
+                 } catch (e) { console.error("Error exportando:", e); setStatus('Error exportación.'); alert(`Error al exportar: ${e.message}`); }
+             }
+
+
+            // --- Event Listeners ---
+            themeSelector.addEventListener('change', updatePreview);
+            transitionSelector.addEventListener('change', updatePreview);
+            controlsCheckbox.addEventListener('change', updatePreview);
+            progressCheckbox.addEventListener('change', updatePreview);
+            backgroundInput.addEventListener('input', debouncedUpdatePreview);
+            saveSourceBtn.addEventListener('click', saveSource);
+            loadSourceBtn.addEventListener('click', () => loadSourceInput.click());
+            loadSourceInput.addEventListener('change', loadSource);
+            exportHtmlBtn.addEventListener('click', exportHtml);
+            toolbarBold.addEventListener('click', () => formatSelection('bold'));
+            toolbarItalic.addEventListener('click', () => formatSelection('italic'));
+            toolbarCode.addEventListener('click', () => formatSelection('code'));
+            toolbarList.addEventListener('click', () => formatSelection('list'));
+            toolbarFragment.addEventListener('click', () => formatSelection('fragment'));
+            toolbarImage.addEventListener('click', () => formatSelection('image'));
+            toolbarHSeparator.addEventListener('click', () => formatSelection('hseparator'));
+            toolbarVSeparator.addEventListener('click', () => formatSelection('vseparator'));
+            imageUploadInput.addEventListener('change', handleImageUpload);
+
+        }); // Fin de DOMContentLoaded
+    </script>
+
+</body>
+</html>
