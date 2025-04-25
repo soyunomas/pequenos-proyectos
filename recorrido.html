@@ -6,56 +6,35 @@
     <title>Mi Ritmo GPS</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <!-- Font Awesome para iconos -->
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
     <style>
         /* Estilos personalizados */
-        body {
-            padding-top: 1rem;
-            padding-bottom: 6rem;
-            background-color: #f8f9fa;
-        }
-
+        body { padding-top: 1rem; padding-bottom: 6rem; background-color: #f8f9fa; }
         .screen { display: none; animation: fadeIn 0.5s; }
         .screen.active { display: block; }
-
-        #timeDifferenceDisplay {
-            font-size: 3rem; font-weight: bold; text-align: center;
-            margin: 1rem 0; padding: 1rem; border-radius: 0.5rem;
-            background-color: #e9ecef; min-height: 80px;
-            display: flex; align-items: center; justify-content: center;
-        }
+        #timeDifferenceDisplay { font-size: 3rem; font-weight: bold; text-align: center; margin: 1rem 0; padding: 1rem; border-radius: 0.5rem; background-color: #e9ecef; min-height: 80px; display: flex; align-items: center; justify-content: center; }
         #timeDifferenceDisplay.positive { color: #dc3545; }
         #timeDifferenceDisplay.negative { color: #198754; }
         #timeDifferenceDisplay.zero { color: #6c757d; }
-
         .list-group-item-action { cursor: pointer; }
-        .list-group-item .btn-danger {
-            padding: 0.1rem 0.4rem;
-            font-size: 0.8rem;
-        }
-
+        /* Estilos para botones en la lista de gestión */
+        .list-group-item .btn-group .btn { padding: 0.1rem 0.4rem; font-size: 0.8rem; margin-left: 0.2rem; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
         .status-indicator { font-style: italic; color: #6c757d; }
         .status-indicator.active { color: #0d6efd; font-weight: bold; }
         .gps-status { font-size: 0.9rem; margin-top: 1rem; }
-
         /* Estilos Log de Errores */
-        #errorLogContainer {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            max-height: 150px; overflow-y: auto; background-color: #f8d7da;
-            border-top: 1px solid #f5c6cb; padding: 0.5rem 1rem;
-            font-size: 0.8rem; color: #721c24; z-index: 1050; display: none;
-        }
-         #errorLogContainer.has-errors { display: block; }
-         #errorLogContainer .error-entry {
-             border-bottom: 1px dashed #f5c6cb; padding-bottom: 0.3rem;
-             margin-bottom: 0.3rem; white-space: pre-wrap; word-wrap: break-word;
-         }
-         #errorLogContainer .error-entry:last-child { border-bottom: none; margin-bottom: 0; }
-         #errorLogContainer p { margin-bottom: 0.2rem; font-weight: bold; }
+        #errorLogContainer { position: fixed; bottom: 0; left: 0; right: 0; max-height: 150px; overflow-y: auto; background-color: #f8d7da; border-top: 1px solid #f5c6cb; padding: 0.5rem 1rem; font-size: 0.8rem; color: #721c24; z-index: 1050; display: none; }
+        #errorLogContainer.has-errors { display: block; }
+        #errorLogContainer .error-entry { border-bottom: 1px dashed #f5c6cb; padding-bottom: 0.3rem; margin-bottom: 0.3rem; white-space: pre-wrap; word-wrap: break-word; }
+        #errorLogContainer .error-entry:last-child { border-bottom: none; margin-bottom: 0; }
+        #errorLogContainer p { margin-bottom: 0.2rem; font-weight: bold; }
+        /* Estilo para contenedor del mapa */
+        #mapContainer { height: 400px; width: 100%; border-radius: 0.3rem; }
     </style>
 </head>
 <body>
@@ -65,101 +44,91 @@
         <div id="statusMessage" class="alert alert-warning d-none" role="alert"></div>
         <div id="gpsStatusMessage" class="gps-status text-center mb-3"></div>
 
-        <!-- Pantalla Principal (Home) -->
+        <!-- Pantallas (Home, Record, List, Compare - sin cambios estructurales) -->
         <div id="homeScreen" class="screen active text-center">
             <h2>Menú Principal</h2>
-            <div class="d-grid gap-2 col-10 col-md-8 mx-auto mt-4">
-                <button id="btnGoToRecord" class="btn btn-primary btn-lg"><i class="fas fa-play-circle"></i> Grabar Nueva Ruta</button>
-                <button id="btnGoToList" class="btn btn-success btn-lg"><i class="fas fa-list"></i> Comparar con Ruta Guardada</button>
-                <button id="btnGoToManage" class="btn btn-secondary btn-lg"><i class="fas fa-cog"></i> Gestionar Rutas</button>
-            </div>
+             <div class="d-grid gap-2 col-10 col-md-8 mx-auto mt-4">
+                 <button id="btnGoToRecord" class="btn btn-primary btn-lg"><i class="fas fa-play-circle"></i> Grabar Nueva Ruta</button>
+                 <button id="btnGoToList" class="btn btn-success btn-lg"><i class="fas fa-list"></i> Comparar con Ruta Guardada</button>
+                 <button id="btnGoToManage" class="btn btn-secondary btn-lg"><i class="fas fa-cog"></i> Gestionar Rutas</button>
+             </div>
         </div>
-
-        <!-- Pantalla de Grabación -->
         <div id="recordScreen" class="screen">
              <h2><i class="fas fa-record-vinyl text-danger"></i> Grabar Nueva Ruta</h2>
-             <div class="mb-3">
-                 <label class="form-label">Modo:</label>
-                 <div>
-                     <input type="radio" class="btn-check" name="recordMode" id="modeConducir" value="Conducir" autocomplete="off" checked>
-                     <label class="btn btn-outline-primary" for="modeConducir"><i class="fas fa-car"></i> Conducir</label>
-                     <input type="radio" class="btn-check" name="recordMode" id="modeCaminar" value="Caminar" autocomplete="off">
-                     <label class="btn btn-outline-success" for="modeCaminar"><i class="fas fa-walking"></i> Caminar/Correr</label>
-                 </div>
+              <div class="mb-3">
+                  <label class="form-label">Modo:</label>
+                  <div>
+                      <input type="radio" class="btn-check" name="recordMode" id="modeConducir" value="Conducir" autocomplete="off" checked>
+                      <label class="btn btn-outline-primary" for="modeConducir"><i class="fas fa-car"></i> Conducir</label>
+                      <input type="radio" class="btn-check" name="recordMode" id="modeCaminar" value="Caminar" autocomplete="off">
+                      <label class="btn btn-outline-success" for="modeCaminar"><i class="fas fa-walking"></i> Caminar/Correr</label>
+                  </div>
+              </div>
+             <div class="text-center mb-3">
+                 <span id="recordStatus" class="status-indicator">Esperando para iniciar...</span> <br>
+                 <span id="pointsCaptured" class="badge bg-secondary mt-1">Puntos capturados: 0</span>
              </div>
-            <div class="text-center mb-3">
-                <span id="recordStatus" class="status-indicator">Esperando para iniciar...</span> <br>
-                <span id="pointsCaptured" class="badge bg-secondary mt-1">Puntos capturados: 0</span>
-            </div>
-            <div class="d-grid gap-2 col-8 mx-auto">
-                <button id="btnStartRecording" class="btn btn-danger"><i class="fas fa-play"></i> Iniciar Grabación</button>
-                <button id="btnStopRecording" class="btn btn-warning d-none"><i class="fas fa-stop"></i> Detener Grabación</button>
-            </div>
-             <div id="saveRouteSection" class="mt-4 d-none">
-                 <div class="mb-3">
-                     <label for="routeNameInput" class="form-label">Nombre de la Ruta:</label>
-                     <input type="text" class="form-control" id="routeNameInput" placeholder="Ej: Camino al trabajo - Coche">
-                 </div>
-                 <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                     <button id="btnSaveRoute" class="btn btn-success"><i class="fas fa-save"></i> Guardar Ruta</button>
-                     <button id="btnDiscardRoute" class="btn btn-secondary"><i class="fas fa-times"></i> Descartar</button>
-                 </div>
+             <div class="d-grid gap-2 col-8 mx-auto">
+                 <button id="btnStartRecording" class="btn btn-danger"><i class="fas fa-play"></i> Iniciar Grabación</button>
+                 <button id="btnStopRecording" class="btn btn-warning d-none"><i class="fas fa-stop"></i> Detener Grabación</button>
              </div>
-            <button id="btnRecordBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver al Menú</button>
+              <div id="saveRouteSection" class="mt-4 d-none">
+                  <div class="mb-3">
+                      <label for="routeNameInput" class="form-label">Nombre de la Ruta:</label>
+                      <input type="text" class="form-control" id="routeNameInput" placeholder="Ej: Camino al trabajo - Coche">
+                  </div>
+                  <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                      <button id="btnSaveRoute" class="btn btn-success"><i class="fas fa-save"></i> Guardar Ruta</button>
+                      <button id="btnDiscardRoute" class="btn btn-secondary"><i class="fas fa-times"></i> Descartar</button>
+                  </div>
+              </div>
+             <button id="btnRecordBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver al Menú</button>
         </div>
-
-        <!-- Pantalla de Lista de Rutas -->
         <div id="listScreen" class="screen">
-            <h2><i class="fas fa-list-ul text-info"></i> Seleccionar Ruta de Referencia</h2>
-            <div id="routeList" class="list-group mt-3">
-                <p id="noRoutesMessage" class="text-center text-muted">Aún no has guardado ninguna ruta.</p>
-            </div>
-            <button id="btnListBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver al Menú</button>
+             <h2><i class="fas fa-list-ul text-info"></i> Seleccionar Ruta de Referencia</h2>
+             <div id="routeList" class="list-group mt-3">
+                 <p id="noRoutesMessage" class="text-center text-muted">Aún no has guardado ninguna ruta.</p>
+             </div>
+             <button id="btnListBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver al Menú</button>
         </div>
-
-        <!-- Pantalla de Comparación -->
         <div id="compareScreen" class="screen">
-            <h2><i class="fas fa-tachometer-alt text-warning"></i> Comparación en Vivo</h2>
-            <div class="card text-center mb-3">
-                <div class="card-header"> Ruta de Referencia </div>
-                <div class="card-body">
-                    <h5 id="compareRouteName" class="card-title">--</h5>
-                    <p id="compareRouteMode" class="card-text text-muted">Modo: --</p>
-                </div>
-            </div>
-            <div id="timeDifferenceDisplay" class="zero">--:--</div>
-            <div class="row text-center mb-3">
-                <div class="col"> <strong>Tu Tiempo:</strong> <span id="currentTimeDisplay">00:00</span> </div>
-                <div class="col"> <strong>Tiempo Ref.:</strong> <span id="referenceTimeDisplay">00:00</span> </div>
-            </div>
-             <div class="text-center mb-3"> <span id="compareStatus" class="status-indicator">Listo para comparar.</span> </div>
-            <div class="d-grid gap-2 col-8 mx-auto">
-                <button id="btnStartComparison" class="btn btn-success"><i class="fas fa-play-circle"></i> Iniciar Comparación</button>
-                <button id="btnStopComparison" class="btn btn-danger d-none"><i class="fas fa-stop-circle"></i> Detener Comparación</button>
-            </div>
-            <button id="btnCompareBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver a la Lista</button>
+             <h2><i class="fas fa-tachometer-alt text-warning"></i> Comparación en Vivo</h2>
+             <div class="card text-center mb-3">
+                 <div class="card-header"> Ruta de Referencia </div>
+                 <div class="card-body">
+                     <h5 id="compareRouteName" class="card-title">--</h5>
+                     <p id="compareRouteMode" class="card-text text-muted">Modo: --</p>
+                 </div>
+             </div>
+             <div id="timeDifferenceDisplay" class="zero">--:--</div>
+             <div class="row text-center mb-3">
+                 <div class="col"> <strong>Tu Tiempo:</strong> <span id="currentTimeDisplay">00:00</span> </div>
+                 <div class="col"> <strong>Tiempo Ref.:</strong> <span id="referenceTimeDisplay">00:00</span> </div>
+             </div>
+              <div class="text-center mb-3"> <span id="compareStatus" class="status-indicator">Listo para comparar.</span> </div>
+             <div class="d-grid gap-2 col-8 mx-auto">
+                 <button id="btnStartComparison" class="btn btn-success"><i class="fas fa-play-circle"></i> Iniciar Comparación</button>
+                 <button id="btnStopComparison" class="btn btn-danger d-none"><i class="fas fa-stop-circle"></i> Detener Comparación</button>
+             </div>
+             <button id="btnCompareBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver a la Lista</button>
         </div>
 
-        <!-- Pantalla de Gestión de Rutas -->
+        <!-- Pantalla de Gestión de Rutas (con botones Ver Mapa) -->
         <div id="manageScreen" class="screen">
             <h2><i class="fas fa-tasks text-secondary"></i> Gestionar Rutas Guardadas</h2>
-
             <div class="d-grid gap-2 d-md-flex justify-content-md-center my-3">
                  <button id="btnExportRoutes" class="btn btn-info"><i class="fas fa-file-export"></i> Exportar Todas</button>
                  <button id="btnImportRoutes" class="btn btn-warning"><i class="fas fa-file-import"></i> Importar Rutas</button>
                  <input type="file" id="fileImportInput" accept=".json" style="display: none;">
             </div>
-
             <div id="manageRouteList" class="list-group mt-3">
                 <p id="noRoutesManageMessage" class="text-center text-muted">No hay rutas guardadas para gestionar.</p>
             </div>
-
             <button id="btnManageBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver al Menú</button>
         </div>
-
     </div>
 
-    <!-- Modal de Confirmación de Borrado -->
+    <!-- Modal de Confirmación de Borrado (Sin Cambios) -->
     <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -167,10 +136,7 @@
                     <h5 class="modal-title" id="deleteConfirmModalLabel"><i class="fas fa-exclamation-triangle text-danger"></i> Confirmar Eliminación</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    ¿Estás seguro de que quieres eliminar la ruta "<strong id="deleteRouteName"></strong>"?
-                    <br> <small class="text-muted">Esta acción no se puede deshacer.</small>
-                </div>
+                <div class="modal-body"> ¿Estás seguro de que quieres eliminar la ruta "<strong id="deleteRouteName"></strong>"? <br> <small class="text-muted">Esta acción no se puede deshacer.</small> </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-danger" id="btnConfirmDelete">Eliminar Ruta</button>
@@ -179,42 +145,41 @@
         </div>
     </div>
 
-
-    <!-- Contenedor para mostrar errores de JS -->
-    <div id="errorLogContainer">
-        <p>Registro de Errores de JavaScript:</p>
+    <!-- Modal para Visualizar Mapa (NUEVO) -->
+    <div class="modal fade" id="viewMapModal" tabindex="-1" aria-labelledby="viewMapModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg"> 
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewMapModalLabel"><i class="fas fa-map-marked-alt text-info"></i> Visualización de Ruta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Mostrando ruta: <strong id="viewMapRouteName"></strong></p>
+                    <div id="mapContainer"></div> 
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- Contenedor para mostrar errores de JS (Sin Cambios) -->
+    <div id="errorLogContainer"> <p>Registro de Errores de JavaScript:</p> </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    <!-- JavaScript -->
+    <!-- Tu JavaScript -->
     <script>
-        // --- Manejo Global de Errores ---
+        // --- Manejo Global de Errores (Sin Cambios) ---
         const errorLogContainer = document.getElementById('errorLogContainer');
-        function logErrorToHTML(message, source, lineno, colno, error) {
-             errorLogContainer.classList.add('has-errors'); // Asegurar que sea visible
-             const errorElement = document.createElement('div');
-             errorElement.className = 'error-entry';
-             let errorMessage = `Error: ${message}`;
-             if (source) errorMessage += `\nEn: ${source}`;
-             if (lineno) errorMessage += ` (Línea: ${lineno}, Col: ${colno})`;
-             if (error && error.stack) errorMessage += `\nStack: ${error.stack}`;
-             errorElement.textContent = errorMessage;
-             if(errorLogContainer.children.length > 1) {
-                  errorLogContainer.insertBefore(errorElement, errorLogContainer.children[1]);
-             } else {
-                  errorLogContainer.appendChild(errorElement);
-             }
-             console.error("Error capturado:", message, source, lineno, colno, error);
-        }
+        function logErrorToHTML(message, source, lineno, colno, error) { errorLogContainer.classList.add('has-errors'); const errorElement = document.createElement('div'); errorElement.className = 'error-entry'; let errorMessage = `Error: ${message}`; if (source) errorMessage += `\nEn: ${source}`; if (lineno) errorMessage += ` (Línea: ${lineno}, Col: ${colno})`; if (error && error.stack) errorMessage += `\nStack: ${error.stack}`; errorElement.textContent = errorMessage; if(errorLogContainer.children.length > 1) { errorLogContainer.insertBefore(errorElement, errorLogContainer.children[1]); } else { errorLogContainer.appendChild(errorElement); } console.error("Error capturado:", message, source, lineno, colno, error); }
         window.onerror = (m, s, l, c, e) => { logErrorToHTML(m, s, l, c, e); return true; };
-        window.addEventListener('unhandledrejection', e => {
-             let r = e.reason; let msg = "Error no manejado en Promesa: ";
-             if (r instanceof Error) msg += `${r.message}\nStack: ${r.stack}`; else msg += String(r);
-             logErrorToHTML(msg, e.type, null, null, r instanceof Error ? r : null);
-        });
+        window.addEventListener('unhandledrejection', e => { let r = e.reason; let msg = "Error no manejado en Promesa: "; if (r instanceof Error) msg += `${r.message}\nStack: ${r.stack}`; else msg += String(r); logErrorToHTML(msg, e.type, null, null, r instanceof Error ? r : null); });
 
-        // --- Constantes y Variables Globales ---
+        // --- Constantes y Variables Globales (añadidas nuevas) ---
         const STORAGE_KEY = 'miRitmoGPS_routes';
         const GEOLOCATION_OPTIONS = { enableHighAccuracy: true, maximumAge: 0 };
         let currentScreen = 'homeScreen';
@@ -224,24 +189,19 @@
         let currentComparisonData = { track: [] };
         let referenceRouteData = null;
         let savedRoutes = [];
-        let routeIdToDelete = null; // Para guardar ID de ruta a borrar
-        let deleteModalInstance = null; // Instancia del Modal de BS5
+        let routeIdToDelete = null;
+        let deleteModalInstance = null;
+        let viewMapModalInstance = null; // Instancia Modal Mapa
+        let currentMapInstance = null; // Instancia Mapa Leaflet
+        let routeIdToView = null; // ID de la ruta a mostrar en el mapa
 
-        // --- Referencias a Elementos del DOM ---
-        const screens = {
-            home: document.getElementById('homeScreen'),
-            record: document.getElementById('recordScreen'),
-            list: document.getElementById('listScreen'),
-            compare: document.getElementById('compareScreen'),
-            manage: document.getElementById('manageScreen')
-        };
+        // --- Referencias a Elementos del DOM (añadidas nuevas) ---
+        const screens = { home: document.getElementById('homeScreen'), record: document.getElementById('recordScreen'), list: document.getElementById('listScreen'), compare: document.getElementById('compareScreen'), manage: document.getElementById('manageScreen') };
         const statusMessage = document.getElementById('statusMessage');
         const gpsStatusMessage = document.getElementById('gpsStatusMessage');
-        // Botones Home
         const btnGoToRecord = document.getElementById('btnGoToRecord');
         const btnGoToList = document.getElementById('btnGoToList');
         const btnGoToManage = document.getElementById('btnGoToManage');
-        // Record Screen
         const recordStatus = document.getElementById('recordStatus');
         const pointsCaptured = document.getElementById('pointsCaptured');
         const btnStartRecording = document.getElementById('btnStartRecording');
@@ -252,11 +212,9 @@
         const btnDiscardRoute = document.getElementById('btnDiscardRoute');
         const btnRecordBack = document.getElementById('btnRecordBack');
         const recordModeRadios = document.querySelectorAll('input[name="recordMode"]');
-        // List Screen
         const routeListContainer = document.getElementById('routeList');
         const noRoutesMessage = document.getElementById('noRoutesMessage');
         const btnListBack = document.getElementById('btnListBack');
-        // Compare Screen
         const compareRouteName = document.getElementById('compareRouteName');
         const compareRouteMode = document.getElementById('compareRouteMode');
         const timeDifferenceDisplay = document.getElementById('timeDifferenceDisplay');
@@ -266,7 +224,6 @@
         const btnStartComparison = document.getElementById('btnStartComparison');
         const btnStopComparison = document.getElementById('btnStopComparison');
         const btnCompareBack = document.getElementById('btnCompareBack');
-        // Manage Screen
         const manageRouteListContainer = document.getElementById('manageRouteList');
         const noRoutesManageMessage = document.getElementById('noRoutesManageMessage');
         const btnExportRoutes = document.getElementById('btnExportRoutes');
@@ -277,10 +234,13 @@
         const deleteConfirmModal = document.getElementById('deleteConfirmModal');
         const deleteRouteNameSpan = document.getElementById('deleteRouteName');
         const btnConfirmDelete = document.getElementById('btnConfirmDelete');
+        // View Map Modal (NUEVO)
+        const viewMapModal = document.getElementById('viewMapModal');
+        const viewMapRouteNameSpan = document.getElementById('viewMapRouteName');
+        const mapContainer = document.getElementById('mapContainer');
 
 
-        // --- Funciones de Utilidad ---
-        // (Implementaciones completas omitidas aquí para brevedad, pero son las mismas que en el bloque anterior)
+        // --- Funciones de Utilidad (Sin Cambios) ---
         function showStatus(message, type = 'warning') { statusMessage.textContent = message; statusMessage.className = `alert alert-${type}`; statusMessage.classList.remove('d-none'); setTimeout(() => { statusMessage.classList.add('d-none'); }, 5000); };
         function hideStatus() { statusMessage.classList.add('d-none'); };
         function updateGpsStatus(message, isActive = false) { gpsStatusMessage.textContent = message; gpsStatusMessage.className = `gps-status text-center mb-3 ${isActive ? 'text-primary fw-bold' : 'text-muted'}`; };
@@ -289,32 +249,18 @@
         function formatTimeDifference(ms) { if (ms === null || isNaN(ms)) return '--:--'; const tS = Math.round(ms / 1000); const sign = tS >= 0 ? '+' : '-'; const absS = Math.abs(tS); const m = Math.floor(absS / 60); const s = absS % 60; let cN = 'zero'; if (tS > 5) cN = 'positive'; else if (tS < -5) cN = 'negative'; timeDifferenceDisplay.className = cN; return `${sign}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; };
 
 
-        // --- Cambio de Pantalla ---
-        function showScreen(screenId) {
-            currentScreen = screenId;
-            Object.values(screens).forEach(screen => screen.classList.remove('active'));
-            screens[screenId.replace('Screen', '')].classList.add('active');
-            hideStatus();
-            if (!['recordScreen', 'compareScreen'].includes(screenId)) {
-                 stopTracking();
-                 updateGpsStatus('');
-            }
-            if (screenId === 'homeScreen') { resetRecordScreen(); resetCompareScreen(); }
-            if (screenId === 'listScreen') { displayRoutes(); }
-            if (screenId === 'manageScreen') { displayRoutesForManagement(); }
-        }
+        // --- Cambio de Pantalla (Sin Cambios) ---
+        function showScreen(screenId) { currentScreen = screenId; Object.values(screens).forEach(screen => screen.classList.remove('active')); screens[screenId.replace('Screen', '')].classList.add('active'); hideStatus(); if (!['recordScreen', 'compareScreen'].includes(screenId)) { stopTracking(); updateGpsStatus(''); } if (screenId === 'homeScreen') { resetRecordScreen(); resetCompareScreen(); } if (screenId === 'listScreen') { displayRoutes(); } if (screenId === 'manageScreen') { displayRoutesForManagement(); } }
 
 
-        // --- Lógica de Geolocalización ---
-        // (Implementaciones completas omitidas aquí para brevedad, pero son las mismas que en el bloque anterior)
+        // --- Lógica de Geolocalización (Sin Cambios) ---
         function handlePositionUpdate(position) { const { latitude, longitude } = position.coords; const timestamp = Date.now(); const elapsedTime = timestamp - startTime; updateGpsStatus(`GPS Activo: Lat ${latitude.toFixed(4)}, Lon ${longitude.toFixed(4)}`, true); const newPoint = { lat: latitude, lon: longitude, timestamp: elapsedTime }; if (isRecording) { currentRouteData.track.push(newPoint); pointsCaptured.textContent = `Puntos capturados: ${currentRouteData.track.length}`; recordStatus.textContent = `Grabando... (${formatTime(elapsedTime)})`; } else if (isComparing && referenceRouteData) { currentComparisonData.track.push(newPoint); let minDistance = Infinity; let nearestRefPoint = null; for (let i = 0; i < referenceRouteData.track.length; i++) { const point = referenceRouteData.track[i]; const distance = calculateDistance(latitude, longitude, point.lat, point.lon); if (distance < minDistance) { minDistance = distance; nearestRefPoint = point; } } let referenceTime = null; let timeDifference = null; if (nearestRefPoint) { referenceTime = nearestRefPoint.timestamp; timeDifference = elapsedTime - referenceTime; } currentTimeDisplay.textContent = formatTime(elapsedTime); referenceTimeDisplay.textContent = formatTime(referenceTime); timeDifferenceDisplay.textContent = formatTimeDifference(timeDifference); compareStatus.textContent = `Comparando... (Dist. Ref: ${minDistance.toFixed(0)}m)`; } };
         function handlePositionError(error) { let message = `Error GPS (${error.code}): `; switch (error.code) { case error.PERMISSION_DENIED: message += "Permiso denegado."; break; case error.POSITION_UNAVAILABLE: message += "Ubicación no disponible."; break; case error.TIMEOUT: message += "Timeout."; break; default: message += "Desconocido."; break; } logErrorToHTML(message, "handlePositionError", null, null, error); showStatus(message, 'danger'); updateGpsStatus('Error de GPS', false); stopTracking(); };
         function startTracking(onSuccess) { if (!navigator.geolocation) { showStatus('Geolocalización no soportada.', 'danger'); return false; } if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; } updateGpsStatus('Iniciando GPS...', false); let firstSuccess = true; watchId = navigator.geolocation.watchPosition( (position) => { if (firstSuccess && onSuccess) { onSuccess(); firstSuccess = false; } handlePositionUpdate(position); }, handlePositionError, GEOLOCATION_OPTIONS ); console.log("GPS Watcher iniciado:", watchId); return true; };
         function stopTracking() { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); console.log("GPS Watcher detenido:", watchId); watchId = null; } if (!isRecording && !isComparing) { updateGpsStatus('GPS Inactivo', false); } };
 
 
-        // --- Lógica de Grabación ---
-        // (Implementaciones completas omitidas aquí para brevedad, pero son las mismas que en el bloque anterior)
+        // --- Lógica de Grabación (Sin Cambios) ---
         function resetRecordScreen() { currentRouteData = { mode: null, track: [] }; isRecording = false; startTime = null; recordStatus.textContent = 'Esperando para iniciar...'; recordStatus.classList.remove('active'); pointsCaptured.textContent = 'Puntos capturados: 0'; btnStartRecording.disabled = false; btnStartRecording.classList.remove('d-none'); btnStopRecording.classList.add('d-none'); saveRouteSection.classList.add('d-none'); routeNameInput.value = ''; recordModeRadios[0].checked = true; };
         function startRecording() { if (isRecording) return; const selectedMode = document.querySelector('input[name="recordMode"]:checked').value; currentRouteData = { mode: selectedMode, track: [] }; recordStatus.textContent = 'Iniciando GPS para grabar...'; recordStatus.classList.add('active'); btnStartRecording.disabled = true; const trackingStarted = startTracking(() => { isRecording = true; startTime = Date.now(); recordStatus.textContent = 'Grabando... (00:00)'; recordStatus.classList.add('active'); btnStartRecording.classList.add('d-none'); btnStopRecording.classList.remove('d-none'); btnStartRecording.disabled = false; saveRouteSection.classList.add('d-none'); console.log(`Grabación iniciada: ${selectedMode}`); }); if (!trackingStarted) { showStatus("No se pudo iniciar el GPS.", "danger"); recordStatus.textContent = 'Error al iniciar GPS'; recordStatus.classList.remove('active'); btnStartRecording.disabled = false; } };
         function stopRecording() { if (!isRecording) return; const endTime = Date.now(); const duration = startTime ? endTime - startTime : 0; isRecording = false; stopTracking(); recordStatus.textContent = `Grabación detenida. Puntos: ${currentRouteData.track.length}. Duración: ${formatTime(duration)}`; recordStatus.classList.remove('active'); btnStartRecording.classList.remove('d-none'); btnStartRecording.disabled = false; btnStopRecording.classList.add('d-none'); if (currentRouteData.track.length > 1) { currentRouteData.duration = duration; saveRouteSection.classList.remove('d-none'); } else { showStatus("Ruta demasiado corta para guardar.", "warning"); resetRecordScreen(); } };
@@ -322,33 +268,31 @@
         function discardRoute() { resetRecordScreen(); showStatus("Grabación descartada.", "info"); };
 
 
-        // --- Lógica de Lista/Selección de Rutas ---
-        // (Implementaciones completas omitidas aquí para brevedad, pero son las mismas que en el bloque anterior)
+        // --- Lógica de Lista/Selección de Rutas (Sin Cambios) ---
         function loadRoutes() { try { const rJ = localStorage.getItem(STORAGE_KEY); savedRoutes = rJ ? JSON.parse(rJ) : []; } catch (e) { savedRoutes = []; logErrorToHTML("Error al cargar/parsear rutas.", "loadRoutes", null, null, e); showStatus("Error al cargar rutas.", "danger"); localStorage.removeItem(STORAGE_KEY); } };
         function displayRoutes() { loadRoutes(); routeListContainer.innerHTML = ''; if (savedRoutes.length === 0) { noRoutesMessage.classList.remove('d-none'); } else { noRoutesMessage.classList.add('d-none'); savedRoutes.forEach((route, index) => { if (!route || typeof route !== 'object') { logErrorToHTML(`Elemento inválido en savedRoutes[${index}]`, "displayRoutes"); return; } const listItem = document.createElement('button'); listItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center'; listItem.setAttribute('data-route-index', index); const modeLower = typeof route.mode === 'string' ? route.mode.toLowerCase() : ''; const iconClass = modeLower === 'conducir' ? 'fa-car' : 'fa-walking'; const durationFormatted = formatTime(route.duration || 0); listItem.innerHTML = `<span><i class="fas ${iconClass} me-2"></i> ${route.name || 'Ruta sin nombre'}</span> <span class="badge bg-primary rounded-pill">${durationFormatted}</span>`; listItem.addEventListener('click', () => selectRouteForComparison(index)); routeListContainer.appendChild(listItem); }); } };
         function selectRouteForComparison(index) { console.log(`Seleccionando índice: ${index}`); if (!Array.isArray(savedRoutes)) loadRoutes(); if (index >= 0 && index < savedRoutes.length) { referenceRouteData = savedRoutes[index]; console.log('Datos para comparar:', JSON.stringify(referenceRouteData)); if (!referenceRouteData || !referenceRouteData.name || !referenceRouteData.mode || !Array.isArray(referenceRouteData.track)) { logErrorToHTML("Datos de ruta seleccionada inválidos.", "selectRouteForComparison", null, null, new Error(JSON.stringify(referenceRouteData))); showStatus("Error: Datos de ruta inválidos.", "danger"); referenceRouteData = null; return; } prepareCompareScreen(); showScreen('compareScreen'); } else { logErrorToHTML(`Índice fuera de rango: ${index}`, "selectRouteForComparison"); showStatus(`Error selección (índice inválido: ${index}).`, "danger"); } };
 
 
-        // --- Lógica de Comparación ---
-        // (Implementaciones completas omitidas aquí para brevedad, pero son las mismas que en el bloque anterior)
+        // --- Lógica de Comparación (Sin Cambios) ---
         function resetCompareScreen() { currentComparisonData = { track: [] }; isComparing = false; startTime = null; compareRouteName.textContent = '--'; compareRouteMode.textContent = 'Modo: --'; timeDifferenceDisplay.textContent = '--:--'; timeDifferenceDisplay.className = 'zero'; currentTimeDisplay.textContent = '00:00'; referenceTimeDisplay.textContent = '00:00'; compareStatus.textContent = 'Listo para comparar.'; compareStatus.classList.remove('active'); btnStartComparison.disabled = false; btnStartComparison.classList.remove('d-none'); btnStopComparison.classList.add('d-none'); };
         function prepareCompareScreen() { resetCompareScreen(); if (!referenceRouteData) { logErrorToHTML("prepareCompareScreen sin referenceRouteData.", "prepareCompareScreen"); showStatus("Error: No hay ruta ref.", "danger"); showScreen('listScreen'); return; } compareRouteName.textContent = referenceRouteData.name; compareRouteMode.textContent = `Modo: ${referenceRouteData.mode}`; currentTimeDisplay.textContent = formatTime(0); referenceTimeDisplay.textContent = formatTime(0); timeDifferenceDisplay.textContent = formatTimeDifference(0); timeDifferenceDisplay.className = 'zero'; compareStatus.textContent = 'Pulsa "Iniciar Comparación"'; btnStartComparison.disabled = false; };
         function startComparison() { if (isComparing || !referenceRouteData) return; currentComparisonData = { track: [] }; compareStatus.textContent = 'Iniciando GPS para comparar...'; compareStatus.classList.add('active'); btnStartComparison.disabled = true; const trackingStarted = startTracking(() => { isComparing = true; startTime = Date.now(); compareStatus.textContent = 'Comparando...'; compareStatus.classList.add('active'); btnStartComparison.classList.add('d-none'); btnStopComparison.classList.remove('d-none'); btnStartComparison.disabled = false; console.log("Comparación iniciada vs:", referenceRouteData.name); }); if (!trackingStarted) { showStatus("No se pudo iniciar el GPS.", "danger"); compareStatus.textContent = 'Error al iniciar GPS'; compareStatus.classList.remove('active'); btnStartComparison.disabled = false; } };
         function stopComparison() { if (!isComparing) return; const finalElapsedTime = startTime ? Date.now() - startTime : 0; isComparing = false; stopTracking(); compareStatus.textContent = `Comparación detenida. Duración: ${formatTime(finalElapsedTime)}`; compareStatus.classList.remove('active'); btnStartComparison.classList.remove('d-none'); btnStartComparison.disabled = false; btnStopComparison.classList.add('d-none'); };
 
 
-        // --- Lógica de Gestión de Rutas ---
+        // --- Lógica de Gestión de Rutas (ACTUALIZADA) ---
 
-        /** Muestra las rutas en la pantalla de gestión con botón de borrar */
+        /** Muestra las rutas en la pantalla de gestión con botones Ver Mapa y Borrar */
         function displayRoutesForManagement() {
             loadRoutes();
-            manageRouteListContainer.innerHTML = ''; // Limpiar lista
+            manageRouteListContainer.innerHTML = '';
             if (savedRoutes.length === 0) {
                 noRoutesManageMessage.classList.remove('d-none');
-                btnExportRoutes.disabled = true; // Deshabilitar si no hay rutas
+                btnExportRoutes.disabled = true;
             } else {
                 noRoutesManageMessage.classList.add('d-none');
-                btnExportRoutes.disabled = false; // Habilitar exportación
+                btnExportRoutes.disabled = false;
                 savedRoutes.forEach(route => {
                     if (!route || typeof route !== 'object' || !route.id) {
                          logErrorToHTML(`Elemento inválido en savedRoutes: ${JSON.stringify(route)}`, "displayRoutesForManagement");
@@ -364,14 +308,30 @@
                     const routeInfo = document.createElement('span');
                     routeInfo.innerHTML = `<i class="fas ${iconClass} me-2"></i> ${route.name || 'Ruta sin nombre'} <span class="badge bg-secondary rounded-pill ms-2">${durationFormatted}</span>`;
 
+                    // Grupo de botones (Ver Mapa, Eliminar)
+                    const buttonGroup = document.createElement('div');
+                    buttonGroup.className = 'btn-group';
+
+                    // Botón Ver Mapa
+                    const viewMapButton = document.createElement('button');
+                    viewMapButton.className = 'btn btn-sm btn-info view-map-btn';
+                    viewMapButton.innerHTML = '<i class="fas fa-map-marked-alt"></i>';
+                    viewMapButton.setAttribute('data-route-id', route.id);
+                    viewMapButton.setAttribute('title', 'Ver Mapa'); // Tooltip
+
+                    // Botón Eliminar
                     const deleteButton = document.createElement('button');
                     deleteButton.className = 'btn btn-sm btn-danger delete-route-btn';
                     deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
                     deleteButton.setAttribute('data-route-id', route.id);
                     deleteButton.setAttribute('data-route-name', route.name || 'Ruta sin nombre');
+                    deleteButton.setAttribute('title', 'Eliminar Ruta'); // Tooltip
+
+                    buttonGroup.appendChild(viewMapButton);
+                    buttonGroup.appendChild(deleteButton);
 
                     listItem.appendChild(routeInfo);
-                    listItem.appendChild(deleteButton);
+                    listItem.appendChild(buttonGroup);
                     manageRouteListContainer.appendChild(listItem);
                 });
             }
@@ -381,117 +341,147 @@
         function handleDeleteRouteClick(event) {
              const deleteButton = event.target.closest('.delete-route-btn');
              if (!deleteButton) return;
-
              routeIdToDelete = deleteButton.getAttribute('data-route-id');
              const routeNameToDelete = deleteButton.getAttribute('data-route-name');
-
-             if (!routeIdToDelete) {
-                 logErrorToHTML("No se pudo obtener el ID de la ruta para borrar.", "handleDeleteRouteClick");
-                 showStatus("Error al intentar borrar la ruta.", "danger");
-                 return;
-             }
-
+             if (!routeIdToDelete) { logErrorToHTML("No se pudo obtener ID para borrar.", "handleDeleteRouteClick"); showStatus("Error al intentar borrar.", "danger"); return; }
              deleteRouteNameSpan.textContent = routeNameToDelete;
-             if (!deleteModalInstance) {
-                 deleteModalInstance = new bootstrap.Modal(deleteConfirmModal);
-             }
+             if (!deleteModalInstance) { deleteModalInstance = new bootstrap.Modal(deleteConfirmModal); }
              deleteModalInstance.show();
         }
 
         /** Confirma y ejecuta el borrado de la ruta */
         function confirmDeleteRoute() {
             if (!routeIdToDelete) return;
-
             const originalLength = savedRoutes.length;
             savedRoutes = savedRoutes.filter(route => route.id !== routeIdToDelete);
-
-            if(savedRoutes.length < originalLength) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(savedRoutes));
-                showStatus("Ruta eliminada correctamente.", "success");
-                displayRoutesForManagement();
-            } else {
-                 logErrorToHTML(`No se encontró la ruta con ID ${routeIdToDelete} para eliminar.`, "confirmDeleteRoute");
-                 showStatus("Error: No se pudo encontrar la ruta para eliminar.", "warning");
-            }
-
+            if(savedRoutes.length < originalLength) { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedRoutes)); showStatus("Ruta eliminada.", "success"); displayRoutesForManagement(); }
+            else { logErrorToHTML(`No se encontró ID ${routeIdToDelete} para eliminar.`, "confirmDeleteRoute"); showStatus("Error: No se encontró la ruta.", "warning"); }
             routeIdToDelete = null;
-            if (deleteModalInstance) {
-                 deleteModalInstance.hide();
-            }
+            if (deleteModalInstance) { deleteModalInstance.hide(); }
         }
 
         /** Exporta todas las rutas a un archivo JSON */
         function exportRoutes() {
             loadRoutes();
-            if (savedRoutes.length === 0) {
-                showStatus("No hay rutas guardadas para exportar.", "info");
-                return;
-            }
-
+            if (savedRoutes.length === 0) { showStatus("No hay rutas para exportar.", "info"); return; }
             try {
                 const jsonData = JSON.stringify(savedRoutes, null, 2);
                 const blob = new Blob([jsonData], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const timestamp = new Date().toISOString().slice(0, 10);
-                a.download = `miRitmoGPS_rutas_${timestamp}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showStatus("Rutas exportadas con éxito.", "success");
-            } catch (e) {
-                logErrorToHTML("Error al exportar rutas.", "exportRoutes", null, null, e);
-                showStatus("Ocurrió un error al exportar las rutas.", "danger");
-            }
+                const a = document.createElement('a'); a.href = url; const timestamp = new Date().toISOString().slice(0, 10);
+                a.download = `miRitmoGPS_rutas_${timestamp}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                showStatus("Rutas exportadas.", "success");
+            } catch (e) { logErrorToHTML("Error al exportar.", "exportRoutes", null, null, e); showStatus("Error al exportar.", "danger"); }
         }
 
         /** Importa rutas desde un archivo JSON seleccionado */
         function importRoutes(event) {
-            const file = event.target.files[0];
-            if (!file) {
-                showStatus("No se seleccionó ningún archivo.", "info");
-                return;
-            }
-
-            if (file.type !== "application/json") {
-                 showStatus("Por favor, selecciona un archivo .json válido.", "warning");
-                 event.target.value = null;
-                 return;
-            }
-
+            const file = event.target.files[0]; if (!file) { showStatus("No se seleccionó archivo.", "info"); return; }
+            if (file.type !== "application/json") { showStatus("Selecciona un archivo .json.", "warning"); event.target.value = null; return; }
             const reader = new FileReader();
-
             reader.onload = function(e) {
                 try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (!Array.isArray(importedData)) {
-                        throw new Error("El archivo JSON no contiene un array de rutas válido.");
-                    }
-                    // Aquí podrías añadir más validaciones del contenido de cada ruta si quieres ser más robusto
-                    savedRoutes = importedData;
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedRoutes));
-                    showStatus(`Importación completada. ${savedRoutes.length} rutas cargadas.`, "success");
-                    displayRoutesForManagement();
-                } catch (error) {
-                    logErrorToHTML("Error al procesar el archivo JSON importado.", "importRoutes/reader.onload", null, null, error);
-                    showStatus(`Error al importar: ${error.message}`, "danger");
-                } finally {
-                     event.target.value = null;
-                }
+                    const importedData = JSON.parse(e.target.result); if (!Array.isArray(importedData)) { throw new Error("El JSON no es un array de rutas válido."); }
+                    savedRoutes = importedData; localStorage.setItem(STORAGE_KEY, JSON.stringify(savedRoutes));
+                    showStatus(`Importación completada (${savedRoutes.length} rutas).`, "success"); displayRoutesForManagement();
+                } catch (error) { logErrorToHTML("Error al procesar JSON importado.", "importRoutes/onload", null, null, error); showStatus(`Error al importar: ${error.message}`, "danger"); }
+                finally { event.target.value = null; }
             };
-
-            reader.onerror = function(e) {
-                logErrorToHTML("Error al leer el archivo seleccionado.", "importRoutes/reader.onerror", null, null, e);
-                showStatus("Error al leer el archivo.", "danger");
-                 event.target.value = null;
-            };
-
+            reader.onerror = function(e) { logErrorToHTML("Error al leer archivo.", "importRoutes/onerror", null, null, e); showStatus("Error al leer archivo.", "danger"); event.target.value = null; };
             reader.readAsText(file);
         }
 
-        // --- Inicialización y Event Listeners ---
+        /** (NUEVO) Inicia el proceso de visualización del mapa */
+        function handleViewMapClick(event) {
+             const viewMapButton = event.target.closest('.view-map-btn');
+             if (!viewMapButton) return;
+             routeIdToView = viewMapButton.getAttribute('data-route-id');
+             if (!routeIdToView) { logErrorToHTML("No se pudo obtener ID para ver mapa.", "handleViewMapClick"); showStatus("Error al intentar ver mapa.", "danger"); return; }
+
+             const route = savedRoutes.find(r => r.id === routeIdToView);
+             if (!route) { logErrorToHTML(`No se encontró ruta con ID ${routeIdToView} para ver mapa.`, "handleViewMapClick"); showStatus("Error: No se encontró la ruta.", "warning"); return; }
+
+             viewMapRouteNameSpan.textContent = route.name || 'Ruta sin nombre'; // Actualizar nombre en modal
+
+             if (!viewMapModalInstance) {
+                  viewMapModalInstance = new bootstrap.Modal(viewMapModal);
+             }
+             viewMapModalInstance.show(); // Mostrar el modal ANTES de inicializar el mapa
+        }
+
+        /** (NUEVO) Inicializa y muestra la ruta en el mapa Leaflet */
+        function initializeAndShowMap() {
+            if (!routeIdToView || !mapContainer) return; // Salir si no hay ID o contenedor
+
+            const route = savedRoutes.find(r => r.id === routeIdToView);
+            if (!route || !Array.isArray(route.track) || route.track.length < 1) {
+                 logErrorToHTML("Datos de ruta inválidos o vacíos para mostrar en mapa.", "initializeAndShowMap");
+                 mapContainer.innerHTML = '<p class="text-danger text-center p-3">No se pudo cargar la ruta en el mapa (datos inválidos o ruta vacía).</p>';
+                 return;
+            }
+
+             // Limpiar contenedor por si acaso
+             mapContainer.innerHTML = '';
+
+             // Crear instancia de mapa
+            currentMapInstance = L.map(mapContainer);
+
+             // Añadir capa de tiles (OpenStreetMap)
+             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+             }).addTo(currentMapInstance);
+
+             // Preparar los puntos para la polilínea
+             const latlngs = route.track.map(point => [point.lat, point.lon]);
+
+             if (latlngs.length > 0) {
+                  // Añadir marcador de inicio
+                  L.marker(latlngs[0], { title: "Inicio" }).addTo(currentMapInstance)
+                    .bindPopup('Inicio de la ruta').openPopup();;
+
+                  if (latlngs.length > 1) {
+                      // Añadir marcador de fin
+                      L.marker(latlngs[latlngs.length - 1], { title: "Fin" }).addTo(currentMapInstance)
+                         .bindPopup('Fin de la ruta');
+
+                       // Dibujar la polilínea
+                       const polyline = L.polyline(latlngs, { color: 'red', weight: 5 }).addTo(currentMapInstance);
+
+                       // Ajustar la vista del mapa a la ruta
+                       try {
+                            currentMapInstance.fitBounds(polyline.getBounds().pad(0.1)); // pad añade un pequeño margen
+                       } catch(e) {
+                            // Fallback si fitBounds falla (ej. puntos idénticos)
+                            logErrorToHTML("Error en fitBounds, centrando en el primer punto.", "initializeAndShowMap", null, null, e);
+                             currentMapInstance.setView(latlngs[0], 15); // Zoom fijo
+                       }
+                  } else {
+                      // Solo un punto, centrar mapa ahí
+                       currentMapInstance.setView(latlngs[0], 15); // Zoom fijo
+                  }
+             } else {
+                  mapContainer.innerHTML = '<p class="text-warning text-center p-3">La ruta no tiene puntos GPS para mostrar.</p>';
+             }
+
+             // Forzar re-renderizado si es necesario (a veces útil en modales)
+             setTimeout(() => {
+                 if (currentMapInstance) currentMapInstance.invalidateSize();
+             }, 200); // Pequeño delay
+        }
+
+        /** (NUEVO) Limpia la instancia del mapa al cerrar el modal */
+        function cleanupMap() {
+            if (currentMapInstance) {
+                 console.log("Destruyendo instancia de mapa Leaflet.");
+                 currentMapInstance.remove();
+                 currentMapInstance = null;
+            }
+             mapContainer.innerHTML = ''; // Limpiar el contenedor
+             routeIdToView = null; // Limpiar ID
+        }
+
+
+        // --- Inicialización y Event Listeners (ACTUALIZADO) ---
         function initApp() {
             console.log("Iniciando Mi Ritmo GPS...");
 
@@ -514,21 +504,26 @@
             btnStartComparison.addEventListener('click', startComparison);
             btnStopComparison.addEventListener('click', stopComparison);
 
-            // Acciones de Gestión
-            manageRouteListContainer.addEventListener('click', handleDeleteRouteClick);
+            // Acciones de Gestión (Añadido listener para Ver Mapa)
+            manageRouteListContainer.addEventListener('click', (event) => {
+                 if (event.target.closest('.delete-route-btn')) {
+                     handleDeleteRouteClick(event);
+                 } else if (event.target.closest('.view-map-btn')) {
+                     handleViewMapClick(event);
+                 }
+            });
             btnConfirmDelete.addEventListener('click', confirmDeleteRoute);
             btnExportRoutes.addEventListener('click', exportRoutes);
             btnImportRoutes.addEventListener('click', () => fileImportInput.click());
             fileImportInput.addEventListener('change', importRoutes);
 
+            // Listeners para el Modal del Mapa (NUEVO)
+            viewMapModal.addEventListener('shown.bs.modal', initializeAndShowMap);
+            viewMapModal.addEventListener('hidden.bs.modal', cleanupMap);
+
             // Verificar GPS
-            if (!navigator.geolocation) {
-                 showStatus('Geolocalización no soportada.', 'danger');
-                 updateGpsStatus('GPS No Soportado', false);
-                 btnGoToRecord.disabled = true;
-            } else {
-                 updateGpsStatus('GPS Soportado. Solicitará permiso al usar.');
-            }
+            if (!navigator.geolocation) { showStatus('Geolocalización no soportada.', 'danger'); updateGpsStatus('GPS No Soportado', false); btnGoToRecord.disabled = true; }
+            else { updateGpsStatus('GPS Soportado. Solicitará permiso al usar.'); }
 
             // Mostrar pantalla inicial
             showScreen('homeScreen');
