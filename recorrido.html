@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Ritmo GPS</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Font Awesome para iconos (opcional, pero útil) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        /* Estilos personalizados */
+        body {
+            padding-top: 1rem; /* Espacio para la barra de navegación si la hubiera */
+            background-color: #f8f9fa; /* Un fondo suave */
+        }
+
+        .screen {
+            display: none; /* Ocultar todas las pantallas por defecto */
+            animation: fadeIn 0.5s; /* Animación simple de aparición */
+        }
+
+        .screen.active {
+            display: block; /* Mostrar la pantalla activa */
+        }
+
+        #timeDifferenceDisplay {
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #e9ecef;
+        }
+
+        #timeDifferenceDisplay.positive {
+            color: #dc3545; /* Rojo para ir más lento */
+        }
+
+        #timeDifferenceDisplay.negative {
+            color: #198754; /* Verde para ir más rápido */
+        }
+         #timeDifferenceDisplay.zero {
+            color: #6c757d; /* Gris para tiempo igual */
+        }
+
+        .list-group-item-action {
+            cursor: pointer;
+        }
+
+        /* Animación simple */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Estilo para el estado de grabación/comparación */
+        .status-indicator {
+            font-style: italic;
+            color: #6c757d; /* Gris */
+        }
+         .status-indicator.active {
+             color: #0d6efd; /* Azul de Bootstrap */
+             font-weight: bold;
+         }
+         .gps-status {
+             font-size: 0.9rem;
+             margin-top: 1rem;
+         }
+
+    </style>
+</head>
+<body>
+    <div class="container mt-3">
+        <h1 class="text-center mb-4">Mi Ritmo GPS <i class="fas fa-route text-primary"></i></h1>
+
+        <!-- Mensajes de Estado/Error -->
+        <div id="statusMessage" class="alert alert-warning d-none" role="alert"></div>
+        <div id="gpsStatusMessage" class="gps-status text-center mb-3"></div>
+
+        <!-- Pantalla Principal (Home) -->
+        <div id="homeScreen" class="screen active text-center">
+            <h2>Menú Principal</h2>
+            <div class="d-grid gap-2 col-8 mx-auto mt-4">
+                <button id="btnGoToRecord" class="btn btn-primary btn-lg"><i class="fas fa-play-circle"></i> Grabar Nueva Ruta</button>
+                <button id="btnGoToList" class="btn btn-success btn-lg"><i class="fas fa-list"></i> Comparar con Ruta Guardada</button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Grabación -->
+        <div id="recordScreen" class="screen">
+            <h2><i class="fas fa-record-vinyl text-danger"></i> Grabar Nueva Ruta</h2>
+             <div class="mb-3">
+                 <label class="form-label">Modo:</label>
+                 <div>
+                     <input type="radio" class="btn-check" name="recordMode" id="modeConducir" value="Conducir" autocomplete="off" checked>
+                     <label class="btn btn-outline-primary" for="modeConducir"><i class="fas fa-car"></i> Conducir</label>
+
+                     <input type="radio" class="btn-check" name="recordMode" id="modeCaminar" value="Caminar" autocomplete="off">
+                     <label class="btn btn-outline-success" for="modeCaminar"><i class="fas fa-walking"></i> Caminar/Correr</label>
+                 </div>
+             </div>
+            <div class="text-center mb-3">
+                <span id="recordStatus" class="status-indicator">Esperando para iniciar...</span> <br>
+                <span id="pointsCaptured" class="badge bg-secondary mt-1">Puntos capturados: 0</span>
+            </div>
+            <div class="d-grid gap-2 col-8 mx-auto">
+                <button id="btnStartRecording" class="btn btn-danger"><i class="fas fa-play"></i> Iniciar Grabación</button>
+                <button id="btnStopRecording" class="btn btn-warning d-none"><i class="fas fa-stop"></i> Detener Grabación</button>
+            </div>
+             <div id="saveRouteSection" class="mt-4 d-none">
+                 <div class="mb-3">
+                     <label for="routeNameInput" class="form-label">Nombre de la Ruta:</label>
+                     <input type="text" class="form-control" id="routeNameInput" placeholder="Ej: Camino al trabajo - Coche">
+                 </div>
+                 <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                     <button id="btnSaveRoute" class="btn btn-success"><i class="fas fa-save"></i> Guardar Ruta</button>
+                     <button id="btnDiscardRoute" class="btn btn-secondary"><i class="fas fa-times"></i> Descartar</button>
+                 </div>
+             </div>
+            <button id="btnRecordBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver al Menú</button>
+        </div>
+
+        <!-- Pantalla de Lista de Rutas -->
+        <div id="listScreen" class="screen">
+            <h2><i class="fas fa-list-ul text-info"></i> Seleccionar Ruta de Referencia</h2>
+            <div id="routeList" class="list-group mt-3">
+                <p id="noRoutesMessage" class="text-center text-muted">Aún no has guardado ninguna ruta.</p>
+                </div>
+            <button id="btnListBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver al Menú</button>
+        </div>
+
+        <!-- Pantalla de Comparación -->
+        <div id="compareScreen" class="screen">
+            <h2><i class="fas fa-tachometer-alt text-warning"></i> Comparación en Vivo</h2>
+            <div class="card text-center mb-3">
+                <div class="card-header">
+                    Ruta de Referencia
+                </div>
+                <div class="card-body">
+                    <h5 id="compareRouteName" class="card-title">--</h5>
+                    <p id="compareRouteMode" class="card-text text-muted">Modo: --</p>
+                </div>
+            </div>
+
+            <div id="timeDifferenceDisplay" class="zero">--:--</div>
+
+            <div class="row text-center mb-3">
+                <div class="col">
+                    <strong>Tu Tiempo:</strong> <span id="currentTimeDisplay">00:00</span>
+                </div>
+                <div class="col">
+                    <strong>Tiempo Ref.:</strong> <span id="referenceTimeDisplay">00:00</span>
+                </div>
+            </div>
+             <div class="text-center mb-3">
+                <span id="compareStatus" class="status-indicator">Listo para comparar.</span>
+            </div>
+
+            <div class="d-grid gap-2 col-8 mx-auto">
+                <button id="btnStartComparison" class="btn btn-success"><i class="fas fa-play-circle"></i> Iniciar Comparación</button>
+                <button id="btnStopComparison" class="btn btn-danger d-none"><i class="fas fa-stop-circle"></i> Detener Comparación</button>
+            </div>
+
+            <button id="btnCompareBack" class="btn btn-outline-secondary mt-4 w-100"><i class="fas fa-arrow-left"></i> Volver a la Lista</button>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <!-- JavaScript -->
+    <script>
+        // --- Constantes y Variables Globales ---
+        const STORAGE_KEY = 'miRitmoGPS_routes';
+        const GEOLOCATION_OPTIONS = {
+            enableHighAccuracy: true,
+            // timeout: 10000, // Descomentar si se necesita timeout
+            maximumAge: 0 // No usar caché de posición
+        };
+
+        let currentScreen = 'homeScreen';
+        let isRecording = false;
+        let isComparing = false;
+        let watchId = null;
+        let startTime = null;
+        let currentRouteData = { mode: null, track: [] }; // Para grabación
+        let currentComparisonData = { track: [] }; // Para comparación en vivo
+        let referenceRouteData = null; // Ruta seleccionada para comparar
+        let savedRoutes = []; // Array de rutas guardadas
+
+        // --- Referencias a Elementos del DOM ---
+        const screens = {
+            home: document.getElementById('homeScreen'),
+            record: document.getElementById('recordScreen'),
+            list: document.getElementById('listScreen'),
+            compare: document.getElementById('compareScreen')
+        };
+        const statusMessage = document.getElementById('statusMessage');
+        const gpsStatusMessage = document.getElementById('gpsStatusMessage');
+
+        // Botones Home
+        const btnGoToRecord = document.getElementById('btnGoToRecord');
+        const btnGoToList = document.getElementById('btnGoToList');
+
+        // Elementos Record
+        const recordStatus = document.getElementById('recordStatus');
+        const pointsCaptured = document.getElementById('pointsCaptured');
+        const btnStartRecording = document.getElementById('btnStartRecording');
+        const btnStopRecording = document.getElementById('btnStopRecording');
+        const saveRouteSection = document.getElementById('saveRouteSection');
+        const routeNameInput = document.getElementById('routeNameInput');
+        const btnSaveRoute = document.getElementById('btnSaveRoute');
+        const btnDiscardRoute = document.getElementById('btnDiscardRoute');
+        const btnRecordBack = document.getElementById('btnRecordBack');
+        const recordModeRadios = document.querySelectorAll('input[name="recordMode"]');
+
+        // Elementos List
+        const routeListContainer = document.getElementById('routeList');
+        const noRoutesMessage = document.getElementById('noRoutesMessage');
+        const btnListBack = document.getElementById('btnListBack');
+
+        // Elementos Compare
+        const compareRouteName = document.getElementById('compareRouteName');
+        const compareRouteMode = document.getElementById('compareRouteMode');
+        const timeDifferenceDisplay = document.getElementById('timeDifferenceDisplay');
+        const currentTimeDisplay = document.getElementById('currentTimeDisplay');
+        const referenceTimeDisplay = document.getElementById('referenceTimeDisplay');
+        const compareStatus = document.getElementById('compareStatus');
+        const btnStartComparison = document.getElementById('btnStartComparison');
+        const btnStopComparison = document.getElementById('btnStopComparison');
+        const btnCompareBack = document.getElementById('btnCompareBack');
+
+
+        // --- Funciones de Utilidad ---
+
+        /** Muestra un mensaje de estado/error */
+        function showStatus(message, type = 'warning') {
+            statusMessage.textContent = message;
+            statusMessage.className = `alert alert-${type}`;
+            statusMessage.classList.remove('d-none');
+            // Ocultar después de 5 segundos
+            setTimeout(() => {
+                statusMessage.classList.add('d-none');
+            }, 5000);
+        }
+
+        /** Oculta el mensaje de estado */
+        function hideStatus() {
+            statusMessage.classList.add('d-none');
+        }
+
+         /** Actualiza el estado del GPS */
+        function updateGpsStatus(message, isActive = false) {
+            gpsStatusMessage.textContent = message;
+            gpsStatusMessage.className = `gps-status text-center mb-3 ${isActive ? 'text-primary fw-bold' : 'text-muted'}`;
+        }
+
+
+        /** Cambia la pantalla visible */
+        function showScreen(screenId) {
+            currentScreen = screenId;
+            Object.values(screens).forEach(screen => screen.classList.remove('active'));
+            screens[screenId.replace('Screen', '')].classList.add('active');
+            hideStatus(); // Ocultar mensajes al cambiar de pantalla
+            updateGpsStatus(''); // Limpiar estado GPS al cambiar pantalla
+            // Resetear estados si volvemos a home
+            if (screenId === 'homeScreen') {
+                 stopTracking(); // Asegurarse que el GPS está apagado
+                 resetRecordScreen();
+                 resetCompareScreen();
+            }
+            if (screenId === 'listScreen') {
+                 displayRoutes(); // Actualizar lista al mostrarla
+            }
+        }
+
+        /** Calcula la distancia entre dos puntos GPS usando la fórmula de Haversine */
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Radio de la Tierra en metros
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c; // Distancia en metros
+        }
+
+        /** Formatea milisegundos a MM:SS */
+        function formatTime(ms) {
+            if (ms === null || isNaN(ms)) return '--:--';
+            const totalSeconds = Math.round(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+         /** Formatea la diferencia de tiempo en +/-MM:SS */
+        function formatTimeDifference(ms) {
+             if (ms === null || isNaN(ms)) return '--:--';
+             const totalSeconds = Math.round(ms / 1000);
+             const sign = totalSeconds >= 0 ? '+' : '-';
+             const absSeconds = Math.abs(totalSeconds);
+             const minutes = Math.floor(absSeconds / 60);
+             const seconds = absSeconds % 60;
+
+             let className = 'zero';
+             if (totalSeconds > 0) className = 'positive';
+             if (totalSeconds < 0) className = 'negative';
+
+             timeDifferenceDisplay.className = className; // Aplicar clase para color
+
+             return `${sign}${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+         }
+
+        // --- Lógica de Geolocalización ---
+
+        function handlePositionUpdate(position) {
+            const { latitude, longitude } = position.coords;
+            const timestamp = Date.now();
+            const elapsedTime = timestamp - startTime;
+
+            updateGpsStatus(`GPS Activo: Lat ${latitude.toFixed(4)}, Lon ${longitude.toFixed(4)}`, true);
+
+
+            if (isRecording) {
+                currentRouteData.track.push({ lat: latitude, lon: longitude, timestamp: elapsedTime });
+                pointsCaptured.textContent = `Puntos capturados: ${currentRouteData.track.length}`;
+                recordStatus.textContent = `Grabando... (${formatTime(elapsedTime)})`;
+            } else if (isComparing && referenceRouteData) {
+                currentComparisonData.track.push({ lat: latitude, lon: longitude, timestamp: elapsedTime });
+
+                // Encontrar el punto más cercano en la ruta de referencia
+                let minDistance = Infinity;
+                let nearestRefPoint = null;
+                for (const point of referenceRouteData.track) {
+                    const distance = calculateDistance(latitude, longitude, point.lat, point.lon);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestRefPoint = point;
+                    }
+                }
+
+                let referenceTime = null;
+                let timeDifference = null;
+                if (nearestRefPoint) {
+                    referenceTime = nearestRefPoint.timestamp;
+                    timeDifference = elapsedTime - referenceTime;
+                }
+
+                // Actualizar UI de comparación
+                currentTimeDisplay.textContent = formatTime(elapsedTime);
+                referenceTimeDisplay.textContent = formatTime(referenceTime);
+                timeDifferenceDisplay.textContent = formatTimeDifference(timeDifference);
+                compareStatus.textContent = `Comparando... (Dist. al punto ref: ${minDistance.toFixed(0)}m)`;
+            }
+        }
+
+        function handlePositionError(error) {
+            let message = 'Error de Geolocalización: ';
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    message += "Permiso denegado.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message += "Información de ubicación no disponible.";
+                    break;
+                case error.TIMEOUT:
+                    message += "Timeout al obtener ubicación.";
+                    break;
+                default:
+                    message += "Error desconocido.";
+                    break;
+            }
+            showStatus(message, 'danger');
+            updateGpsStatus('Error de GPS', false);
+            stopTracking(); // Detener si hay error persistente
+        }
+
+        function startTracking(onSuccess) {
+            if (!navigator.geolocation) {
+                showStatus('Geolocalización no soportada por este navegador.', 'danger');
+                return false;
+            }
+
+            if (watchId) { // Si ya hay un watcher activo, detenerlo primero
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+
+             updateGpsStatus('Iniciando GPS...', false);
+
+            // Iniciar watchPosition
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    handlePositionUpdate(position);
+                    if (onSuccess) onSuccess(); // Callback de éxito la primera vez
+                },
+                handlePositionError,
+                GEOLOCATION_OPTIONS
+            );
+            console.log("GPS Watcher iniciado con ID:", watchId);
+            return true;
+        }
+
+        function stopTracking() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                console.log("GPS Watcher detenido con ID:", watchId);
+                watchId = null;
+            }
+            isRecording = false;
+            isComparing = false;
+            startTime = null;
+             updateGpsStatus('GPS Inactivo', false);
+             // Asegurarse que los indicadores de estado reflejen la detención
+             if (recordStatus) recordStatus.classList.remove('active');
+             if (compareStatus) compareStatus.classList.remove('active');
+
+        }
+
+        // --- Lógica de Grabación ---
+
+        function resetRecordScreen() {
+            currentRouteData = { mode: null, track: [] };
+            isRecording = false;
+            startTime = null;
+            recordStatus.textContent = 'Esperando para iniciar...';
+            recordStatus.classList.remove('active');
+            pointsCaptured.textContent = 'Puntos capturados: 0';
+            btnStartRecording.classList.remove('d-none');
+            btnStopRecording.classList.add('d-none');
+            saveRouteSection.classList.add('d-none');
+            routeNameInput.value = '';
+            recordModeRadios[0].checked = true; // Default a 'Conducir'
+        }
+
+        function startRecording() {
+            if (isRecording) return;
+            resetRecordScreen(); // Limpiar datos previos
+
+            const selectedMode = document.querySelector('input[name="recordMode"]:checked').value;
+            currentRouteData.mode = selectedMode;
+
+            const trackingStarted = startTracking(() => {
+                // Este callback se ejecuta la primera vez que se obtiene una posición
+                isRecording = true;
+                startTime = Date.now(); // Iniciar tiempo cuando se obtiene la primera posición
+                recordStatus.textContent = 'Grabando... (00:00)';
+                recordStatus.classList.add('active');
+                btnStartRecording.classList.add('d-none');
+                btnStopRecording.classList.remove('d-none');
+                saveRouteSection.classList.add('d-none');
+                console.log(`Grabación iniciada en modo: ${selectedMode}`);
+            });
+
+             if (!trackingStarted) {
+                  showStatus("No se pudo iniciar el seguimiento GPS.", "danger");
+             } else {
+                  recordStatus.textContent = 'Iniciando GPS para grabar...';
+                  recordStatus.classList.add('active');
+             }
+        }
+
+        function stopRecording() {
+            if (!isRecording) return;
+            stopTracking();
+            recordStatus.textContent = `Grabación detenida. Puntos: ${currentRouteData.track.length}. Duración: ${formatTime(Date.now() - startTime)}`;
+             recordStatus.classList.remove('active');
+            btnStartRecording.classList.remove('d-none');
+            btnStopRecording.classList.add('d-none');
+            if (currentRouteData.track.length > 1) { // Necesita al menos 2 puntos para ser una ruta
+                saveRouteSection.classList.remove('d-none');
+            } else {
+                showStatus("Ruta demasiado corta para guardar.", "warning");
+                resetRecordScreen(); // Si es muy corta, resetea todo
+            }
+        }
+
+        function saveRoute() {
+            const name = routeNameInput.value.trim();
+            if (!name) {
+                showStatus("Por favor, introduce un nombre para la ruta.", "warning");
+                return;
+            }
+            if (currentRouteData.track.length < 2) {
+                 showStatus("La ruta no tiene suficientes puntos para ser guardada.", "warning");
+                 return;
+            }
+
+            const newRoute = {
+                id: Date.now().toString(), // ID único simple
+                name: name,
+                mode: currentRouteData.mode,
+                track: currentRouteData.track,
+                duration: currentRouteData.track.length > 0 ? currentRouteData.track[currentRouteData.track.length - 1].timestamp : 0
+            };
+
+            savedRoutes.push(newRoute);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedRoutes));
+            showStatus(`Ruta "${name}" guardada con éxito.`, 'success');
+            resetRecordScreen();
+            showScreen('listScreen'); // Ir a la lista después de guardar
+        }
+
+        function discardRoute() {
+             resetRecordScreen();
+             showStatus("Grabación descartada.", "info");
+        }
+
+
+        // --- Lógica de Lista/Selección de Rutas ---
+
+        function loadRoutes() {
+            const routesJSON = localStorage.getItem(STORAGE_KEY);
+            savedRoutes = routesJSON ? JSON.parse(routesJSON) : [];
+        }
+
+        function displayRoutes() {
+            loadRoutes(); // Cargar siempre las últimas rutas
+            routeListContainer.innerHTML = ''; // Limpiar lista actual
+            if (savedRoutes.length === 0) {
+                noRoutesMessage.classList.remove('d-none');
+            } else {
+                noRoutesMessage.classList.add('d-none');
+                savedRoutes.forEach((route, index) => {
+                    const listItem = document.createElement('button');
+                    listItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                    listItem.setAttribute('data-route-index', index);
+
+                    const iconClass = route.mode === 'Conducir' ? 'fa-car' : 'fa-walking';
+                    const durationFormatted = formatTime(route.duration);
+
+                    listItem.innerHTML = `
+                        <span><i class="fas ${iconClass} me-2"></i> ${route.name}</span>
+                        <span class="badge bg-primary rounded-pill">${durationFormatted}</span>
+                    `;
+                    listItem.addEventListener('click', () => selectRouteForComparison(index));
+                    routeListContainer.appendChild(listItem);
+                });
+            }
+        }
+
+        function selectRouteForComparison(index) {
+            if (index >= 0 && index < savedRoutes.length) {
+                referenceRouteData = savedRoutes[index];
+                console.log("Ruta seleccionada para comparación:", referenceRouteData.name);
+                prepareCompareScreen();
+                showScreen('compareScreen');
+            } else {
+                showStatus("Error al seleccionar la ruta.", "danger");
+            }
+        }
+
+
+        // --- Lógica de Comparación ---
+
+         function resetCompareScreen() {
+            referenceRouteData = null;
+            currentComparisonData = { track: [] };
+            isComparing = false;
+            startTime = null;
+            compareRouteName.textContent = '--';
+            compareRouteMode.textContent = 'Modo: --';
+            timeDifferenceDisplay.textContent = '--:--';
+            timeDifferenceDisplay.className = 'zero';
+            currentTimeDisplay.textContent = '00:00';
+            referenceTimeDisplay.textContent = '00:00';
+            compareStatus.textContent = 'Listo para comparar.';
+             compareStatus.classList.remove('active');
+            btnStartComparison.classList.remove('d-none');
+            btnStopComparison.classList.add('d-none');
+         }
+
+        function prepareCompareScreen() {
+             resetCompareScreen(); // Asegurarse de limpiar antes de preparar
+            if (!referenceRouteData) {
+                 showStatus("No hay ruta de referencia seleccionada.", "danger");
+                 showScreen('listScreen'); // Volver a la lista si no hay datos
+                 return;
+            }
+            compareRouteName.textContent = referenceRouteData.name;
+            compareRouteMode.textContent = `Modo: ${referenceRouteData.mode}`;
+            referenceTimeDisplay.textContent = formatTime(0); // Tiempo ref inicial
+            currentTimeDisplay.textContent = formatTime(0); // Tiempo actual inicial
+            timeDifferenceDisplay.textContent = formatTimeDifference(0); // Diferencia inicial
+            timeDifferenceDisplay.className = 'zero';
+             compareStatus.textContent = 'Pulsa "Iniciar Comparación"';
+        }
+
+        function startComparison() {
+            if (isComparing || !referenceRouteData) return;
+            currentComparisonData = { track: [] }; // Limpiar datos previos de comparación
+
+            const trackingStarted = startTracking(() => {
+                 // Callback de éxito la primera vez que se obtiene posición
+                 isComparing = true;
+                 startTime = Date.now(); // Iniciar tiempo de comparación
+                 compareStatus.textContent = 'Comparando...';
+                 compareStatus.classList.add('active');
+                 btnStartComparison.classList.add('d-none');
+                 btnStopComparison.classList.remove('d-none');
+                 console.log("Comparación iniciada contra:", referenceRouteData.name);
+             });
+
+             if (!trackingStarted) {
+                  showStatus("No se pudo iniciar el seguimiento GPS para comparar.", "danger");
+             } else {
+                  compareStatus.textContent = 'Iniciando GPS para comparar...';
+                  compareStatus.classList.add('active');
+             }
+        }
+
+        function stopComparison() {
+            if (!isComparing) return;
+            const finalElapsedTime = Date.now() - startTime;
+            stopTracking();
+             compareStatus.textContent = `Comparación detenida. Duración: ${formatTime(finalElapsedTime)}`;
+             compareStatus.classList.remove('active');
+            btnStartComparison.classList.remove('d-none');
+            btnStopComparison.classList.add('d-none');
+            // Podrías mostrar un resumen aquí si quisieras
+        }
+
+
+        // --- Inicialización y Event Listeners ---
+
+        function initApp() {
+            console.log("Iniciando Mi Ritmo GPS...");
+            loadRoutes(); // Cargar rutas al iniciar
+
+            // Navegación
+            btnGoToRecord.addEventListener('click', () => showScreen('recordScreen'));
+            btnGoToList.addEventListener('click', () => showScreen('listScreen'));
+            btnRecordBack.addEventListener('click', () => {
+                if (isRecording) stopRecording(); // Detener si estaba grabando
+                resetRecordScreen();
+                showScreen('homeScreen');
+            });
+            btnListBack.addEventListener('click', () => showScreen('homeScreen'));
+            btnCompareBack.addEventListener('click', () => {
+                 if (isComparing) stopComparison(); // Detener si estaba comparando
+                 resetCompareScreen();
+                 showScreen('listScreen'); // Volver a la lista, no al home
+            });
+
+
+            // Acciones de Grabación
+            btnStartRecording.addEventListener('click', startRecording);
+            btnStopRecording.addEventListener('click', stopRecording);
+            btnSaveRoute.addEventListener('click', saveRoute);
+            btnDiscardRoute.addEventListener('click', discardRoute);
+
+
+            // Acciones de Comparación
+            btnStartComparison.addEventListener('click', startComparison);
+            btnStopComparison.addEventListener('click', stopComparison);
+
+            // Mostrar pantalla inicial
+            showScreen('homeScreen');
+
+             // Verificar soporte de Geolocalización al inicio
+             if (!navigator.geolocation) {
+                 showStatus('Geolocalización no soportada por este navegador.', 'danger');
+                 // Deshabilitar botones que dependen de GPS
+                 btnGoToRecord.disabled = true;
+                 btnGoToList.disabled = true; // O permitir ver lista pero no comparar
+             } else {
+                  updateGpsStatus('GPS Soportado. Permiso será solicitado al iniciar acción.');
+             }
+        }
+
+        // Iniciar la aplicación cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', initApp);
+
+    </script>
+</body>
+</html>
