@@ -3,6 +3,7 @@
 ### **Herramienta Markdown a HTML con índice**
 
   [`Markdown_a_Indices.html`](https://soyunomas.github.io/pequenos-proyectos/Markdown_a_Indices.html)
+  [`Presentacionos.html`](https://soyunomas.github.io/pequenos-proyectos/Presentaciones.html)
 
 ### **Carpeta: REDES**
 
@@ -30,6 +31,7 @@
 
 1.  **Explicación Visual JOIN:**
     [`Explicacion_Visual_JOIN.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Funcionamiento_JOIN-Visual.html)
+    [`SQL-inyectado-payload.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/SQL-inyectado-payload.html)
  
 ### **Carpeta: OTROS**
 
