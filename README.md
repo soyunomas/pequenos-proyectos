@@ -31,7 +31,7 @@
 
 1.  **Explicación Visual JOIN:**
     [`Explicacion_Visual_JOIN.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Funcionamiento_JOIN-Visual.html)
-    [`SQL-inyectado-payload.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/SQL-inyectado-payload.html)
+    [`SQL-Inyectado-Payloads.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/SQL-Inyectado-Payloads.html)
  
 ### **Carpeta: OTROS**
 
