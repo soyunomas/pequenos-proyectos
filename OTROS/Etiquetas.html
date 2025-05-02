@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diseñador de Etiquetas Pro</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- JsBarcode -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <style>
+        /* Estilos Generales y de Layout */
+        body { background-color: #f8f9fa; }
+        .label-design-area { background-color: #fff; cursor: default; position: relative; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.1); margin-left: auto; margin-right: auto; border: 1px solid #dee2e6; }
+        .sheet-preview-container { width: 100%; overflow: auto; }
+        .sheet-preview { background-color: white; aspect-ratio: 210 / 297; width: 100%; max-width: 420px; height: auto; position: relative; border: 1px solid #ccc; overflow: hidden; box-sizing: border-box; margin: 0 auto; box-shadow: 0 0 8px rgba(0,0,0,0.15); }
+        .sheet-preview .placeholder-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 20px; font-size: 0.9rem; color: #6c757d; }
+        .preview-label { position: absolute; border: 1px solid #eee; background-color: rgba(255, 255, 255, 0.9); overflow: hidden; box-sizing: border-box; font-size: 4px; line-height: 1.1; white-space: pre-wrap; word-break: break-all; }
+        .preview-label .design-element { border: none; padding: 0; background-color: transparent; cursor: default; }
+
+        /* Estilos Elementos de Diseño (Comunes) */
+        .design-element {
+            position: absolute;
+            cursor: grab;
+            padding: 0;
+            border: 1px dashed transparent;
+            user-select: none;
+            line-height: 1;
+            min-width: 10px;
+            min-height: 10px;
+            background-color: rgba(255, 255, 255, 0.5);
+            box-sizing: content-box;
+        }
+        .design-element:hover { border-color: #0d6efd; }
+        .design-element.selected { border: 1px dashed #0d6efd; background-color: rgba(13, 110, 253, 0.1); }
+        .design-element.selected.dragging { cursor: grabbing; }
+        .design-element.editing { cursor: text; border: 1px solid #0d6efd; background-color: white; user-select: text; outline: none; z-index: 25 !important; padding: 2px 4px; }
+
+        /* Estilos Específicos por Tipo */
+         .design-element.type-text,
+         .design-element.type-counter {
+            white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.2; padding: 2px 4px;
+         }
+         .design-element.type-counter::before { font-family: "Font Awesome 6 Free"; font-weight: 900; content: "\f162"; font-size: 0.7em; margin-right: 3px; color: #6c757d; opacity: 0.8; }
+         .design-element.type-barcode { display: flex; justify-content: center; align-items: center; }
+         .design-element.type-barcode svg { display: block; max-width: 100%; height: auto; }
+         .design-element.type-image { overflow: visible; /* Permitir que handle se vea fuera */ }
+         .design-element.type-image img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; /* Importante para que mousedown llegue al div padre o al handle */ }
+
+         /* Estilos Resize Handle (Nuevo) */
+         .resize-handle {
+             position: absolute;
+             bottom: -5px; /* Posicionar ligeramente fuera */
+             right: -5px;
+             width: 10px;
+             height: 10px;
+             background-color: #0d6efd;
+             border: 1px solid #fff;
+             border-radius: 50%;
+             cursor: nwse-resize; /* Cursor de redimensionamiento diagonal */
+             display: none; /* Oculto por defecto */
+             z-index: 30; /* Encima del elemento */
+         }
+         .design-element.type-image.selected .resize-handle {
+             display: block; /* Mostrar solo en imágenes seleccionadas */
+         }
+
+
+         /* Placeholders en preview */
+        .preview-barcode-placeholder { width: 90%; height: 70%; margin: auto; background: linear-gradient(to right, black 2px, white 2px, white 4px, black 4px, black 5px, white 5px, white 8px, black 8px, black 10px, white 10px); background-size: 12px 100%; background-repeat: repeat-x; border: 1px solid #eee; position: absolute; top: 5%; left: 5%; }
+        .preview-image-placeholder { width: 80%; height: 80%; margin: auto; background: #e9ecef; border: 1px solid #ced4da; position: absolute; top: 10%; left: 10%; display: flex; align-items: center; justify-content: center; color: #6c757d; font-size: 1.5em; }
+        .preview-image-placeholder::before { font-family: "Font Awesome 6 Free"; font-weight: 400; content: "\f03e"; }
+
+
+        /* Controles de Formato */
+        .format-controls { margin-bottom: 1rem; padding: 0.75rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; }
+        .format-controls h4 { font-size: 0.9rem; margin-bottom: 0.75rem; font-weight: 600; }
+        .format-controls h5 { font-size: 0.85rem; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: 600; }
+
+        /* Estilos Impresión */
+        @media print {
+            body > *:not(#printOutput) { display: none !important; }
+            #printOutput { display: block !important; margin: 0; padding: 0; }
+            .print-page { width: 210mm; height: 297mm; margin: 0 auto; padding: 0; overflow: hidden; position: relative; page-break-after: always; box-sizing: border-box; border: none; }
+            .print-label { position: absolute; border: none; overflow: hidden; box-sizing: border-box; page-break-inside: avoid; }
+            .design-element-print { position: absolute; margin: 0; padding: 0; line-height: 1; box-sizing: border-box; }
+            .design-element-print.type-text,
+            .design-element-print.type-counter { white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.2; }
+            .design-element-print.type-counter::before { display: none; }
+            .design-element-print.type-barcode svg { display: block; width: 100%; height: 100%; }
+            .design-element-print.type-image img { display: block; width: 100%; height: 100%; object-fit: contain; }
+            @page { size: A4; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <header class="bg-primary text-white p-3 mb-4">
+        <div class="container">
+            <h1><i class="fas fa-tags me-2"></i>Diseñador de Etiquetas Pro</h1>
+        </div>
+    </header>
+
+    <main class="container mb-5">
+        <div class="row g-4">
+
+            <!-- Columna de Configuración -->
+            <div class="col-lg-4">
+                 <!-- Sección 1: Configuración de Etiqueta -->
+                <h2>1. Configuración de Etiqueta</h2>
+                <div class="mb-3">
+                    <label class="form-label">Método:</label>
+                    <div class="form-check"> <input class="form-check-input" type="radio" name="definitionMethod" id="methodTemplate" value="template" checked> <label class="form-check-label" for="methodTemplate">Plantilla Estándar</label> </div>
+                    <div class="form-check"> <input class="form-check-input" type="radio" name="definitionMethod" id="methodCustom" value="custom"> <label class="form-check-label" for="methodCustom">Tamaño Personalizado</label> </div>
+                </div>
+                <div id="templateOptions" class="mb-3"> <label for="templateSelect" class="form-label">Plantilla:</label> <select class="form-select" id="templateSelect"><option value="">Seleccione...</option></select> </div>
+                <div id="customOptions" class="mb-3 d-none">
+                    <label class="form-label">Dimensiones (mm):</label>
+                    <div class="input-group mb-2"><span class="input-group-text" style="width: 60px;">Ancho</span><input type="number" class="form-control" id="customWidth" placeholder="ej. 50" min="5"></div>
+                    <div class="input-group"><span class="input-group-text" style="width: 60px;">Alto</span><input type="number" class="form-control" id="customHeight" placeholder="ej. 30" min="5"></div>
+                </div>
+                <hr>
+
+                <!-- Sección 2: Diseño de Etiqueta -->
+                <h2>2. Diseño de Etiqueta Individual</h2>
+                 <input type="file" id="imageInput" accept="image/*" class="d-none">
+                 <div class="d-flex justify-content-between align-items-center mb-2">
+                     <h3 class="h5 mb-0">Añadir Elemento</h3>
+                     <div class="btn-group btn-group-sm">
+                        <button id="addTextButton" class="btn btn-success" title="Añadir Texto"><i class="fas fa-font"></i></button>
+                        <button id="addCounterButton" class="btn btn-info" title="Añadir Contador"><i class="fas fa-sort-numeric-up"></i></button>
+                        <button id="addBarcodeButton" class="btn btn-secondary" title="Añadir Código Barras 128"><i class="fas fa-barcode"></i></button>
+                        <button id="addImageButton" class="btn btn-warning" title="Añadir Imagen"><i class="fas fa-image"></i></button>
+                     </div>
+                </div>
+
+                 <!-- Controles de Formato (Contenedor general) -->
+                <div id="formattingControlsContainer">
+
+                    <!-- Controles TEXTO -->
+                    <div id="textFormattingControls" class="format-controls d-none">
+                        <h4 class="d-flex justify-content-between align-items-center"><span>Formato de Texto</span><button class="btn btn-sm btn-danger delete-button" title="Eliminar elemento"><i class="fas fa-trash"></i></button></h4>
+                        <div class="btn-group btn-group-sm mb-2"><button type="button" class="btn btn-outline-secondary format-button" data-style="fontWeight" data-value="bold"><i class="fas fa-bold"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="fontStyle" data-value="italic"><i class="fas fa-italic"></i></button></div>
+                        <div class="input-group input-group-sm mb-2"><label class="input-group-text" for="fontSizeSelectText">Tamaño</label><select id="fontSizeSelectText" class="form-select format-select" data-style="fontSize"><option value="8">8pt</option><option value="10">10pt</option><option value="12">12pt</option><option value="14">14pt</option><option value="16">16pt</option><option value="18">18pt</option><option value="24">24pt</option><option value="36">36pt</option></select></div>
+                        <div class="btn-group btn-group-sm"><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="left"><i class="fas fa-align-left"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="center"><i class="fas fa-align-center"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="right"><i class="fas fa-align-right"></i></button></div>
+                    </div>
+
+                    <!-- Controles CONTADOR -->
+                     <div id="counterFormattingControls" class="format-controls d-none">
+                        <h4 class="d-flex justify-content-between align-items-center"><span>Formato de Contador</span><button class="btn btn-sm btn-danger delete-button" title="Eliminar elemento"><i class="fas fa-trash"></i></button></h4>
+                        <div class="input-group input-group-sm mb-2"><span class="input-group-text">Valor Inicial</span><input type="number" id="counterStartValue" class="form-control counter-config" data-config="startValue" min="0" step="1" value="1"></div>
+                        <div class="input-group input-group-sm mb-3"><span class="input-group-text">Nº Cifras</span><input type="number" id="counterDigits" class="form-control counter-config" data-config="digits" min="1" max="10" step="1" value="1"></div>
+                        <h5>Estilo Visual</h5>
+                        <div class="btn-group btn-group-sm mb-2"><button type="button" class="btn btn-outline-secondary format-button" data-style="fontWeight" data-value="bold"><i class="fas fa-bold"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="fontStyle" data-value="italic"><i class="fas fa-italic"></i></button></div>
+                        <div class="input-group input-group-sm mb-2"><label class="input-group-text" for="fontSizeSelectCounter">Tamaño</label><select id="fontSizeSelectCounter" class="form-select format-select" data-style="fontSize"><option value="8">8pt</option><option value="10">10pt</option><option value="12">12pt</option><option value="14">14pt</option><option value="16">16pt</option><option value="18">18pt</option><option value="24">24pt</option><option value="36">36pt</option></select></div>
+                        <div class="btn-group btn-group-sm"><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="left"><i class="fas fa-align-left"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="center"><i class="fas fa-align-center"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="right"><i class="fas fa-align-right"></i></button></div>
+                    </div>
+
+                     <!-- Controles CODIGO BARRAS -->
+                     <div id="barcodeFormattingControls" class="format-controls d-none">
+                        <h4 class="d-flex justify-content-between align-items-center"><span>Código de Barras (Code 128)</span><button class="btn btn-sm btn-danger delete-button" title="Eliminar elemento"><i class="fas fa-trash"></i></button></h4>
+                         <h5>Contenido (Prefijo + Contador + Sufijo)</h5>
+                         <div class="input-group input-group-sm mb-2"><span class="input-group-text">Prefijo</span><input type="text" id="barcodePrefix" class="form-control barcode-config" data-config="prefix" placeholder="(Opcional)"></div>
+                         <div class="input-group input-group-sm mb-2"><span class="input-group-text">Contador Inicio</span><input type="number" id="barcodeCounterStart" class="form-control barcode-config" data-config="counterStartValue" min="0" step="1" value="1"></div>
+                         <div class="input-group input-group-sm mb-2"><span class="input-group-text">Contador Cifras</span><input type="number" id="barcodeCounterDigits" class="form-control barcode-config" data-config="counterDigits" min="1" max="10" step="1" value="1"></div>
+                         <div class="input-group input-group-sm mb-3"><span class="input-group-text">Sufijo</span><input type="text" id="barcodeSuffix" class="form-control barcode-config" data-config="suffix" placeholder="(Opcional)"></div>
+                         <h5>Estilo Visual</h5>
+                         <div class="form-check mb-3"> <input class="form-check-input barcode-config" type="checkbox" id="barcodeDisplayValue" data-config="displayValue" checked> <label class="form-check-label" for="barcodeDisplayValue"> Mostrar texto debajo del código </label> </div>
+                         <div id="barcodeTextStyleControls">
+                             <div class="btn-group btn-group-sm mb-2"><button type="button" class="btn btn-outline-secondary format-button" data-style="fontWeight" data-value="bold"><i class="fas fa-bold"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="fontStyle" data-value="italic"><i class="fas fa-italic"></i></button></div>
+                             <div class="input-group input-group-sm mb-2"><label class="input-group-text" for="fontSizeSelectBarcode">Tamaño Texto</label><select id="fontSizeSelectBarcode" class="form-select format-select" data-style="fontSize"><option value="8">8pt</option><option value="10">10pt</option><option value="12">12pt</option><option value="14">14pt</option></select></div>
+                             <div class="input-group input-group-sm"><span class="input-group-text">Alineación Texto</span><div class="btn-group btn-group-sm"><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="left"><i class="fas fa-align-left"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="center"><i class="fas fa-align-center"></i></button><button type="button" class="btn btn-outline-secondary format-button" data-style="textAlign" data-value="right"><i class="fas fa-align-right"></i></button></div></div>
+                         </div>
+                     </div>
+
+                     <!-- Controles IMAGEN -->
+                     <div id="imageFormattingControls" class="format-controls d-none">
+                        <h4 class="d-flex justify-content-between align-items-center"><span>Formato de Imagen</span><button class="btn btn-sm btn-danger delete-button" title="Eliminar elemento"><i class="fas fa-trash"></i></button></h4>
+                        <p class="small text-muted mb-0">Arrastre el círculo azul para redimensionar (manteniendo proporción). Arrastre la imagen para moverla.</p>
+                     </div>
+
+                </div>
+
+                 <!-- Área de Diseño -->
+                <div id="labelDesignerWrapper" class="mb-3">
+                    <p id="designerPlaceholder" class="text-muted small text-center">Seleccione plantilla o defina tamaño.</p>
+                    <div id="labelDesignArea" class="label-design-area bg-white border-primary position-relative overflow-hidden d-none"></div>
+                </div>
+            </div>
+
+             <!-- Columna Derecha: Vista Previa y Acciones -->
+             <div class="col-lg-8">
+                 <h2>3. Vista Previa Hoja A4</h2>
+                 <div class="sheet-preview-container bg-light p-3 border rounded mb-4">
+                     <div id="sheetPreview" class="sheet-preview shadow-sm mx-auto">
+                          <p class="text-muted placeholder-text">Configure la etiqueta para ver la vista previa.</p>
+                     </div>
+                 </div>
+                 <h2>4. Acciones</h2>
+                 <div class="d-flex gap-2">
+                     <button id="printButton" class="btn btn-primary"><i class="fas fa-print me-2"></i>Generar para Imprimir</button>
+                     <button id="resetButton" class="btn btn-warning"><i class="fas fa-undo me-2"></i>Limpiar Diseño</button>
+                 </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Área oculta para impresión -->
+    <div id="printOutput" class="d-none"></div>
+
+    <!-- JS: Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <!-- JS: Plantillas (sin cambios) -->
+    <script>
+        const A4_WIDTH_MM = 210; const A4_HEIGHT_MM = 297; const predefinedTemplates = [ { id: 'avery-3475', name: 'Avery 3475 (38.1x21.2)', labelWidthMM: 38.1, labelHeightMM: 21.2, cols: 5, rows: 13, marginTopMM: 10.85, marginLeftMM: 4.65, gapXMM: 2.5, gapYMM: 0 }, { id: 'herma-4453', name: 'Herma 4453 (70x37)', labelWidthMM: 70, labelHeightMM: 37, cols: 3, rows: 8, marginTopMM: 11.5, marginLeftMM: 4, gapXMM: 2.5, gapYMM: 0 }, { id: 'generic-shipping-105x48', name: 'Envío Genérica (105x48)', labelWidthMM: 105, labelHeightMM: 48, cols: 2, rows: 6, marginTopMM: 7.5, marginLeftMM: 0, gapXMM: 0, gapYMM: 2 }, { id: 'std-address-63.5x38.1', name: 'Dirección Estándar (63.5x38.1)', labelWidthMM: 63.5, labelHeightMM: 38.1 }, { id: 'small-return-45.7x21.2', name: 'Remite Pequeña (45.7x21.2)', labelWidthMM: 45.7, labelHeightMM: 21.2 }, { id: 'large-address-99.1x38.1', name: 'Dirección Grande (99.1x38.1)', labelWidthMM: 99.1, labelHeightMM: 38.1 }, { id: 'medium-shipping-105x74', name: 'Envío Mediana (105x74)', labelWidthMM: 105, labelHeightMM: 74 }, { id: 'large-shipping-105x148', name: 'Envío Grande (105x148)', labelWidthMM: 105, labelHeightMM: 148 }, { id: 'file-folder-99.1x17', name: 'Carpeta Archivo (99.1x17)', labelWidthMM: 99.1, labelHeightMM: 17 }, { id: 'cd-dvd-117x117', name: 'CD/DVD Cuadrada (117x117)', labelWidthMM: 117, labelHeightMM: 117 }, { id: 'id-card-85x54', name: 'Identificación/Tarjeta (85x54)', labelWidthMM: 85, labelHeightMM: 54 }, { id: 'round-small-25', name: 'Redonda Pequeña Ø25 (25x25)', labelWidthMM: 25, labelHeightMM: 25 }, { id: 'round-medium-40', name: 'Redonda Mediana Ø40 (40x40)', labelWidthMM: 40, labelHeightMM: 40 }, { id: 'round-large-60', name: 'Redonda Grande Ø60 (60x60)', labelWidthMM: 60, labelHeightMM: 60 }, { id: 'small-product-38.1x21.2', name: 'Producto Pequeña (38.1x21.2)', labelWidthMM: 38.1, labelHeightMM: 21.2 }, { id: 'mini-rect-25x10', name: 'Mini Rectangular (25x10)', labelWidthMM: 25, labelHeightMM: 10 }, { id: 'medium-square-40x40', name: 'Cuadrada Mediana (40x40)', labelWidthMM: 40, labelHeightMM: 40 }, { id: 'multipurpose-70x37', name: 'Multiuso Mediana (70x37)', labelWidthMM: 70, labelHeightMM: 37 }, { id: 'full-sheet-a4-210x297', name: 'Hoja Completa A4 (210x297)', labelWidthMM: 210, labelHeightMM: 297, cols: 1, rows: 1, marginTopMM: 0, marginLeftMM: 0, gapXMM: 0, gapYMM: 0 }, { id: 'half-sheet-a5-148x210', name: 'Media Hoja A5 (148x210)', labelWidthMM: 148, labelHeightMM: 210, cols: 1, rows: 2, marginTopMM: 0, marginLeftMM: (210-148)/2, gapXMM: 0, gapYMM: 0 }, { id: 'jar-label-80x50', name: 'Tarro/Frasco (80x50)', labelWidthMM: 80, labelHeightMM: 50 }, { id: 'binder-wide-192x61', name: 'Lomo Archivador Ancho (192x61)', labelWidthMM: 192, labelHeightMM: 61 }, { id: 'binder-narrow-192x38', name: 'Lomo Archivador Estrecho (192x38)', labelWidthMM: 192, labelHeightMM: 38 } ];
+    </script>
+
+    <!-- JS: Lógica Principal (Actualizada) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Referencias DOM ---
+            const definitionMethodRadios = document.querySelectorAll('input[name="definitionMethod"]');
+            const templateOptionsDiv = document.getElementById('templateOptions');
+            const customOptionsDiv = document.getElementById('customOptions');
+            const templateSelect = document.getElementById('templateSelect');
+            const customWidthInput = document.getElementById('customWidth');
+            const customHeightInput = document.getElementById('customHeight');
+            const labelDesignerWrapper = document.getElementById('labelDesignerWrapper');
+            const designerPlaceholder = document.getElementById('designerPlaceholder');
+            const labelDesignArea = document.getElementById('labelDesignArea');
+            const sheetPreview = document.getElementById('sheetPreview');
+            const sheetPreviewContainer = document.querySelector('.sheet-preview-container');
+            const addTextButton = document.getElementById('addTextButton');
+            const addCounterButton = document.getElementById('addCounterButton');
+            const addBarcodeButton = document.getElementById('addBarcodeButton');
+            const addImageButton = document.getElementById('addImageButton');
+            const imageInput = document.getElementById('imageInput');
+            const formattingControlsContainer = document.getElementById('formattingControlsContainer');
+            const textFormattingControls = document.getElementById('textFormattingControls');
+            const counterFormattingControls = document.getElementById('counterFormattingControls');
+            const barcodeFormattingControls = document.getElementById('barcodeFormattingControls');
+            const imageFormattingControls = document.getElementById('imageFormattingControls');
+            const allFormatButtons = formattingControlsContainer.querySelectorAll('.format-button');
+            const allFormatSelects = formattingControlsContainer.querySelectorAll('.format-select');
+            const allCounterConfigs = formattingControlsContainer.querySelectorAll('.counter-config');
+            const allBarcodeConfigs = formattingControlsContainer.querySelectorAll('.barcode-config');
+            const barcodeTextStyleControls = document.getElementById('barcodeTextStyleControls');
+            const allDeleteButtons = formattingControlsContainer.querySelectorAll('.delete-button');
+            const printButton = document.getElementById('printButton');
+            const resetButton = document.getElementById('resetButton');
+            const printOutput = document.getElementById('printOutput');
+
+            // --- Estado App ---
+            let appState = {
+                definitionMethod: 'template', selectedTemplateId: null, customWidthMM: 50, customHeightMM: 30, labelWidthMM: 0, labelHeightMM: 0, layout: null, designElements: [], selectedElementId: null, nextElementId: 1, previewScale: 1,
+                // Estado de redimensionamiento (Nuevo)
+                isResizing: false, resizeElementId: null, resizeStartX: 0, resizeStartY: 0, resizeInitialWidth: 0, resizeInitialHeight: 0, resizeAspectRatio: 1,
+                // Elemento: { id, type, x, y, elementRef?, isSelected?, isEditing?,
+                //   fontSize, fontWeight, fontStyle, textAlign (no image),
+                //   content (si text),
+                //   startValue, digits (si counter),
+                //   prefix, counterStartValue, counterDigits, suffix, displayValue, bcWidth, bcHeight, bcMargin, bcTextMargin, widthPx?, heightPx? (si barcode)
+                //   src (DataURL), widthPx, heightPx, aspectRatio (si image) }
+            };
+
+            // --- Constantes ---
+            const MM_TO_PX_RATIO = 3.78;
+            const DEFAULT_FONT_SIZE = 10;
+            const DEFAULT_COUNTER_START = 1;
+            const DEFAULT_COUNTER_DIGITS = 1;
+            const DEFAULT_BARCODE_PREFIX = "";
+            const DEFAULT_BARCODE_SUFFIX = "";
+            const DEFAULT_BARCODE_DISPLAY_VALUE = true;
+            const DEFAULT_BARCODE_HEIGHT_PX = 30;
+            const DEFAULT_BARCODE_WIDTH_RATIO = 1.5;
+            const DEFAULT_BARCODE_MARGIN = 5;
+            const DEFAULT_BARCODE_TEXT_MARGIN = 2;
+            const DEFAULT_IMAGE_WIDTH_PX = 80;
+            const MIN_IMAGE_DIM_PX = 20; // Tamaño mínimo imagen al redimensionar
+            const MIN_LABEL_DIM_MM = 5;
+            const DEFAULT_CUSTOM_MARGIN_MM = 5;
+            const DEFAULT_CUSTOM_GAP_MM = 1;
+
+            // --- Inicialización ---
+            function initializeApp() { /* ... sin cambios ... */
+                populateTemplateSelect(); setupEventListeners(); updateConfigMethodUI();
+                const firstRealOption = templateSelect.querySelector('option[value]:not([value=""])');
+                 if (appState.definitionMethod === 'template' && firstRealOption) { templateSelect.value = firstRealOption.value; }
+                 else { appState.definitionMethod = 'custom'; document.getElementById('methodCustom').checked = true; updateConfigMethodUI(); customWidthInput.value = appState.customWidthMM; customHeightInput.value = appState.customHeightMM; }
+                 calculatePreviewScale(); handleConfigurationChange();
+             }
+             function populateTemplateSelect() { /* ... sin cambios ... */
+                if (typeof predefinedTemplates !== 'undefined' && predefinedTemplates.length > 0) { predefinedTemplates.sort((a, b) => a.name.localeCompare(b.name)); predefinedTemplates.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; templateSelect.appendChild(o); }); }
+                else { console.error("No se encontraron plantillas predefinidas."); document.getElementById('methodTemplate').disabled = true; templateOptionsDiv.classList.add('d-none'); document.getElementById('methodCustom').checked = true; appState.definitionMethod = 'custom'; }
+             }
+
+            // --- Manejadores de Eventos ---
+            function setupEventListeners() { /* ... sin cambios ... */
+                definitionMethodRadios.forEach(r => r.addEventListener('change', handleDefinitionMethodChange));
+                templateSelect.addEventListener('change', handleConfigurationChange);
+                customWidthInput.addEventListener('input', debounce(handleConfigurationChange, 300));
+                customHeightInput.addEventListener('input', debounce(handleConfigurationChange, 300));
+                addTextButton.addEventListener('click', () => addDesignElement('text'));
+                addCounterButton.addEventListener('click', () => addDesignElement('counter'));
+                addBarcodeButton.addEventListener('click', () => addDesignElement('barcode'));
+                addImageButton.addEventListener('click', handleAddImageClick);
+                imageInput.addEventListener('change', handleImageFileSelected);
+                labelDesignArea.addEventListener('click', handleDesignAreaClick);
+                allFormatButtons.forEach(b => b.addEventListener('click', handleFormatButtonClick));
+                allFormatSelects.forEach(s => s.addEventListener('change', handleFormatSelectChange));
+                allCounterConfigs.forEach(i => i.addEventListener('input', handleCounterConfigChange));
+                allBarcodeConfigs.forEach(i => i.addEventListener('input', handleBarcodeConfigChange));
+                allDeleteButtons.forEach(b => b.addEventListener('click', deleteSelectedElement));
+                printButton.addEventListener('click', generatePrintView);
+                resetButton.addEventListener('click', resetApp);
+                window.addEventListener('resize', debounce(() => { calculatePreviewScale(); renderSheetPreview(); renderLabelDesigner(); }, 250));
+                // Listeners globales para redimensionar (se añaden/quitan dinámicamente)
+                 document.addEventListener('mousemove', handleResizeMove);
+                 document.addEventListener('mouseup', handleResizeEnd);
+            }
+
+             // --- Lógica de UI y Estado ---
+            function handleDefinitionMethodChange(e) { /* ... sin cambios ... */ appState.definitionMethod = e.target.value; updateConfigMethodUI(); handleConfigurationChange(); }
+            function handleDesignAreaClick(e) { if (e.target === labelDesignArea && !appState.isResizing) { selectElement(null); } } // No deseleccionar si estamos redimensionando
+            function handleFormatButtonClick(e) { /* ... sin cambios ... */
+                const button = e.currentTarget; const style = button.dataset.style; let value = button.dataset.value;
+                if (appState.selectedElementId && style) { const elState = findDesignElement(appState.selectedElementId); if (!elState || elState.type === 'image') return; if (style === 'fontWeight' || style === 'fontStyle') { value = elState[style] === value ? 'normal' : value; } updateElementStyle(appState.selectedElementId, style, value); }
+            }
+            function handleFormatSelectChange(e) { /* ... sin cambios ... */
+                 const select = e.currentTarget; const style = select.dataset.style; if (appState.selectedElementId && style) { const elState = findDesignElement(appState.selectedElementId); if (!elState || elState.type === 'image') return; updateElementStyle(appState.selectedElementId, style, select.value); }
+            }
+            function handleCounterConfigChange(e) { /* ... sin cambios ... */
+                 if (!appState.selectedElementId) return; const elState = findDesignElement(appState.selectedElementId); if (elState?.type !== 'counter') return;
+                 const configKey = e.target.dataset.config; const value = e.target.type === 'number' ? (parseInt(e.target.value) || 0) : e.target.value;
+                 if (configKey && value !== undefined) { elState[configKey] = value; updateElementDOM(elState); renderSheetPreview(); }
+            }
+            function handleBarcodeConfigChange(e) { /* ... sin cambios ... */
+                 if (!appState.selectedElementId) return; const elState = findDesignElement(appState.selectedElementId); if (elState?.type !== 'barcode') return;
+                 const target = e.target; const configKey = target.dataset.config; let value;
+                 if (target.type === 'checkbox') { value = target.checked; } else if (target.type === 'number') { value = parseInt(target.value); if (isNaN(value)) value = (configKey === 'counterDigits' ? 1 : 0); } else { value = target.value; }
+                 if (configKey && value !== undefined) { if (configKey === 'counterDigits' && value < 1) value = 1; if (configKey === 'counterStartValue' && value < 0) value = 0; elState[configKey] = value; updateElementDOM(elState); renderSheetPreview(); barcodeTextStyleControls.style.display = elState.displayValue ? '' : 'none'; }
+            }
+            function handleAddImageClick() { /* ... sin cambios ... */
+                if (!appState.labelWidthMM || !appState.labelHeightMM) { alert("Primero debe configurar las dimensiones de la etiqueta."); return; }
+                imageInput.click();
+            }
+            function handleImageFileSelected(e) { /* ... Modificado para guardar aspectRatio ... */
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const imgSrcDataUrl = event.target.result;
+                        const img = new Image();
+                        img.onload = () => {
+                            const aspectRatio = img.naturalWidth / img.naturalHeight; // Guardar ratio
+                            let initialWidthPx = DEFAULT_IMAGE_WIDTH_PX;
+                            let initialHeightPx = initialWidthPx / aspectRatio;
+                            if (initialHeightPx > DEFAULT_IMAGE_WIDTH_PX * 1.5) { initialHeightPx = DEFAULT_IMAGE_WIDTH_PX * 1.5; initialWidthPx = initialHeightPx * aspectRatio; }
+                            const maxDimPx = Math.min(appState.labelWidthMM * MM_TO_PX_RATIO * 0.8, appState.labelHeightMM * MM_TO_PX_RATIO * 0.8);
+                             if (initialWidthPx > maxDimPx || initialHeightPx > maxDimPx) { if (aspectRatio >= 1) { initialWidthPx = maxDimPx; initialHeightPx = initialWidthPx / aspectRatio; } else { initialHeightPx = maxDimPx; initialWidthPx = initialHeightPx * aspectRatio; } }
+
+                            addDesignElement('image', { src: imgSrcDataUrl, widthPx: initialWidthPx, heightPx: initialHeightPx, aspectRatio: aspectRatio }); // Pasar aspectRatio
+                        };
+                        img.onerror = () => { alert("Error al cargar la imagen seleccionada."); };
+                        img.src = imgSrcDataUrl;
+                    };
+                    reader.onerror = () => { alert("Error al leer el archivo de imagen."); };
+                    reader.readAsDataURL(file);
+                } else if (file) { alert("Por favor, seleccione un archivo de imagen válido (jpg, png, gif, webp, etc.)."); }
+                e.target.value = null;
+            }
+
+            function updateConfigMethodUI() { /* ... sin cambios ... */ templateOptionsDiv.classList.toggle('d-none', appState.definitionMethod !== 'template'); customOptionsDiv.classList.toggle('d-none', appState.definitionMethod !== 'custom'); }
+            function handleConfigurationChange() { /* ... sin cambios ... */
+                let previousElementCount = appState.designElements.length; let template = null;
+                if (appState.definitionMethod === 'template') { const id = templateSelect.value; appState.selectedTemplateId = id; template = predefinedTemplates.find(t => t.id === id); if (template) { appState.labelWidthMM = template.labelWidthMM; appState.labelHeightMM = template.labelHeightMM; if (template.cols) { appState.layout = { cols: template.cols, rows: template.rows, marginTopMM: template.marginTopMM ?? DEFAULT_CUSTOM_MARGIN_MM, marginLeftMM: template.marginLeftMM ?? DEFAULT_CUSTOM_MARGIN_MM, gapXMM: template.gapXMM ?? DEFAULT_CUSTOM_GAP_MM, gapYMM: template.gapYMM ?? DEFAULT_CUSTOM_GAP_MM }; } else { appState.layout = calculateLayout(template.labelWidthMM, template.labelHeightMM); } } else { appState.labelWidthMM = 0; appState.labelHeightMM = 0; appState.layout = null; } }
+                else { appState.selectedTemplateId = null; appState.customWidthMM = Math.max(MIN_LABEL_DIM_MM, parseFloat(customWidthInput.value) || 50); appState.customHeightMM = Math.max(MIN_LABEL_DIM_MM, parseFloat(customHeightInput.value) || 30); appState.labelWidthMM = appState.customWidthMM; appState.labelHeightMM = appState.customHeightMM; appState.layout = calculateLayout(appState.labelWidthMM, appState.labelHeightMM); }
+                if (previousElementCount > 0) { appState.designElements = []; appState.selectedElementId = null; appState.nextElementId = 1; }
+                renderLabelDesigner(); renderSheetPreview(); selectElement(null);
+             }
+            function calculateLayout(w, h) { /* ... sin cambios ... */ if (!w || !h || w < MIN_LABEL_DIM_MM || h < MIN_LABEL_DIM_MM) return null; const m = DEFAULT_CUSTOM_MARGIN_MM; const g = DEFAULT_CUSTOM_GAP_MM; const aw = A4_WIDTH_MM - 2*m + g; const ah = A4_HEIGHT_MM - 2*m + g; const c = Math.max(1, Math.floor(aw / (w+g))); const r = Math.max(1, Math.floor(ah / (h+g))); const tw = c*w + (c-1)*g; const th = r*h + (r-1)*g; const ml = (A4_WIDTH_MM - tw)/2; const mt = (A4_HEIGHT_MM - th)/2; return { cols:c, rows:r, marginTopMM: Math.max(0, mt), marginLeftMM: Math.max(0, ml), gapXMM: g, gapYMM: g }; }
+            function calculatePreviewScale() { /* ... sin cambios ... */ const pw = sheetPreviewContainer.clientWidth - 40; if (pw > 0 && A4_WIDTH_MM > 0) { appState.previewScale = Math.min(1, pw / A4_WIDTH_MM); sheetPreview.style.maxWidth = `${A4_WIDTH_MM * appState.previewScale}px`; } else { appState.previewScale = 0.5; sheetPreview.style.maxWidth = `${A4_WIDTH_MM * appState.previewScale}px`; } }
+
+            // --- Renderizado ---
+            function renderLabelDesigner() { /* ... sin cambios ... */
+                if (appState.labelWidthMM > 0 && appState.labelHeightMM > 0) { labelDesignArea.style.width = `${appState.labelWidthMM * MM_TO_PX_RATIO}px`; labelDesignArea.style.height = `${appState.labelHeightMM * MM_TO_PX_RATIO}px`; labelDesignArea.classList.remove('d-none'); designerPlaceholder.classList.add('d-none'); }
+                else { labelDesignArea.style.width = 'auto'; labelDesignArea.style.height = 'auto'; labelDesignArea.classList.add('d-none'); designerPlaceholder.classList.remove('d-none'); }
+                labelDesignArea.innerHTML = '';
+                appState.designElements.forEach(el => { const domEl = createDesignElementDOM(el); labelDesignArea.appendChild(domEl); el.elementRef = domEl; }); updateFormattingControlsUI();
+             }
+             function renderSheetPreview() { /* ... sin cambios ... */
+                 sheetPreview.innerHTML = ''; if (!appState.layout || !appState.labelWidthMM || !appState.labelHeightMM) { sheetPreview.innerHTML = '<p class="text-muted placeholder-text">Configure la etiqueta...</p>'; return; } calculatePreviewScale();
+                 const { cols, rows, marginTopMM, marginLeftMM, gapXMM, gapYMM } = appState.layout; const scale = appState.previewScale;
+                 const labelW = appState.labelWidthMM*scale; const labelH = appState.labelHeightMM*scale; const mT = marginTopMM*scale; const mL = marginLeftMM*scale; const gX = gapXMM*scale; const gY = gapYMM*scale;
+                 const mmToPxPreview = scale / MM_TO_PX_RATIO;
+
+                 for (let r = 0; r < rows; r++) { for (let c = 0; c < cols; c++) {
+                     const prevLabel = document.createElement('div'); prevLabel.classList.add('preview-label');
+                     prevLabel.style.cssText = `width:${labelW}px; height:${labelH}px; left:${mL + c*(labelW+gX)}px; top:${mT + r*(labelH+gY)}px;`;
+                     appState.designElements.forEach(elState => {
+                         const elPrev = document.createElement('div');
+                         elPrev.classList.add('design-element', `type-${elState.type}`);
+                         elPrev.style.position = 'absolute'; elPrev.style.left = `${elState.x * mmToPxPreview}px`; elPrev.style.top = `${elState.y * mmToPxPreview}px`; elPrev.style.pointerEvents = 'none';
+
+                         if (elState.type === 'barcode') {
+                            const widthPx = elState.widthPx || 100; // Usa ancho guardado o default
+                            const heightPx = elState.heightPx || DEFAULT_BARCODE_HEIGHT_PX;
+                            elPrev.style.width = `${widthPx * mmToPxPreview}px`;
+                            elPrev.style.height = `${heightPx * mmToPxPreview}px`;
+                            elPrev.innerHTML = `<div class="preview-barcode-placeholder"></div>`;
+                         } else if (elState.type === 'image') {
+                             elPrev.style.width = `${elState.widthPx * mmToPxPreview}px`; // Usa ancho del estado
+                             elPrev.style.height = `${elState.heightPx * mmToPxPreview}px`; // Usa alto del estado
+                             elPrev.innerHTML = `<div class="preview-image-placeholder"></div>`;
+                         } else {
+                            elPrev.textContent = elState.type === 'counter' ? '[N]' : elState.content;
+                            const scaledFontSize = Math.max(1, elState.fontSize * mmToPxPreview * 0.9);
+                            elPrev.style.fontSize = `${scaledFontSize}pt`; elPrev.style.fontWeight = elState.fontWeight; elPrev.style.fontStyle = elState.fontStyle; elPrev.style.textAlign = elState.textAlign;
+                         }
+                         prevLabel.appendChild(elPrev);
+                     });
+                     sheetPreview.appendChild(prevLabel);
+                 }}
+             }
+
+            // --- Lógica Elementos Diseño ---
+            function findDesignElement(id) { return appState.designElements.find(el => el.id === id); }
+
+            function addDesignElement(type, options = {}) { /* ... sin cambios ... */
+                if (!appState.labelWidthMM || !appState.labelHeightMM) { return; } const newId = appState.nextElementId++;
+                const newElement = { id: newId, type: type, x: 10, y: 10, elementRef: null, isEditing: false, isSelected: false };
+                if (type === 'text') { newElement.content = 'Texto'; newElement.fontSize = DEFAULT_FONT_SIZE; newElement.fontWeight = 'normal'; newElement.fontStyle = 'normal'; newElement.textAlign = 'left'; }
+                else if (type === 'counter') { newElement.startValue = DEFAULT_COUNTER_START; newElement.digits = DEFAULT_COUNTER_DIGITS; newElement.fontSize = DEFAULT_FONT_SIZE; newElement.fontWeight = 'normal'; newElement.fontStyle = 'normal'; newElement.textAlign = 'left'; }
+                else if (type === 'barcode') { newElement.prefix = DEFAULT_BARCODE_PREFIX; newElement.counterStartValue = DEFAULT_COUNTER_START; newElement.counterDigits = DEFAULT_COUNTER_DIGITS; newElement.suffix = DEFAULT_BARCODE_SUFFIX; newElement.displayValue = DEFAULT_BARCODE_DISPLAY_VALUE; newElement.fontSize = 8; newElement.fontWeight = 'normal'; newElement.fontStyle = 'normal'; newElement.textAlign = 'center'; newElement.bcWidth = DEFAULT_BARCODE_WIDTH_RATIO; newElement.bcHeight = DEFAULT_BARCODE_HEIGHT_PX; newElement.bcMargin = DEFAULT_BARCODE_MARGIN; newElement.bcTextMargin = DEFAULT_BARCODE_TEXT_MARGIN; newElement.widthPx = 100; newElement.heightPx = DEFAULT_BARCODE_HEIGHT_PX + (newElement.displayValue ? newElement.fontSize * 1.5 : 0); }
+                else if (type === 'image') { newElement.src = options.src || ''; newElement.widthPx = options.widthPx || DEFAULT_IMAGE_WIDTH_PX; newElement.heightPx = options.heightPx || DEFAULT_IMAGE_WIDTH_PX; newElement.aspectRatio = options.aspectRatio || 1; } // Guardar ratio
+                appState.designElements.push(newElement); const domEl = createDesignElementDOM(newElement); labelDesignArea.appendChild(domEl); newElement.elementRef = domEl;
+                 if (type === 'barcode') { const svg = domEl.querySelector('svg'); if (svg && svg.getBBox) { try { const bbox = svg.getBBox(); newElement.widthPx = bbox.width; newElement.heightPx = bbox.height; domEl.style.width = `${bbox.width}px`; domEl.style.height = `${bbox.height}px`; } catch(e) { } } }
+                selectElement(newId); renderSheetPreview();
+            }
+
+            function createDesignElementDOM(elementState) { // Modificado para añadir handle a imágenes
+                const el = document.createElement('div');
+                el.classList.add('design-element', `type-${elementState.type}`);
+                el.dataset.id = elementState.id;
+                el.style.left = `${elementState.x}px`; el.style.top = `${elementState.y}px`;
+
+                if (elementState.type === 'text' || elementState.type === 'counter') {
+                    el.style.fontSize = `${elementState.fontSize}pt`; el.style.fontWeight = elementState.fontWeight; el.style.fontStyle = elementState.fontStyle; el.style.textAlign = elementState.textAlign;
+                    el.textContent = elementState.type === 'text' ? elementState.content : formatCounterValue(elementState.startValue, elementState.digits);
+                    el.setAttribute('title', elementState.type === 'text' ? 'Texto (doble clic para editar)' : 'Contador');
+                    el.addEventListener('dblclick', handleElementDoubleClick);
+                } else if (elementState.type === 'barcode') {
+                    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    el.appendChild(svg);
+                    generateBarcodeSVG(svg, elementState, 0);
+                    el.setAttribute('title', 'Código de Barras');
+                    el.style.width = `${elementState.widthPx}px`; el.style.height = `${elementState.heightPx}px`;
+                    el.addEventListener('dblclick', handleElementDoubleClick);
+                } else if (elementState.type === 'image') {
+                    const img = document.createElement('img');
+                    img.src = elementState.src; img.alt = "Imagen de etiqueta";
+                    el.appendChild(img);
+                    el.style.width = `${elementState.widthPx}px`; el.style.height = `${elementState.heightPx}px`;
+                    el.setAttribute('title', 'Imagen (arrastre esquina para redimensionar)');
+                    el.addEventListener('dblclick', handleElementDoubleClick);
+
+                    // --- Añadir Handle de Redimensionamiento ---
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = 'resize-handle';
+                    resizeHandle.dataset.parentId = elementState.id; // Referencia al ID del elemento padre
+                    resizeHandle.addEventListener('mousedown', handleResizeStart);
+                    el.appendChild(resizeHandle);
+                    // -----------------------------------------
+                }
+
+                makeDraggable(el); // Hacer el elemento principal arrastrable
+                el.addEventListener('click', handleElementClick);
+                if(elementState.isSelected) el.classList.add('selected');
+                return el;
+            }
+
+             function updateElementDOM(elementState) { // Modificado para aplicar W/H a imágenes
+                if (!elementState || !elementState.elementRef) return;
+                const el = elementState.elementRef;
+                el.style.left = `${elementState.x}px`; el.style.top = `${elementState.y}px`;
+
+                if (elementState.type === 'text' || elementState.type === 'counter') {
+                    el.style.fontSize = `${elementState.fontSize}pt`; el.style.fontWeight = elementState.fontWeight; el.style.fontStyle = elementState.fontStyle; el.style.textAlign = elementState.textAlign;
+                    if (!elementState.isEditing) { el.textContent = elementState.type === 'text' ? elementState.content : formatCounterValue(elementState.startValue, elementState.digits); }
+                    if (elementState.type === 'counter') el.setAttribute('title', `Contador (${elementState.startValue})`);
+                } else if (elementState.type === 'barcode') {
+                    const svg = el.querySelector('svg');
+                    if (svg) {
+                         generateBarcodeSVG(svg, elementState, 0);
+                         try { const bbox = svg.getBBox(); elementState.widthPx = bbox.width; elementState.heightPx = bbox.height; el.style.width = `${bbox.width}px`; el.style.height = `${bbox.height}px`; } catch(e) { }
+                    }
+                } else if (elementState.type === 'image') {
+                    // Aplicar width y height desde el estado
+                    el.style.width = `${elementState.widthPx}px`;
+                    el.style.height = `${elementState.heightPx}px`;
+                }
+            }
+
+            function generateBarcodeSVG(svgElement, elementState, labelIndex) { /* ... sin cambios ... */
+                const currentValue = elementState.counterStartValue + labelIndex; const barcodeValue = `${elementState.prefix}${formatCounterValue(currentValue, elementState.counterDigits)}${elementState.suffix}`;
+                try { svgElement.innerHTML = ''; JsBarcode(svgElement, barcodeValue || "ERROR", { format: "CODE128", lineColor: "#000", width: elementState.bcWidth || DEFAULT_BARCODE_WIDTH_RATIO, height: elementState.bcHeight || DEFAULT_BARCODE_HEIGHT_PX, displayValue: elementState.displayValue, text: elementState.displayValue ? barcodeValue : undefined, fontOptions: `${elementState.fontStyle} ${elementState.fontWeight}`, font: "Arial, Helvetica, sans-serif", fontSize: elementState.fontSize || 8, textAlign: elementState.textAlign || "center", textMargin: elementState.bcTextMargin ?? DEFAULT_BARCODE_TEXT_MARGIN, margin: elementState.bcMargin || DEFAULT_BARCODE_MARGIN });
+                     if (elementState.displayValue) { const textElement = svgElement.querySelector('text'); if (textElement) { textElement.style.fontWeight = elementState.fontWeight; textElement.style.fontStyle = elementState.fontStyle; textElement.style.fontSize = `${elementState.fontSize || 8}px`; textElement.style.fontFamily = "Arial, Helvetica, sans-serif"; } }
+                } catch (e) { console.error("Error generando Barcode:", e.message, "para valor:", barcodeValue); svgElement.innerHTML = `<text fill="red" x="0" y="${elementState.bcHeight/2}" font-size="8" font-family="sans-serif">Error: ${e.message}</text>`; svgElement.parentElement.style.border = "1px solid red"; svgElement.parentElement.style.backgroundColor = "rgba(255,0,0,0.1)"; }
+            }
+            function updateElementStyle(id, styleProperty, value) { /* ... sin cambios ... */
+                 const elState = findDesignElement(id); if (!elState || elState.type === 'image') return; if (styleProperty === 'fontSize') value = parseInt(value); elState[styleProperty] = value; updateElementDOM(elState); renderSheetPreview(); updateFormattingControlsUI();
+            }
+            function selectElement(id) { /* ... sin cambios ... */
+                if (appState.selectedElementId && appState.selectedElementId !== id) { const prev = findDesignElement(appState.selectedElementId); if (prev) { if (prev.elementRef) prev.elementRef.classList.remove('selected'); if (prev.type === 'text' && prev.isEditing) stopEditingText(prev.id, true); prev.isSelected = false; } }
+                appState.selectedElementId = id;
+                appState.designElements.forEach(el => { const isSel = el.id === id; el.isSelected = isSel; if (el.elementRef) { el.elementRef.classList.toggle('selected', isSel); el.elementRef.style.zIndex = isSel ? 10 : 1; } });
+                updateFormattingControlsUI();
+            }
+             function updateFormattingControlsUI() { /* ... sin cambios ... */
+                const selectedElement = findDesignElement(appState.selectedElementId);
+                textFormattingControls.classList.add('d-none'); counterFormattingControls.classList.add('d-none'); barcodeFormattingControls.classList.add('d-none'); imageFormattingControls.classList.add('d-none');
+                if (selectedElement) {
+                    let controlsToShow = null; let controlsToUpdate = null;
+                    switch(selectedElement.type) {
+                        case 'text': controlsToShow = textFormattingControls; controlsToUpdate = textFormattingControls; break;
+                        case 'counter': controlsToShow = counterFormattingControls; controlsToUpdate = counterFormattingControls; controlsToUpdate.querySelector('.counter-config[data-config="startValue"]').value = selectedElement.startValue; controlsToUpdate.querySelector('.counter-config[data-config="digits"]').value = selectedElement.digits; break;
+                        case 'barcode': controlsToShow = barcodeFormattingControls; controlsToUpdate = barcodeFormattingControls; controlsToUpdate.querySelector('.barcode-config[data-config="prefix"]').value = selectedElement.prefix; controlsToUpdate.querySelector('.barcode-config[data-config="counterStartValue"]').value = selectedElement.counterStartValue; controlsToUpdate.querySelector('.barcode-config[data-config="counterDigits"]').value = selectedElement.counterDigits; controlsToUpdate.querySelector('.barcode-config[data-config="suffix"]').value = selectedElement.suffix; controlsToUpdate.querySelector('.barcode-config[data-config="displayValue"]').checked = selectedElement.displayValue; barcodeTextStyleControls.style.display = selectedElement.displayValue ? '' : 'none'; break;
+                        case 'image': controlsToShow = imageFormattingControls; break; }
+                    if (controlsToShow) { controlsToShow.classList.remove('d-none'); if (controlsToUpdate && selectedElement.type !== 'image') { controlsToUpdate.querySelectorAll('.format-button').forEach(b => { const s = b.dataset.style; const v = b.dataset.value; b.classList.toggle('active', selectedElement[s] === v); }); controlsToUpdate.querySelectorAll('.format-select').forEach(s => { const st = s.dataset.style; if ([...s.options].some(o => o.value == selectedElement[st])) { s.value = selectedElement[st]; } else { s.value = DEFAULT_FONT_SIZE;} }); } }
+                }
+             }
+            function deleteSelectedElement() { /* ... sin cambios ... */
+                if (appState.selectedElementId === null) return; const idToDelete = appState.selectedElementId; const elementToRemove = findDesignElement(idToDelete); if (elementToRemove?.elementRef) { elementToRemove.elementRef.remove(); } appState.designElements = appState.designElements.filter(e => e.id !== idToDelete); selectElement(null); renderSheetPreview();
+            }
+
+            // --- Edición Texto y Doble Clic ---
+            function handleElementClick(e) { e.stopPropagation(); if (!appState.isResizing) { selectElement(parseInt(e.currentTarget.dataset.id)); } } // No seleccionar si estamos redimensionando
+            function handleElementDoubleClick(e) { /* ... sin cambios ... */
+                e.stopPropagation(); const id = parseInt(e.currentTarget.dataset.id); const elState = findDesignElement(id);
+                if (elState) { selectElement(id); if (elState.type === 'text' && !elState.isEditing) startEditingText(id); }
+            }
+            function startEditingText(id) { /* ... sin cambios ... */
+                 const txt = findDesignElement(id); if (!txt || txt.type !== 'text' || !txt.elementRef || !txt.isSelected || txt.isEditing) return;
+                 txt.isEditing = true; const el = txt.elementRef; el.setAttribute('contenteditable', 'true'); el.classList.add('editing'); el.focus(); window.getSelection().selectAllChildren(el);
+                 const stopHandler = (ev) => { if(ev.type === 'blur' && formattingControlsContainer.contains(ev.relatedTarget)){ el.focus(); return; } el.removeEventListener('blur', stopHandler); el.removeEventListener('keydown', keyHandler); stopEditingText(id, true); };
+                 const keyHandler = (ev) => { if (ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); stopEditingText(id, true); } else if (ev.key === 'Escape'){ stopEditingText(id, false); } };
+                 el.addEventListener('blur', stopHandler, { capture: true }); el.addEventListener('keydown', keyHandler);
+            }
+            function stopEditingText(id, save) { /* ... sin cambios ... */
+                 const txt = findDesignElement(id); if (!txt || txt.type !== 'text' || !txt.elementRef || !txt.isEditing) return;
+                 const el = txt.elementRef; if (save) { let content = el.innerText; txt.content = content; el.textContent = content; } else { el.textContent = txt.content; }
+                 el.removeAttribute('contenteditable'); el.classList.remove('editing'); txt.isEditing = false;
+                 el.removeEventListener('blur', stopEditingText); el.removeEventListener('keydown', stopEditingText);
+                 renderSheetPreview(); selectElement(id);
+            }
+
+             // --- Drag & Drop ---
+             function makeDraggable(element) { // Modificado para coexistir con resize
+                  let ox, oy, sx, sy, isDragging = false; const threshold = 3;
+                  element.addEventListener('mousedown', (e) => {
+                      // NO iniciar drag si se hizo click en el handle de resize
+                      if (e.target.classList.contains('resize-handle')) { return; }
+
+                      const elementState = findDesignElement(parseInt(element.dataset.id));
+                      if (e.button !== 0 || (elementState?.type === 'text' && elementState.isEditing)) return;
+
+                      sx = e.clientX; sy = e.clientY; const rect = element.getBoundingClientRect(); ox = e.clientX - rect.left; oy = e.clientY - rect.top; isDragging = false;
+                      selectElement(parseInt(element.dataset.id));
+
+                      document.addEventListener('mousemove', onMove);
+                      document.addEventListener('mouseup', onUp, {once: true});
+                      e.preventDefault(); e.stopPropagation();
+                  });
+                  function onMove(e) { /* ... sin cambios (cálculo posición) ... */
+                      const dx = e.clientX - sx; const dy = e.clientY - sy;
+                      if (!isDragging && (Math.abs(dx) > threshold || Math.abs(dy) > threshold)){ isDragging = true; element.classList.add('dragging'); element.style.zIndex = 20; }
+                      if(isDragging){ const parentRect = labelDesignArea.getBoundingClientRect(); let newX = e.clientX - parentRect.left - ox; let newY = e.clientY - parentRect.top - oy; const elWidth = element.offsetWidth; const elHeight = element.offsetHeight; const parentWidth = labelDesignArea.clientWidth; const parentHeight = labelDesignArea.clientHeight; newX = Math.max(0, Math.min(newX, parentWidth - elWidth)); newY = Math.max(0, Math.min(newY, parentHeight - elHeight)); element.style.left = `${newX}px`; element.style.top = `${newY}px`; }
+                  }
+                  function onUp(e){ /* ... sin cambios (guardar estado) ... */
+                      document.removeEventListener('mousemove', onMove);
+                      if(isDragging){ isDragging = false; element.classList.remove('dragging'); element.style.zIndex = 10; const elementState = findDesignElement(parseInt(element.dataset.id)); if(elementState){ elementState.x = parseFloat(element.style.left); elementState.y = parseFloat(element.style.top); renderSheetPreview(); } }
+                  }
+                  element.addEventListener('dragstart', (e) => e.preventDefault());
+             }
+
+             // --- Redimensionamiento Imagen (Nuevo) ---
+            function handleResizeStart(e) {
+                e.preventDefault();
+                e.stopPropagation(); // Evitar que active el drag del elemento padre
+
+                const handle = e.target;
+                const parentId = parseInt(handle.dataset.parentId);
+                const elementState = findDesignElement(parentId);
+
+                if (!elementState || elementState.type !== 'image') return;
+
+                appState.isResizing = true;
+                appState.resizeElementId = parentId;
+                appState.resizeStartX = e.clientX;
+                appState.resizeStartY = e.clientY;
+                appState.resizeInitialWidth = elementState.widthPx;
+                appState.resizeInitialHeight = elementState.heightPx;
+                appState.resizeAspectRatio = elementState.aspectRatio;
+
+                // Añadir clase al body puede ser útil para cambiar cursores globalmente
+                document.body.style.cursor = 'nwse-resize';
+                // No es necesario añadir listeners aquí porque ya están en setupEventListeners
+            }
+
+            function handleResizeMove(e) {
+                if (!appState.isResizing || !appState.resizeElementId) return;
+
+                const elementState = findDesignElement(appState.resizeElementId);
+                if (!elementState || !elementState.elementRef) return;
+
+                const dx = e.clientX - appState.resizeStartX;
+                // dy no se usa directamente para mantener aspect ratio con handle dcha-abajo
+
+                // Calcular nuevo ancho basado en delta X
+                let newWidth = appState.resizeInitialWidth + dx;
+
+                // Asegurar tamaño mínimo
+                newWidth = Math.max(MIN_IMAGE_DIM_PX, newWidth);
+
+                // Calcular nueva altura manteniendo proporción
+                let newHeight = newWidth / appState.resizeAspectRatio;
+
+                // Comprobar si el alto es menor que el mínimo y recalcular si es necesario
+                if (newHeight < MIN_IMAGE_DIM_PX) {
+                    newHeight = MIN_IMAGE_DIM_PX;
+                    newWidth = newHeight * appState.resizeAspectRatio;
+                }
+
+                // Aplicar directamente al estilo para feedback visual inmediato
+                elementState.elementRef.style.width = `${newWidth}px`;
+                elementState.elementRef.style.height = `${newHeight}px`;
+            }
+
+            function handleResizeEnd(e) {
+                if (!appState.isResizing || !appState.resizeElementId) return;
+
+                const elementState = findDesignElement(appState.resizeElementId);
+                if (elementState && elementState.elementRef) {
+                    // Guardar las dimensiones finales (leídas del estilo actual) en el estado
+                    elementState.widthPx = parseFloat(elementState.elementRef.style.width);
+                    elementState.heightPx = parseFloat(elementState.elementRef.style.height);
+
+                    // Actualizar la vista previa de la hoja
+                    renderSheetPreview();
+                }
+
+                // Resetear estado de redimensionamiento
+                appState.isResizing = false;
+                appState.resizeElementId = null;
+                document.body.style.cursor = 'default'; // Restaurar cursor global
+            }
+
+
+             // --- Impresión ---
+            function generatePrintView() { /* ... sin cambios ... */
+                if (!appState.layout || !appState.labelWidthMM || !appState.labelHeightMM) { alert("Primero debe configurar las dimensiones y el layout de la etiqueta."); return; }
+                if (appState.designElements.length === 0 && !confirm("La etiqueta está vacía. ¿Desea generar la hoja en blanco igualmente?")) return;
+                printOutput.innerHTML = ''; const { cols, rows, marginTopMM, marginLeftMM, gapXMM, gapYMM } = appState.layout; const labelW_mm = appState.labelWidthMM; const labelH_mm = appState.labelHeightMM; const pxToMmScale = 1 / MM_TO_PX_RATIO; const page = document.createElement('div'); page.classList.add('print-page');
+                for (let r = 0; r < rows; r++) { for (let c = 0; c < cols; c++) {
+                    const labelIndex = r * cols + c; const printLabel = document.createElement('div'); printLabel.classList.add('print-label'); const posX_mm = marginLeftMM + c * (labelW_mm + gapXMM); const posY_mm = marginTopMM + r * (labelH_mm + gapYMM); printLabel.style.cssText = `width:${labelW_mm}mm; height:${labelH_mm}mm; left:${posX_mm}mm; top:${posY_mm}mm;`;
+                    appState.designElements.forEach(elState => {
+                        const elPrint = document.createElement('div'); elPrint.classList.add('design-element-print', `type-${elState.type}`); elPrint.style.left = `${elState.x * pxToMmScale}mm`; elPrint.style.top = `${elState.y * pxToMmScale}mm`;
+                        if (elState.type === 'text' || elState.type === 'counter') { elPrint.style.fontSize = `${elState.fontSize}pt`; elPrint.style.fontWeight = elState.fontWeight; elPrint.style.fontStyle = elState.fontStyle; elPrint.style.textAlign = elState.textAlign; elPrint.style.fontFamily = 'Arial, Helvetica, sans-serif'; const val = elState.type === 'text' ? elState.content : formatCounterValue(elState.startValue + labelIndex, elState.digits); elPrint.textContent = val; }
+                        else if (elState.type === 'barcode') { const svgPrint = document.createElementNS("http://www.w3.org/2000/svg", "svg"); elPrint.appendChild(svgPrint); generateBarcodeSVG(svgPrint, elState, labelIndex); if (elState.widthPx && elState.heightPx) { elPrint.style.width = `${elState.widthPx * pxToMmScale}mm`; elPrint.style.height = `${elState.heightPx * pxToMmScale}mm`; } else { elPrint.style.width = `${100 * pxToMmScale}mm`; elPrint.style.height = `${(elState.bcHeight || DEFAULT_BARCODE_HEIGHT_PX) * pxToMmScale}mm`; } }
+                        else if (elState.type === 'image') { const imgPrint = document.createElement('img'); imgPrint.src = elState.src; imgPrint.alt = ""; elPrint.appendChild(imgPrint); elPrint.style.width = `${elState.widthPx * pxToMmScale}mm`; elPrint.style.height = `${elState.heightPx * pxToMmScale}mm`; } // Usa W/H del estado
+                        printLabel.appendChild(elPrint);
+                    }); page.appendChild(printLabel);
+                }} printOutput.appendChild(page);
+                setTimeout(() => { try { window.print(); } catch (e) { console.error("Error al intentar imprimir:", e); alert("Hubo un problema al iniciar la impresión. Revise la consola del navegador."); } }, 500);
+            }
+
+
+            // --- Reset ---
+             function resetApp() { /* ... sin cambios ... */
+                 if (confirm("¿Está seguro de que desea limpiar el diseño actual y reiniciar la configuración?")) {
+                     appState = { definitionMethod: 'template', selectedTemplateId: null, customWidthMM: 50, customHeightMM: 30, labelWidthMM: 0, labelHeightMM: 0, layout: null, designElements: [], selectedElementId: null, nextElementId: 1, previewScale: appState.previewScale, isResizing: false, resizeElementId: null }; // Resetear estado resize también
+                     document.getElementById('methodTemplate').checked = true; document.getElementById('methodTemplate').disabled = !(typeof predefinedTemplates !== 'undefined' && predefinedTemplates.length > 0); const firstOpt = templateSelect.querySelector('option[value]:not([value=""])'); if(firstOpt){ templateSelect.value = firstOpt.value; } else { templateSelect.value = ""; if(document.getElementById('methodTemplate').disabled){document.getElementById('methodCustom').checked = true; appState.definitionMethod = 'custom';}} customWidthInput.value = appState.customWidthMM; customHeightInput.value = appState.customHeightMM; updateConfigMethodUI(); handleConfigurationChange(); labelDesignArea.innerHTML = ''; sheetPreview.innerHTML = '<p class="text-muted placeholder-text">Configure etiqueta...</p>'; printOutput.innerHTML = ''; selectElement(null); }
+             }
+
+             // --- Utilidades ---
+             function debounce(fn, wait) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; }
+             function formatCounterValue(v, d) { return String(v).padStart(d, '0'); }
+
+            // --- Inicio ---
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
