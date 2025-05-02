@@ -1,50 +1,118 @@
-## Una serie de pequeños proyectos sin acabar y desligados a falta de buscarles un sitio.
+# Pequeños Proyectos Autocontenidos
 
-### **Herramienta Markdown a HTML con índice**
+Una colección de diversas herramientas y visualizadores web, cada uno implementado como un único archivo HTML independiente.
 
-  [`Markdown_a_Indices.html`](https://soyunomas.github.io/pequenos-proyectos/Markdown_a_Indices.html)
-  [`Presentacionos.html`](https://soyunomas.github.io/pequenos-proyectos/Presentaciones.html)
+## Categoría: REDES
 
-### **Carpeta: REDES**
-
-1.  **Calculadora IP:**
+1.  **Calculadora de Subnetting Avanzada:**
     [`Calculadora_IP.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Calculadora_IP.html)
-2.  **Encapsulamiento:**
+    Calcula detalles de red (dirección de red, broadcast, hosts utilizables, máscara wildcard, clase, tipo, representación binaria) a partir de una dirección IP y su máscara de subred o notación CIDR.
+
+2.  **Visualizador Encapsulamiento/Desencapsulamiento:**
     [`Encapsulamiento.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento.html)
+    Muestra el proceso básico de encapsulamiento de datos a través de las capas de red (Aplicación a Física) en un emisor y el proceso inverso de desencapsulamiento en el receptor.
+
+3.  **Visualizador Encapsulamiento/Desencapsulamiento con Switch L2:**
     [`Encapsulamiento_Switch.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Switch.html)
+    Ilustra cómo una trama de datos es encapsulada, viaja a través de un switch de Capa 2 (que solo procesa hasta la capa de enlace), y es desencapsulada por el receptor final.
+
+4.  **Visualizador Encapsulamiento/Desencapsulamiento con Router L3:**
     [`Encapsulamiento_Router.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Router.html)
-3.  **Enrutamiento:**
+    Demuestra el proceso de encapsulamiento, el paso por un router de Capa 3 (incluyendo desencapsulamiento hasta L3, decisión de enrutamiento y re-encapsulamiento L2), y el desencapsulamiento final en el receptor.
+
+5.  **Visualizador de Enrutamiento IP:**
     [`Enrutamiento.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Enrutamiento.html)
+    Simula visualmente cómo un paquete IP viaja a través de una pequeña red con múltiples routers, mostrando las decisiones de enrutamiento en cada salto según diferentes escenarios.
 
-4.  **Protocolos**
-    [`TCPvsUDP.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/TCPvsUDP.html)
+6.  **Visualizador Handshake TLS/SSL (HTTPS):**
     [`Handshake-TLS-SSL-HTTPS.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Handshake-TLS-SSL-HTTPS.html)
+    Explica paso a paso el proceso de "handshake" de TLS/SSL que ocurre al establecer una conexión HTTPS segura, incluyendo el intercambio de certificados y claves. Simula escenarios de éxito y fallo.
+
+7.  **Visualizador Ping con Enrutamiento Estático:**
     [`Ping_static_route.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Ping_static_route.html)
-  
-5.  **Vlans:**
+    Detalla el flujo completo de un comando `ping` (ICMP Echo Request/Reply) en una red con routers y enrutamiento estático, incluyendo la resolución ARP y posibles escenarios de fallo (sin ruta, TTL expirado, firewall, bucle).
+
+8.  **Visualizador Funcionamiento Switch L2:**
+    [`Switch_aprendizaje.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Switch_aprendizaje.html)
+    Muestra cómo un switch Ethernet aprende las direcciones MAC de los dispositivos conectados a sus puertos y cómo utiliza esa información (tabla MAC) para reenviar tramas de forma eficiente (forwarding) o inundar la red (flooding) cuando el destino es desconocido.
+
+9.  **Visualizador Cabeceras TCP vs UDP:**
+    [`TCPvsUDP.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/TCPvsUDP.html)
+    Compara visualmente los campos de las cabeceras de los protocolos TCP y UDP. Simula diferentes escenarios como el handshake TCP, transferencia simple UDP, confirmaciones TCP (ACK), pérdida de paquetes y cierre de conexión TCP.
+
+10. **Visualizador Interactivo de VLANs:**
     [`Vlans.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Vlans.html)
+    Simula el flujo de tramas Ethernet a través de switches configurados con VLANs (Redes de Área Local Virtuales). Muestra el etiquetado 802.1Q en enlaces troncales (Trunk), el aislamiento entre VLANs y el comportamiento de la VLAN nativa.
 
-6.  **Cifrado:** 
-   [`Cifrado_Simetrico_Asimetrico_Hibrido_firma.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Cifrado_Simetrico_Asimetrico_Hibrido_firma.html)
+11. **Visualizador Cifrado (Simétrico, Asimétrico, Híbrido, Firma):**
+    [`Cifrado_Simetrico_Asimetrico_Hibrido_firma.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Cifrado_Simetrico_Asimetrico_Hibrido_firma.html)
+    Explica visualmente los conceptos de cifrado simétrico (clave compartida), cifrado asimétrico (clave pública/privada), cifrado híbrido (combinación de ambos) y firma digital para autenticación y no repudio.
 
-### **Carpeta: BASES DE DATOS**
+## Categoría: BASES DE DATOS
 
-1.  **Explicación Visual JOIN:**
-    [`Explicacion_Visual_JOIN.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Funcionamiento_JOIN-Visual.html)
+1.  **Visualizador Interactivo de SQL JOINs:**
+    [`Explicacion_Visual_JOIN.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Explicacion_Visual_JOIN.html)
+    [`Funcionamiento_JOIN-Visual.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Funcionamiento_JOIN-Visual.html)
+    Permite seleccionar diferentes escenarios de datos y tipos de JOINs SQL (INNER, LEFT, RIGHT, LEFT WHERE...IS NULL) para ver visualmente qué filas de las tablas izquierda y derecha coinciden y cuáles se incluyen en el resultado final. Muestra la consulta SQL de ejemplo y la tabla resultante.
+
+2.  **Generador de Payloads SQL Injection Básicos (Error/Union):**
     [`SQL-Inyectado-Payloads.html`](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/SQL-Inyectado-Payloads.html)
- 
-### **Carpeta: OTROS**
+    Genera una lista de payloads comunes para pruebas de inyección SQL, categorizados por tipo de base de datos (MySQL, PostgreSQL, etc.) y técnica (basados en error, UNION SELECT). Incluye payloads de detección inicial.
 
-1.  **Cesta Pelotas:**
-    [`CESTA-PELOTAS.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/CESTA-PELOTAS.html)
-2.  **ASCII Micro:**
+## Categoría: OTROS
+
+1.  **Visualizador de Música ASCII Simétrico:**
     [`ascii-micro.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/ascii-micro.html)
-3.  **Matrix:**
+    Captura audio del micrófono y lo representa en tiempo real como arte ASCII que se refleja simétricamente en la pantalla.
+
+2.  **Juego Cesta Rebote Mediapipe:**
+    [`CESTA-PELOTAS.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/CESTA-PELOTAS.html)
+    Un juego interactivo donde el usuario controla una "cesta" usando los movimientos de sus muñecas (detectados por la webcam vía Mediapipe) para hacer rebotar pelotas virtuales.
+
+3.  **Concatenador de Archivos de Texto:**
+    [`concatenador.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/concatenador.html)
+    Herramienta web que permite al usuario arrastrar y soltar (o seleccionar) múltiples archivos de texto (o carpetas) y los combina en un único archivo de texto descargable, añadiendo separadores con el nombre original de cada archivo.
+
+4.  **Diseñador de Etiquetas Pro:**
+    [`Etiquetas.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/Etiquetas.html)
+    Una aplicación web para diseñar etiquetas individuales (con texto, contadores, códigos de barras) y previsualizar cómo quedarían en una hoja A4 según plantillas estándar o tamaños personalizados, generando luego una vista para imprimir.
+
+5.  **Listado Repositorios GitHub:**
+    [`listado.html`](https://soyunomas.github.io/pequenos-proyectos/listado.html)
+    Una página simple que utiliza la API de GitHub para obtener y mostrar una lista de los repositorios públicos del usuario "soyunomas".
+
+6.  **Generador Markdown a HTML con Índice:**
+    [`Markdown_a_Indices.html`](https://soyunomas.github.io/pequenos-proyectos/Markdown_a_Indices.html)
+    Convierte texto escrito en formato Markdown a HTML. Genera automáticamente un índice navegable basado en los encabezados (h1-h6) del documento y permite personalizar los colores y descargar el HTML resultante.
+
+7.  **Matrix Webcam ASCII Mirror:**
     [`matrix.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/matrix.html)
-4.  **Sorteo de Números sin repetición:**
+    Utiliza la entrada de la webcam para generar un efecto visual tipo "Matrix" donde los caracteres ASCII "llueven" por la pantalla, con el brillo de los caracteres influenciado por la imagen de la cámara y manteniendo la relación de aspecto.
+
+8.  **PresentaFácil Ultra v3 - Editor Reveal.js:**
+    [`Presentaciones.html`](https://soyunomas.github.io/pequenos-proyectos/Presentaciones.html)
+    Un editor web que permite crear presentaciones de diapositivas estilo Reveal.js utilizando una sintaxis simple basada en Markdown. Permite separar slides horizontales (---) y verticales (----) y exportar la presentación como un archivo HTML autocontenido.
+
+9.  **Mi Ritmo GPS:**
+    [`recorrido.html`](https://soyunomas.github.io/pequenos-proyectos/recorrido.html)
+    Aplicación para grabar recorridos utilizando el GPS del dispositivo. Permite guardar rutas con nombre y modo (coche, caminar, manual) y luego realizar una comparación en tiempo real contra una ruta guardada, mostrando la diferencia de tiempo. Incluye gestión de rutas (exportar/importar/borrar).
+
+10. **Extractor de Elementos de Imágenes:**
+    [`recortador-imagenes.html`](https://soyunomas.github.io/pequenos-proyectos/recortador-imagenes.html)
+    Herramienta para cargar una imagen y seleccionar múltiples áreas de recorte. Permite definir la proporción del recorte y el tamaño de salida. Cada recorte extraído se puede nombrar individualmente antes de descargarlo como un archivo PNG.
+
+11. **Sorteo de Números Multicolor:**
     [`sorteo.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/sorteo.html)
-5. **Concatenador de archivos subidos**
-   [`concatenador.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/concatenador.html)
+    Genera números aleatorios sin repetición dentro de un rango especificado por el usuario. Muestra el número sorteado con efectos visuales (animación tipo "slot machine" con colores cambiantes y efecto de "latido") y mantiene una lista de los números ya sorteados. Incluye modo oscuro.
+
+12. **Convertidor MP4 a GIF (FFmpeg v0.9.6 Remote):**
+    [`test.html`](https://soyunomas.github.io/pequenos-proyectos/test.html)
+    Permite subir un archivo de video MP4, seleccionar un rango de tiempo y añadir texto opcional para generar un GIF animado tipo meme. Utiliza FFmpeg.wasm (cargado desde un CDN remoto) para realizar la conversión directamente en el navegador.
+
+13. **UniTexto - Combinador de Archivos:**
+    [`unirtexto.html`](https://soyunomas.github.io/pequenos-proyectos/unirtexto.html)
+    Combina el contenido de múltiples archivos de texto cargados por el usuario en un solo archivo, añadiendo un encabezado y pie de página con el nombre original de cada archivo incluido.
+
 
 # System Prompts para IA - Roles de Desarrollo
 
