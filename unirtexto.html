@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniTexto - Combinador de Archivos</title>
+    <!-- Bootstrap 5 CSS (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons (Opcional, para posibles iconos futuros) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        /* Estilos personalizados */
+        body {
+            background-color: #f8f9fa; /* Gris claro suave */
+        }
+
+        .container {
+            max-width: 800px; /* Limitar ancho para mejor legibilidad */
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+            margin-top: 2rem; /* Separación del borde superior */
+        }
+
+        #drop-zone {
+            border: 2px dashed #0d6efd; /* Borde discontinuo azul Bootstrap */
+            border-radius: 0.375rem; /* Igual que los inputs de Bootstrap */
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            background-color: #e9ecef; /* Gris muy claro */
+            color: #495057; /* Texto gris oscuro */
+        }
+
+        #drop-zone.dragover {
+            background-color: #cfe2ff; /* Azul claro Bootstrap al arrastrar */
+            border-color: #0a58ca; /* Azul más oscuro */
+        }
+
+        #file-input {
+            display: none; /* Ocultar el input de archivo por defecto */
+        }
+
+        #file-list .list-group-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #file-list .file-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem; /* Espacio entre checkbox y nombre */
+        }
+
+         /* Paleta "relajante" - usando azules y grises de Bootstrap */
+        h1 {
+            color: #0d6efd; /* Azul principal Bootstrap */
+        }
+        .btn-primary {
+             background-color: #0d6efd;
+             border-color: #0d6efd;
+        }
+        .btn-primary:hover, .btn-primary:focus {
+             background-color: #0a58ca;
+             border-color: #0a58ca;
+        }
+        .btn-secondary {
+            background-color: #6c757d; /* Gris Bootstrap */
+            border-color: #6c757d;
+        }
+         .btn-secondary:hover, .btn-secondary:focus {
+            background-color: #5a6268;
+            border-color: #5a6268;
+        }
+
+        /* Estilo para feedback */
+        #status {
+            margin-top: 1rem;
+            font-style: italic;
+            color: #6c757d; /* Gris */
+        }
+
+        #status.success {
+            color: #198754; /* Verde Bootstrap */
+            font-weight: bold;
+        }
+
+        #status.error {
+            color: #dc3545; /* Rojo Bootstrap */
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="text-center mb-4">
+            <h1>UniTexto</h1>
+            <p class="lead">Combina el contenido de múltiples archivos de texto en uno solo.</p>
+        </header>
+
+        <main>
+            <!-- Zona de carga de archivos -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">1. Carga tus archivos</h5>
+                    <div id="drop-zone" role="region" aria-label="Zona para arrastrar y soltar archivos">
+                        <p>Arrastra y suelta archivos (o una carpeta) aquí</p>
+                        <p class="mb-0">o</p>
+                        <label for="file-input" class="btn btn-secondary mt-2">
+                            Seleccionar Archivos Manualmente
+                        </label>
+                        <input type="file" id="file-input" multiple webkitdirectory directory>
+                        <!-- 'webkitdirectory' y 'directory' permiten seleccionar carpetas -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de archivos cargados -->
+            <div class="card mb-4">
+                 <div class="card-body">
+                    <h5 class="card-title">2. Selecciona los archivos a incluir</h5>
+                    <div id="file-list-container">
+                         <p id="no-files-message" class="text-muted">Aún no has cargado ningún archivo.</p>
+                         <ul id="file-list" class="list-group" aria-live="polite">
+                             <!-- Los archivos se listarán aquí dinámicamente -->
+                         </ul>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- Botón de generación y estado -->
+             <div class="text-center">
+                 <button id="generate-btn" class="btn btn-primary btn-lg" disabled>
+                     Generar Archivo Combinado
+                 </button>
+                 <div id="status" class="mt-2"></div>
+             </div>
+        </main>
+
+         <footer class="text-center text-muted mt-5">
+            <small>UniTexto &copy; 2023 - Procesamiento local en tu navegador.</small>
+        </footer>
+
+    </div>
+
+    <!-- Bootstrap 5 JS (Bundle con Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        // Referencias a elementos del DOM
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileListContainer = document.getElementById('file-list');
+        const noFilesMessage = document.getElementById('no-files-message');
+        const generateBtn = document.getElementById('generate-btn');
+        const statusDiv = document.getElementById('status');
+
+        // Almacenamiento de archivos (Usamos un Map para fácil gestión y evitar duplicados por nombre+tamaño)
+        // La clave será una combinación única (nombre + tamaño + última modificación)
+        // El valor será un objeto { file: File, selected: boolean }
+        const uploadedFiles = new Map();
+
+        // --- Gestión de Carga de Archivos ---
+
+        // Prevenir comportamiento por defecto del navegador para drag/drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false); // Prevenir que el navegador abra el archivo si se suelta fuera
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Añadir clase visual al arrastrar sobre la zona
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        // Quitar clase visual al salir de la zona o soltar
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        // Manejar archivos soltados
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const items = dt.items;
+            const files = dt.files;
+
+            if (items && items.length && items[0].webkitGetAsEntry) {
+                 // Procesar carpetas (y archivos dentro) usando File System Access API (experimental, pero común)
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i].webkitGetAsEntry();
+                    if (item) {
+                        scanFiles(item);
+                    }
+                }
+            } else if (files && files.length) {
+                // Procesar archivos individuales
+                 handleFiles(files);
+            }
+            // Limpiar selección del input si se usó drag & drop
+            fileInput.value = '';
+        }
+
+        // Manejar selección de archivos por input
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+            // No es necesario limpiar el value aquí, se limpia solo en la próxima selección
+        });
+
+        // Función recursiva para escanear carpetas
+        function scanFiles(entry) {
+            if (entry.isFile) {
+                entry.file(file => {
+                    handleFiles([file]); // Pasar como array para reutilizar handleFiles
+                }, err => {
+                    console.error("Error al obtener archivo de la carpeta:", err);
+                    updateStatus(`Error leyendo ${entry.name}`, 'error');
+                });
+            } else if (entry.isDirectory) {
+                const directoryReader = entry.createReader();
+                directoryReader.readEntries(entries => {
+                    entries.forEach(subEntry => {
+                        scanFiles(subEntry); // Llamada recursiva
+                    });
+                }, err => {
+                     console.error("Error al leer directorio:", err);
+                     updateStatus(`Error escaneando carpeta ${entry.name}`, 'error');
+                });
+            }
+        }
+
+
+        // Procesar la lista de archivos (FileList)
+        function handleFiles(files) {
+            let fileAdded = false;
+             // Filtrar archivos vacíos o de tamaño 0 que a veces aparecen con carpetas
+            const validFiles = Array.from(files).filter(file => file.size > 0 || file.name); // Permitir archivos vacíos con nombre
+
+            if (validFiles.length === 0 && files.length > 0) {
+                console.log("Se ignoraron entradas vacías o sin nombre.");
+                return; // No hacer nada si solo había entradas inválidas
+            }
+
+            validFiles.forEach(file => {
+                // Generar una clave única para evitar duplicados exactos
+                const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+                if (!uploadedFiles.has(fileId)) {
+                    uploadedFiles.set(fileId, { file: file, selected: true }); // Marcar como seleccionado por defecto
+                    fileAdded = true;
+                } else {
+                    console.log(`Archivo duplicado ignorado: ${file.name}`);
+                }
+            });
+
+            if (fileAdded) {
+                 updateFileListUI();
+                 updateStatus(`Archivos cargados. ${uploadedFiles.size} en total.`, 'info');
+                 noFilesMessage.style.display = 'none'; // Ocultar mensaje inicial
+            }
+        }
+
+        // --- Actualización de la Interfaz (UI) ---
+
+        function updateFileListUI() {
+            fileListContainer.innerHTML = ''; // Limpiar lista actual
+
+            if (uploadedFiles.size === 0) {
+                 noFilesMessage.style.display = 'block'; // Mostrar mensaje si no hay archivos
+                 generateBtn.disabled = true;
+                 return;
+            }
+
+            noFilesMessage.style.display = 'none'; // Asegurarse que esté oculto si hay archivos
+
+            // Ordenar alfabéticamente por nombre de archivo para consistencia
+            const sortedFiles = Array.from(uploadedFiles.entries()).sort((a, b) => a[1].file.name.localeCompare(b[1].file.name));
+
+            sortedFiles.forEach(([id, data]) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+
+                const fileInfoDiv = document.createElement('div');
+                fileInfoDiv.className = 'file-info';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input me-2'; // Clase Bootstrap para estilo y margen
+                checkbox.checked = data.selected;
+                checkbox.setAttribute('data-file-id', id);
+                checkbox.setAttribute('aria-label', `Incluir archivo ${data.file.name}`);
+                checkbox.addEventListener('change', handleCheckboxChange);
+
+                const fileNameSpan = document.createElement('span');
+                fileNameSpan.textContent = data.file.name;
+
+                const fileSizeSpan = document.createElement('small');
+                fileSizeSpan.className = 'text-muted';
+                fileSizeSpan.textContent = `(${(data.file.size / 1024).toFixed(2)} KB)`; // Mostrar tamaño
+
+                fileInfoDiv.appendChild(checkbox);
+                fileInfoDiv.appendChild(fileNameSpan);
+
+                li.appendChild(fileInfoDiv);
+                li.appendChild(fileSizeSpan); // Poner el tamaño al final
+                fileListContainer.appendChild(li);
+            });
+
+            generateBtn.disabled = uploadedFiles.size === 0; // Habilitar botón si hay archivos
+        }
+
+        // Manejar cambio en las casillas de verificación
+        function handleCheckboxChange(e) {
+            const fileId = e.target.getAttribute('data-file-id');
+            const isSelected = e.target.checked;
+
+            if (uploadedFiles.has(fileId)) {
+                uploadedFiles.get(fileId).selected = isSelected;
+                console.log(`Archivo ${uploadedFiles.get(fileId).file.name} selección: ${isSelected}`);
+                // Podríamos añadir lógica aquí para deshabilitar el botón si NINGÚN archivo está seleccionado
+                 checkIfAnyFileSelected();
+            }
+        }
+
+        // Verificar si hay al menos un archivo seleccionado para habilitar/deshabilitar el botón
+        function checkIfAnyFileSelected() {
+            let anySelected = false;
+            for (const data of uploadedFiles.values()) {
+                if (data.selected) {
+                    anySelected = true;
+                    break;
+                }
+            }
+            generateBtn.disabled = !anySelected;
+        }
+
+        // --- Generación del Archivo Combinado ---
+
+        generateBtn.addEventListener('click', generateCombinedFile);
+
+        async function generateCombinedFile() {
+            updateStatus('Procesando archivos...', 'info');
+            generateBtn.disabled = true;
+
+            const selectedFilesData = [];
+            uploadedFiles.forEach(data => {
+                if (data.selected) {
+                    selectedFilesData.push(data.file);
+                }
+            });
+
+            if (selectedFilesData.length === 0) {
+                updateStatus('Error: No hay archivos seleccionados.', 'error');
+                generateBtn.disabled = false; // Volver a habilitar si se llegó aquí por error
+                return;
+            }
+
+            // Ordenar los archivos seleccionados alfabéticamente antes de procesar
+            selectedFilesData.sort((a, b) => a.name.localeCompare(b.name));
+
+            let combinedContent = '';
+            const fileReadPromises = selectedFilesData.map(file => {
+                return readFileAsText(file)
+                    .then(content => {
+                        const header = `# Nombre [${file.name}] #\n`;
+                        const footer = `\n#Fin Nombre [${file.name}]#\n\n`;
+                        // Concatenar en el orden correcto dentro del .then individual
+                        // para asegurar que el contenido se añade junto con su nombre correcto
+                        // NOTA: Promise.all MANTIENE el orden, así que podríamos concatenar al final,
+                        // pero hacerlo aquí es un poco más explícito por si acaso.
+                        return header + content + footer;
+                    })
+                    .catch(error => {
+                         console.error(`Error leyendo ${file.name}:`, error);
+                         // Incluir un marcador de error en el archivo final
+                         const header = `# Nombre [${file.name}] #\n`;
+                         const footer = `\n#Fin Nombre [${file.name}]#\n\n`;
+                         return header + `### ERROR AL LEER EL ARCHIVO: ${error.message} ###` + footer;
+                    });
+            });
+
+            try {
+                const results = await Promise.all(fileReadPromises);
+                combinedContent = results.join(''); // Unir los resultados (que ya incluyen formato)
+
+                // Crear Blob y descargar
+                const blob = new Blob([combinedContent], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'UniTexto_resultado.txt'; // Nombre del archivo a descargar
+                document.body.appendChild(link); // Necesario para Firefox
+                link.click();
+                document.body.removeChild(link); // Limpiar
+                URL.revokeObjectURL(url); // Liberar memoria
+
+                updateStatus(`¡Archivo combinado "${link.download}" generado y descargado!`, 'success');
+
+            } catch (error) {
+                 // Este catch es más para errores inesperados en Promise.all,
+                 // los errores de lectura individuales se manejan arriba.
+                 console.error("Error al procesar los archivos:", error);
+                 updateStatus('Error durante la generación del archivo.', 'error');
+            } finally {
+                 // Volver a habilitar el botón, independientemente de si hubo éxito o error
+                 // pero sólo si todavía hay archivos cargados
+                 checkIfAnyFileSelected(); // Reevalúa si el botón debe estar habilitado
+            }
+        }
+
+        // Función auxiliar para leer archivo como texto usando Promises
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error);
+                 // Intentar leer como UTF-8, que es lo más común para texto plano
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        // --- Funciones de Utilidad ---
+
+        // Actualizar mensaje de estado
+        function updateStatus(message, type = 'info') { // type puede ser 'info', 'success', 'error'
+            statusDiv.textContent = message;
+            statusDiv.className = type; // Aplicar clase para estilo (o quitarla si es 'info')
+            if (type === 'info') {
+                 statusDiv.classList.remove('success', 'error');
+            }
+        }
+
+         // --- Inicialización ---
+         updateFileListUI(); // Llamada inicial por si acaso, aunque no habrá archivos.
+
+    </script>
+
+</body>
+</html>
