@@ -239,7 +239,15 @@
 
         function finalizarActualizacionUI() {
              if (numeroFinalActual === null) return;
-
+             if (!numerosSorteados.includes(numeroFinalActual)) {
+               numerosSorteados.push(numeroFinalActual);
+             }
+             if (numerosSorteados.length > 0) {
+               numerosAnterioresListaDiv.textContent = numerosSorteados.join(', ');
+             } else {
+               numerosAnterioresListaDiv.textContent = "Ninguno";
+             }
+            
             numeroResultadoDiv.textContent = numeroFinalActual;
             numeroResultadoDiv.classList.remove('spinning');
             numeroResultadoDiv.style.fontSize = getAdjustedFontSize('--numero-size-base-default');
@@ -378,8 +386,6 @@
                 numeroNuevo = obtenerNumeroAleatorio(minActual, maxActual); intentos++;
                 if (intentos > maxIntentos) { console.error("Máximo de intentos alcanzado."); mostrarMensaje("Error al generar número único. Intenta reiniciar."); detenerAnimaciones(); return; }
             } while (numerosSorteados.includes(numeroNuevo));
-            numerosSorteados.push(numeroNuevo);
-            numerosAnterioresListaDiv.textContent = numerosSorteados.join(', ');
             iniciarEfectoSorteoConcurrente(minActual, maxActual, numeroNuevo);
         }
 
