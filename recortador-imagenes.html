@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extractor de Elementos (Nombre Archivo)</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .main-container { margin-top: 2rem; margin-bottom: 4rem; background-color: #ffffff; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1); }
+        #image-container { position: relative; display: inline-block; cursor: crosshair; margin-top: 1rem; max-width: 100%; overflow: hidden; border: 1px solid #dee2e6; width: 100%; min-width: 400px; }
+        #preview-canvas { display: block; max-width: 100%; height: auto; }
+        #selection-overlay { position: absolute; border: 2px dashed rgba(255, 0, 0, 0.7); background-color: rgba(255, 0, 0, 0.1); box-sizing: border-box; pointer-events: none; display: none; cursor: move; z-index: 10; }
+        #selection-overlay.active { pointer-events: auto; }
+        .resizer { position: absolute; width: 10px; height: 10px; background-color: rgba(255, 0, 0, 0.7); border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 2px; z-index: 11; display: none; }
+        .resizer.top-left { top: -6px; left: -6px; cursor: nwse-resize; }
+        .resizer.top-right { top: -6px; right: -6px; cursor: nesw-resize; }
+        .resizer.bottom-left { bottom: -6px; left: -6px; cursor: nesw-resize; }
+        .resizer.bottom-right { bottom: -6px; right: -6px; cursor: nwse-resize; }
+
+        /* Estilos lista resultados */
+        #results-list { list-style: none; padding: 0; }
+        .result-item { display: flex; align-items: flex-start; /* Alinea al inicio para el input */ background-color: #f1f1f1; border: 1px solid #e0e0e0; border-radius: 0.3rem; padding: 0.75rem; margin-bottom: 0.75rem; gap: 1rem; }
+        .result-item img { max-width: 100px; height: auto; object-fit: contain; border: 1px solid #ccc; flex-shrink: 0; margin-top: 0.25rem; /* Pequeño ajuste visual */ }
+        .result-info { flex-grow: 1; font-size: 0.9em; }
+        .result-filename-input { margin-top: 0.5rem; /* Espacio sobre el input */ }
+        .result-actions { display: flex; flex-direction: column; /* Apila botones */ gap: 0.5rem; flex-shrink: 0; align-items: center; /* Centra botones */ }
+        .result-actions .btn { padding: 0.25rem 0.5rem; font-size: 0.8rem; width: 38px; /* Ancho fijo para alinear iconos */ }
+
+        /* Alineación checkbox */
+        .proportion-sync-label { display: flex; align-items: center; height: 100%; margin-top: 1.9rem; }
+        .form-check-input.larger { width: 1.25em; height: 1.25em; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container main-container">
+        <header class="mb-4 text-center">
+            <h1>Extractor de Elementos (Nombre Archivo)</h1>
+            <p class="lead">Sube imagen, define proporción/salida, arrastra para seleccionar y nombra tus recortes.</p>
+        </header>
+
+        <section class="controls-section mb-4 row g-3 align-items-start">
+            <div class="col-md-3">
+                <label for="imageLoader" class="form-label">1. Sube tu imagen:</label>
+                <input class="form-control" type="file" id="imageLoader" accept="image/*">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">2. Proporción Recorte:</label>
+                <div class="input-group">
+                    <input type="number" id="cropWidthInput" class="form-control" value="1" min="1" aria-label="Ancho de proporción">
+                    <span class="input-group-text">x</span>
+                    <input type="number" id="cropHeightInput" class="form-control" value="1" min="1" aria-label="Alto de proporción">
+                </div>
+            </div>
+            <div class="col-md-1 text-center proportion-sync-label">
+                 <div class="form-check">
+                     <input class="form-check-input larger" type="checkbox" id="keepProportionCheckbox" checked title="Mantener proporción entre recorte y salida">
+                     <label class="form-check-label" for="keepProportionCheckbox">
+                         <i class="bi bi-link-45deg fs-4"></i>
+                     </label>
+                 </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">3. Tamaño Salida (Px):</label>
+                 <div class="input-group">
+                    <input type="number" id="outputWidthInput" class="form-control" value="128" min="1" aria-label="Ancho de salida">
+                    <span class="input-group-text">x</span>
+                    <input type="number" id="outputHeightInput" class="form-control" value="128" min="1" aria-label="Alto de salida">
+                </div>
+            </div>
+             <div class="col-md-2 align-self-end">
+                 <div class="d-grid gap-2">
+                     <button id="cropButton" class="btn btn-primary" disabled><i class="bi bi-crop"></i> Extraer</button>
+                     <button id="clearResultsBtn" class="btn btn-outline-secondary"><i class="bi bi-trash3"></i> Limpiar</button>
+                 </div>
+            </div>
+        </section>
+
+        <section class="image-section mb-4 text-center">
+            <p id="instruction" class="text-muted">Arrastra sobre la imagen para definir el área de recorte.</p>
+            <div id="image-container">
+                <canvas id="preview-canvas"></canvas>
+                <div id="selection-overlay">
+                    <div class="resizer top-left"></div>
+                    <div class="resizer top-right"></div>
+                    <div class="resizer bottom-left"></div>
+                    <div class="resizer bottom-right"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="results-section">
+            <h2>Resultados del Recorte:</h2>
+             <p id="no-results" class="text-muted">Aún no se han extraído elementos.</p>
+            <ul id="results-list" class="mt-3">
+                 <!-- Los resultados (li) con input de nombre se añadirán aquí -->
+            </ul>
+        </section>
+
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle (Popper included) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        // --- DOM Elements ---
+        const imageLoader = document.getElementById('imageLoader');
+        const previewCanvas = document.getElementById('preview-canvas');
+        const ctx = previewCanvas.getContext('2d');
+        const imageContainer = document.getElementById('image-container');
+        const selectionOverlay = document.getElementById('selection-overlay');
+        const resizers = document.querySelectorAll('.resizer');
+        const cropWidthInput = document.getElementById('cropWidthInput');
+        const cropHeightInput = document.getElementById('cropHeightInput');
+        const outputWidthInput = document.getElementById('outputWidthInput');
+        const outputHeightInput = document.getElementById('outputHeightInput');
+        const keepProportionCheckbox = document.getElementById('keepProportionCheckbox');
+        const cropButton = document.getElementById('cropButton');
+        const clearResultsBtn = document.getElementById('clearResultsBtn');
+        const resultsList = document.getElementById('results-list');
+        const instructionText = document.getElementById('instruction');
+        const noResultsText = document.getElementById('no-results');
+
+        // --- State Variables ---
+        let originalImage = null;
+        let scale = 1;
+        let aspectRatio = 1 / 1;
+        let outputSize = { width: 128, height: 128 };
+        let keepProportion = true;
+        let resultCounter = 0;
+        let isDragging = false, isResizing = false, isMoving = false;
+        let startX, startY, currentResizer = null;
+        let selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+
+        // --- Helper Functions ---
+        // (updateAspectRatio, updateOutputSize, updateKeepProportionState, drawSelection, adjustSelectionToAspectRatio - sin cambios)
+        function updateAspectRatio() {
+            const cropW = parseInt(cropWidthInput.value, 10) || 1; const cropH = parseInt(cropHeightInput.value, 10) || 1;
+            const newAspectRatio = cropW / cropH;
+            if (newAspectRatio !== aspectRatio) {
+                aspectRatio = newAspectRatio; console.log('Aspect Ratio updated:', aspectRatio);
+                if (keepProportion) {
+                    const currentOutputWidth = parseInt(outputWidthInput.value, 10) || 1;
+                    let newOutputHeight = Math.round(currentOutputWidth / aspectRatio); newOutputHeight = Math.max(1, newOutputHeight);
+                    outputHeightInput.value = newOutputHeight; updateOutputSize(false);
+                }
+                if (selectionRect.width > 0) { adjustSelectionToAspectRatio(); drawSelection(); }
+            }
+        }
+        function updateOutputSize(calledFromInput = true) {
+            const newOutputWidth = parseInt(outputWidthInput.value, 10) || 1; const newOutputHeight = parseInt(outputHeightInput.value, 10) || 1;
+            const changed = newOutputWidth !== outputSize.width || newOutputHeight !== outputSize.height;
+            if (changed) {
+                 outputSize.width = newOutputWidth; outputSize.height = newOutputHeight; console.log('Output Size updated:', outputSize);
+                 if (keepProportion && calledFromInput) {
+                     const newOutputAspectRatio = outputSize.width / outputSize.height;
+                     cropWidthInput.value = outputSize.width; cropHeightInput.value = outputSize.height;
+                     updateAspectRatio();
+                 }
+             }
+        }
+        function updateKeepProportionState() { keepProportion = keepProportionCheckbox.checked; console.log('Keep Proportion:', keepProportion); if (keepProportion) { updateAspectRatio(); } }
+        function drawSelection() { if (!selectionRect.width || selectionRect.width <=0) { selectionOverlay.style.display = 'none'; resizers.forEach(r => r.style.display = 'none'); cropButton.disabled = true; selectionOverlay.classList.remove('active'); return; } selectionOverlay.style.display = 'block'; selectionOverlay.style.left = `${selectionRect.x}px`; selectionOverlay.style.top = `${selectionRect.y}px`; selectionOverlay.style.width = `${selectionRect.width}px`; selectionOverlay.style.height = `${selectionRect.height}px`; resizers.forEach(r => r.style.display = 'block'); cropButton.disabled = false; selectionOverlay.classList.add('active'); }
+        function adjustSelectionToAspectRatio() { let newHeight = selectionRect.width / aspectRatio; if (selectionRect.y + newHeight > previewCanvas.height) { newHeight = previewCanvas.height - selectionRect.y; selectionRect.width = newHeight * aspectRatio; } selectionRect.height = newHeight; if (selectionRect.x + selectionRect.width > previewCanvas.width) { selectionRect.width = previewCanvas.width - selectionRect.x; selectionRect.height = selectionRect.width / aspectRatio; } const minSize = 10; if (selectionRect.width < minSize || selectionRect.height < minSize) { if (aspectRatio >= 1) { selectionRect.width = minSize; selectionRect.height = minSize / aspectRatio; } else { selectionRect.height = minSize; selectionRect.width = minSize * aspectRatio; } if (selectionRect.x + selectionRect.width > previewCanvas.width) selectionRect.x = previewCanvas.width - selectionRect.width; if (selectionRect.y + selectionRect.height > previewCanvas.height) selectionRect.y = previewCanvas.height - selectionRect.y; selectionRect.x = Math.max(0, selectionRect.x); selectionRect.y = Math.max(0, selectionRect.y); } }
+
+
+        // --- Event Handlers ---
+        // (handleImageUpload, getMousePos, handleMouseDown, handleMouseMove, handleMouseUp, performCrop - sin cambios lógicos internos significativos, solo llamadas)
+        function handleImageUpload(event) { const file = event.target.files[0]; if (!file || !file.type.startsWith('image/')) return; const reader = new FileReader(); reader.onload = (e) => { originalImage = new Image(); originalImage.onload = () => { console.log(`Original: ${originalImage.naturalWidth}x${originalImage.naturalHeight}`); const containerWidth = imageContainer.clientWidth; const targetWidth = Math.min(originalImage.naturalWidth, containerWidth); scale = targetWidth / originalImage.naturalWidth; previewCanvas.width = originalImage.naturalWidth * scale; previewCanvas.height = originalImage.naturalHeight * scale; imageContainer.style.height = `${previewCanvas.height}px`; ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height); ctx.drawImage(originalImage, 0, 0, previewCanvas.width, previewCanvas.height); selectionRect = { x: 0, y: 0, width: 0, height: 0 }; drawSelection(); imageContainer.style.cursor = 'crosshair'; instructionText.textContent = 'Arrastra en la imagen para seleccionar.'; console.log(`Canvas: ${previewCanvas.width.toFixed(0)}x${previewCanvas.height.toFixed(0)}, Scale: ${scale.toFixed(3)}`); keepProportion = keepProportionCheckbox.checked; updateAspectRatio(); updateOutputSize(); }; originalImage.onerror = () => { originalImage = null; alert("Error al cargar imagen."); }; originalImage.src = e.target.result; }; reader.readAsDataURL(file); }
+        function getMousePos(event) { const rect = previewCanvas.getBoundingClientRect(); return { x: Math.max(0, Math.min(event.clientX - rect.left, previewCanvas.width)), y: Math.max(0, Math.min(event.clientY - rect.top, previewCanvas.height)) }; }
+        function handleMouseDown(event) { if (!originalImage) return; const mousePos = getMousePos(event); startX = mousePos.x; startY = mousePos.y; if (event.target.classList.contains('resizer')) { isResizing = true; currentResizer = event.target; imageContainer.style.cursor = currentResizer.style.cursor; } else if (selectionOverlay.style.display === 'block' && startX >= selectionRect.x && startX <= selectionRect.x + selectionRect.width && startY >= selectionRect.y && startY <= selectionRect.y + selectionRect.height) { isMoving = true; imageContainer.style.cursor = 'move'; startX = startX - selectionRect.x; startY = startY - selectionRect.y; } else { isDragging = true; imageContainer.style.cursor = 'crosshair'; selectionRect = { x: startX, y: startY, width: 0, height: 0 }; } document.addEventListener('mousemove', handleMouseMove); document.addEventListener('mouseup', handleMouseUp); }
+        function handleMouseMove(event) { if (!originalImage || (!isDragging && !isResizing && !isMoving)) return; const mousePos = getMousePos(event); if (isDragging) { let currentX = mousePos.x; let currentY = mousePos.y; selectionRect.x = Math.min(startX, currentX); selectionRect.y = Math.min(startY, currentY); selectionRect.width = Math.abs(startX - currentX); selectionRect.height = Math.abs(startY - currentY); adjustSelectionToAspectRatio(); } else if (isMoving) { let newX = mousePos.x - startX; let newY = mousePos.y - startY; selectionRect.x = Math.max(0, Math.min(newX, previewCanvas.width - selectionRect.width)); selectionRect.y = Math.max(0, Math.min(newY, previewCanvas.height - selectionRect.height)); } else if (isResizing) { const dx = mousePos.x - startX; const dy = mousePos.y - startY; let newX = selectionRect.x, newY = selectionRect.y, newWidth = selectionRect.width, newHeight = selectionRect.height; /* ... Lógica compleja de resize ... */ if (currentResizer.classList.contains('bottom-right')) { newWidth = Math.max(10, selectionRect.width + dx); newHeight = newWidth / aspectRatio; if (newY + newHeight > previewCanvas.height) { newHeight = previewCanvas.height - newY; newWidth = newHeight * aspectRatio; } } else if (currentResizer.classList.contains('bottom-left')) { newWidth = Math.max(10, selectionRect.width - dx); newHeight = newWidth / aspectRatio; newX = startX + dx; if (newX < 0) { newWidth += newX; newHeight = newWidth / aspectRatio; newX = 0; } if (newY + newHeight > previewCanvas.height) { newHeight = previewCanvas.height - newY; newWidth = newHeight * aspectRatio; newX = selectionRect.x + selectionRect.width - newWidth; } } else if (currentResizer.classList.contains('top-right')) { newWidth = Math.max(10, selectionRect.width + dx); newHeight = newWidth / aspectRatio; newY = startY + dy; if (newY < 0) { newHeight += newY; newWidth = newHeight * aspectRatio; newY = 0; } if (newX + newWidth > previewCanvas.width) { newWidth = previewCanvas.width - newX; newHeight = newWidth / aspectRatio; newY = selectionRect.y + selectionRect.height - newHeight; } } else if (currentResizer.classList.contains('top-left')) { newWidth = Math.max(10, selectionRect.width - dx); newHeight = newWidth / aspectRatio; newX = startX + dx; newY = startY + dy; if (newX < 0) { newWidth += newX; newHeight = newWidth / aspectRatio; newX = 0; } if (newY < 0) { newHeight += newY; newWidth = newHeight * aspectRatio; newY = 0; newX = selectionRect.x + selectionRect.width - newWidth; } } /* Fin Lógica Resize */ if (newWidth > 5 && newHeight > 5) { selectionRect.x = newX; selectionRect.y = newY; selectionRect.width = newWidth; selectionRect.height = newHeight; selectionRect.x = Math.max(0, selectionRect.x); selectionRect.y = Math.max(0, selectionRect.y); if (selectionRect.x + selectionRect.width > previewCanvas.width) selectionRect.width = previewCanvas.width - selectionRect.x; if (selectionRect.y + selectionRect.height > previewCanvas.height) selectionRect.height = previewCanvas.height - selectionRect.y; adjustSelectionToAspectRatio(); } startX = mousePos.x; startY = mousePos.y; } drawSelection(); }
+        function handleMouseUp() { if (isDragging || isResizing || isMoving) { isDragging = false; isResizing = false; isMoving = false; currentResizer = null; imageContainer.style.cursor = originalImage ? 'crosshair' : 'default'; document.removeEventListener('mousemove', handleMouseMove); document.removeEventListener('mouseup', handleMouseUp); if (selectionRect.width < 5) { cropButton.disabled = true; selectionRect = { x: 0, y: 0, width: 0, height: 0 }; drawSelection(); } else { cropButton.disabled = false; } console.log("Final Selection (Canvas):", selectionRect); } }
+        function performCrop() { if (!originalImage || selectionRect.width <= 0) return; const sourceX = Math.round(selectionRect.x / scale); const sourceY = Math.round(selectionRect.y / scale); const sourceWidth = Math.round(selectionRect.width / scale); const sourceHeight = Math.round(selectionRect.height / scale); const clampedSourceWidth = Math.min(sourceWidth, originalImage.naturalWidth - sourceX); const clampedSourceHeight = Math.min(sourceHeight, originalImage.naturalHeight - sourceY); if (clampedSourceWidth <= 0 || clampedSourceHeight <= 0) return; console.log(`Cropping - Original: (${sourceX}, ${sourceY}) ${clampedSourceWidth}x${clampedSourceHeight} -> Output: ${outputSize.width}x${outputSize.height}`); const tempCanvas = document.createElement('canvas'); const tempCtx = tempCanvas.getContext('2d'); tempCanvas.width = outputSize.width; tempCanvas.height = outputSize.height; tempCtx.drawImage(originalImage, sourceX, sourceY, clampedSourceWidth, clampedSourceHeight, 0, 0, outputSize.width, outputSize.height); try { const croppedImageDataUrl = tempCanvas.toDataURL('image/png'); addResultToList(croppedImageDataUrl, clampedSourceWidth, clampedSourceHeight, outputSize.width, outputSize.height); } catch (e) { console.error("Error creating Data URL:", e); alert("Error al generar recorte."); } }
+
+         // --- MODIFIED: addResultToList ---
+         function addResultToList(dataUrl, cropW, cropH, outputW, outputH) {
+             resultCounter++;
+             noResultsText.style.display = 'none';
+
+             const listItem = document.createElement('li');
+             listItem.classList.add('result-item');
+             listItem.dataset.id = resultCounter;
+
+             const img = document.createElement('img');
+             img.src = dataUrl;
+             img.alt = `Recorte ${resultCounter} (${outputW}x${outputH})`;
+             img.title = `Origen: ${cropW}x${cropH}, Salida: ${outputW}x${outputH}`;
+
+             const infoDiv = document.createElement('div');
+             infoDiv.classList.add('result-info');
+             infoDiv.innerHTML = `
+                 <strong>Recorte #${resultCounter}</strong> (${outputW}x${outputH} px)<br>
+                 <small>(Origen: ${cropW}x${cropH} px)</small>
+             `;
+
+             // --- START: Input para nombre de archivo ---
+             const nameInput = document.createElement('input');
+             nameInput.type = 'text';
+             nameInput.classList.add('form-control', 'form-control-sm', 'mt-2', 'result-filename-input'); // Añadida clase específica y margen
+             const defaultFilenameBase = `recorte_${resultCounter}_${outputW}x${outputH}`;
+             nameInput.value = defaultFilenameBase; // Nombre por defecto sin extensión
+             nameInput.placeholder = "Nombre para descargar";
+             infoDiv.appendChild(nameInput); // Añadir input al div de información
+             // --- END: Input para nombre de archivo ---
+
+
+             const actionsDiv = document.createElement('div');
+             actionsDiv.classList.add('result-actions');
+
+             const downloadBtn = document.createElement('button');
+             downloadBtn.classList.add('btn', 'btn-sm', 'btn-success');
+             downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
+             downloadBtn.title = 'Descargar imagen';
+             downloadBtn.addEventListener('click', () => {
+                 // Encuentra el input de nombre DENTRO de este item específico
+                 const currentListItem = downloadBtn.closest('.result-item');
+                 const currentNameInput = currentListItem.querySelector('.result-filename-input');
+
+                 let filename = currentNameInput.value.trim();
+
+                 // Usar nombre por defecto si está vacío
+                 if (!filename) {
+                     filename = defaultFilenameBase;
+                 }
+
+                 // Asegurar extensión .png (si no tiene ya una extensión conocida)
+                 if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(filename)) {
+                      filename += '.png';
+                 }
+
+                 downloadImage(dataUrl, filename);
+             });
+
+             const deleteBtn = document.createElement('button');
+             deleteBtn.classList.add('btn', 'btn-sm', 'btn-danger');
+             deleteBtn.innerHTML = '<i class="bi bi-trash3"></i>';
+             deleteBtn.title = 'Eliminar recorte';
+             deleteBtn.addEventListener('click', () => {
+                 listItem.remove();
+                 if (resultsList.children.length === 0) {
+                     noResultsText.style.display = 'block';
+                 }
+             });
+
+             actionsDiv.appendChild(downloadBtn);
+             actionsDiv.appendChild(deleteBtn);
+
+             listItem.appendChild(img);
+             listItem.appendChild(infoDiv);
+             listItem.appendChild(actionsDiv);
+
+             resultsList.appendChild(listItem);
+         }
+
+         function downloadImage(dataUrl, filename) {
+            // (Sin cambios)
+            const link = document.createElement('a'); link.href = dataUrl; link.download = filename;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+         }
+
+         function clearResults() {
+            // (Sin cambios)
+            resultsList.innerHTML = ''; noResultsText.style.display = 'block'; resultCounter = 0; console.log('Resultados limpiados.');
+         }
+
+        // --- Initial Setup & Event Listeners ---
+        imageLoader.addEventListener('change', handleImageUpload);
+        cropWidthInput.addEventListener('input', updateAspectRatio);
+        cropHeightInput.addEventListener('input', updateAspectRatio);
+        outputWidthInput.addEventListener('input', () => updateOutputSize(true));
+        outputHeightInput.addEventListener('input', () => updateOutputSize(true));
+        keepProportionCheckbox.addEventListener('change', updateKeepProportionState);
+        imageContainer.addEventListener('mousedown', handleMouseDown);
+        cropButton.addEventListener('click', performCrop);
+        clearResultsBtn.addEventListener('click', clearResults);
+
+        // Initialize values on load
+        keepProportion = keepProportionCheckbox.checked;
+        updateAspectRatio(); updateOutputSize(); drawSelection();
+
+    </script>
+
+</body>
+</html>
