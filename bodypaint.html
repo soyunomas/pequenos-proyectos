@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bodypaint AR</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            background-color: #f8f9fa; /* Light gray background */
+        }
+
+        .canvas-container {
+            background-color: #333; /* Dark background while loading */
+            /* Control aspect ratio if needed, e.g., 16:9 */
+            /* aspect-ratio: 16 / 9; */
+        }
+
+        #outputCanvas {
+            display: block; /* Remove extra space below canvas */
+            background-color: #000; /* Black background for the canvas itself */
+            cursor: crosshair; /* Indicate drawing capability */
+            /* Ensure it scales within its container */
+            max-width: 100%;
+            height: auto;
+        }
+
+        .color-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50% !important; /* Make buttons circular */
+            margin: 2px;
+            border: 2px solid transparent;
+            transition: transform 0.1s ease-in-out, border-color 0.1s ease-in-out;
+        }
+
+        .color-btn.active-color {
+            border-color: #0d6efd; /* Bootstrap primary blue for active border */
+            transform: scale(1.15);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Ensure controls stay visible on larger screens */
+        @media (min-width: 992px) { /* lg breakpoint */
+            .controls.sticky-lg-top {
+                top: 2rem; /* Adjust spacing from top */
+            }
+        }
+
+        /* Basic styling for the alert */
+        #status {
+            min-height: 58px; /* Prevent layout shift when text changes */
+        }
+    </style>
+</head>
+<body>
+    <main class="container mt-4">
+        <h1 class="mb-4 text-center">Bodypaint AR</h1>
+
+        <div class="row">
+            <!-- Columna Principal: Video/Canvas -->
+            <div class="col-lg-9 mb-3 mb-lg-0">
+                <div id="status" class="alert alert-info" role="alert">
+                    Inicializando...
+                </div>
+                <div class="canvas-container position-relative">
+                    <!-- Canvas visible donde se dibuja el resultado -->
+                    <canvas id="outputCanvas" class="w-100 h-auto border"></canvas>
+                    <!-- Elemento de video oculto para la fuente de la webcam -->
+                    <video id="webcamVideo" playsinline style="display: none; transform: scaleX(-1);"></video>
+                    <!-- El lienzo de pintura se crea dinámicamente en JS -->
+                </div>
+            </div>
+
+            <!-- Columna Lateral: Controles -->
+            <aside class="col-lg-3">
+                <div class="controls sticky-lg-top">
+                    <h5>Color</h5>
+                    <div id="colorPalette" class="btn-group mb-3" role="group" aria-label="Paleta de colores">
+                        <button type="button" class="btn color-btn" data-color="#FF0000" style="background-color: #FF0000;" aria-label="Rojo"></button>
+                        <button type="button" class="btn color-btn" data-color="#00FF00" style="background-color: #00FF00;" aria-label="Verde"></button>
+                        <button type="button" class="btn color-btn" data-color="#0000FF" style="background-color: #0000FF;" aria-label="Azul"></button>
+                        <button type="button" class="btn color-btn" data-color="#FFFF00" style="background-color: #FFFF00;" aria-label="Amarillo"></button>
+                        <button type="button" class="btn color-btn" data-color="#FFFFFF" style="background-color: #FFFFFF; border: 1px solid #ccc;" aria-label="Blanco"></button>
+                        <button type="button" class="btn color-btn" data-color="#000000" style="background-color: #000000;" aria-label="Negro"></button>
+                    </div>
+
+                    <h5>Acciones</h5>
+                    <button id="clearButton" type="button" class="btn btn-danger w-100">Borrar Todo</button>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- TensorFlow.js Libraries (ORDER MATTERS!) -->
+    <!-- Core -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.17.0/dist/tf-core.min.js"></script>
+    <!-- Converter -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.17.0/dist/tf-converter.min.js"></script>
+    <!-- Backend WebGL -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.17.0/dist/tf-backend-webgl.min.js"></script>
+    <!-- Body Segmentation Model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation@1.0.2/dist/body-segmentation.min.js"></script>
+    <!-- MediaPipe Selfie Segmentation Solution (dependency for some models) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.min.js" crossorigin="anonymous"></script>
+
+    <!-- Bootstrap JS Bundle (Optional, if needed for other components) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <!-- Custom App Logic -->
+    <script>
+        const videoElement = document.getElementById('webcamVideo');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const outputCtx = outputCanvas.getContext('2d');
+        const colorPalette = document.getElementById('colorPalette');
+        const clearButton = document.getElementById('clearButton');
+        const statusElement = document.getElementById('status');
+
+        // --- Estado de la Aplicación ---
+        let model;
+        let segmenter;
+        let isPainting = false;
+        let currentColor = '#FF0000'; // Default color (Rojo)
+        let paintCanvas; // Canvas en memoria para acumular la pintura
+        let paintCtx;
+        let animationFrameId; // Para poder cancelar el bucle
+
+        // --- Configuración ---
+        const SEGMENTATION_CONFIG = {
+            runtime: 'mediapipe', // or 'tfjs'
+            // solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation', // Solo necesario para runtime mediapipe
+            modelType: 'general' // or 'landscape'
+        };
+        const PAINT_BRUSH_SIZE = 5; // Radio del pincel
+
+        // --- Funciones de Inicialización ---
+
+        async function initialize() {
+            updateStatus('Cargando modelo de segmentación...');
+            try {
+                // Asegurarse que TFJS esté listo
+                await tf.ready();
+                updateStatus('TensorFlow.js listo. Cargando modelo...');
+
+                // Carga el modelo de segmentación corporal
+                model = bodySegmentation.SupportedModels.MediaPipeSelfieSegmentation; // O el modelo que prefieras
+                segmenter = await bodySegmentation.createSegmenter(model, SEGMENTATION_CONFIG);
+                updateStatus('Modelo cargado. Accediendo a la webcam...');
+                await setupWebcam();
+            } catch (error) {
+                console.error("Error al inicializar TensorFlow.js o el modelo:", error);
+                updateStatus(`Error al inicializar: ${error.message}. Asegúrate de usar HTTPS y que las librerías TF se cargaron.`, true);
+            }
+        }
+
+        async function setupWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' }, // Prefiere cámara frontal
+                    audio: false
+                });
+                videoElement.srcObject = stream;
+
+                return new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play();
+                        // Ajustar tamaño del canvas al video una vez cargado
+                        outputCanvas.width = videoElement.videoWidth;
+                        outputCanvas.height = videoElement.videoHeight;
+
+                        // Crear canvas de pintura del mismo tamaño
+                        paintCanvas = document.createElement('canvas');
+                        paintCanvas.width = outputCanvas.width;
+                        paintCanvas.height = outputCanvas.height;
+                        paintCtx = paintCanvas.getContext('2d');
+                        paintCtx.lineWidth = PAINT_BRUSH_SIZE * 2; // Diametro
+                        paintCtx.lineCap = 'round';
+                        paintCtx.lineJoin = 'round';
+
+                        updateStatus('¡Listo para pintar!', false);
+                        // Iniciar el bucle de procesamiento/renderizado
+                        startProcessingLoop();
+                        setupEventListeners();
+                        // Marcar el color inicial como activo
+                        setActiveColorButton(colorPalette.querySelector(`[data-color="${currentColor}"]`));
+                        resolve();
+                    };
+                });
+
+            } catch (error) {
+                console.error("Error al acceder a la webcam:", error);
+                updateStatus(`Error al acceder a la webcam: ${error.message}. ¿Permitiste el acceso?`, true);
+            }
+        }
+
+        // --- Lógica Principal (Bucle de Procesamiento y Renderizado) ---
+
+        async function processFrame() {
+            if (!segmenter || !videoElement.srcObject || videoElement.paused || videoElement.ended) {
+                 // Si el video no está listo o se detuvo, no procesar
+                 animationFrameId = requestAnimationFrame(processFrame); // Sigue intentando
+                 return;
+            }
+
+            try {
+                // 1. Obtener la máscara de segmentación
+                // Añadir chequeo de que el video tenga tamaño
+                 if (videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+                    animationFrameId = requestAnimationFrame(processFrame);
+                    return; // Esperar a que el video tenga dimensiones
+                }
+
+                const people = await segmenter.segmentPeople(videoElement, {
+                    flipHorizontal: false, // Ya volteamos el video con CSS/Canvas
+                    multiSegmentation: false,
+                    segmentBodyParts: false // Solo necesitamos la silueta general
+                });
+
+                // 2. Dibujar el resultado en el canvas visible
+                drawOutput(people.length > 0 ? people[0].mask : null); // Pasa la máscara del primer (único) detectado
+
+            } catch(error) {
+                console.error("Error durante la segmentación:", error);
+                // Considerar detener el bucle si el error persiste
+                // cancelAnimationFrame(animationFrameId);
+                // updateStatus('Error en procesamiento. Refresca la página.', true);
+            }
+
+            // Solicitar el siguiente frame
+            animationFrameId = requestAnimationFrame(processFrame);
+        }
+
+        function startProcessingLoop() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            animationFrameId = requestAnimationFrame(processFrame);
+        }
+
+        // --- Lógica de Dibujo ---
+
+        async function drawOutput(segmentationMask) {
+            // Asegurarse que los canvas estén listos
+             if (!outputCtx || !paintCtx) return;
+
+            outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+
+            // Guardar estado del contexto principal
+            outputCtx.save();
+
+            // 1. Dibujar el video original (volteado horizontalmente)
+            outputCtx.scale(-1, 1); // Voltear horizontalmente
+            outputCtx.drawImage(videoElement, -outputCanvas.width, 0, outputCanvas.width, outputCanvas.height);
+            outputCtx.restore(); // Restaurar estado (quita el volteo)
+
+            // 2. Dibujar la pintura acumulada (paintCanvas) encima del video
+            //    El paintCanvas no está volteado, así que se dibuja normalmente.
+            outputCtx.drawImage(paintCanvas, 0, 0);
+
+            // 3. Si hay máscara, usarla para recortar lo dibujado (video + pintura)
+            if (segmentationMask) {
+                try {
+                    // Obtener la máscara como algo dibujable (puede ser asíncrono)
+                     const maskBitmap = await segmentationMask.toCanvasImageSource();
+
+                     // Aplicar la máscara usando composite operation
+                    outputCtx.save();
+                    outputCtx.globalCompositeOperation = 'destination-in'; // Mantiene píxeles del destino donde la nueva forma (máscara) se superpone
+                    // La máscara NO se dibuja volteada, coincide con la segmentación original
+                    outputCtx.drawImage(maskBitmap, 0, 0, outputCanvas.width, outputCanvas.height);
+                    outputCtx.restore(); // Restaurar globalCompositeOperation a 'source-over' (default)
+
+                } catch (maskError) {
+                     console.error("Error al procesar o dibujar la máscara:", maskError);
+                     // Si falla la máscara, al menos mostramos video + pintura sin recortar
+                }
+            }
+            // Si no hay máscara, simplemente se muestra el video + pintura sin recortar.
+        }
+
+
+        // --- Manejadores de Eventos ---
+
+        function setupEventListeners() {
+            // Eventos de pintura en el canvas
+            outputCanvas.addEventListener('mousedown', handleStartPainting);
+            outputCanvas.addEventListener('touchstart', handleStartPainting, { passive: false });
+
+            outputCanvas.addEventListener('mousemove', handlePainting);
+            outputCanvas.addEventListener('touchmove', handlePainting, { passive: false });
+
+            outputCanvas.addEventListener('mouseup', handleStopPainting);
+            outputCanvas.addEventListener('touchend', handleStopPainting);
+            outputCanvas.addEventListener('mouseleave', handleStopPainting); // Detener si el cursor sale
+
+            // Selección de color
+            colorPalette.addEventListener('click', (e) => {
+                if (e.target.classList.contains('color-btn')) {
+                    currentColor = e.target.dataset.color;
+                    setActiveColorButton(e.target);
+                    // Actualizar color del contexto de pintura
+                    paintCtx.strokeStyle = currentColor;
+                    paintCtx.fillStyle = currentColor;
+                }
+            });
+
+            // Botón de borrar
+            clearButton.addEventListener('click', () => {
+                if (paintCtx) {
+                    paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+                    console.log("Pintura borrada");
+                }
+            });
+        }
+
+        function handleStartPainting(e) {
+             if (!paintCtx) return; // Asegurar que el contexto de pintura exista
+            isPainting = true;
+            paintCtx.strokeStyle = currentColor;
+            paintCtx.fillStyle = currentColor;
+            const pos = getEventPosition(e);
+            if (!pos) return;
+
+            paintCtx.beginPath();
+            // paintCtx.arc(pos.x, pos.y, PAINT_BRUSH_SIZE, 0, Math.PI * 2); // Dibuja un punto inicial
+            // paintCtx.fill(); // Rellenar el punto inicial
+            paintCtx.moveTo(pos.x, pos.y); // Mover a la posición para empezar la línea
+            // Dibujar un punto inicial para visibilidad inmediata, especialmente en táctil
+            paintCtx.lineTo(pos.x, pos.y);
+            paintCtx.stroke();
+
+
+            e.preventDefault();
+        }
+
+        function handlePainting(e) {
+            if (!isPainting || !paintCtx) return;
+            const pos = getEventPosition(e);
+            if (!pos) return;
+
+            paintCtx.lineTo(pos.x, pos.y);
+            paintCtx.stroke();
+            // Mover el inicio del path para la siguiente línea, evita líneas largas si hay lag
+            paintCtx.beginPath();
+            paintCtx.moveTo(pos.x, pos.y);
+
+            e.preventDefault();
+        }
+
+        function handleStopPainting(e) {
+            if (isPainting) {
+                 if (paintCtx) paintCtx.beginPath(); // Termina la línea actual
+                isPainting = false;
+            }
+        }
+
+        // --- Funciones de Utilidad ---
+
+        function updateStatus(message, isError = false) {
+            statusElement.textContent = message;
+            statusElement.className = `alert ${isError ? 'alert-danger' : 'alert-info'}`;
+        }
+
+        function setActiveColorButton(targetButton) {
+            colorPalette.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.remove('active-color');
+            });
+            if (targetButton) {
+                targetButton.classList.add('active-color');
+            }
+        }
+
+        function getEventPosition(e) {
+            const rect = outputCanvas.getBoundingClientRect();
+            let clientX, clientY;
+
+            if (e.touches && e.touches.length > 0) {
+                // Usar el primer punto táctil
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else if (e.clientX && e.clientY) {
+                // Usar coordenadas del ratón
+                clientX = e.clientX;
+                clientY = e.clientY;
+            } else {
+                console.warn("No se pudieron obtener coordenadas del evento:", e);
+                return null; // No se pudo obtener la posición
+            }
+
+            // Calcular escala por si el canvas tiene un tamaño diferente al mostrado
+            const scaleX = outputCanvas.width / rect.width;
+            const scaleY = outputCanvas.height / rect.height;
+
+            // Coordenadas relativas al elemento canvas visible
+            const canvasX = (clientX - rect.left) * scaleX;
+            const canvasY = (clientY - rect.top) * scaleY;
+
+            // IMPORTANTE: Ajustar la coordenada X para el paintCanvas (que NO está volteado)
+            // El evento ocurre en el outputCanvas (visualmente volteado).
+            // Si X=0 en el canvas visible (izquierda), corresponde a X=width en el paintCanvas.
+            // Si X=width en el canvas visible (derecha), corresponde a X=0 en el paintCanvas.
+            const paintCanvasX = outputCanvas.width - canvasX;
+
+             // Asegurarse que las coordenadas estén dentro de los límites del canvas
+             const finalX = Math.max(0, Math.min(outputCanvas.width, paintCanvasX));
+             const finalY = Math.max(0, Math.min(outputCanvas.height, canvasY));
+
+            return { x: finalX, y: finalY };
+        }
+
+        // --- Iniciar la aplicación ---
+        // Esperar a que el DOM esté completamente cargado antes de inicializar
+        document.addEventListener('DOMContentLoaded', initialize);
+
+    </script>
+
+</body>
+</html>
