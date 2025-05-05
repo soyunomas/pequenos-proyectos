@@ -3,512 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Markdown a HTML (Personalizable)</title>
+    <title>Generador Markdown a HTML vFINAL</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <!-- Bootstrap Icons CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
-        /* === Definición de Variables CSS por Defecto === */
+        /* === INICIO VARIABLES CSS GLOBALES === */
         :root {
-            --color-h1: #0d6efd;
-            --color-h2: #0dcaf0;
-            --color-h3: #6c757d;
-            --color-h4: #198754;
-            --color-h5: #fd7e14; /* Añadido H5 para consistencia */
-            --color-h6: #6f42c1; /* Añadido H6 para consistencia */
-            --color-code: #d63384;
-            --bg-pre: #f8f9fa;
-            --bg-code-inline: #f8f9fa; /* Fondo para código inline */
-            --color-indice-link: #0d6efd;
-            --color-indice-link-hover: #0a58ca;
-            --bg-indice-link-hover: #ffffff;
-            --color-indice-link-active: #212529;
-            --bg-indice-link-active: #e9ecef;
-            --border-ejercicios: #0dcaf0;
-            --bg-ejercicios: #f8f9fa;
+            --color-h1: #0d6efd; --color-h2: #0dcaf0; --color-h3: #6c757d; --color-h4: #198754; --color-h5: #fd7e14; --color-h6: #6f42c1;
+            --color-code: #d63384; --bg-pre: #f8f9fa; --bg-code-inline: #f8f9fa;
+            --bg-indice: #f8f9fa; --color-indice-link: #0d6efd; --color-indice-link-hover: #0a58ca; --bg-indice-link-hover: #e9ecef;
+            --color-indice-link-active: #212529; --bg-indice-link-active: #dee2e6;
+            --border-ejercicios: #0dcaf0; --bg-ejercicios: #f8f9fa;
+            --body-bg-color: #ffffff; --text-color: #212529; --link-color: #0d6efd;
         }
+        /* === FIN VARIABLES CSS GLOBALES === */
 
-        /* === ESTILOS GENERALES USANDO VARIABLES === */
-        body { position: relative; }
-        #seccionEntrada { padding-bottom: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #dee2e6; }
-        #markdownInput { min-height: 150px; font-family: monospace; font-size: 0.9rem; }
-        #seccionSalida { /* Contenedor del row */ }
-        #indiceContenido {
-            position: sticky; top: 1rem;
-            height: calc(100vh - 2rem);
-            overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem;
-            padding: 1rem; background-color: #f8f9fa; /* Fondo base del índice */
-        }
-        #indiceContenido .nav-link.active, #indiceContenido .nav-link:focus {
-            color: var(--color-indice-link-active); background-color: var(--bg-indice-link-active); font-weight: 500;
-        }
-        #indiceContenido .nav-link {
-            color: var(--color-indice-link); padding-top: 0.3rem; padding-bottom: 0.3rem; border-radius: 0.25rem; font-size: 0.9rem;
-        }
-        #indiceContenido .nav-link:hover {
-            color: var(--color-indice-link-hover); background-color: var(--bg-indice-link-hover);
-        }
-        #indiceContenido #indiceNav .nav-link { padding-left: 0.5rem; }
-        #indiceContenido #indiceNav .ps-3 { padding-left: 1.5rem !important; }
-        #indiceContenido #indiceNav .ps-4 { padding-left: 2.5rem !important; }
-        #indiceContenido #indiceNav .ps-5 { padding-left: 3.5rem !important; }
-        #mainContent { min-height: calc(100vh - 300px); }
-        #mainContent h1[id], #mainContent h2[id], #mainContent h3[id],
-        #mainContent h4[id], #mainContent h5[id], #mainContent h6[id] {
-             padding-top: 120px; /* AJUSTAR */
-             margin-top: -110px; /* AJUSTAR */
-         }
-        #mainContent h1, #mainContent h2, #mainContent h3, #mainContent h4, #mainContent h5, #mainContent h6 { margin-top: 1.5rem; margin-bottom: 1rem; }
-        #mainContent h1 { color: var(--color-h1); }
-        #mainContent h2 { color: var(--color-h2); }
-        #mainContent h3 { color: var(--color-h3); }
-        #mainContent h4 { color: var(--color-h4); }
-        #mainContent h5 { color: var(--color-h5); }
-        #mainContent h6 { color: var(--color-h6); }
-        #mainContent pre { background-color: var(--bg-pre); border: 1px solid #dee2e6; border-radius: 0.25rem; padding: 1rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin-top: 1rem; margin-bottom: 1rem; }
-        #mainContent code { /* Código inline y dentro de pre */
-             color: var(--color-code); word-wrap: break-word;
-        }
-        #mainContent pre code { /* Estilos específicos si es necesario para code dentro de pre */
-             background-color: transparent; border: none; padding: 0; font-size: 0.9em;
-        }
-        #mainContent :not(pre) > code { /* Estilos específicos para code inline */
-            background-color: var(--bg-code-inline);
-            padding: 0.1em 0.3em; border-radius: 0.2rem; font-size: 0.9em;
-        }
-        #mainContent h5 + ol, #mainContent h5 + ul {
-            border-left: 4px solid var(--border-ejercicios);
-            padding: 1rem 1rem 1rem 1.5rem; margin-top: 1.5rem; margin-bottom: 1.5rem;
-            background-color: var(--bg-ejercicios); border-radius: 0.25rem;
-        }
-        #mainContent h5 + ol > li, #mainContent h5 + ul > li { margin-bottom: 0.5rem; }
-        #mainContent h5 + ol > li strong, #mainContent h5 + ul > li strong { color: var(--border-ejercicios); } /* Usar el mismo color que el borde? o definir otra variable? */
-        #mainContent h4 + p + pre, #mainContent h4 + p + ol + pre, #mainContent h4 + pre { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px dashed #dee2e6; }
-        #mainContent > *:last-child pre, #mainContent > *:last-child > pre { border-bottom: none; }
-        #mainContent .table { margin-top: 1rem; margin-bottom: 1rem; }
+        /* === ESTILOS DE LA APLICACIÓN GENERADORA (Interfaz - NO SE EXPORTAN) === */
+        body.app-interface { padding-top: 1rem; padding-bottom: 1rem; }
+        #markdownInput { min-height: 200px; font-family: monospace; font-size: 0.9rem; border: 1px solid #ced4da; border-radius: 0.375rem; }
+        #previewSection { margin-top: 2rem; border-top: 1px solid #dee2e6; padding-top: 2rem; }
+        .controls-container { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+        .controls-container .form-select { max-width: 200px; flex-grow: 1; }
+        .offcanvas-body label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.875rem; }
+        .offcanvas-body input[type="color"] { width: 100%; height: 35px; border: 1px solid #ccc; padding: 0.2rem; cursor: pointer; border-radius: 0.25rem; background-color: white; }
+        .offcanvas-body .form-group { margin-bottom: 0.8rem; }
+        /* --- FIN ESTILOS APP --- */
 
-        /* Estilos para el Offcanvas y controles */
-        .offcanvas-body label { display: block; margin-bottom: 0.25rem; font-weight: 500; }
-        .offcanvas-body input[type="color"] { width: 100%; height: 40px; border: 1px solid #ccc; padding: 0.25rem; cursor: pointer; margin-bottom: 1rem; }
-        .offcanvas-body .form-group { margin-bottom: 1rem; } /* Grupo para label+input */
-
-        /* === FIN ESTILOS === */
+        /* === INICIO ESTILOS UNIFICADOS para PREVISUALIZACIÓN y DESCARGA === */
+        #previewSection #htmlOutputBody, .generated-html-body { position: relative; background-color: var(--body-bg-color); color: var(--text-color); }
+        #previewSection #htmlOutputBody a, .generated-html-body a { color: var(--link-color); text-decoration: none; }
+        #previewSection #htmlOutputBody a:hover, .generated-html-body a:hover { color: color-mix(in srgb, var(--link-color) 80%, black); text-decoration: underline; }
+        #indiceContenidoPreview, #indiceContenido { position: sticky; top: 1rem; height: calc(100vh - 2rem); overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 1rem; background-color: var(--bg-indice); }
+        #indiceContenidoPreview .nav-link, #indiceContenido .nav-link { color: var(--color-indice-link); padding-top: 0.3rem; padding-bottom: 0.3rem; border-radius: 0.25rem; font-size: 0.9rem; transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: normal; }
+        #indiceContenidoPreview .nav-link:hover, #indiceContenido .nav-link:hover { color: var(--color-indice-link-hover); background-color: var(--bg-indice-link-hover); }
+        #indiceContenidoPreview .nav-link.active, #indiceContenidoPreview .nav-link:focus, #indiceContenido .nav-link.active, #indiceContenido .nav-link:focus { color: var(--color-indice-link-active); background-color: var(--bg-indice-link-active); font-weight: normal; }
+        #indiceNavPreview .nav-link, #indiceNav .nav-link { padding-left: 0.5rem; }
+        #indiceNavPreview .ps-3, #indiceNav .ps-3 { padding-left: 1.5rem !important; } #indiceNavPreview .ps-4, #indiceNav .ps-4 { padding-left: 2.5rem !important; } #indiceNavPreview .ps-5, #indiceNav .ps-5 { padding-left: 3.5rem !important; } #indiceNavPreview .ps-6, #indiceNav .ps-6 { padding-left: 4.5rem !important; }
+        #mainContentPreview, #mainContent {}
+        #mainContentPreview [id], #mainContent [id] { scroll-margin-top: 70px; }
+        @media (max-width: 767.98px) { #mainContentPreview [id], #mainContent [id] { scroll-margin-top: 60px; } }
+        #mainContentPreview h1, #mainContent h1 { color: var(--color-h1); font-size: 2.2rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem;}
+        #mainContentPreview h2, #mainContent h2 { color: var(--color-h2); font-size: 1.8rem; border-bottom: 1px solid #eee; padding-bottom: 0.4rem;}
+        #mainContentPreview h3, #mainContent h3 { color: var(--color-h3); font-size: 1.5rem; } #mainContentPreview h4, #mainContent h4 { color: var(--color-h4); font-size: 1.25rem; } #mainContentPreview h5, #mainContent h5 { color: var(--color-h5); font-size: 1.1rem; font-weight: bold; } #mainContentPreview h6, #mainContent h6 { color: var(--color-h6); font-size: 1rem; font-weight: bold; }
+        #mainContentPreview p, #mainContentPreview li, #mainContent p, #mainContent li { line-height: 1.6; margin-bottom: 1rem; }
+        #mainContentPreview ul, #mainContentPreview ol, #mainContent ul, #mainContent ol { padding-left: 2rem; } #mainContentPreview ul ul, #mainContent ul ul { margin-bottom: 0; }
+        #mainContentPreview pre, #mainContent pre { background-color: var(--bg-pre); border: 1px solid #dee2e6; border-radius: 0.25rem; padding: 1rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin-top: 1rem; margin-bottom: 1rem; font-size: 0.9em; }
+        #mainContentPreview code, #mainContent code { color: var(--color-code); word-wrap: break-word; font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        #mainContentPreview pre code, #mainContent pre code { background-color: transparent; border: none; padding: 0; font-size: 1em; white-space: pre-wrap; word-break: break-all; }
+        #mainContentPreview :not(pre) > code, #mainContent :not(pre) > code { background-color: var(--bg-code-inline); padding: 0.2em 0.4em; margin: 0; font-size: 85%; border-radius: 3px; }
+        #mainContentPreview h5 + ol, #mainContentPreview h5 + ul, #mainContent h5 + ol, #mainContent h5 + ul { border-left: 4px solid var(--border-ejercicios); padding: 1rem 1rem 1rem 1.5rem; margin-top: 1.5rem; margin-bottom: 1.5rem; background-color: var(--bg-ejercicios); border-radius: 0.25rem; list-style-position: inside; } #mainContentPreview h5 + ol > li, #mainContentPreview h5 + ul > li, #mainContent h5 + ol > li, #mainContent h5 + ul > li { margin-bottom: 0.5rem; } #mainContentPreview h5 + ol > li strong, #mainContentPreview h5 + ul > li strong, #mainContent h5 + ol > li strong, #mainContent h5 + ul > li strong { color: var(--border-ejercicios); }
+        #mainContentPreview blockquote, #mainContent blockquote { padding: 0.5rem 1rem; margin: 0 0 1rem; font-size: 1rem; border-left: 0.25rem solid #e9ecef; color: #6c757d; } #mainContentPreview blockquote p, #mainContent blockquote p { margin-bottom: 0; }
+        #mainContentPreview img, #mainContent img { max-width: 100%; height: auto; margin-top: 1rem; margin-bottom: 1rem; border-radius: 0.25rem; display: block; }
+        #mainContentPreview table, #mainContent table { width: 100%; margin-bottom: 1rem; color: var(--text-color); border-collapse: collapse; border: 1px solid #dee2e6; font-size: 0.9rem; } #mainContentPreview table th, #mainContent table td, #mainContent table th, #mainContent table td { padding: 0.75rem; vertical-align: top; border: 1px solid #dee2e6; } #mainContentPreview table thead th, #mainContent table thead th { vertical-align: bottom; border-bottom: 2px solid #dee2e6; background-color: #f8f9fa; font-weight: bold; } #mainContentPreview table tbody tr:nth-of-type(odd), #mainContent table tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.03); }
+        @media (max-width: 767.98px) { #indiceContenidoPreview, #indiceContenido { display: none; } #mainContentPreview, #mainContent { min-height: auto; } }
+        /* === FIN ESTILOS UNIFICADOS === */
     </style>
 </head>
-<!-- Offset de Scrollspy para la APP -->
-<body data-bs-spy="scroll" data-bs-target="#indiceContenido" data-bs-offset="120" tabindex="0">
-
-<div class="container-fluid mt-3">
-    <!-- Sección Superior: Entrada y Controles -->
-    <div id="seccionEntrada">
-        <h1>Generador Markdown a HTML</h1>
-        <div class="mb-3">
-            <label for="markdownInput" class="form-label">Introduce tu Markdown aquí:</label>
-            <textarea id="markdownInput" class="form-control" rows="8"></textarea>
-        </div>
-        <button id="convertButton" class="btn btn-primary me-2">Generar HTML y Índice</button>
-        <button id="downloadButton" class="btn btn-success me-2" disabled>Descargar HTML</button>
-        <!-- Botón para abrir configurador -->
-        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#styleConfigOffcanvas" aria-controls="styleConfigOffcanvas">
-            <i class="bi bi-gear"></i> Configurar Estilos
-        </button>
+<body class="app-interface">
+    <div class="container-fluid">
+        <h1 class="mt-3 mb-4">Generador Markdown a HTML vFINAL</h1>
+        <div class="mb-3"> <label for="markdownInput" class="form-label fw-bold">Introduce tu Markdown aquí:</label> <textarea class="form-control" id="markdownInput" rows="15"></textarea> </div>
+        <div class="controls-container"> <button id="generateBtn" class="btn btn-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>Generar/Actualizar HTML</button> <button id="downloadBtn" class="btn btn-success"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>Descargar HTML</button> <button class="btn btn-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#personalizationOffcanvas" aria-controls="personalizationOffcanvas"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-palette-fill me-1" viewBox="0 0 16 16"><path d="M12.433 10.07C14.133 10.585 16 11.15 16 8a8 8 0 1 0-15.032 3.17A5 5 0 0 1 8 15a4.91 4.91 0 0 1 1.68-.325zM11.5 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m-3.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m4.5 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m-3.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/></svg>Personalizar</button> <label for="themeSelector" class="form-label visually-hidden">Seleccionar Tema</label> <select id="themeSelector" class="form-select form-select-sm" aria-label="Seleccionar Tema"></select> </div>
+        <section id="previewSection"> <h2 class="mb-3">Vista Previa</h2> <div id="htmlOutputBody" data-bs-spy="scroll" data-bs-target="#indiceContenidoPreview" data-bs-offset="100"> <div class="row"> <div class="col-md-4 col-lg-3 d-none d-md-block"> <nav id="indiceContenidoPreview"><h5 class="mb-3">Índice</h5><nav class="nav nav-pills flex-column" id="indiceNavPreview"></nav></nav> </div> <div class="col-md-8 col-lg-9"> <main id="mainContentPreview"></main> </div> </div> </div> </section>
     </div>
 
-    <!-- Sección Inferior: Salida (Estructura de 2 columnas) -->
-    <div id="seccionSalida" class="row">
-        <!-- Columna Izquierda: Índice -->
-        <div class="col-md-4 col-lg-3 d-none d-md-block">
-            <nav id="indiceContenido">
-                <h5 class="mb-3">Índice</h5>
-                <nav class="nav nav-pills flex-column" id="indiceNav">
-                    <span class="text-muted small">El índice aparecerá aquí.</span>
-                </nav>
-            </nav>
-        </div>
-        <!-- Columna Derecha: Contenido Principal -->
-        <div class="col-md-8 col-lg-9">
-            <main id="mainContent">
-                <p class="text-muted pt-5">El contenido HTML generado aparecerá aquí.</p>
-            </main>
-        </div>
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="personalizationOffcanvas" aria-labelledby="personalizationOffcanvasLabel">
+         <div class="offcanvas-header"> <h5 class="offcanvas-title" id="personalizationOffcanvasLabel">Personalizar Estilos</h5> <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button> </div>
+        <div class="offcanvas-body"> <p>Ajusta los colores...</p> <h6>Contenido General</h6> <div class="row"> <div class="col-6"> <div class="form-group"><label for="colorH1">Color H1</label><input type="color" id="colorH1" class="form-control form-control-color" data-css-var="--color-h1"></div> <div class="form-group"><label for="colorH2">Color H2</label><input type="color" id="colorH2" class="form-control form-control-color" data-css-var="--color-h2"></div> <div class="form-group"><label for="colorH3">Color H3</label><input type="color" id="colorH3" class="form-control form-control-color" data-css-var="--color-h3"></div> <div class="form-group"><label for="colorH4">Color H4</label><input type="color" id="colorH4" class="form-control form-control-color" data-css-var="--color-h4"></div> <div class="form-group"><label for="colorH5">Color H5</label><input type="color" id="colorH5" class="form-control form-control-color" data-css-var="--color-h5"></div> <div class="form-group"><label for="colorH6">Color H6</label><input type="color" id="colorH6" class="form-control form-control-color" data-css-var="--color-h6"></div> </div> <div class="col-6"> <div class="form-group"><label for="linkColor">Enlaces</label><input type="color" id="linkColor" class="form-control form-control-color" data-css-var="--link-color"></div> <div class="form-group"><label for="textColor">Texto</label><input type="color" id="textColor" class="form-control form-control-color" data-css-var="--text-color"></div> <div class="form-group"><label for="colorCode">Código</label><input type="color" id="colorCode" class="form-control form-control-color" data-css-var="--color-code"></div> <div class="form-group"><label for="bgPre">Fondo Bloque Código</label><input type="color" id="bgPre" class="form-control form-control-color" data-css-var="--bg-pre"></div> <div class="form-group"><label for="bgCodeInline">Fondo Código Inline</label><input type="color" id="bgCodeInline" class="form-control form-control-color" data-css-var="--bg-code-inline"></div> <div class="form-group"><label for="bodyBgColor">Fondo Página</label><input type="color" id="bodyBgColor" class="form-control form-control-color" data-css-var="--body-bg-color"></div> </div> </div> <hr> <h6>Índice</h6> <div class="row"> <div class="col-6"> <div class="form-group"><label for="bgIndice">Fondo</label><input type="color" id="bgIndice" class="form-control form-control-color" data-css-var="--bg-indice"></div> <div class="form-group"><label for="colorIndiceLink">Texto Link</label><input type="color" id="colorIndiceLink" class="form-control form-control-color" data-css-var="--color-indice-link"></div> <div class="form-group"><label for="bgIndiceLinkHover">Fondo Hover</label><input type="color" id="bgIndiceLinkHover" class="form-control form-control-color" data-css-var="--bg-indice-link-hover"></div> </div> <div class="col-6"> <div class="form-group"><label for="colorIndiceLinkHover">Texto Hover</label><input type="color" id="colorIndiceLinkHover" class="form-control form-control-color" data-css-var="--color-indice-link-hover"></div> <div class="form-group"><label for="colorIndiceLinkActive">Texto Activo</label><input type="color" id="colorIndiceLinkActive" class="form-control form-control-color" data-css-var="--color-indice-link-active"></div> <div class="form-group"><label for="bgIndiceLinkActive">Fondo Activo</label><input type="color" id="bgIndiceLinkActive" class="form-control form-control-color" data-css-var="--bg-indice-link-active"></div> </div> </div> <div class="alert alert-info mt-3 small" role="alert">Los cambios de color se aplican en tiempo real.</div> </div>
     </div>
-</div>
 
-<!-- Offcanvas para Configuración de Estilos -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="styleConfigOffcanvas" aria-labelledby="styleConfigOffcanvasLabel">
-  <div class="offcanvas-header">
-    <h5 class="offcanvas-title" id="styleConfigOffcanvasLabel">Configuración de Estilos</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-  </div>
-  <div class="offcanvas-body">
-    <p>Ajusta los colores. Los cambios se aplicarán en vivo.</p>
-    <hr>
-    <div class="form-group">
-        <label for="colorH1Input">Color H1:</label>
-        <input type="color" id="colorH1Input" data-css-var="--color-h1">
-    </div>
-    <div class="form-group">
-        <label for="colorH2Input">Color H2:</label>
-        <input type="color" id="colorH2Input" data-css-var="--color-h2">
-    </div>
-    <div class="form-group">
-        <label for="colorH3Input">Color H3:</label>
-        <input type="color" id="colorH3Input" data-css-var="--color-h3">
-    </div>
-     <div class="form-group">
-        <label for="colorH4Input">Color H4:</label>
-        <input type="color" id="colorH4Input" data-css-var="--color-h4">
-    </div>
-    <hr>
-    <div class="form-group">
-        <label for="colorCodeInput">Color Código:</label>
-        <input type="color" id="colorCodeInput" data-css-var="--color-code">
-    </div>
-     <div class="form-group">
-        <label for="bgPreInput">Fondo Bloque Código (pre):</label>
-        <input type="color" id="bgPreInput" data-css-var="--bg-pre">
-    </div>
-    <div class="form-group">
-        <label for="bgCodeInlineInput">Fondo Código Inline (code):</label>
-        <input type="color" id="bgCodeInlineInput" data-css-var="--bg-code-inline">
-    </div>
-    <hr>
-     <div class="form-group">
-        <label for="colorIndiceLinkInput">Color Enlace Índice:</label>
-        <input type="color" id="colorIndiceLinkInput" data-css-var="--color-indice-link">
-    </div>
-     <div class="form-group">
-        <label for="colorIndiceLinkHoverInput">Color Enlace Índice (Hover):</label>
-        <input type="color" id="colorIndiceLinkHoverInput" data-css-var="--color-indice-link-hover">
-    </div>
-     <div class="form-group">
-        <label for="bgIndiceLinkHoverInput">Fondo Enlace Índice (Hover):</label>
-        <input type="color" id="bgIndiceLinkHoverInput" data-css-var="--bg-indice-link-hover">
-    </div>
-     <div class="form-group">
-        <label for="colorIndiceLinkActiveInput">Color Enlace Índice (Activo):</label>
-        <input type="color" id="colorIndiceLinkActiveInput" data-css-var="--color-indice-link-active">
-    </div>
-     <div class="form-group">
-        <label for="bgIndiceLinkActiveInput">Fondo Enlace Índice (Activo):</label>
-        <input type="color" id="bgIndiceLinkActiveInput" data-css-var="--bg-indice-link-active">
-    </div>
-     <hr>
-      <div class="form-group">
-        <label for="borderEjerciciosInput">Color Borde/Título Ejercicios:</label>
-        <input type="color" id="borderEjerciciosInput" data-css-var="--border-ejercicios">
-    </div>
-     <div class="form-group">
-        <label for="bgEjerciciosInput">Fondo Bloque Ejercicios:</label>
-        <input type="color" id="bgEjerciciosInput" data-css-var="--bg-ejercicios">
-    </div>
-    <hr>
-    <button id="resetStylesButton" class="btn btn-outline-danger w-100">Restablecer Colores Predeterminados</button>
-
-  </div>
-</div>
-
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-
-<script>
-    // --- ELEMENTOS DEL DOM --- (Sin cambios)
-    const markdownInput = document.getElementById('markdownInput');
-    const convertButton = document.getElementById('convertButton');
-    const downloadButton = document.getElementById('downloadButton');
-    const mainContent = document.getElementById('mainContent');
-    const indiceNav = document.getElementById('indiceNav');
-    const indiceContenidoElement = document.getElementById('indiceContenido');
-    const scrollSpyOffsetApp = 120; // Offset para la APLICACIÓN
-
-    // --- ELEMENTOS DEL CONFIGURADOR ---
-    const styleConfigOffcanvasEl = document.getElementById('styleConfigOffcanvas');
-    const configInputs = styleConfigOffcanvasEl.querySelectorAll('input[data-css-var]');
-    const resetStylesButton = document.getElementById('resetStylesButton');
-
-
-    // --- FUNCIONES AUXILIARES --- (Sin cambios, excepto por la variable de offset)
-    function generarSlug(texto) { if (!texto) return 'seccion-vacia'; return 'seccion-' + texto.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-').replace(/[^\w-]+/g, '').replace(/--+/g, '-').replace(/^-+/, '').replace(/-+$/, ''); }
-    function setupSmoothScroll() { document.querySelectorAll('#indiceNav a[href^="#"]').forEach(anchor => { anchor.removeEventListener('click', handleSmoothScroll); anchor.addEventListener('click', handleSmoothScroll); }); }
-    function handleSmoothScroll(e) { e.preventDefault(); const targetId = this.getAttribute('href'); try { const targetElement = document.querySelector(targetId); if(targetElement) { const offsetPosition = targetElement.offsetTop - scrollSpyOffsetApp + 5; window.scrollTo({ top: offsetPosition, behavior: 'smooth' }); } else { console.warn(`Elemento no encontrado (smooth scroll): ${targetId}`); } } catch (error) { console.error(`Error smooth scroll: ${error}`); } }
-    function refreshScrollSpy() { setTimeout(() => { try { let scrollSpyInstance = bootstrap.ScrollSpy.getInstance(document.body); if (scrollSpyInstance) { scrollSpyInstance.refresh(); } else { scrollSpyInstance = new bootstrap.ScrollSpy(document.body, { target: '#indiceContenido', offset: scrollSpyOffsetApp }); } window.scrollBy(0, 1); window.scrollBy(0, -1); } catch (e) { console.error("Error ScrollSpy refresh/init:", e); } }, 150); }
-
-
-    // --- LÓGICA DE CONFIGURACIÓN DE ESTILOS ---
-
-    // Objeto para almacenar los valores por defecto (leídos del CSS inicial)
-    const defaultStyleValues = {};
-
-    // Función para aplicar un estilo (actualiza variable CSS)
-    function applyStyle(cssVar, value) {
-         document.documentElement.style.setProperty(cssVar, value);
-    }
-
-     // Función para leer los valores por defecto de las variables CSS
-    function loadDefaultStyles() {
-        const computedStyles = getComputedStyle(document.documentElement);
-        configInputs.forEach(input => {
-            const cssVar = input.dataset.cssVar;
-            if (cssVar) {
-                // Obtener el valor por defecto computado y limpiarlo
-                const defaultValue = computedStyles.getPropertyValue(cssVar).trim();
-                defaultStyleValues[cssVar] = defaultValue; // Guardar para el reset
-                input.value = defaultValue; // Establecer valor inicial del input
-            }
-        });
-        console.log("Default styles loaded:", defaultStyleValues);
-    }
-
-    // Función para restablecer a los valores por defecto
-    function resetToDefaultStyles() {
-        console.log("Resetting styles to default");
-        configInputs.forEach(input => {
-            const cssVar = input.dataset.cssVar;
-            if (cssVar && defaultStyleValues[cssVar]) {
-                const defaultValue = defaultStyleValues[cssVar];
-                input.value = defaultValue; // Resetear input
-                applyStyle(cssVar, defaultValue); // Resetear variable CSS
-            }
-        });
-    }
-
-    // Inicializar configuración de estilos al cargar
-    document.addEventListener('DOMContentLoaded', () => {
-        loadDefaultStyles();
-
-        // Añadir listeners a los inputs del configurador
-        configInputs.forEach(input => {
-            const cssVar = input.dataset.cssVar;
-            if (cssVar) {
-                input.addEventListener('input', (event) => {
-                    applyStyle(cssVar, event.target.value);
-                });
-            }
-        });
-
-         // Listener para el botón de reset
-        resetStylesButton.addEventListener('click', resetToDefaultStyles);
-    });
-
-
-    // --- LÓGICA PRINCIPAL (renderizarContenido - Sin cambios) ---
-    function renderizarContenido() { const markdownTexto = markdownInput.value; downloadButton.disabled = true; mainContent.innerHTML = '<p class="text-muted pt-5">Generando...</p>'; indiceNav.innerHTML = '<span class="text-muted small">Generando índice...</span>'; setTimeout(() => { if (!markdownTexto.trim()) { mainContent.innerHTML = '<p class="text-muted pt-5">Introduce Markdown arriba para generar contenido.</p>'; indiceNav.innerHTML = '<span class="text-muted small">El índice aparecerá aquí.</span>'; refreshScrollSpy(); return; } try { const rawHtml = marked.parse(markdownTexto); const tempDiv = document.createElement('div'); tempDiv.innerHTML = rawHtml; const headingsData = []; const headings = tempDiv.querySelectorAll('h1, h2, h3, h4'); headings.forEach((heading, index) => { const level = parseInt(heading.tagName.substring(1), 10); const text = heading.textContent || `encabezado-${index}`; const slug = generarSlug(`${level}-${text}`); heading.id = slug; if (level <= 4) { headingsData.push({ level, text, slug }); } }); let indiceHtmlInterno = ''; headingsData.forEach(item => { let paddingClass = ''; if (item.level === 2) paddingClass = 'ps-3'; if (item.level === 3) paddingClass = 'ps-4'; if (item.level === 4) paddingClass = 'ps-5'; indiceHtmlInterno += `<a class="nav-link ${paddingClass}" href="#${item.slug}">${item.text}</a>`; }); mainContent.innerHTML = tempDiv.innerHTML; if (indiceHtmlInterno) { indiceNav.innerHTML = indiceHtmlInterno; } else { indiceNav.innerHTML = '<span class="text-muted small">No se encontraron H1-H4.</span>'; } setupSmoothScroll(); refreshScrollSpy(); downloadButton.disabled = false; } catch (error) { console.error("Error conversión Markdown:", error); mainContent.innerHTML = `<div class="alert alert-danger" role="alert"><strong>Error:</strong> ${error.message}</div>`; indiceNav.innerHTML = '<span class="text-danger small">Error.</span>'; downloadButton.disabled = true; refreshScrollSpy(); } }, 50); }
-
-    // --- FUNCIÓN DE DESCARGA (Modificada para incluir estilos personalizados) ---
-    function descargarHtml() {
-        if (downloadButton.disabled) return;
-
-        const indiceHtmlCompleto = indiceContenidoElement.innerHTML;
-        const contenidoHtml = mainContent.innerHTML;
-        const estilosCssBase = document.querySelector('style').textContent; // Obtiene TODO el CSS base
-        const tituloPagina = "Contenido Generado (Personalizado)";
-        const scrollSpyOffsetStatic = 100; // Offset para ESTÁTICO
-
-        // *** Generar bloque de variables CSS personalizadas ***
-        let customVariablesCss = ':root {\n';
-        configInputs.forEach(input => {
-            const cssVar = input.dataset.cssVar;
-            if (cssVar) {
-                customVariablesCss += `  ${cssVar}: ${input.value};\n`; // Usar valor actual del input
-            }
-        });
-        customVariablesCss += '}';
-        // *** Fin generación bloque variables ***
-
-        const htmlCompleto = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${tituloPagina}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <style>
-        /* 1. Incluir los estilos base de la aplicación */
-        ${estilosCssBase}
-
-        /* 2. Sobrescribir/Añadir las variables CSS con los valores personalizados */
-        ${customVariablesCss}
-
-        /* 3. Ajustes específicos para la versión estática */
-        body { padding-top: 1rem; }
-        #indiceContenido { position: sticky; top: 1rem; height: calc(100vh - 2rem); overflow-y: auto; }
-        #mainContent { min-height: auto; }
-        #seccionEntrada { display: none !important; }
-         #mainContent h1[id], #mainContent h2[id], #mainContent h3[id],
-         #mainContent h4[id], #mainContent h5[id], #mainContent h6[id] {
-             padding-top: ${scrollSpyOffsetStatic + 10}px; margin-top: -${scrollSpyOffsetStatic}px;
-         }
-    </style>
-</head>
-<body data-bs-spy="scroll" data-bs-target="#indiceContenido" data-bs-offset="${scrollSpyOffsetStatic}">
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-md-4 col-lg-3 d-none d-md-block">
-             <nav id="indiceContenido">
-                 ${indiceHtmlCompleto}
-             </nav>
-        </div>
-        <div class="col-md-8 col-lg-9">
-            <main id="mainContent">
-                ${contenidoHtml}
-            </main>
-        </div>
-    </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"><\/script>
-<script>
-    // Script inyectado para Scrollspy/SmoothScroll (sin cambios)
-    document.addEventListener('DOMContentLoaded', () => {
-        const staticOffset = ${scrollSpyOffsetStatic};
-        try { new bootstrap.ScrollSpy(document.body, { target: '#indiceContenido', offset: staticOffset }); window.dispatchEvent(new Event('scroll')); } catch (e) { console.error('Failed static ScrollSpy:', e); }
-        document.querySelectorAll('#indiceNav a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault(); const targetId = this.getAttribute('href'); const targetElement = document.querySelector(targetId);
-                if (targetElement) { const offsetPosition = targetElement.offsetTop - staticOffset + 5; window.scrollTo({ top: offsetPosition, behavior: 'smooth' }); }
-                else { console.warn('Target not found:', targetId); }
-            });
-        });
-    });
-<\/script>
-</body>
-</html>`;
-
-        // Crear Blob y descargar
-        const blob = new Blob([htmlCompleto], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'generado_personalizado.html';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }
-
-
-    // --- EVENT LISTENERS E INICIALIZACIÓN ---
-    convertButton.addEventListener('click', renderizarContenido);
-    downloadButton.addEventListener('click', descargarHtml);
-    // Scrollspy para la APP se inicializa en el listener DOMContentLoaded ahora
-
-    // --- EJEMPLO MARKDOWN INICIAL --- (El mismo)
-    markdownInput.value = `# Título Principal (H1)
-
-Esto es un párrafo introductorio con **negrita** y *cursiva*.
-
-## Subtítulo Nivel 2 (H2) - Características
-
-Explicación de las características principales. Añadiendo más texto para asegurar que hay suficiente contenido como para hacer scroll cómodamente y probar el funcionamiento del índice y el resaltado. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-### Sub-subtítulo Nivel 3 (H3) - Detalle A
-
-Más detalles sobre la característica A. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-
-#### Detalle A.1 (H4)
-Este es un detalle de nivel 4 bajo Detalle A. Debería aparecer en el índice con mayor sangría.
-
-\`\`\`sql
--- Ejemplo de código SQL en bloque
-SELECT ID_Cliente, Nombre, FechaRegistro
-FROM Clientes
-WHERE Activo = 1
-ORDER BY FechaRegistro DESC;
-\`\`\`
-
-Aquí hay código inline: \`const x = 10;\`.
-
-### Sub-subtítulo Nivel 3 (H3) - Detalle B
-
-Detalles sobre la característica B. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Necesitamos bastante contenido vertical para que el scroll sea significativo.
-
-#### Detalle B.1 (H4)
-Otro detalle de nivel 4, esta vez bajo Detalle B.
-
-\`\`\`javascript
-// Ejemplo de código JavaScript
-function calcularTotal(precio, cantidad) {
-  if (cantidad < 0) {
-    throw new Error("La cantidad no puede ser negativa.");
-  }
-  return precio * cantidad;
-}
-\`\`\`
-
-## Otra Sección H2 - Ejemplos Prácticos
-
-Lista de ejemplos:
-*   Ejemplo 1: Creación de vista simple.
-*   Ejemplo 2: Consulta con JOIN a través de una vista.
-    *   Sub-ejemplo 2.1: Filtrando resultados.
-*   Ejemplo 3: Vista con agregación.
-
-Más texto de relleno. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
-
-#### Título H4 Independiente
-Este es un H4 directamente bajo el H2. También debería aparecer en el índice. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.
-
-##### ✨ Bloque Simulado de Ejercicios ✨ (H5 - No aparece en índice)
-1.  **Ejercicio SQL:** Crea una vista que muestre solo los clientes de 'Madrid'.
-    \`\`\`sql
-    -- Tu código aquí
-    \`\`\`
-2.  **Ejercicio JS:** Llama a la función \`calcularTotal\` con valores válidos.
-
-#### ANEXO - Ejercicio Resuelto (H4)
-Este es el H4 del anexo. Debería estar en el índice.
-**1. Solución Ejercicio SQL:**
-\`\`\`sql
-CREATE VIEW ClientesMadrid AS
-SELECT *
-FROM Clientes
-WHERE Ciudad = 'Madrid';
-\`\`\`
-
----
-Fin del contenido de ejemplo. Se añade espacio vertical extra para forzar el scroll.
-
-
-
-
-
-
-
-
-
-
-
-
-Más y más espacio...
-
-
-
-
-
-
-
-
-
-
-
-
-Para probar bien el Scrollspy.
-
-
-
-
-
-
-
-
-
-
-
-
-Última línea de prueba aquí abajo.
-`;
-
-</script>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
+    <script>
+        const SCROLL_OFFSET_PREVIEW = 100; const SCROLL_OFFSET_DOWNLOAD = 70;
+        const markdownInput = document.getElementById('markdownInput'); const generateBtn = document.getElementById('generateBtn'); const downloadBtn = document.getElementById('downloadBtn'); const mainContentPreview = document.getElementById('mainContentPreview'); const indiceNavPreview = document.getElementById('indiceNavPreview'); const htmlOutputBody = document.getElementById('htmlOutputBody'); const personalizationInputs = document.querySelectorAll('#personalizationOffcanvas input[type="color"]'); const indiceContenidoPreviewContainer = document.getElementById('indiceContenidoPreview'); const themeSelector = document.getElementById('themeSelector');
+        let scrollSpyInstance = null;
+
+        const defaultCssVariables = { '--color-h1': '#0d6efd', '--color-h2': '#0dcaf0', '--color-h3': '#6c757d', '--color-h4': '#198754', '--color-h5': '#fd7e14', '--color-h6': '#6f42c1', '--color-code': '#d63384', '--bg-pre': '#f8f9fa', '--bg-code-inline': '#f8f9fa', '--bg-indice': '#f8f9fa', '--color-indice-link': '#0d6efd', '--color-indice-link-hover': '#0a58ca', '--bg-indice-link-hover': '#e9ecef', '--color-indice-link-active': '#212529', '--bg-indice-link-active': '#dee2e6', '--border-ejercicios': '#0dcaf0', '--bg-ejercicios': '#f8f9fa', '--body-bg-color': '#ffffff', '--text-color': '#212529', '--link-color': '#0d6efd' };
+
+        const themes = [
+            { name: "Documentación Clara", variables: { ...defaultCssVariables } },
+            { name: "Creative Cream", variables: { '--color-h1': '#adcbe3', '--color-h2': '#6b8da4', '--color-h3': '#708090', '--color-h4': '#ccff66', '--color-h5': '#4e6a7b', '--color-h6': '#6b8da4', '--color-code': '#4e6a7b', '--bg-pre': '#e0f2f7', '--bg-code-inline': '#e0f2f7', '--bg-indice': '#ccff66', '--color-indice-link': '#4e6a7b', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#adcbe3', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#adcbe3', '--border-ejercicios': '#adcbe3', '--bg-ejercicios': '#e0f2f7', '--body-bg-color': '#ffffff', '--text-color': '#4e6a7b', '--link-color': '#6b8da4'} },
+            { name: "Someone Like Me", variables: { '--color-h1': '#a6bfbe', '--color-h2': '#615e59', '--color-h3': '#8a8884', '--color-h4': '#a6bfbe', '--color-h5': '#615e59', '--color-h6': '#8a8884', '--color-code': '#a6bfbe', '--bg-pre': '#e8e6e1', '--bg-code-inline': '#d6d3cf', '--bg-indice': '#f7f5f2', '--color-indice-link': '#a6bfbe', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#615e59', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#615e59', '--border-ejercicios': '#a6bfbe', '--bg-ejercicios': '#e8e6e1', '--body-bg-color': '#f7f5f2', '--text-color': '#615e59', '--link-color': '#a6bfbe'} },
+            { name: "Vertebrae", variables: { '--color-h1': '#b8d766', '--color-h2': '#615e59', '--color-h3': '#8a8884', '--color-h4': '#b8d766', '--color-h5': '#9b9b9b', '--color-h6': '#8a8884', '--color-code': '#615e59', '--bg-pre': '#e3e3e3', '--bg-code-inline': '#d0d0d0', '--bg-indice': '#f0f0f0', '--color-indice-link': '#615e59', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#b8d766', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#b8d766', '--border-ejercicios': '#b8d766', '--bg-ejercicios': '#e3e3e3', '--body-bg-color': '#ffffff', '--text-color': '#615e59', '--link-color': '#9b9b9b'} },
+            { name: "Bubble Kitten", variables: { '--color-h1': '#f767a0', '--color-h2': '#a37fd0', '--color-h3': '#ca9be9', '--color-h4': '#89d6e8', '--color-h5': '#2da6c2', '--color-h6': '#a37fd0', '--color-code': '#f767a0', '--bg-pre': '#fce0ec', '--bg-code-inline': '#fce0ec', '--bg-indice': '#ca9be9', '--color-indice-link': '#a37fd0', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#f767a0', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#f767a0', '--border-ejercicios': '#89d6e8', '--bg-ejercicios': '#e3f8fc', '--body-bg-color': '#ffffff', '--text-color': '#333333', '--link-color': '#2da6c2'} },
+            { name: "Freshhh", variables: { '--color-h1': '#00aab3', '--color-h2': '#f767a0', '--color-h3': '#8a8884', '--color-h4': '#00aab3', '--color-h5': '#615e59', '--color-h6': '#8a8884', '--color-code': '#f767a0', '--bg-pre': '#ebebeb', '--bg-code-inline': '#e0e0e0', '--bg-indice': '#f0f0f0', '--color-indice-link': '#00aab3', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#615e59', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#615e59', '--border-ejercicios': '#00aab3', '--bg-ejercicios': '#ebebeb', '--body-bg-color': '#ffffff', '--text-color': '#615e59', '--link-color': '#f767a0'} },
+            { name: "FINE Design", variables: { '--color-h1': '#fadf8b', '--color-h2': '#9b9b9b', '--color-h3': '#8a8884', '--color-h4': '#f7cf6a', '--color-h5': '#615e59', '--color-h6': '#8a8884', '--color-code': '#9b9b9b', '--bg-pre': '#fcf8e3', '--bg-code-inline': '#fcf0b3', '--bg-indice': '#fcf0b3', '--color-indice-link': '#9b9b9b', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#fadf8b', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#fadf8b', '--border-ejercicios': '#fadf8b', '--bg-ejercicios': '#fcf8e3', '--body-bg-color': '#ffffff', '--text-color': '#615e59', '--link-color': '#f7cf6a'} },
+            { name: "Escala de Grises Frío Polar", variables: { '--color-h1': '#6c757d', '--color-h2': '#adb5bd', '--color-h3': '#ced4da', '--color-h4': '#dee2e6', '--color-h5': '#e9ecef', '--color-h6': '#f8f9fa', '--color-code': '#6c757d', '--bg-pre': '#e9ecef', '--bg-code-inline': '#f8f9fa', '--bg-indice': '#e9ecef', '--color-indice-link': '#495057', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#dee2e6', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#adb5bd', '--border-ejercicios': '#adb5bd', '--bg-ejercicios': '#f8f9fa', '--body-bg-color': '#ffffff', '--text-color': '#212529', '--link-color': '#6c757d'} },
+            { name: "Bosque Oscuro", variables: { '--color-h1': '#a3b18a', '--color-h2': '#588157', '--color-h3': '#3a5a40', '--color-h4': '#344e41', '--color-h5': '#a3b18a', '--color-h6': '#588157', '--color-code': '#dad7cd', '--bg-pre': '#3a5a40', '--bg-code-inline': '#588157', '--bg-indice': '#dad7cd', '--color-indice-link': '#3a5a40', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#588157', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#344e41', '--border-ejercicios': '#588157', '--bg-ejercicios': '#e9ecef', '--body-bg-color': '#dad7cd', '--text-color': '#344e41', '--link-color': '#588157'} },
+            { name: "Mar Profundo", variables: { '--color-h1': '#0077b6', '--color-h2': '#0096c7', '--color-h3': '#023e8a', '--color-h4': '#48cae4', '--color-h5': '#90e0ef', '--color-h6': '#ade8f4', '--color-code': '#023e8a', '--bg-pre': '#caf0f8', '--bg-code-inline': '#e0fbfc', '--bg-indice': '#e0fbfc', '--color-indice-link': '#0077b6', '--color-indice-link-hover': '#023e8a', '--bg-indice-link-hover': '#90e0ef', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#0096c7', '--border-ejercicios': '#48cae4', '--bg-ejercicios': '#caf0f8', '--body-bg-color': '#ffffff', '--text-color': '#023e8a', '--link-color': '#0077b6'} },
+            { name: "Atardecer Neón", variables: { '--color-h1': '#ff006e', '--color-h2': '#ffbe0b', '--color-h3': '#fb5607', '--color-h4': '#8338ec', '--color-h5': '#3a86ff', '--color-h6': '#ff006e', '--color-code': '#8338ec', '--bg-pre': '#fff0f5', '--bg-code-inline': '#fff8e1', '--bg-indice': '#fff8e1', '--color-indice-link': '#fb5607', '--color-indice-link-hover': '#ff006e', '--bg-indice-link-hover': '#ffbe0b', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#ff006e', '--border-ejercicios': '#3a86ff', '--bg-ejercicios': '#ebf1ff', '--body-bg-color': '#ffffff', '--text-color': '#333333', '--link-color': '#fb5607'} },
+            { name: "Café Literario", variables: { '--color-h1': '#7f5539', '--color-h2': '#9c6644', '--color-h3': '#b08968', '--color-h4': '#ddb892', '--color-h5': '#e6ccb2', '--color-h6': '#ede0d4', '--color-code': '#7f5539', '--bg-pre': '#fcf8f3', '--bg-code-inline': '#f8f1e9', '--bg-indice': '#ede0d4', '--color-indice-link': '#7f5539', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#ddb892', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#9c6644', '--border-ejercicios': '#b08968', '--bg-ejercicios': '#f8f1e9', '--body-bg-color': '#ffffff', '--text-color': '#7f5539', '--link-color': '#9c6644'} },
+            { name: "Menta Fresca", variables: { '--color-h1': '#aaf683', '--color-h2': '#60d394', '--color-h3': '#4a7c59', '--color-h4': '#eeef20', '--color-h5': '#ffba08', '--color-h6': '#60d394', '--color-code': '#4a7c59', '--bg-pre': '#f2fded', '--bg-code-inline': '#e0f8e8', '--bg-indice': '#e9fcef', '--color-indice-link': '#4a7c59', '--color-indice-link-hover': '#2d4a35', '--bg-indice-link-hover': '#aaf683', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#60d394', '--border-ejercicios': '#aaf683', '--bg-ejercicios': '#f2fded', '--body-bg-color': '#ffffff', '--text-color': '#333333', '--link-color': '#60d394'} },
+            { name: "Galaxia Púrpura", variables: { '--color-h1': '#4d194d', '--color-h2': '#5c0067', '--color-h3': '#a3168e', '--color-h4': '#e364a4', '--color-h5': '#fe98a8', '--color-h6': '#e364a4', '--color-code': '#fe98a8', '--bg-pre': '#2e0f2e', '--bg-code-inline': '#3b133b', '--bg-indice': '#3b133b', '--color-indice-link': '#e364a4', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#5c0067', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#a3168e', '--border-ejercicios': '#e364a4', '--bg-ejercicios': '#4d194d', '--body-bg-color': '#1f0a1f', '--text-color': '#f0d8f0', '--link-color': '#fe98a8'} },
+            { name: "Tecnología Azul", variables: { '--color-h1': '#00b4d8', '--color-h2': '#0077b6', '--color-h3': '#03045e', '--color-h4': '#90e0ef', '--color-h5': '#caf0f8', '--color-h6': '#00b4d8', '--color-code': '#03045e', '--bg-pre': '#edfaff', '--bg-code-inline': '#e6f8fc', '--bg-indice': '#caf0f8', '--color-indice-link': '#0077b6', '--color-indice-link-hover': '#03045e', '--bg-indice-link-hover': '#90e0ef', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#0077b6', '--border-ejercicios': '#90e0ef', '--bg-ejercicios': '#edfaff', '--body-bg-color': '#ffffff', '--text-color': '#03045e', '--link-color': '#00b4d8'} },
+            { name: "Neutro Cálido", variables: { '--color-h1': '#a0937d', '--color-h2': '#bca37f', '--color-h3': '#e2c799', '--color-h4': '#f6e6cb', '--color-h5': '#a0937d', '--color-h6': '#bca37f', '--color-code': '#a0937d', '--bg-pre': '#fdfaf5', '--bg-code-inline': '#fbf5e9', '--bg-indice': '#f6e6cb', '--color-indice-link': '#a0937d', '--color-indice-link-hover': '#6f644e', '--bg-indice-link-hover': '#e2c799', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#bca37f', '--border-ejercicios': '#e2c799', '--bg-ejercicios': '#fbf5e9', '--body-bg-color': '#ffffff', '--text-color': '#4e473e', '--link-color': '#a0937d'} },
+            { name: "Primavera Pastel", variables: { '--color-h1': '#ffb3c6', '--color-h2': '#ffdeb9', '--color-h3': '#fff1b9', '--color-h4': '#c7e5b4', '--color-h5': '#8ebbb0', '--color-h6': '#a0c6d8', '--color-code': '#8ebbb0', '--bg-pre': '#fff7fa', '--bg-code-inline': '#fffaf5', '--bg-indice': '#fffaf5', '--color-indice-link': '#ff8fab', '--color-indice-link-hover': '#e87896', '--bg-indice-link-hover': '#ffdeb9', '--color-indice-link-active': '#5c4330', '--bg-indice-link-active': '#ffb3c6', '--border-ejercicios': '#c7e5b4', '--bg-ejercicios': '#f5fcef', '--body-bg-color': '#ffffff', '--text-color': '#555555', '--link-color': '#ff8fab'} },
+            { name: "Industrial Gris", variables: { '--color-h1': '#46494c', '--color-h2': '#6d6a6a', '--color-h3': '#9b9a9c', '--color-h4': '#c7c6c7', '--color-h5': '#46494c', '--color-h6': '#6d6a6a', '--color-code': '#46494c', '--bg-pre': '#f5f5f5', '--bg-code-inline': '#eeeeee', '--bg-indice': '#eeeeee', '--color-indice-link': '#6d6a6a', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#c7c6c7', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#6d6a6a', '--border-ejercicios': '#9b9a9c', '--bg-ejercicios': '#f5f5f5', '--body-bg-color': '#ffffff', '--text-color': '#46494c', '--link-color': '#6d6a6a'} },
+            { name: "Cereza Profundo", variables: { '--color-h1': '#780000', '--color-h2': '#c1121f', '--color-h3': '#fdf0d5', '--color-h4': '#003049', '--color-h5': '#669bbc', '--color-h6': '#780000', '--color-code': '#003049', '--bg-pre': '#fffafa', '--bg-code-inline': '#fef5f5', '--bg-indice': '#fdf0d5', '--color-indice-link': '#c1121f', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#780000', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#c1121f', '--border-ejercicios': '#669bbc', '--bg-ejercicios': '#e6f0f3', '--body-bg-color': '#ffffff', '--text-color': '#003049', '--link-color': '#780000'} },
+            { name: "Musgo Terroso", variables: { '--color-h1': '#9a8c98', '--color-h2': '#4a4e69', '--color-h3': '#22223b', '--color-h4': '#c9ada7', '--color-h5': '#f2e9e4', '--color-h6': '#9a8c98', '--color-code': '#22223b', '--bg-pre': '#f5f3f7', '--bg-code-inline': '#eae8ed', '--bg-indice': '#f2e9e4', '--color-indice-link': '#4a4e69', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#9a8c98', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#4a4e69', '--border-ejercicios': '#c9ada7', '--bg-ejercicios': '#f5f3f7', '--body-bg-color': '#ffffff', '--text-color': '#22223b', '--link-color': '#9a8c98'} },
+            { name: "Lavanda Suave", variables: { '--color-h1': '#9d81ba', '--color-h2': '#b39cd0', '--color-h3': '#cca8e9', '--color-h4': '#cab9e1', '--color-h5': '#e5dcef', '--color-h6': '#9d81ba', '--color-code': '#9d81ba', '--bg-pre': '#f9f7fb', '--bg-code-inline': '#f4f0f7', '--bg-indice': '#f4f0f7', '--color-indice-link': '#9d81ba', '--color-indice-link-hover': '#5e447a', '--bg-indice-link-hover': '#e5dcef', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#b39cd0', '--border-ejercicios': '#cca8e9', '--bg-ejercicios': '#f9f7fb', '--body-bg-color': '#ffffff', '--text-color': '#49385e', '--link-color': '#9d81ba'} },
+        ];
+
+        function slugify(text) { if (!text) return ''; return text.toString().toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-\u00C0-\u017F]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, ''); }
+        function getAppliedVariables() { const appliedVariables = { ...defaultCssVariables }; const rootStyles = getComputedStyle(document.documentElement); personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; if (varName && appliedVariables.hasOwnProperty(varName)) { try { const currentValue = rootStyles.getPropertyValue(varName).trim(); if(currentValue) { appliedVariables[varName] = currentValue; } } catch(e) {} } }); return appliedVariables; }
+        function generateCssForDownload() { const appliedVars = getAppliedVariables(); let variablesString = ':root {\n'; for (const [key, value] of Object.entries(appliedVars)) { if (value) { variablesString += `    ${key}: ${value};\n`; } else { variablesString += `    ${key}: ${defaultCssVariables[key] || 'inherit'};\n`; } } variablesString += '}\n\n'; const allStyles = document.querySelector('head > style').innerHTML; const startIndex = allStyles.indexOf('/* === INICIO ESTILOS UNIFICADOS'); const endIndexMarker = '/* === FIN ESTILOS UNIFICADOS === */'; let endIndex = allStyles.indexOf(endIndexMarker); if (endIndex === -1) { endIndex = allStyles.length; } let staticStyles = ''; if (startIndex !== -1) { staticStyles = allStyles.substring(startIndex, endIndex); } else { staticStyles = ""; } return variablesString + staticStyles; }
+        function generateJsForDownload(targetId = '#indiceContenido', bodySelector = '.generated-html-body', offset = SCROLL_OFFSET_DOWNLOAD) { return ` document.addEventListener('DOMContentLoaded', () => { const scrollSpyTarget = document.querySelector('${targetId}'); const scrollSpyBody = document.querySelector('${bodySelector}'); const scrollOffset = ${offset}; let currentScrollSpy = null; function initOrRefreshScrollSpy() { if (!scrollSpyBody || !scrollSpyTarget) { return; } try { if (currentScrollSpy) { currentScrollSpy.dispose(); } currentScrollSpy = new bootstrap.ScrollSpy(scrollSpyBody, { target: scrollSpyTarget, offset: scrollOffset }); } catch (e) {} } initOrRefreshScrollSpy(); document.querySelectorAll('${targetId} a[href^="#"]').forEach(anchor => { anchor.addEventListener('click', function (e) { e.preventDefault(); const targetId = this.getAttribute('href'); try { const targetElement = document.querySelector(targetId); if (targetElement) { const elementTop = targetElement.getBoundingClientRect().top; const currentScroll = window.pageYOffset || document.documentElement.scrollTop; const offsetPosition = elementTop + currentScroll - scrollOffset + 5; window.scrollTo({ top: offsetPosition, behavior: 'smooth' }); } } catch (err) {} }); }); let resizeTimeout; window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(initOrRefreshScrollSpy, 250); }); });`; }
+        function generateToc(contentContainer, tocContainer) { tocContainer.innerHTML = ''; const headings = contentContainer.querySelectorAll('h1, h2, h3, h4, h5, h6'); let usedIds = new Set(); headings.forEach((heading, index) => { const level = parseInt(heading.tagName.substring(1)); let id = heading.id; if (!id) { id = slugify(heading.textContent); let tempId = id || `section-${index + 1}`; let i = 1; while (usedIds.has(tempId) || document.getElementById(tempId)) { tempId = `${id || 'section'}-${index + 1}-${i}`; i++; } id = tempId; heading.id = id; } usedIds.add(id); const link = document.createElement('a'); link.classList.add('nav-link'); if (level > 1) { link.classList.add(`ps-${level + 1}`); } link.href = `#${id}`; link.textContent = heading.textContent || `Sección ${index + 1}`; link.title = heading.textContent || `Sección ${index + 1}`; tocContainer.appendChild(link); }); }
+        function updateColorPickers(variables) { personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; if (varName && variables[varName]) { try { let colorValue = variables[varName]; if (!/^#[0-9a-fA-F]{6}$/i.test(colorValue)) { colorValue = defaultCssVariables[varName] || '#000000'; } input.value = colorValue; } catch(e) { input.value = defaultCssVariables[varName] || '#000000'; } } }); }
+        function applyTheme(themeIndex) { if (themeIndex < 0 || themeIndex >= themes.length) { return; } const themeVariables = themes[themeIndex].variables; const root = document.documentElement; for (const [key, value] of Object.entries(themeVariables)) { root.style.setProperty(key, value); } updateColorPickers(themeVariables); }
+        function generateHtmlPreview() { const markdownText = markdownInput.value; marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false }); const rawHtml = marked.parse(markdownText); const cleanHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } }); mainContentPreview.innerHTML = cleanHtml; generateToc(mainContentPreview, indiceNavPreview); if (scrollSpyInstance) { scrollSpyInstance.dispose(); scrollSpyInstance = null; } if (htmlOutputBody && indiceContenidoPreviewContainer && mainContentPreview.innerHTML.trim() !== '') { try { scrollSpyInstance = new bootstrap.ScrollSpy(htmlOutputBody, { target: '#indiceContenidoPreview', offset: SCROLL_OFFSET_PREVIEW }); setTimeout(() => { if (scrollSpyInstance) { scrollSpyInstance.refresh(); } window.dispatchEvent(new Event('scroll')); }, 100); } catch(e) { scrollSpyInstance = null; } } }
+        function downloadHtml() { const markdownText = markdownInput.value; if (!markdownText.trim()) { alert("No hay contenido Markdown para descargar."); return; } const rawHtml = marked.parse(markdownText); const cleanHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } }); const tempContent = document.createElement('div'); tempContent.innerHTML = cleanHtml; const tempTocNav = document.createElement('nav'); tempTocNav.classList.add('nav', 'nav-pills', 'flex-column'); tempTocNav.id = 'indiceNav'; generateToc(tempContent, tempTocNav); const cssToEmbed = generateCssForDownload(); const jsToEmbed = generateJsForDownload('#indiceContenido', '.generated-html-body', SCROLL_OFFSET_DOWNLOAD); const firstHeading = tempContent.querySelector('h1, h2, h3, h4, h5, h6'); const pageTitle = firstHeading ? firstHeading.textContent : 'Documento Generado'; const htmlContent = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${pageTitle.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"><style>${cssToEmbed}</style></head><body class="generated-html-body"><div class="container-fluid mt-4"><div class="row"><div class="col-md-4 col-lg-3 d-none d-md-block"><nav id="indiceContenido"><h5 class="mb-3">Índice</h5>${tempTocNav.outerHTML}</nav></div><div class="col-md-8 col-lg-9"><main id="mainContent">${tempContent.innerHTML}</main></div></div></div><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"><\/script><script>${jsToEmbed}<\/script></body></html>`; const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const filenameBase = firstHeading ? slugify(firstHeading.textContent) : 'documento'; a.download = `${filenameBase || 'generado'}.html`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+        function initializeApp() { themes.forEach((theme, index) => { const option = document.createElement('option'); option.value = index; option.textContent = theme.name; themeSelector.appendChild(option); }); applyTheme(0); themeSelector.value = "0"; personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; input.addEventListener('input', (event) => { if (varName) { document.documentElement.style.setProperty(varName, event.target.value); } }); }); themeSelector.addEventListener('change', (event) => { const selectedIndex = parseInt(event.target.value, 10); if (!isNaN(selectedIndex) && selectedIndex >= 0) { applyTheme(selectedIndex); } }); generateBtn.addEventListener('click', generateHtmlPreview); downloadBtn.addEventListener('click', downloadHtml); generateHtmlPreview(); }
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
 </body>
 </html>
