@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteo Aleatorio de Alumnos v2 (Comodín/Pase)</title>
+    <style>
+        /* --- Variables CSS (igual que antes, excepto ajustes menores) --- */
+        :root {
+            /* Colores */
+            --bg-color: #f4f4f4;
+            --container-bg: #ffffff;
+            --text-color: #333;
+            --label-color: #555;
+            --input-bg: #ffffff;
+            --input-border: #ccc;
+            --input-text: #333;
+            --button-primary-bg: #007bff;
+            --button-primary-text: #ffffff;
+            --button-primary-hover: #0056b3;
+            --button-secondary-bg: #6c757d;
+            --button-secondary-hover: #5a6268;
+            --button-tertiary-bg: #ffc107;
+            --button-tertiary-hover: #e0a800;
+            --button-tertiary-text: #212529;
+            --button-disabled-bg: #6c757d;
+            --button-disabled-opacity: 0.65;
+            --resultado-color: #28a745;
+            --resultado-extra-color: #fd7e14; /* Naranja para Comodín/Pase */
+            --resultado-spinning-opacity: 0.9;
+            --anteriores-text: #666;
+            --error-color: #dc3545;
+            --info-color: #0dcaf0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --toggle-bg: #eee;
+            --toggle-border: #ccc;
+            --toggle-icon-color: #333;
+
+            /* Transiciones */
+            --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            --size-transition-duration: 0.3s;
+
+            /* Tamaños base resultado */
+            --resultado-size-base-default: 4.5rem; /* Ajustado */
+            --resultado-size-small-default: 1.5rem;
+            --resultado-size-giant-default: 6.5rem; /* Ajustado */
+
+            /* Umbrales y escalas */
+            --length-threshold-medium: 15;
+            --length-threshold-large: 25;
+            --scale-factor-medium: 0.8;
+            --scale-factor-large: 0.6;
+        }
+
+        body.dark-mode {
+            /* Colores Modo Oscuro */
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --label-color: #b0b0b0;
+            --input-bg: #2a2a2a;
+            --input-border: #555;
+            --input-text: #e0e0e0;
+            --button-primary-bg: #0d6efd;
+            --button-primary-hover: #0b5ed7;
+            --button-secondary-bg: #5c636a;
+            --button-secondary-hover: #4a4f54;
+            --button-tertiary-bg: #ffca2c;
+            --button-tertiary-hover: #ffc107;
+            --button-tertiary-text: #343a40;
+            --button-disabled-bg: #4a4f54;
+            --resultado-color: #34c759;
+            --resultado-extra-color: #ff9838;
+            --anteriores-text: #aaa;
+            --error-color: #ff4d4f;
+            --info-color: #6edff6;
+            --shadow-color: rgba(255, 255, 255, 0.1);
+            --toggle-bg: #2a2a2a;
+            --toggle-border: #555;
+            --toggle-icon-color: #e0e0e0;
+        }
+
+        /* --- Estilos Generales (mayormente sin cambios) --- */
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background-color: var(--bg-color); color: var(--text-color); text-align: center; padding: 20px; box-sizing: border-box; transition: var(--theme-transition); position: relative; overflow-x: hidden; }
+        .container { background-color: var(--container-bg); padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px var(--shadow-color); max-width: 600px; width: 100%; transition: var(--theme-transition); margin-top: 20px; margin-bottom: 20px; }
+        h1 { color: var(--text-color); margin-bottom: 20px; transition: var(--theme-transition); font-size: 1.8rem; }
+
+        /* --- Resultado Sorteo --- */
+        .resultado-container { /* Contenedor para nombre y extra */
+            margin: 10px 0 25px 0;
+            min-height: 10rem; /* Altura mínima combinada */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #resultado-sorteo {
+            font-weight: bold;
+            color: var(--resultado-color);
+            line-height: 1.1; /* Ajustado para encajar mejor */
+            word-break: break-word;
+            overflow: hidden;
+            transition: font-size var(--size-transition-duration) ease-in-out, color 0.1s linear, opacity 0.3s ease-out, var(--theme-transition);
+            will-change: font-size, color, opacity;
+            padding: 0 5px; /* Reducir padding vertical */
+            box-sizing: border-box;
+            text-align: center;
+            width: 100%; /* Ocupar ancho del contenedor */
+        }
+         #resultado-sorteo.spinning {
+            opacity: var(--resultado-spinning-opacity);
+             /* El color se aplicará inline con JS */
+        }
+        #resultado-extra { /* Estilos para COMODÍN/PASE LIBRE */
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--resultado-extra-color);
+            margin-top: 8px;
+            height: 2em; /* Espacio reservado para evitar saltos */
+            line-height: 1;
+            transition: opacity 0.3s ease;
+            opacity: 0; /* Oculto por defecto */
+            text-align: center;
+        }
+         #resultado-extra.visible {
+            opacity: 1;
+        }
+
+        /* Animación de parpadeo */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .blinking {
+            animation: blink 1s linear infinite;
+        }
+
+        /* --- Checkboxes --- */
+         .opciones-sorteo {
+            display: flex;
+            flex-direction: column; /* O row si prefieres lado a lado */
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px dashed var(--input-border);
+            border-radius: 5px;
+            text-align: left; /* Alinear texto a la izquierda */
+         }
+         .opciones-sorteo label {
+            display: flex; /* Para alinear checkbox y texto */
+            align-items: center;
+            gap: 8px;
+            font-weight: normal; /* No negrita para el label */
+            color: var(--label-color);
+            cursor: pointer;
+            font-size: 0.9rem;
+         }
+          .opciones-sorteo input[type="checkbox"] {
+             width: 1.2em;
+             height: 1.2em;
+             cursor: pointer;
+             accent-color: var(--button-primary-bg); /* Color del check */
+          }
+
+        /* --- Inputs, Textarea, Botones (sin cambios grandes) --- */
+        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+        label:not(.opciones-sorteo label) { font-weight: bold; color: var(--label-color); transition: var(--theme-transition); } /* Solo para label de textarea */
+        textarea { width: 100%; min-height: 100px; /* Reducido un poco */ padding: 10px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--input-text); border-radius: 4px; box-sizing: border-box; font-size: 1rem; font-family: inherit; transition: var(--theme-transition); resize: vertical; }
+        textarea::placeholder { color: var(--label-color); opacity: 0.7; }
+        button { color: var(--button-primary-text); border: none; padding: 12px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; transition: background-color 0.3s ease, opacity 0.3s ease, var(--theme-transition); margin-top: 10px; width: 100%; box-sizing: border-box; }
+        button#generarBtn { background-color: var(--button-primary-bg); }
+        button#generarBtn:hover:not(:disabled) { background-color: var(--button-primary-hover); }
+        button#resetBtn { background-color: var(--button-secondary-bg); color: var(--button-primary-text); }
+        button#resetBtn:hover:not(:disabled) { background-color: var(--button-secondary-hover); }
+        button#voluntarioBtn { background-color: var(--button-tertiary-bg); color: var(--button-tertiary-text); }
+        button#voluntarioBtn:hover:not(:disabled) { background-color: var(--button-tertiary-hover); }
+        button:disabled { background-color: var(--button-disabled-bg); cursor: not-allowed; opacity: var(--button-disabled-opacity); }
+        .botones-accion { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px; }
+        @media (min-width: 450px) { .botones-accion { grid-template-columns: 1fr 1fr; } .botones-accion button#generarBtn { grid-column: 1 / -1; order: -1; } }
+
+        /* --- Anteriores y Mensaje (sin cambios grandes) --- */
+        #anteriores-container { margin-top: 25px; text-align: left; }
+        #anteriores-container strong { display: block; margin-bottom: 5px; color: var(--text-color); transition: var(--theme-transition); }
+        #anteriores-lista { font-size: 0.9rem; color: var(--anteriores-text); word-wrap: break-word; line-height: 1.5; max-height: 100px; overflow-y: auto; padding-right: 5px; transition: var(--theme-transition); background-color: rgba(128,128,128,0.1); padding: 8px; border-radius: 4px; }
+        .mensaje { /* Clase genérica para mensajes */ color: var(--text-color); font-weight: bold; margin-top: 15px; min-height: 1.2em; transition: var(--theme-transition); }
+        .mensaje.error { color: var(--error-color); }
+        .mensaje.info { color: var(--info-color); } /* Color para mensajes informativos */
+
+
+        /* --- Botón Tema y Media Queries (sin cambios) --- */
+        .theme-toggle-button { position: fixed; top: 15px; right: 15px; background-color: var(--toggle-bg); border: 1px solid var(--toggle-border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; margin: 0; z-index: 1000; transition: var(--theme-transition), transform 0.2s ease; filter: grayscale(1); -webkit-tap-highlight-color: transparent; }
+        .theme-toggle-button:hover { transform: scale(1.1); }
+        @media (max-width: 600px) { .container { padding: 20px; max-width: 95%; } :root { --resultado-size-base-default: 4rem; --resultado-size-giant-default: 6rem; } .theme-toggle-button { top: 10px; right: 10px; width: 35px; height: 35px; font-size: 1rem; } h1 { font-size: 1.6rem; } textarea { min-height: 100px; } .opciones-sorteo { padding: 10px; } }
+        @media (max-width: 400px) { :root { --resultado-size-base-default: 3.5rem; --resultado-size-giant-default: 5rem; } h1 { font-size: 1.4rem; } .botones-accion { grid-template-columns: 1fr; } .botones-accion button#generarBtn { grid-column: auto; order: 0; } #resultado-extra { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+
+    <button id="theme-toggle" class="theme-toggle-button" aria-label="Cambiar tema"></button>
+
+    <div class="container">
+        <h1>Sorteo de Alumnos</h1>
+
+        <!-- Contenedor del Resultado -->
+        <div class="resultado-container">
+            <div id="resultado-sorteo">--</div>
+            <div id="resultado-extra"></div> <!-- Para COMODÍN/PASE LIBRE -->
+        </div>
+
+        <!-- Opciones del Sorteo -->
+        <div class="opciones-sorteo">
+            <label>
+                <input type="checkbox" id="habilitarComodin">
+                Habilitar Comodín (El alumno sorteado puede elegir a otro y vuelve al sorteo).
+            </label>
+            <label>
+                <input type="checkbox" id="habilitarPaseLibre">
+                Habilitar Pase Libre (El alumno sorteado se salva este turno y vuelve al sorteo).
+            </label>
+        </div>
+
+        <!-- Lista de Alumnos -->
+        <div class="input-group">
+            <label for="listaAlumnos">Lista de Alumnos (uno por línea):</label>
+            <textarea id="listaAlumnos" placeholder="Ana García&#10;Luis Pérez&#10;Elena Gómez" rows="5"></textarea>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="botones-accion">
+            <button id="generarBtn">¡Sortear Alumno!</button>
+            <button id="resetBtn">Reiniciar Sorteo</button>
+            <button id="voluntarioBtn">Marcar Voluntario</button>
+        </div>
+
+        <!-- Historial -->
+        <div id="anteriores-container">
+            <strong>Ya participaron:</strong>
+            <div id="anteriores-lista">Nadie todavía</div>
+        </div>
+
+        <!-- Mensajes -->
+        <div id="mensaje" class="mensaje"></div>
+    </div>
+
+    <script>
+        // --- REFERENCIAS A ELEMENTOS DEL DOM ---
+        const listaAlumnosTextarea = document.getElementById('listaAlumnos');
+        const generarBtn = document.getElementById('generarBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const voluntarioBtn = document.getElementById('voluntarioBtn');
+        const resultadoSorteoDiv = document.getElementById('resultado-sorteo');
+        const resultadoExtraDiv = document.getElementById('resultado-extra'); // Nuevo div
+        const anterioresListaDiv = document.getElementById('anteriores-lista');
+        const mensajeDiv = document.getElementById('mensaje');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const habilitarComodinCheckbox = document.getElementById('habilitarComodin');
+        const habilitarPaseLibreCheckbox = document.getElementById('habilitarPaseLibre');
+
+        // --- ESTADO DE LA APLICACIÓN ---
+        let listaCompletaAlumnos = [];
+        let nombresSorteados = []; // Solo alumnos que participaron *normalmente*
+        let intervaloAnimacion = null;
+        let timeoutFinalizacion = null;
+        let nombreFinalActual = null;
+        let tipoResultadoActual = 'normal'; // 'normal', 'comodin', 'paselibre'
+        let currentScaleFactor = 1;
+
+        // --- CONSTANTES Y CONFIGURACIÓN ---
+        const sunIcon = '☀️';
+        const moonIcon = '🌙';
+        const DURACION_ANIMACION = 2000; // ms (un poco más corta)
+        const INTERVALO_ANIMACION = 70;  // ms (un poco más rápida)
+        const PROBABILIDAD_PASE_LIBRE = 0.08; // 8% de probabilidad
+        const PROBABILIDAD_COMODIN = 0.12;    // 12% de probabilidad
+
+        // --- FUNCIONES AUXILIARES ---
+        function obtenerElementoAleatorio(lista) {
+            if (!lista || lista.length === 0) return null;
+            const indice = Math.floor(Math.random() * lista.length);
+            return lista[indice];
+        }
+
+        function getCssVariableValue(varName) {
+            const value = getComputedStyle(document.documentElement).getPropertyValue(varName);
+            const parsedValue = parseFloat(value);
+            return isNaN(parsedValue) ? 0 : parsedValue;
+        }
+
+        function getAdjustedFontSize(baseVarName) {
+            const defaultValue = getCssVariableValue(baseVarName);
+            const scale = typeof currentScaleFactor === 'number' && !isNaN(currentScaleFactor) ? currentScaleFactor : 1;
+            return (defaultValue * scale) + 'rem';
+        }
+
+        function calculateScaleFactor(texto) {
+            if (typeof texto !== 'string') return 1;
+            const len = texto.length;
+            const thresholdMedium = getCssVariableValue('--length-threshold-medium') || 15;
+            const thresholdLarge = getCssVariableValue('--length-threshold-large') || 25;
+
+            if (len >= thresholdLarge) { return getCssVariableValue('--scale-factor-large') || 0.6; }
+            else if (len >= thresholdMedium) { return getCssVariableValue('--scale-factor-medium') || 0.8; }
+            else { return 1; }
+        }
+
+        function generarColorVibranteAleatorio() {
+            const h = Math.floor(Math.random() * 360);
+            const s = Math.floor(Math.random() * 31) + 70;
+            const l = Math.floor(Math.random() * 21) + 50;
+            return `hsl(${h}, ${s}%, ${l}%)`;
+        }
+
+        function limpiarTexto(texto) {
+            // No convertir a mayúsculas para preservar el nombre original
+            return texto.trim();
+        }
+
+        // --- LÓGICA DE UI Y ANIMACIONES ---
+
+        function mostrarMensaje(mensaje, tipo = 'info') {
+            mensajeDiv.textContent = mensaje;
+            mensajeDiv.className = `mensaje ${tipo}`; // Asignar clase para color
+        }
+
+        function detenerAnimaciones() {
+            if (intervaloAnimacion) { clearInterval(intervaloAnimacion); intervaloAnimacion = null; }
+            if (timeoutFinalizacion) { clearTimeout(timeoutFinalizacion); timeoutFinalizacion = null; }
+
+            resultadoSorteoDiv.classList.remove('spinning');
+            resultadoSorteoDiv.style.opacity = '';
+            resultadoSorteoDiv.style.color = ''; // Quitar color inline
+
+            resultadoExtraDiv.classList.remove('visible', 'blinking'); // Ocultar y quitar parpadeo
+            resultadoExtraDiv.textContent = '';
+
+            // Restaurar el nombre final si existe (y no era evento especial)
+            if (nombreFinalActual && tipoResultadoActual === 'normal') {
+                 currentScaleFactor = calculateScaleFactor(nombreFinalActual);
+                 resultadoSorteoDiv.textContent = nombreFinalActual;
+                 resultadoSorteoDiv.style.fontSize = getAdjustedFontSize('--resultado-size-base-default');
+            } else if (resultadoSorteoDiv.textContent === '--') {
+                 currentScaleFactor = 1;
+                 resultadoSorteoDiv.style.fontSize = getAdjustedFontSize('--resultado-size-base-default');
+            }
+
+            // Habilitar botones
+            generarBtn.disabled = false;
+            resetBtn.disabled = false;
+            voluntarioBtn.disabled = false;
+        }
+
+        function actualizarListaAnterioresUI() {
+            if (nombresSorteados.length > 0) {
+                anterioresListaDiv.textContent = nombresSorteados.join(', ');
+            } else {
+                anterioresListaDiv.textContent = "Nadie todavía";
+            }
+        }
+
+        function finalizarSorteoUI() {
+            if (nombreFinalActual === null) return;
+
+            resultadoSorteoDiv.classList.remove('spinning');
+            resultadoSorteoDiv.style.color = ''; // Volver al color por defecto
+            resultadoSorteoDiv.style.opacity = '';
+            resultadoSorteoDiv.textContent = nombreFinalActual; // Mostrar nombre real
+            currentScaleFactor = calculateScaleFactor(nombreFinalActual);
+            resultadoSorteoDiv.style.fontSize = getAdjustedFontSize('--resultado-size-base-default');
+
+            resultadoExtraDiv.classList.remove('visible', 'blinking'); // Limpiar estado previo
+            resultadoExtraDiv.textContent = ''; // Limpiar texto previo
+
+            let mensajeFinal = '';
+            let tipoMensaje = 'info';
+
+            // Añadir a sorteados SOLO si es un resultado normal
+            if (tipoResultadoActual === 'normal') {
+                // Verificar si ya estaba (importante si se reinicia sin limpiar lista)
+                if (!nombresSorteados.map(limpiarTexto).includes(limpiarTexto(nombreFinalActual))) {
+                    nombresSorteados.push(nombreFinalActual);
+                    actualizarListaAnterioresUI();
+                }
+                mensajeFinal = ''; // Sin mensaje especial por defecto
+            } else if (tipoResultadoActual === 'comodin') {
+                resultadoExtraDiv.textContent = 'COMODÍN';
+                resultadoExtraDiv.classList.add('visible', 'blinking'); // Mostrar y parpadear
+                mensajeFinal = `¡${nombreFinalActual} tiene el Comodín! Puede elegir a otro/a (y vuelve al sorteo).`;
+                tipoMensaje = 'info';
+            } else if (tipoResultadoActual === 'paselibre') {
+                resultadoExtraDiv.textContent = 'PASE LIBRE';
+                resultadoExtraDiv.classList.add('visible'); // Solo mostrar, sin parpadear
+                mensajeFinal = `¡${nombreFinalActual} tiene Pase Libre! Se salva este turno (y vuelve al sorteo).`;
+                tipoMensaje = 'info';
+            }
+
+            mostrarMensaje(mensajeFinal, tipoMensaje);
+
+            // Habilitar botones
+            generarBtn.disabled = false;
+            resetBtn.disabled = false;
+            voluntarioBtn.disabled = false;
+
+            // Comprobar si ya han salido todos los alumnos "reales"
+            const alumnosRealesEnLista = listaCompletaAlumnos; // Ahora todos son reales
+            if (nombresSorteados.length >= alumnosRealesEnLista.length && alumnosRealesEnLista.length > 0) {
+                 mostrarMensaje("¡Ya han participado todos los alumnos!", 'info');
+                 generarBtn.disabled = true; // No se puede generar más
+                 voluntarioBtn.disabled = true; // No tiene sentido marcar voluntario
+            }
+
+            // Resetear estado para el próximo sorteo
+            nombreFinalActual = null;
+            tipoResultadoActual = 'normal';
+        }
+
+
+        function iniciarEfectoSorteo(listaParaAnimacion, nombreFinal, tipoResultado) {
+            nombreFinalActual = nombreFinal; // Guardar el resultado final
+            tipoResultadoActual = tipoResultado; // Guardar el tipo
+            currentScaleFactor = calculateScaleFactor(nombreFinal); // Calcular escala para el resultado final
+
+            generarBtn.disabled = true;
+            resetBtn.disabled = true;
+            voluntarioBtn.disabled = true;
+            resultadoSorteoDiv.classList.add('spinning');
+            mensajeDiv.textContent = ''; // Limpiar mensajes previos
+            resultadoExtraDiv.classList.remove('visible', 'blinking'); // Ocultar extra durante animacion
+            resultadoExtraDiv.textContent = '';
+            resultadoSorteoDiv.style.fontSize = getAdjustedFontSize('--resultado-size-base-default'); // Tamaño inicial
+
+            let tiempoPasado = 0;
+            const listaAnim = (listaParaAnimacion && listaParaAnimacion.length > 0) ? listaParaAnimacion : ["...", "???"];
+
+            intervaloAnimacion = setInterval(() => {
+                const nombreTemporal = obtenerElementoAleatorio(listaAnim);
+                resultadoSorteoDiv.textContent = nombreTemporal;
+                resultadoSorteoDiv.style.color = generarColorVibranteAleatorio(); // Color parpadeante
+
+                tiempoPasado += INTERVALO_ANIMACION;
+
+                if (tiempoPasado >= DURACION_ANIMACION) {
+                    clearInterval(intervaloAnimacion);
+                    intervaloAnimacion = null;
+
+                    const finalDelay = getCssVariableValue('--size-transition-duration') * 1000 + 50;
+                    timeoutFinalizacion = setTimeout(finalizarSorteoUI, finalDelay);
+                }
+            }, INTERVALO_ANIMACION);
+        }
+
+        // --- LÓGICA PRINCIPAL DEL SORTEO ---
+
+        function leerListaAlumnos() {
+            const textoLista = listaAlumnosTextarea.value;
+            listaCompletaAlumnos = textoLista.split('\n')
+                                      .map(nombre => nombre.trim())
+                                      .filter(nombre => nombre.length > 0);
+            return listaCompletaAlumnos;
+        }
+
+        function sortearAlumno() {
+            detenerAnimaciones();
+            leerListaAlumnos();
+
+            if (listaCompletaAlumnos.length === 0) {
+                mostrarMensaje("La lista de alumnos está vacía.", 'error');
+                return;
+            }
+
+            const alumnosDisponibles = listaCompletaAlumnos.filter(nombre =>
+                !nombresSorteados.map(limpiarTexto).includes(limpiarTexto(nombre))
+            );
+
+            if (alumnosDisponibles.length === 0) {
+                mostrarMensaje("¡Ya han participado todos los alumnos!", 'info');
+                generarBtn.disabled = true;
+                voluntarioBtn.disabled = true;
+                return;
+            }
+
+            const alumnoSeleccionado = obtenerElementoAleatorio(alumnosDisponibles);
+
+            if (alumnoSeleccionado === null) {
+                 mostrarMensaje("Error inesperado al seleccionar alumno.", 'error');
+                 return;
+            }
+
+            // Determinar si aplica Pase Libre o Comodín
+            let tipoResultado = 'normal';
+            const comodinHabilitado = habilitarComodinCheckbox.checked;
+            const paseLibreHabilitado = habilitarPaseLibreCheckbox.checked;
+
+            // Calcular probabilidades
+            const ocurrePaseLibre = paseLibreHabilitado && Math.random() < PROBABILIDAD_PASE_LIBRE;
+            const ocurreComodin = comodinHabilitado && Math.random() < PROBABILIDAD_COMODIN;
+
+            // Pase Libre tiene prioridad
+            if (ocurrePaseLibre) {
+                tipoResultado = 'paselibre';
+            } else if (ocurreComodin) {
+                tipoResultado = 'comodin';
+            }
+
+            // Iniciar animación
+            iniciarEfectoSorteo(listaCompletaAlumnos, alumnoSeleccionado, tipoResultado);
+        }
+
+        function reiniciarSorteo() {
+             if (!confirm("¿Estás seguro de que quieres reiniciar el sorteo? Se borrará la lista de participantes.")) {
+                 return;
+             }
+             detenerAnimaciones();
+             nombresSorteados = [];
+             nombreFinalActual = null;
+             tipoResultadoActual = 'normal';
+             currentScaleFactor = 1;
+
+             resultadoSorteoDiv.textContent = '--';
+             resultadoSorteoDiv.style.fontSize = getAdjustedFontSize('--resultado-size-base-default');
+             resultadoSorteoDiv.style.color = '';
+             resultadoExtraDiv.classList.remove('visible', 'blinking');
+             resultadoExtraDiv.textContent = '';
+
+             actualizarListaAnterioresUI();
+             mostrarMensaje('Sorteo reiniciado.', 'info');
+             setTimeout(() => { if (mensajeDiv.textContent === 'Sorteo reiniciado.' && mensajeDiv.classList.contains('info')) { mensajeDiv.textContent = ''; mensajeDiv.className = 'mensaje'; } }, 2500);
+
+             generarBtn.disabled = false;
+             resetBtn.disabled = false;
+             voluntarioBtn.disabled = false;
+         }
+
+        function marcarVoluntario() {
+            detenerAnimaciones();
+            leerListaAlumnos();
+
+            if (listaCompletaAlumnos.length === 0) {
+                mostrarMensaje("La lista de alumnos está vacía.", 'error');
+                return;
+            }
+
+            const nombreVoluntario = prompt("Escribe el nombre exacto del alumno voluntario:");
+
+            if (nombreVoluntario === null || nombreVoluntario.trim() === "") {
+                mostrarMensaje("No se introdujo ningún nombre.", 'info');
+                return;
+            }
+
+            const nombreVoluntarioLimpio = limpiarTexto(nombreVoluntario);
+            let nombreOriginalEncontrado = null;
+
+            // Buscar el nombre (insensible a mayúsculas/minúsculas al comparar, pero guardar el original)
+            for (const nombreLista of listaCompletaAlumnos) {
+                if (limpiarTexto(nombreLista).toLowerCase() === nombreVoluntarioLimpio.toLowerCase()) {
+                    nombreOriginalEncontrado = nombreLista;
+                    break;
+                }
+            }
+
+            if (nombreOriginalEncontrado === null) {
+                mostrarMensaje(`El nombre "${nombreVoluntario}" no se encuentra en la lista.`, 'error');
+                return;
+            }
+
+            // Verificar si ya participó (usando el nombre original encontrado)
+            if (nombresSorteados.map(limpiarTexto).includes(limpiarTexto(nombreOriginalEncontrado))) {
+                mostrarMensaje(`"${nombreOriginalEncontrado}" ya ha participado.`, 'info');
+            } else {
+                // Añadir a la lista de sorteados (el original) y actualizar UI
+                nombresSorteados.push(nombreOriginalEncontrado);
+                actualizarListaAnterioresUI();
+                mostrarMensaje(`"${nombreOriginalEncontrado}" marcado como participante.`, 'info');
+
+                setTimeout(() => { if (mensajeDiv.textContent === `"${nombreOriginalEncontrado}" marcado como participante.` && mensajeDiv.classList.contains('info')) { mensajeDiv.textContent = ''; mensajeDiv.className = 'mensaje'; } }, 2500);
+
+                // Comprobar si ya no quedan más alumnos
+                if (nombresSorteados.length >= listaCompletaAlumnos.length) {
+                     mostrarMensaje("¡Todos los alumnos han participado!", 'info');
+                     generarBtn.disabled = true;
+                     voluntarioBtn.disabled = true;
+                }
+            }
+        }
+
+
+        // --- LÓGICA PARA CAMBIO DE TEMA ---
+        function applyTheme(theme) {
+            if (theme === 'dark') { document.body.classList.add('dark-mode'); themeToggleBtn.textContent = sunIcon; localStorage.setItem('theme', 'dark'); }
+            else { document.body.classList.remove('dark-mode'); themeToggleBtn.textContent = moonIcon; localStorage.setItem('theme', 'light'); }
+        }
+
+        // --- INICIALIZACIÓN Y EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentTheme = localStorage.getItem('theme');
+            applyTheme(currentTheme === 'dark' ? 'dark' : 'light');
+
+            generarBtn.addEventListener('click', sortearAlumno);
+            resetBtn.addEventListener('click', reiniciarSorteo);
+            voluntarioBtn.addEventListener('click', marcarVoluntario);
+            themeToggleBtn.addEventListener('click', () => {
+                applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark');
+            });
+
+             // Guardar/Cargar estado de checkboxes
+            const comodinGuardado = localStorage.getItem('comodinHabilitado') === 'true';
+            const paseLibreGuardado = localStorage.getItem('paseLibreHabilitado') === 'true';
+            habilitarComodinCheckbox.checked = comodinGuardado;
+            habilitarPaseLibreCheckbox.checked = paseLibreGuardado;
+
+            habilitarComodinCheckbox.addEventListener('change', (e) => {
+                localStorage.setItem('comodinHabilitado', e.target.checked);
+            });
+            habilitarPaseLibreCheckbox.addEventListener('change', (e) => {
+                localStorage.setItem('paseLibreHabilitado', e.target.checked);
+            });
+
+
+            // Estado inicial
+            nombresSorteados = []; // Podríamos querer cargar esto también si fuera necesario
+            nombreFinalActual = null;
+            tipoResultadoActual = 'normal';
+            currentScaleFactor = 1;
+            resultadoSorteoDiv.textContent = '--';
+            resultadoExtraDiv.classList.remove('visible', 'blinking');
+            resultadoExtraDiv.textContent = '';
+            actualizarListaAnterioresUI();
+            mensajeDiv.textContent = '';
+            mensajeDiv.className = 'mensaje';
+            generarBtn.disabled = false;
+            resetBtn.disabled = false;
+            voluntarioBtn.disabled = false;
+
+            // Cargar/Guardar lista de alumnos
+             const listaGuardada = localStorage.getItem('listaAlumnosSorteo');
+             if (listaGuardada) { listaAlumnosTextarea.value = listaGuardada; }
+             listaAlumnosTextarea.addEventListener('input', () => {
+                 localStorage.setItem('listaAlumnosSorteo', listaAlumnosTextarea.value);
+             });
+        });
+
+    </script>
+
+</body>
+</html>
