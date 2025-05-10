@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TerraTank Duel</title>
+    <title>TerraTank Duel - Corregido</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -143,7 +143,7 @@
         const gameMessageSpan = document.getElementById('gameMessage');
 
         const GRAVITY = 0.15; 
-        const TERRAIN_COLOR = '#a07855'; // Marrón tierra más agradable
+        const TERRAIN_COLOR = '#a07855';
         const TANK_WIDTH = 30;
         const TANK_HEIGHT = 15;
         const BARREL_LENGTH = 25;
@@ -160,40 +160,54 @@
         let projectiles = [];
         let explosions = [];
         let currentPlayerIndex = 0;
-        let gameState = 'start'; 
-        let isVsAI = false; // Para futura implementación de IA
+        let gameState = 'start'; // Posibles estados: 'start', 'playing', 'gameover'
+        let isVsAI = false; 
 
         function resizeCanvas() {
             const gameContainer = document.querySelector('.game-container');
             const containerWidth = gameContainer.offsetWidth;
 
             if (containerWidth <= 0) return;
-            canvas.width = containerWidth -2; //  Considerar el borde
+
+            const oldCanvasWidth = canvas.width; 
+            canvas.width = containerWidth - 2; 
 
             const aspectRatio = 16 / 9;
             let newHeight = canvas.width / aspectRatio;
             
-            const maxCanvasHeightPercentage = window.innerHeight < 500 ? 0.45 : 0.55; // Más pequeño en pantallas muy cortas
+            const maxCanvasHeightPercentage = window.innerHeight < 500 ? 0.45 : 0.55; 
             const maxPossibleHeight = window.innerHeight * maxCanvasHeightPercentage;
 
-            if (newHeight > maxPossibleHeight || newHeight < 150) { // Mínimo de 150px alto
+            if (newHeight > maxPossibleHeight || newHeight < 150) { 
                  newHeight = Math.max(150, maxPossibleHeight);
             }
             canvas.height = newHeight;
-            initGame(); 
+
+            // --- CORRECCIÓN DEL TERRENO AL REDIMENSIONAR ---
+            if (gameState === 'start' || gameState === 'gameover' || !terrain || terrain.length === 0) {
+                initGame(); 
+            } else if (gameState === 'playing') {
+                tanks.forEach(tank => {
+                    tank.x = Math.max(tank.width / 2, Math.min(canvas.width - tank.width / 2, tank.x));
+                    tank.updatePositionOnTerrain();
+                });
+                drawGame(); 
+            }
+            // --- FIN CORRECCIÓN DEL TERRENO ---
         }
         
         function generateTerrain() {
             terrain = [];
-            const minHeight = canvas.height * (1 - MAX_TERRAIN_HEIGHT_FACTOR); // Y=0 es arriba
+            if (canvas.width === 0) return; // Evitar generación si el canvas no tiene ancho
+            const minHeight = canvas.height * (1 - MAX_TERRAIN_HEIGHT_FACTOR); 
             const maxHeight = canvas.height * (1 - MIN_TERRAIN_HEIGHT_FACTOR);
             let currentHeight = canvas.height * 0.6;
 
             for (let x = 0; x < canvas.width; x++) {
-                let slope = (Math.random() - 0.5) * TERRAIN_ROUGHNESS * (canvas.width / 100); // Escalar rugosidad con ancho
+                let slope = (Math.random() - 0.5) * TERRAIN_ROUGHNESS * (canvas.width / 100); 
                 currentHeight += slope;
                 currentHeight = Math.max(minHeight, Math.min(maxHeight, currentHeight));
-                if (x > 0) {
+                if (x > 0 && terrain[x-1] !== undefined) { // Asegurar que terrain[x-1] exista
                     terrain[x] = (terrain[x-1] * 2 + currentHeight) / 3;
                 } else {
                     terrain[x] = currentHeight;
@@ -220,7 +234,14 @@
             updatePositionOnTerrain() {
                 if (terrain.length > 0) {
                     const terrainX = Math.max(0, Math.min(Math.round(this.x), terrain.length - 1));
-                    this.y = terrain[terrainX] - this.height;
+                    if(terrain[terrainX] !== undefined){
+                        this.y = terrain[terrainX] - this.height;
+                    } else {
+                        // Fallback si terrain[terrainX] es undefined (podría pasar si x está fuera del rango esperado)
+                        this.y = canvas.height - this.height; 
+                    }
+                } else {
+                     this.y = canvas.height - this.height; // Fallback si el terreno no está generado
                 }
             }
 
@@ -229,9 +250,8 @@
                 ctx.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
                 ctx.beginPath();
                 ctx.arc(this.x, this.y + this.height/2, this.width/3, 0, Math.PI*2);
-                ctx.fillStyle = this.color === '#007bff' ? '#0056b3' : '#198754'; // Un poco más oscuro
+                ctx.fillStyle = this.color === '#007bff' ? '#0056b3' : '#198754'; 
                 ctx.fill();
-
 
                 ctx.save();
                 ctx.translate(this.x, this.y + this.height / 3); 
@@ -257,10 +277,20 @@
 
                 const startX = this.x + (Math.cos(angleRad) * barrelTipOffset);
                 const startY = (this.y + this.height / 3) + (Math.sin(angleRad) * barrelTipOffset);
-                const velocityFactor = this.barrelPower / 18 + (canvas.width / 300); // Ajustar velocidad con potencia y tamaño de pantalla
+                
+                // --- CORRECCIÓN DEL ALCANCE ---
+                const MAX_POWER_EFFECT = 15; 
+                const REFERENCE_CANVAS_WIDTH = 600; 
 
-                const vx = Math.cos(angleRad) * velocityFactor;
-                const vy = Math.sin(angleRad) * velocityFactor;
+                let velocityScale = (this.barrelPower / 100) * MAX_POWER_EFFECT; 
+                velocityScale *= (canvas.width / REFERENCE_CANVAS_WIDTH); 
+                
+                const MIN_VELOCITY = 2.5;
+                const finalVelocityFactor = Math.max(MIN_VELOCITY, velocityScale);
+                // --- FIN CORRECCIÓN DEL ALCANCE ---
+
+                const vx = Math.cos(angleRad) * finalVelocityFactor;
+                const vy = Math.sin(angleRad) * finalVelocityFactor;
                 return new Projectile(startX, startY, vx, vy, this);
             }
 
@@ -296,17 +326,19 @@
                 this.x += this.vx;
                 this.y += this.vy;
 
-                if (this.x < -this.radius || this.x > canvas.width + this.radius || this.y > canvas.height + this.radius) {
+                if (this.x < -this.radius || this.x > canvas.width + this.radius || this.y > canvas.height + this.radius*5 ) { // Dar más margen Y hacia abajo
                     this.active = false; return;
                 }
 
                 const terrainX = Math.round(this.x);
                 if (terrainX >= 0 && terrainX < terrain.length && this.y >= terrain[terrainX] - this.radius) {
-                    this.active = false;
-                    createExplosion(this.x, terrain[terrainX]);
-                    deformTerrain(this.x, EXPLOSION_TERRAIN_RADIUS);
-                    checkAreaDamage(this.x, terrain[terrainX], EXPLOSION_DAMAGE_RADIUS, this.owner);
-                    return;
+                    if(terrain[terrainX] !== undefined) { // Check if terrain point exists
+                        this.active = false;
+                        createExplosion(this.x, terrain[terrainX]);
+                        deformTerrain(this.x, EXPLOSION_TERRAIN_RADIUS);
+                        checkAreaDamage(this.x, terrain[terrainX], EXPLOSION_DAMAGE_RADIUS, this.owner);
+                        return;
+                    }
                 }
 
                 for (let tank of tanks) {
@@ -316,13 +348,20 @@
                     const tankBottom = tank.y + tank.height;
 
                     if (this.x > tankLeft && this.x < tankRight && this.y > tankTop && this.y < tankBottom) {
-                        if (this.y < terrain[terrainX]) { // Asegurar que el proyectil no atraviese el terreno para golpear
-                            this.active = false;
-                            createExplosion(this.x, this.y);
-                            tank.takeDamage(35); // Daño directo mayor
-                            // Opcional: pequeña deformación del terreno también
-                            // deformTerrain(this.x, EXPLOSION_TERRAIN_RADIUS / 2); 
-                            return;
+                         // Solo colisiona si el proyectil está por encima del terreno en la X del tanque
+                        const tankTerrainX = Math.round(tank.x);
+                        if (tankTerrainX >= 0 && tankTerrainX < terrain.length && terrain[tankTerrainX] !== undefined) {
+                            if (this.y < terrain[tankTerrainX]) { 
+                                this.active = false;
+                                createExplosion(this.x, this.y);
+                                tank.takeDamage(35); 
+                                return;
+                            }
+                        } else { // Si no hay terreno debajo del tanque (debería ser raro), colisiona igual
+                             this.active = false;
+                             createExplosion(this.x, this.y);
+                             tank.takeDamage(35); 
+                             return;
                         }
                     }
                 }
@@ -368,9 +407,9 @@
             const endX = Math.min(terrain.length - 1, Math.round(impactX + radius));
             for (let x = startX; x <= endX; x++) {
                 const distX = Math.abs(x - impactX);
-                if (distX < radius) {
+                if (distX < radius && terrain[x] !== undefined) {
                     const dy = Math.sqrt(radius * radius - distX * distX);
-                    terrain[x] = Math.min(canvas.height -10, terrain[x] + dy * 0.8); // Crear cráter (más Y es más abajo)
+                    terrain[x] = Math.min(canvas.height -10, terrain[x] + dy * 0.8); 
                 }
             }
             tanks.forEach(tank => tank.updatePositionOnTerrain());
@@ -389,28 +428,30 @@
         }
 
         function drawTerrain() {
+            if(terrain.length === 0) return; // No dibujar si no hay terreno
+
             ctx.fillStyle = TERRAIN_COLOR;
             ctx.beginPath();
             ctx.moveTo(0, canvas.height);
             for (let x = 0; x < terrain.length; x++) {
-                ctx.lineTo(x, terrain[x]);
+                if(terrain[x] !== undefined) ctx.lineTo(x, terrain[x]);
             }
             ctx.lineTo(canvas.width, canvas.height);
             ctx.closePath();
             ctx.fill();
 
-            ctx.strokeStyle = '#6F4E37'; // Sombra o línea superior del terreno
+            ctx.strokeStyle = '#6F4E37'; 
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(0, terrain[0]);
+            if(terrain[0] !== undefined) ctx.moveTo(0, terrain[0]);
             for (let x = 1; x < terrain.length; x++) {
-                ctx.lineTo(x, terrain[x]);
+                 if(terrain[x] !== undefined) ctx.lineTo(x, terrain[x]);
             }
             ctx.stroke();
         }
 
         function drawGame() {
-            ctx.fillStyle = '#ADD8E6'; // Cielo un poco más claro
+            ctx.fillStyle = '#ADD8E6'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawTerrain();
             tanks.forEach(tank => tank.draw(ctx));
@@ -419,24 +460,28 @@
         }
 
         function initGame() {
-            gameState = 'playing';
+            gameState = 'playing'; // Ahora el juego comienza o se resetea a 'playing'
             gameMessageSpan.textContent = '';
             resetButton.style.display = 'none';
             fireButton.disabled = false;
 
-            if (canvas.width === 0 || canvas.height === 0) { // Si el canvas no tiene tamaño aún
+            if (canvas.width === 0 || canvas.height === 0) { 
+                // Este bloque es un fallback, resizeCanvas debería haber configurado esto
                 const gameContainer = document.querySelector('.game-container');
                 if (gameContainer.offsetWidth > 0) {
                     canvas.width = gameContainer.offsetWidth -2;
-                    canvas.height = canvas.width / (16/9);
-                    const maxHeight = window.innerHeight * 0.5;
-                    if (canvas.height > maxHeight) canvas.height = maxHeight;
-                } else { // Fallback
-                    canvas.width = 320; canvas.height = 200;
+                    let newHeight = canvas.width / (16/9);
+                    const maxPossibleHeight = window.innerHeight * 0.55; 
+                    if (newHeight > maxPossibleHeight || newHeight < 150) {
+                         newHeight = Math.max(150, maxPossibleHeight);
+                    }
+                    canvas.height = newHeight;
+                } else { 
+                    canvas.width = 600; canvas.height = 337.5; // Un fallback más razonable
                 }
             }
-
-            generateTerrain();
+            
+            generateTerrain(); // Generar terreno basado en las dimensiones actuales del canvas
             tanks = [];
             const tankPadding = Math.max(40, canvas.width * 0.1);
             tanks.push(new Tank('player1', tankPadding, '#007bff', true));
@@ -444,7 +489,7 @@
             
             tanks.forEach(tank => {
                 tank.health = 100;
-                tank.updatePositionOnTerrain();
+                tank.updatePositionOnTerrain(); // Asegurar que se coloquen correctamente en el nuevo terreno
             });
             player1HealthSpan.textContent = tanks[0].health;
             player2HealthSpan.textContent = tanks[1].health;
@@ -453,11 +498,11 @@
             explosions = [];
             currentPlayerIndex = 0;
             updateActivePlayerUI();
-            drawGame();
+            drawGame(); // Dibujar el estado inicial del juego
         }
 
         function updateActivePlayerUI() {
-            if (!tanks[currentPlayerIndex]) return; // Seguridad
+            if (!tanks[currentPlayerIndex]) return; 
             const currentPlayer = tanks[currentPlayerIndex];
             currentPlayerTurnSpan.textContent = `Turno: ${currentPlayer.id === 'player1' ? 'Jugador 1' : 'Jugador 2'}`;
             angleSlider.value = currentPlayer.barrelAngle;
@@ -467,7 +512,6 @@
 
             if (isVsAI && currentPlayer.id === 'player2') {
                 fireButton.disabled = true;
-                // Lógica IA iría aquí
             } else {
                 fireButton.disabled = (gameState === 'gameover');
             }
@@ -481,13 +525,17 @@
 
         let lastTime = 0;
         function gameLoop(timestamp) {
+            if (gameState === 'start') { // Si estamos en 'start', no hacer nada hasta que initGame (via resize o reset) cambie a 'playing'
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
             if (gameState !== 'playing' && projectiles.length === 0 && explosions.length === 0) {
-                if (gameState === 'gameover') drawGame(); // Asegurar que el estado final se muestre
-                requestAnimationFrame(gameLoop); // Mantener el loop para el botón de reinicio, o pararlo.
+                if (gameState === 'gameover') drawGame(); 
+                requestAnimationFrame(gameLoop); 
                 return;
             }
             
-            // const deltaTime = (timestamp - lastTime) / 1000; // No usado explícitamente en esta física simple
             lastTime = timestamp;
 
             let activeProjectilesExist = false;
@@ -502,6 +550,9 @@
             drawGame();
 
             if (!activeProjectilesExist && explosions.length === 0 && fireButton.disabled && gameState === 'playing') {
+                // Solo cambiar de turno si no hay proyectiles ni explosiones,
+                // el botón de disparo está desactivado (lo que implica que se disparó)
+                // y el juego está activo.
                 nextTurn();
             }
             requestAnimationFrame(gameLoop);
@@ -512,7 +563,7 @@
             const angle = parseInt(e.target.value);
             angleValueSpan.textContent = angle;
             tanks[currentPlayerIndex].setAim(angle, tanks[currentPlayerIndex].barrelPower);
-            drawGame();
+            if (projectiles.length === 0) drawGame(); // Redibujar solo si no hay proyectil en vuelo
         });
 
         powerSlider.addEventListener('input', (e) => {
@@ -520,30 +571,42 @@
             const power = parseInt(e.target.value);
             powerValueSpan.textContent = power;
             tanks[currentPlayerIndex].setAim(tanks[currentPlayerIndex].barrelAngle, power);
+            // No es necesario redibujar aquí, ya que la potencia no cambia visualmente el tanque hasta el disparo
         });
 
         fireButton.addEventListener('click', () => {
             if (gameState !== 'playing' || !tanks[currentPlayerIndex] || fireButton.disabled) return;
             const currentTank = tanks[currentPlayerIndex];
             projectiles.push(currentTank.fire());
-            fireButton.disabled = true;
+            fireButton.disabled = true; // Deshabilitar hasta el próximo turno
         });
 
         resetButton.addEventListener('click', () => {
-            gameState = 'start'; 
-            resizeCanvas(); // Esto llamará a initGame
+            // gameState = 'start'; // No es necesario, initGame lo pondrá en 'playing'
+            initGame(); 
         });
         
         let resizeTimer;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(resizeCanvas, 200); // Debounce para resize
+            resizeTimer = setTimeout(resizeCanvas, 200); 
         });
 
         window.addEventListener('load', () => {
-            resizeCanvas();
-            lastTime = performance.now();
-            requestAnimationFrame(gameLoop);
+            gameState = 'start'; // Establecer estado inicial
+            resizeCanvas(); // Esto llamará a initGame debido al estado 'start'
+            // lastTime se establece después de que initGame se complete, si es necesario
+            if (gameState === 'playing') { // initGame cambia el estado a 'playing'
+                 lastTime = performance.now();
+                 requestAnimationFrame(gameLoop);
+            } else {
+                // Si por alguna razón initGame no se llamó o falló,
+                // podríamos necesitar iniciar el loop de otra manera o mostrar un error.
+                // Por ahora, asumimos que resizeCanvas->initGame funciona.
+                // Si no se inicia, el gameLoop no procesará la lógica del juego.
+                // Para ser más robusto, el gameLoop podría iniciarse pero no hacer nada si gameState es 'start'.
+                requestAnimationFrame(gameLoop); // Iniciar el loop de todas formas
+            }
         });
     </script>
 </body>
