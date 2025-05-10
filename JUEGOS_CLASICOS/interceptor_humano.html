@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interceptor Urbano</title>
+    <title>Interceptor Urbano Corregido</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -196,7 +196,7 @@
                 ctx.moveTo(this.startX, this.startY);
                 ctx.lineTo(this.currentX, this.currentY);
                 ctx.strokeStyle = this.color;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 2 / scaleFactor; // Ajustar grosor de línea con la escala para consistencia visual
                 ctx.stroke();
 
                 ctx.beginPath();
@@ -236,11 +236,11 @@
             }
             draw() {
                 if (this.reachedTarget) return;
-                 ctx.beginPath();
+                ctx.beginPath();
                 ctx.moveTo(this.startX, this.startY);
                 ctx.lineTo(this.currentX, this.currentY);
                 ctx.strokeStyle = this.color;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 2 / scaleFactor; // Ajustar grosor de línea con la escala para consistencia visual
                 ctx.stroke();
 
                 ctx.beginPath();
@@ -311,14 +311,13 @@
             }
 
             // Crear baterías
-            // Posiciones de ejemplo: 1/4, 1/2, 3/4 del ancho
             const batteryPositionsX = [
                 GAME_WIDTH_LOGICAL / 4,
                 GAME_WIDTH_LOGICAL / 2,
                 GAME_WIDTH_LOGICAL * 3 / 4
             ];
             batteryPositionsX.forEach(posX => {
-                 batteries.push(new Battery(posX, GAME_HEIGHT_LOGICAL - BATTERY_HEIGHT - 10 - CITY_HEIGHT - 5)); // Un poco más arriba que las ciudades
+                 batteries.push(new Battery(posX, GAME_HEIGHT_LOGICAL - BATTERY_HEIGHT - 10 - CITY_HEIGHT - 5));
             });
 
             startNewWave();
@@ -326,26 +325,24 @@
         
         function startNewWave() {
             enemyMissiles = [];
-            defenseMissiles = []; // Limpiar misiles defensivos de oleada anterior
-            explosions = []; // Limpiar explosiones
+            defenseMissiles = []; 
+            explosions = []; 
 
-            const numMissiles = 3 + currentWave * 2; // Más misiles por oleada
+            const numMissiles = 3 + currentWave * 2; 
             for (let i = 0; i < numMissiles; i++) {
-                // Objetivos pueden ser ciudades o el suelo cerca de baterías
                 let targetEntity;
-                if (Math.random() < 0.7 || batteries.length === 0) { // 70% a ciudades activas
+                if (Math.random() < 0.7 || batteries.length === 0) { 
                     const activeCities = cities.filter(c => !c.isDestroyed);
                     if (activeCities.length > 0) {
                         targetEntity = activeCities[Math.floor(Math.random() * activeCities.length)];
                     }
-                } else { // 30% a baterías (o suelo si no hay ciudades)
+                } else { 
                      targetEntity = batteries[Math.floor(Math.random() * batteries.length)];
                 }
 
-                if (!targetEntity) { // Si no hay objetivo válido (ej. todo destruido) apunta al suelo
+                if (!targetEntity) { 
                     enemyMissiles.push(new EnemyMissile(Math.random() * GAME_WIDTH_LOGICAL, GAME_HEIGHT_LOGICAL -1));
                 } else {
-                    // Centro del objetivo
                      const targetX = targetEntity.x + (targetEntity.width ? targetEntity.width / 2 : 0);
                      const targetY = targetEntity.y + (targetEntity.height ? targetEntity.height / 2 : 0);
                      enemyMissiles.push(new EnemyMissile(targetX, targetY));
@@ -364,43 +361,37 @@
             defenseMissiles.forEach(m => m.update());
             explosions.forEach(e => e.update());
 
-            // Colisiones: Explosión vs Misil Enemigo
             explosions.forEach(exp => {
                 if (!exp.isActive || exp.currentRadius <= 0) return;
                 enemyMissiles = enemyMissiles.filter(em => {
                     const dist = Math.sqrt(Math.pow(em.currentX - exp.x, 2) + Math.pow(em.currentY - exp.y, 2));
                     if (dist < exp.currentRadius + em.radius) {
                         score += POINTS_PER_MISSILE;
-                        return false; // Misil destruido
+                        return false; 
                     }
                     return true;
                 });
             });
 
-            // Colisiones: Misil Enemigo vs Ciudad
             enemyMissiles.forEach(em => {
                 cities.forEach(city => {
                     if (!city.isDestroyed &&
                         em.currentX > city.x && em.currentX < city.x + city.width &&
                         em.currentY > city.y && em.currentY < city.y + city.height) {
                         city.isDestroyed = true;
-                        explosions.push(new Explosion(em.currentX, em.currentY)); // Explosión en ciudad
-                        enemyMissiles = enemyMissiles.filter(m => m !== em); // Eliminar misil
+                        explosions.push(new Explosion(em.currentX, em.currentY)); 
+                        enemyMissiles = enemyMissiles.filter(m => m !== em); 
                     }
                 });
-                 // Si el misil llega al suelo (impacto general)
                 if (em.currentY >= GAME_HEIGHT_LOGICAL - em.radius) {
                      explosions.push(new Explosion(em.currentX, em.currentY));
                      enemyMissiles = enemyMissiles.filter(m => m !== em);
                 }
             });
            
-
-            // Limpiar misiles defensivos que alcanzaron su objetivo y explosiones inactivas
             defenseMissiles = defenseMissiles.filter(dm => !dm.reachedTarget);
             explosions = explosions.filter(exp => exp.isActive);
 
-            // Comprobar fin de oleada
             if (enemyMissiles.length === 0 && defenseMissiles.length === 0 && explosions.every(e => e.currentRadius <=0 || !e.isActive)) {
                 if (cities.every(c => c.isDestroyed)) {
                      gameOver();
@@ -413,8 +404,7 @@
                 }
             }
             
-            // Comprobar Game Over
-            if (cities.every(c => c.isDestroyed)) {
+            if (cities.every(c => c.isDestroyed) && gameState === 'PLAYING') { // Solo game over si estábamos jugando
                 gameOver();
             }
             updateUIDisplay();
@@ -423,9 +413,11 @@
         function draw() {
             // Fondo
             ctx.fillStyle = '#000010'; // Azul muy oscuro
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // *** CORRECCIÓN PRINCIPAL AQUÍ ***
+            // Limpiar el canvas usando las dimensiones lógicas, ya que la transformación de escala está aplicada.
+            ctx.fillRect(0, 0, GAME_WIDTH_LOGICAL, GAME_HEIGHT_LOGICAL);
 
-            // Dibujar elementos del juego (escalados si es necesario, pero aquí usamos coords lógicas)
+            // Dibujar elementos del juego
             cities.forEach(c => c.draw());
             batteries.forEach(b => b.draw());
             enemyMissiles.forEach(m => m.draw());
@@ -433,9 +425,10 @@
             explosions.forEach(e => e.draw());
 
             // Dibujar mira (crosshair)
-            if (gameState === 'PLAYING' || gameState === 'INITIAL') {
+            // Condición consistente con drawCrosshair() y ajustando lineWidth
+            if (gameState === 'PLAYING' || gameState === 'INITIAL' || gameState === 'GAME_OVER') {
                 ctx.strokeStyle = '#FFF';
-                ctx.lineWidth = 1;
+                ctx.lineWidth = 1 / scaleFactor; // Asegurar que la línea sea de 1px visualmente
                 ctx.beginPath();
                 ctx.moveTo(crosshair.x - 10, crosshair.y);
                 ctx.lineTo(crosshair.x + 10, crosshair.y);
@@ -449,9 +442,11 @@
         }
 
         function gameLoop() {
-            if (gameState !== 'INITIAL') { // No actualiza ni dibuja si está en pausa o pantalla inicial (excepto si se implementa un draw para esos estados)
-                 update();
-                 draw();
+            // El estado INITIAL se dibuja una vez en setupInitialScreen via resizeCanvas.
+            // Otros estados (PLAYING, WAVE_TRANSITION, GAME_OVER) se actualizan/dibujan aquí.
+            if (gameState !== 'INITIAL') { 
+                 update(); // update() tiene su propia lógica para no hacer nada si no es 'PLAYING'
+                 draw();   // draw() se encarga de dibujar el estado actual
             }
             requestAnimationFrame(gameLoop);
         }
@@ -471,6 +466,7 @@
         }
         
         function gameOver() {
+            if (gameState === 'GAME_OVER') return; // Evitar múltiples llamadas
             gameState = 'GAME_OVER';
             gameMessageDisplay.innerHTML = `GAME OVER<br>Puntuación Final: ${score}<br>Oleada: ${currentWave}`;
             gameMessageDisplay.style.display = 'block';
@@ -479,7 +475,7 @@
 
         // --- Manejo de Eventos ---
         function handleInteraction(event) {
-            event.preventDefault(); // Evitar comportamiento por defecto (scroll, zoom)
+            event.preventDefault(); 
 
             const rect = canvas.getBoundingClientRect();
             let clientX, clientY;
@@ -492,27 +488,23 @@
                 clientY = event.clientY;
             }
             
-            // Convertir coordenadas del viewport a coordenadas del canvas lógico
             crosshair.x = (clientX - rect.left) / scaleFactor;
             crosshair.y = (clientY - rect.top) / scaleFactor;
 
-            // Limitar la mira al canvas
             crosshair.x = Math.max(0, Math.min(GAME_WIDTH_LOGICAL, crosshair.x));
             crosshair.y = Math.max(0, Math.min(GAME_HEIGHT_LOGICAL, crosshair.y));
 
-
             if ((event.type === 'click' || event.type === 'touchstart') && gameState === 'PLAYING') {
-                // Encontrar la batería activa más cercana horizontalmente a la mira
                 let bestBattery = null;
                 let minDistance = Infinity;
 
                 batteries.forEach(bat => {
-                    if (bat.canShoot) { // Podría usarse para baterías destruidas o sin munición
-                        const dist = Math.abs(bat.x - crosshair.x);
-                        if (dist < minDistance) {
-                            minDistance = dist;
-                            bestBattery = bat;
-                        }
+                    // Asumimos que las baterías siempre pueden disparar si existen.
+                    // Si hubiera lógica de destrucción o munición para baterías, se verificaría aquí.
+                    const dist = Math.abs(bat.x - crosshair.x);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        bestBattery = bat;
                     }
                 });
                 
@@ -524,42 +516,34 @@
         
         function resizeCanvas() {
             const containerWidth = canvas.parentElement.clientWidth;
-            scaleFactor = containerWidth / GAME_WIDTH_LOGICAL;
+            // Asegurar que containerWidth no sea 0 para evitar scaleFactor Infinity o NaN
+            if (containerWidth === 0) {
+                 scaleFactor = 1; // O un valor por defecto razonable
+            } else {
+                scaleFactor = containerWidth / GAME_WIDTH_LOGICAL;
+            }
             
             canvas.width = GAME_WIDTH_LOGICAL * scaleFactor;
             canvas.height = GAME_HEIGHT_LOGICAL * scaleFactor;
 
-            // Re-escalar el contexto si se usa scale(), pero es más fácil trabajar con coords lógicas
-            // y dejar que el CSS/JS maneje el tamaño del canvas DOM element.
-            // Aquí, mantenemos las coordenadas lógicas y reescalamos las de entrada.
-            // Si los elementos se dibujaran usando directamente el tamaño del canvas (canvas.width/height),
-            // necesitarían recalcularse. Pero como usamos GAME_WIDTH_LOGICAL, etc.,
-            // solo el `ctx.scale(scaleFactor, scaleFactor)` sería necesario si no ajustamos el input.
-            // Dado que estamos ajustando el input, no es necesario `ctx.scale`.
-            // Lo que SÍ es importante es que el ctx dibuje en el canvas.width/height con la escala correcta
-            // así que al dibujar, debemos multiplicar todas las coordenadas y tamaños por scaleFactor.
-            // O, más fácil:
-            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
-            ctx.scale(scaleFactor, scaleFactor); // Aplicar nueva escala global
+            ctx.setTransform(1, 0, 0, 1, 0, 0); 
+            ctx.scale(scaleFactor, scaleFactor); 
             
-            // Al redimensionar, si el juego está en curso, redibujar inmediatamente
             if (gameState !== 'INITIAL') {
-                draw();
-            } else { // Para la pantalla inicial, dibujar al menos la mira si está activa
+                draw(); // Redibujar el estado actual del juego
+            } else { 
                  ctx.fillStyle = '#000010';
-                 ctx.fillRect(0, 0, GAME_WIDTH_LOGICAL, GAME_HEIGHT_LOGICAL); // Usar dimensiones lógicas aquí
-                 drawCrosshair(); // Dibujar la mira en la posición inicial
+                 ctx.fillRect(0, 0, GAME_WIDTH_LOGICAL, GAME_HEIGHT_LOGICAL); 
+                 drawCrosshair(); // Usa la misma lógica de dibujo de mira que en draw()
             }
         }
 
-        // Inicializar el juego
         startButton.addEventListener('click', () => {
             if (gameState === 'INITIAL' || gameState === 'GAME_OVER') {
                 initGame();
             }
         });
 
-        // Eventos de ratón y táctiles
         canvas.addEventListener('mousemove', handleInteraction);
         canvas.addEventListener('click', handleInteraction);
         canvas.addEventListener('touchmove', handleInteraction, { passive: false });
@@ -567,7 +551,6 @@
         
         window.addEventListener('resize', resizeCanvas);
 
-        // --- Configuración Inicial y Arranque ---
         function setupInitialScreen() {
             gameState = 'INITIAL';
             gameMessageDisplay.textContent = 'Interceptor Urbano';
@@ -577,14 +560,14 @@
             score = 0;
             currentWave = 1;
             updateUIDisplay();
-            resizeCanvas(); // Para establecer el tamaño inicial y la escala
-            drawCrosshair(); // Para que se vea la mira inicialmente
+            resizeCanvas(); 
+            // drawCrosshair() es llamado dentro de resizeCanvas para el estado INITIAL
         }
 
-        function drawCrosshair() { // Función separada para dibujar la mira
-             if (gameState === 'PLAYING' || gameState === 'INITIAL' || gameState === 'GAME_OVER') { // Mostrar mira también en Game Over para apuntar al botón de reinicio
+        function drawCrosshair() { 
+             if (gameState === 'PLAYING' || gameState === 'INITIAL' || gameState === 'GAME_OVER') { 
                 ctx.strokeStyle = '#FFF';
-                ctx.lineWidth = 1 / scaleFactor; // Ajustar grosor de línea con la escala
+                ctx.lineWidth = 1 / scaleFactor; 
                 ctx.beginPath();
                 ctx.moveTo(crosshair.x - 10, crosshair.y);
                 ctx.lineTo(crosshair.x + 10, crosshair.y);
@@ -598,7 +581,7 @@
         }
 
         setupInitialScreen();
-        gameLoop(); // Iniciar el bucle del juego
+        gameLoop(); 
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
