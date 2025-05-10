@@ -113,6 +113,15 @@ Una colección de diversas herramientas y visualizadores web, cada uno implement
     [`unirtexto.html`](https://soyunomas.github.io/pequenos-proyectos/unirtexto.html)
     Combina el contenido de múltiples archivos de texto cargados por el usuario en un solo archivo, añadiendo un encabezado y pie de página con el nombre original de cada archivo incluido.
 
+## Categoría: JUEGOS CLÁSICOS
+
+[`exploraminas.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/exploraminas.html)
+
+[`interceptor_humano.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/interceptor_humano.html)
+
+[`memoreto.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/memoreto.html)
+
+[`terratankDuel.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/terratankDuel.html)
 
 # System Prompts para IA - Roles de Desarrollo
 
