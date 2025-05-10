@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interceptor Urbano</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #212529; /* Dark theme from Bootstrap */
+            color: #f8f9fa; /* Light text */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden; /* Evitar scroll en la página principal */
+        }
+        .game-container {
+            background-color: #343a40;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 100%;
+        }
+        canvas {
+            background-color: #000;
+            display: block;
+            max-width: 100%;
+            /* Aspect ratio se maneja en JS para consistencia */
+            touch-action: none; /* Previene scroll/zoom en interacciones táctiles */
+        }
+        .ui-elements {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            font-size: 1.2rem;
+            background-color: #495057;
+            border-bottom-left-radius: 5px;
+            border-bottom-right-radius: 5px;
+        }
+        .game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000000;
+            display: none; /* Se controla por JS */
+            z-index: 10;
+            padding: 20px;
+            background-color: rgba(0,0,0,0.7);
+            border-radius: 10px;
+        }
+        .btn-game {
+            font-size: 1.2rem;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="ui-elements">
+            <span id="score">Puntuación: 0</span>
+            <span id="wave">Oleada: 1</span>
+        </div>
+        <div id="gameMessage" class="game-message"></div>
+        <button id="startButton" class="btn btn-primary btn-game mt-2">Iniciar Juego</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const waveDisplay = document.getElementById('wave');
+        const startButton = document.getElementById('startButton');
+        const gameMessageDisplay = document.getElementById('gameMessage');
+
+        // --- Configuraciones del Juego ---
+        const GAME_WIDTH_LOGICAL = 400; // Ancho lógico para el juego
+        const GAME_HEIGHT_LOGICAL = 600; // Alto lógico para el juego
+        let scaleFactor = 1;
+
+        const CITY_COUNT = 6;
+        const CITY_WIDTH = 40;
+        const CITY_HEIGHT = 25;
+        const CITY_COLOR = '#007bff'; // Azul Bootstrap
+        const CITY_DESTROYED_COLOR = '#6c757d'; // Gris Bootstrap
+
+        const BATTERY_COUNT = 3;
+        const BATTERY_WIDTH = 30;
+        const BATTERY_HEIGHT = 20;
+        const BATTERY_COLOR = '#28a745'; // Verde Bootstrap
+        const BATTERY_COOLDOWN = 500; // ms
+
+        const ENEMY_MISSILE_SPEED_BASE = 0.8;
+        const ENEMY_MISSILE_RADIUS = 3;
+        const ENEMY_MISSILE_COLOR = '#dc3545'; // Rojo Bootstrap
+
+        const DEFENSE_MISSILE_SPEED = 4;
+        const DEFENSE_MISSILE_RADIUS = 2;
+        const DEFENSE_MISSILE_COLOR = '#ffc107'; // Amarillo Bootstrap
+
+        const EXPLOSION_MAX_RADIUS = 30;
+        const EXPLOSION_DURATION = 800; // ms
+        const EXPLOSION_GROW_TIME = 200; // ms
+        const EXPLOSION_COLOR = 'rgba(255, 165, 0, 0.8)'; // Naranja
+
+        const POINTS_PER_MISSILE = 100;
+
+        // --- Estado del Juego ---
+        let cities = [];
+        let batteries = [];
+        let enemyMissiles = [];
+        let defenseMissiles = [];
+        let explosions = [];
+
+        let score = 0;
+        let currentWave = 1;
+        let crosshair = { x: GAME_WIDTH_LOGICAL / 2, y: GAME_HEIGHT_LOGICAL / 2 };
+        let gameState = 'INITIAL'; // INITIAL, PLAYING, WAVE_TRANSITION, GAME_OVER
+        let lastShotTime = 0;
+
+        // --- Clases de Objetos del Juego ---
+        class City {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = CITY_WIDTH;
+                this.height = CITY_HEIGHT;
+                this.isDestroyed = false;
+            }
+            draw() {
+                ctx.fillStyle = this.isDestroyed ? CITY_DESTROYED_COLOR : CITY_COLOR;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        class Battery {
+            constructor(x, y) {
+                this.x = x; // Centro de la base de la batería
+                this.y = y;
+                this.width = BATTERY_WIDTH;
+                this.height = BATTERY_HEIGHT;
+                this.canShoot = true; 
+                this.lastFired = 0;
+            }
+            draw() {
+                ctx.fillStyle = BATTERY_COLOR;
+                ctx.beginPath();
+                ctx.moveTo(this.x - this.width / 2, this.y + this.height);
+                ctx.lineTo(this.x + this.width / 2, this.y + this.height);
+                ctx.lineTo(this.x, this.y);
+                ctx.closePath();
+                ctx.fill();
+            }
+            fire(targetX, targetY) {
+                const now = Date.now();
+                if (now - this.lastFired > BATTERY_COOLDOWN) {
+                    this.lastFired = now;
+                    defenseMissiles.push(new DefenseMissile(this.x, this.y, targetX, targetY));
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        class EnemyMissile {
+            constructor(targetX, targetY) {
+                this.startX = Math.random() * GAME_WIDTH_LOGICAL;
+                this.startY = 0;
+                this.currentX = this.startX;
+                this.currentY = this.startY;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                const angle = Math.atan2(targetY - this.startY, targetX - this.startX);
+                const speed = ENEMY_MISSILE_SPEED_BASE + (currentWave * 0.1);
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.radius = ENEMY_MISSILE_RADIUS;
+                this.color = ENEMY_MISSILE_COLOR;
+            }
+            update() {
+                this.currentX += this.vx;
+                this.currentY += this.vy;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.startX, this.startY);
+                ctx.lineTo(this.currentX, this.currentY);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(this.currentX, this.currentY, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        class DefenseMissile {
+            constructor(startX, startY, targetX, targetY) {
+                this.startX = startX;
+                this.startY = startY;
+                this.currentX = startX;
+                this.currentY = startY;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                const angle = Math.atan2(targetY - startY, targetX - startX);
+                this.vx = Math.cos(angle) * DEFENSE_MISSILE_SPEED;
+                this.vy = Math.sin(angle) * DEFENSE_MISSILE_SPEED;
+                this.radius = DEFENSE_MISSILE_RADIUS;
+                this.color = DEFENSE_MISSILE_COLOR;
+                this.reachedTarget = false;
+            }
+            update() {
+                if (this.reachedTarget) return;
+                this.currentX += this.vx;
+                this.currentY += this.vy;
+
+                const distToTarget = Math.sqrt(Math.pow(this.targetX - this.currentX, 2) + Math.pow(this.targetY - this.currentY, 2));
+                if (distToTarget < DEFENSE_MISSILE_SPEED) { // Aproximación de llegada
+                    this.currentX = this.targetX;
+                    this.currentY = this.targetY;
+                    this.reachedTarget = true;
+                    explosions.push(new Explosion(this.targetX, this.targetY));
+                }
+            }
+            draw() {
+                if (this.reachedTarget) return;
+                 ctx.beginPath();
+                ctx.moveTo(this.startX, this.startY);
+                ctx.lineTo(this.currentX, this.currentY);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(this.currentX, this.currentY, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        class Explosion {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.startTime = Date.now();
+                this.currentRadius = 0;
+                this.maxRadius = EXPLOSION_MAX_RADIUS;
+                this.duration = EXPLOSION_DURATION;
+                this.growTime = EXPLOSION_GROW_TIME;
+                this.isActive = true;
+                this.color = EXPLOSION_COLOR;
+            }
+            update() {
+                const elapsedTime = Date.now() - this.startTime;
+                if (elapsedTime < this.growTime) {
+                    this.currentRadius = (elapsedTime / this.growTime) * this.maxRadius;
+                } else if (elapsedTime < this.duration) {
+                    this.currentRadius = this.maxRadius; 
+                } else {
+                    this.currentRadius = this.maxRadius * (1 - (elapsedTime - this.duration) / (this.duration / 2)); // Encoge
+                     if (this.currentRadius < 0) {
+                        this.currentRadius = 0;
+                        this.isActive = false;
+                    }
+                }
+                if (elapsedTime > this.duration + (this.duration / 2) ) { // Desaparece después de encoger
+                     this.isActive = false;
+                }
+            }
+            draw() {
+                if (!this.isActive || this.currentRadius <=0) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.currentRadius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        // --- Funciones de Lógica del Juego ---
+        function initGame() {
+            score = 0;
+            currentWave = 1;
+            cities = [];
+            batteries = [];
+            enemyMissiles = [];
+            defenseMissiles = [];
+            explosions = [];
+            gameState = 'PLAYING';
+            updateUIDisplay();
+            gameMessageDisplay.style.display = 'none';
+            startButton.textContent = 'Jugar de Nuevo';
+            startButton.style.display = 'none';
+
+
+            // Crear ciudades
+            const citySpacing = (GAME_WIDTH_LOGICAL - (CITY_COUNT * CITY_WIDTH)) / (CITY_COUNT + 1);
+            for (let i = 0; i < CITY_COUNT; i++) {
+                cities.push(new City(citySpacing + i * (CITY_WIDTH + citySpacing), GAME_HEIGHT_LOGICAL - CITY_HEIGHT - 10));
+            }
+
+            // Crear baterías
+            // Posiciones de ejemplo: 1/4, 1/2, 3/4 del ancho
+            const batteryPositionsX = [
+                GAME_WIDTH_LOGICAL / 4,
+                GAME_WIDTH_LOGICAL / 2,
+                GAME_WIDTH_LOGICAL * 3 / 4
+            ];
+            batteryPositionsX.forEach(posX => {
+                 batteries.push(new Battery(posX, GAME_HEIGHT_LOGICAL - BATTERY_HEIGHT - 10 - CITY_HEIGHT - 5)); // Un poco más arriba que las ciudades
+            });
+
+            startNewWave();
+        }
+        
+        function startNewWave() {
+            enemyMissiles = [];
+            defenseMissiles = []; // Limpiar misiles defensivos de oleada anterior
+            explosions = []; // Limpiar explosiones
+
+            const numMissiles = 3 + currentWave * 2; // Más misiles por oleada
+            for (let i = 0; i < numMissiles; i++) {
+                // Objetivos pueden ser ciudades o el suelo cerca de baterías
+                let targetEntity;
+                if (Math.random() < 0.7 || batteries.length === 0) { // 70% a ciudades activas
+                    const activeCities = cities.filter(c => !c.isDestroyed);
+                    if (activeCities.length > 0) {
+                        targetEntity = activeCities[Math.floor(Math.random() * activeCities.length)];
+                    }
+                } else { // 30% a baterías (o suelo si no hay ciudades)
+                     targetEntity = batteries[Math.floor(Math.random() * batteries.length)];
+                }
+
+                if (!targetEntity) { // Si no hay objetivo válido (ej. todo destruido) apunta al suelo
+                    enemyMissiles.push(new EnemyMissile(Math.random() * GAME_WIDTH_LOGICAL, GAME_HEIGHT_LOGICAL -1));
+                } else {
+                    // Centro del objetivo
+                     const targetX = targetEntity.x + (targetEntity.width ? targetEntity.width / 2 : 0);
+                     const targetY = targetEntity.y + (targetEntity.height ? targetEntity.height / 2 : 0);
+                     enemyMissiles.push(new EnemyMissile(targetX, targetY));
+                }
+            }
+            gameState = 'PLAYING';
+            if (currentWave > 1) {
+                showTemporaryMessage(`Oleada ${currentWave}`, 1500);
+            }
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            enemyMissiles.forEach(m => m.update());
+            defenseMissiles.forEach(m => m.update());
+            explosions.forEach(e => e.update());
+
+            // Colisiones: Explosión vs Misil Enemigo
+            explosions.forEach(exp => {
+                if (!exp.isActive || exp.currentRadius <= 0) return;
+                enemyMissiles = enemyMissiles.filter(em => {
+                    const dist = Math.sqrt(Math.pow(em.currentX - exp.x, 2) + Math.pow(em.currentY - exp.y, 2));
+                    if (dist < exp.currentRadius + em.radius) {
+                        score += POINTS_PER_MISSILE;
+                        return false; // Misil destruido
+                    }
+                    return true;
+                });
+            });
+
+            // Colisiones: Misil Enemigo vs Ciudad
+            enemyMissiles.forEach(em => {
+                cities.forEach(city => {
+                    if (!city.isDestroyed &&
+                        em.currentX > city.x && em.currentX < city.x + city.width &&
+                        em.currentY > city.y && em.currentY < city.y + city.height) {
+                        city.isDestroyed = true;
+                        explosions.push(new Explosion(em.currentX, em.currentY)); // Explosión en ciudad
+                        enemyMissiles = enemyMissiles.filter(m => m !== em); // Eliminar misil
+                    }
+                });
+                 // Si el misil llega al suelo (impacto general)
+                if (em.currentY >= GAME_HEIGHT_LOGICAL - em.radius) {
+                     explosions.push(new Explosion(em.currentX, em.currentY));
+                     enemyMissiles = enemyMissiles.filter(m => m !== em);
+                }
+            });
+           
+
+            // Limpiar misiles defensivos que alcanzaron su objetivo y explosiones inactivas
+            defenseMissiles = defenseMissiles.filter(dm => !dm.reachedTarget);
+            explosions = explosions.filter(exp => exp.isActive);
+
+            // Comprobar fin de oleada
+            if (enemyMissiles.length === 0 && defenseMissiles.length === 0 && explosions.every(e => e.currentRadius <=0 || !e.isActive)) {
+                if (cities.every(c => c.isDestroyed)) {
+                     gameOver();
+                } else {
+                    gameState = 'WAVE_TRANSITION';
+                    currentWave++;
+                    showTemporaryMessage(`¡Oleada ${currentWave-1} Superada!`, 2000, () => {
+                        startNewWave();
+                    });
+                }
+            }
+            
+            // Comprobar Game Over
+            if (cities.every(c => c.isDestroyed)) {
+                gameOver();
+            }
+            updateUIDisplay();
+        }
+        
+        function draw() {
+            // Fondo
+            ctx.fillStyle = '#000010'; // Azul muy oscuro
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar elementos del juego (escalados si es necesario, pero aquí usamos coords lógicas)
+            cities.forEach(c => c.draw());
+            batteries.forEach(b => b.draw());
+            enemyMissiles.forEach(m => m.draw());
+            defenseMissiles.forEach(m => m.draw());
+            explosions.forEach(e => e.draw());
+
+            // Dibujar mira (crosshair)
+            if (gameState === 'PLAYING' || gameState === 'INITIAL') {
+                ctx.strokeStyle = '#FFF';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(crosshair.x - 10, crosshair.y);
+                ctx.lineTo(crosshair.x + 10, crosshair.y);
+                ctx.moveTo(crosshair.x, crosshair.y - 10);
+                ctx.lineTo(crosshair.x, crosshair.y + 10);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(crosshair.x, crosshair.y, 12, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        function gameLoop() {
+            if (gameState !== 'INITIAL') { // No actualiza ni dibuja si está en pausa o pantalla inicial (excepto si se implementa un draw para esos estados)
+                 update();
+                 draw();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateUIDisplay() {
+            scoreDisplay.textContent = `Puntuación: ${score}`;
+            waveDisplay.textContent = `Oleada: ${currentWave}`;
+        }
+
+        function showTemporaryMessage(message, duration, callback) {
+            gameMessageDisplay.textContent = message;
+            gameMessageDisplay.style.display = 'block';
+            setTimeout(() => {
+                gameMessageDisplay.style.display = 'none';
+                if (callback) callback();
+            }, duration);
+        }
+        
+        function gameOver() {
+            gameState = 'GAME_OVER';
+            gameMessageDisplay.innerHTML = `GAME OVER<br>Puntuación Final: ${score}<br>Oleada: ${currentWave}`;
+            gameMessageDisplay.style.display = 'block';
+            startButton.style.display = 'block';
+        }
+
+        // --- Manejo de Eventos ---
+        function handleInteraction(event) {
+            event.preventDefault(); // Evitar comportamiento por defecto (scroll, zoom)
+
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+
+            if (event.touches && event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            
+            // Convertir coordenadas del viewport a coordenadas del canvas lógico
+            crosshair.x = (clientX - rect.left) / scaleFactor;
+            crosshair.y = (clientY - rect.top) / scaleFactor;
+
+            // Limitar la mira al canvas
+            crosshair.x = Math.max(0, Math.min(GAME_WIDTH_LOGICAL, crosshair.x));
+            crosshair.y = Math.max(0, Math.min(GAME_HEIGHT_LOGICAL, crosshair.y));
+
+
+            if ((event.type === 'click' || event.type === 'touchstart') && gameState === 'PLAYING') {
+                // Encontrar la batería activa más cercana horizontalmente a la mira
+                let bestBattery = null;
+                let minDistance = Infinity;
+
+                batteries.forEach(bat => {
+                    if (bat.canShoot) { // Podría usarse para baterías destruidas o sin munición
+                        const dist = Math.abs(bat.x - crosshair.x);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            bestBattery = bat;
+                        }
+                    }
+                });
+                
+                if (bestBattery) {
+                    bestBattery.fire(crosshair.x, crosshair.y);
+                }
+            }
+        }
+        
+        function resizeCanvas() {
+            const containerWidth = canvas.parentElement.clientWidth;
+            scaleFactor = containerWidth / GAME_WIDTH_LOGICAL;
+            
+            canvas.width = GAME_WIDTH_LOGICAL * scaleFactor;
+            canvas.height = GAME_HEIGHT_LOGICAL * scaleFactor;
+
+            // Re-escalar el contexto si se usa scale(), pero es más fácil trabajar con coords lógicas
+            // y dejar que el CSS/JS maneje el tamaño del canvas DOM element.
+            // Aquí, mantenemos las coordenadas lógicas y reescalamos las de entrada.
+            // Si los elementos se dibujaran usando directamente el tamaño del canvas (canvas.width/height),
+            // necesitarían recalcularse. Pero como usamos GAME_WIDTH_LOGICAL, etc.,
+            // solo el `ctx.scale(scaleFactor, scaleFactor)` sería necesario si no ajustamos el input.
+            // Dado que estamos ajustando el input, no es necesario `ctx.scale`.
+            // Lo que SÍ es importante es que el ctx dibuje en el canvas.width/height con la escala correcta
+            // así que al dibujar, debemos multiplicar todas las coordenadas y tamaños por scaleFactor.
+            // O, más fácil:
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+            ctx.scale(scaleFactor, scaleFactor); // Aplicar nueva escala global
+            
+            // Al redimensionar, si el juego está en curso, redibujar inmediatamente
+            if (gameState !== 'INITIAL') {
+                draw();
+            } else { // Para la pantalla inicial, dibujar al menos la mira si está activa
+                 ctx.fillStyle = '#000010';
+                 ctx.fillRect(0, 0, GAME_WIDTH_LOGICAL, GAME_HEIGHT_LOGICAL); // Usar dimensiones lógicas aquí
+                 drawCrosshair(); // Dibujar la mira en la posición inicial
+            }
+        }
+
+        // Inicializar el juego
+        startButton.addEventListener('click', () => {
+            if (gameState === 'INITIAL' || gameState === 'GAME_OVER') {
+                initGame();
+            }
+        });
+
+        // Eventos de ratón y táctiles
+        canvas.addEventListener('mousemove', handleInteraction);
+        canvas.addEventListener('click', handleInteraction);
+        canvas.addEventListener('touchmove', handleInteraction, { passive: false });
+        canvas.addEventListener('touchstart', handleInteraction, { passive: false });
+        
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- Configuración Inicial y Arranque ---
+        function setupInitialScreen() {
+            gameState = 'INITIAL';
+            gameMessageDisplay.textContent = 'Interceptor Urbano';
+            gameMessageDisplay.style.display = 'block';
+            startButton.textContent = 'Iniciar Juego';
+            startButton.style.display = 'block';
+            score = 0;
+            currentWave = 1;
+            updateUIDisplay();
+            resizeCanvas(); // Para establecer el tamaño inicial y la escala
+            drawCrosshair(); // Para que se vea la mira inicialmente
+        }
+
+        function drawCrosshair() { // Función separada para dibujar la mira
+             if (gameState === 'PLAYING' || gameState === 'INITIAL' || gameState === 'GAME_OVER') { // Mostrar mira también en Game Over para apuntar al botón de reinicio
+                ctx.strokeStyle = '#FFF';
+                ctx.lineWidth = 1 / scaleFactor; // Ajustar grosor de línea con la escala
+                ctx.beginPath();
+                ctx.moveTo(crosshair.x - 10, crosshair.y);
+                ctx.lineTo(crosshair.x + 10, crosshair.y);
+                ctx.moveTo(crosshair.x, crosshair.y - 10);
+                ctx.lineTo(crosshair.x, crosshair.y + 10);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(crosshair.x, crosshair.y, 12, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        setupInitialScreen();
+        gameLoop(); // Iniciar el bucle del juego
+
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

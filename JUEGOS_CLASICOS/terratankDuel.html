@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TerraTank Duel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden; 
+        }
+        .game-container {
+            width: 100%;
+            max-width: 800px; 
+            margin: 0 auto;
+            padding: 10px;
+        }
+        #gameCanvas {
+            border: 1px solid #000;
+            background-color: #87CEEB; 
+            width: 100%;
+            height: auto; 
+            display: block; 
+        }
+        .controls-info-panel {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 0.3rem;
+            margin-top: 10px;
+        }
+        .player-info {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 0.25rem;
+        }
+        .player-info h5 {
+            margin-top: 0;
+            font-size: 1rem;
+        }
+        .player-info p {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 576px) {
+            .controls-info-panel {
+                font-size: 0.85rem;
+            }
+            .btn {
+                font-size: 0.9rem;
+                padding: 0.35rem 0.6rem;
+            }
+            label.form-label {
+                font-size: 0.85rem;
+                margin-bottom: 0.2rem;
+            }
+            .form-range {
+                height: 1.2rem;
+            }
+            .player-info h5 {
+                font-size: 0.9rem;
+            }
+            .player-info p {
+                font-size: 0.8rem;
+            }
+            h1.my-3 {
+                font-size: 1.5rem;
+                margin-bottom: 0.8rem !important;
+                margin-top: 0.8rem !important;
+            }
+            #currentPlayerTurn {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="text-center my-3">TerraTank Duel</h1>
+
+        <div class="row">
+            <div class="col-12">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="controls-info-panel mt-3">
+            <div class="row align-items-start">
+                <div class="col-md-7 col-lg-8 order-md-1">
+                    <div id="playerControls">
+                        <h4 id="currentPlayerTurn" class="mb-3">Turno: Jugador 1</h4>
+                        <div class="mb-2">
+                            <label for="angleSlider" class="form-label">Ángulo: <span id="angleValue">45</span>°</label>
+                            <input type="range" class="form-range" id="angleSlider" min="0" max="180" value="45">
+                        </div>
+                        <div class="mb-3">
+                            <label for="powerSlider" class="form-label">Potencia: <span id="powerValue">50</span>%</label>
+                            <input type="range" class="form-range" id="powerSlider" min="1" max="100" value="50">
+                        </div>
+                        <button id="fireButton" class="btn btn-danger btn-lg w-100">¡Disparar!</button>
+                    </div>
+                </div>
+                <div class="col-md-5 col-lg-4 order-md-2 mt-3 mt-md-0">
+                    <div class="player-info bg-light-subtle" id="player1Info">
+                        <h5>Jugador 1 <span class="badge bg-primary float-end">P1</span></h5>
+                        <p>Vida: <span id="player1Health">100</span></p>
+                    </div>
+                    <div class="player-info bg-light-subtle mt-2" id="player2Info">
+                        <h5>Jugador 2 <span class="badge bg-success float-end">P2</span></h5>
+                        <p>Vida: <span id="player2Health">100</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12 text-center">
+                     <p id="gameMessage" class="fw-bold fs-5 mb-2"></p>
+                    <button id="resetButton" class="btn btn-warning" style="display:none;">Jugar de Nuevo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const angleSlider = document.getElementById('angleSlider');
+        const powerSlider = document.getElementById('powerSlider');
+        const angleValueSpan = document.getElementById('angleValue');
+        const powerValueSpan = document.getElementById('powerValue');
+        const fireButton = document.getElementById('fireButton');
+        const resetButton = document.getElementById('resetButton');
+        const currentPlayerTurnSpan = document.getElementById('currentPlayerTurn');
+        const player1HealthSpan = document.getElementById('player1Health');
+        const player2HealthSpan = document.getElementById('player2Health');
+        const gameMessageSpan = document.getElementById('gameMessage');
+
+        const GRAVITY = 0.15; 
+        const TERRAIN_COLOR = '#a07855'; // Marrón tierra más agradable
+        const TANK_WIDTH = 30;
+        const TANK_HEIGHT = 15;
+        const BARREL_LENGTH = 25;
+        const BARREL_WIDTH = 5;
+        const PROJECTILE_RADIUS = 4;
+        const EXPLOSION_DAMAGE_RADIUS = 35; 
+        const EXPLOSION_TERRAIN_RADIUS = 25;
+        const MAX_TERRAIN_HEIGHT_FACTOR = 0.75; 
+        const MIN_TERRAIN_HEIGHT_FACTOR = 0.4; 
+        const TERRAIN_ROUGHNESS = 0.6; 
+
+        let terrain = [];
+        let tanks = [];
+        let projectiles = [];
+        let explosions = [];
+        let currentPlayerIndex = 0;
+        let gameState = 'start'; 
+        let isVsAI = false; // Para futura implementación de IA
+
+        function resizeCanvas() {
+            const gameContainer = document.querySelector('.game-container');
+            const containerWidth = gameContainer.offsetWidth;
+
+            if (containerWidth <= 0) return;
+            canvas.width = containerWidth -2; //  Considerar el borde
+
+            const aspectRatio = 16 / 9;
+            let newHeight = canvas.width / aspectRatio;
+            
+            const maxCanvasHeightPercentage = window.innerHeight < 500 ? 0.45 : 0.55; // Más pequeño en pantallas muy cortas
+            const maxPossibleHeight = window.innerHeight * maxCanvasHeightPercentage;
+
+            if (newHeight > maxPossibleHeight || newHeight < 150) { // Mínimo de 150px alto
+                 newHeight = Math.max(150, maxPossibleHeight);
+            }
+            canvas.height = newHeight;
+            initGame(); 
+        }
+        
+        function generateTerrain() {
+            terrain = [];
+            const minHeight = canvas.height * (1 - MAX_TERRAIN_HEIGHT_FACTOR); // Y=0 es arriba
+            const maxHeight = canvas.height * (1 - MIN_TERRAIN_HEIGHT_FACTOR);
+            let currentHeight = canvas.height * 0.6;
+
+            for (let x = 0; x < canvas.width; x++) {
+                let slope = (Math.random() - 0.5) * TERRAIN_ROUGHNESS * (canvas.width / 100); // Escalar rugosidad con ancho
+                currentHeight += slope;
+                currentHeight = Math.max(minHeight, Math.min(maxHeight, currentHeight));
+                if (x > 0) {
+                    terrain[x] = (terrain[x-1] * 2 + currentHeight) / 3;
+                } else {
+                    terrain[x] = currentHeight;
+                }
+            }
+        }
+
+        class Tank {
+            constructor(id, x, color, isPlayer1 = true) {
+                this.id = id;
+                this.initialX = x;
+                this.x = x;
+                this.y = 0; 
+                this.width = TANK_WIDTH;
+                this.height = TANK_HEIGHT;
+                this.color = color;
+                this.barrelAngle = isPlayer1 ? 45 : 135; 
+                this.barrelPower = 50;
+                this.health = 100;
+                this.isPlayer1 = isPlayer1;
+                this.updatePositionOnTerrain();
+            }
+
+            updatePositionOnTerrain() {
+                if (terrain.length > 0) {
+                    const terrainX = Math.max(0, Math.min(Math.round(this.x), terrain.length - 1));
+                    this.y = terrain[terrainX] - this.height;
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y + this.height/2, this.width/3, 0, Math.PI*2);
+                ctx.fillStyle = this.color === '#007bff' ? '#0056b3' : '#198754'; // Un poco más oscuro
+                ctx.fill();
+
+
+                ctx.save();
+                ctx.translate(this.x, this.y + this.height / 3); 
+                let angleRad = this.isPlayer1 ? 
+                               -(this.barrelAngle * Math.PI / 180) : 
+                               -((180 - this.barrelAngle) * Math.PI / 180);
+                ctx.rotate(angleRad);
+                ctx.fillStyle = '#555';
+                ctx.fillRect(0, -BARREL_WIDTH / 2, BARREL_LENGTH, BARREL_WIDTH);
+                ctx.restore();
+            }
+
+            setAim(angle, power) {
+                this.barrelAngle = angle;
+                this.barrelPower = power;
+            }
+
+            fire() {
+                const barrelTipOffset = BARREL_LENGTH;
+                let angleRad = this.isPlayer1 ? 
+                               -(this.barrelAngle * Math.PI / 180) : 
+                               -((180 - this.barrelAngle) * Math.PI / 180);
+
+                const startX = this.x + (Math.cos(angleRad) * barrelTipOffset);
+                const startY = (this.y + this.height / 3) + (Math.sin(angleRad) * barrelTipOffset);
+                const velocityFactor = this.barrelPower / 18 + (canvas.width / 300); // Ajustar velocidad con potencia y tamaño de pantalla
+
+                const vx = Math.cos(angleRad) * velocityFactor;
+                const vy = Math.sin(angleRad) * velocityFactor;
+                return new Projectile(startX, startY, vx, vy, this);
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                if (this.health < 0) this.health = 0;
+                
+                if (this.id === 'player1') player1HealthSpan.textContent = this.health;
+                else player2HealthSpan.textContent = this.health;
+
+                if (this.health === 0) {
+                    gameState = 'gameover';
+                    const winner = (this.id === 'player1' ? tanks[1] : tanks[0]);
+                    gameMessageSpan.textContent = `¡${winner.id === 'player1' ? 'Jugador 1' : 'Jugador 2'} Gana!`;
+                    fireButton.disabled = true;
+                    resetButton.style.display = 'block';
+                }
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, vx, vy, owner) {
+                this.x = x; this.y = y;
+                this.vx = vx; this.vy = vy;
+                this.radius = PROJECTILE_RADIUS;
+                this.owner = owner;
+                this.active = true;
+            }
+
+            update() {
+                if (!this.active) return;
+                this.vy += GRAVITY;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < -this.radius || this.x > canvas.width + this.radius || this.y > canvas.height + this.radius) {
+                    this.active = false; return;
+                }
+
+                const terrainX = Math.round(this.x);
+                if (terrainX >= 0 && terrainX < terrain.length && this.y >= terrain[terrainX] - this.radius) {
+                    this.active = false;
+                    createExplosion(this.x, terrain[terrainX]);
+                    deformTerrain(this.x, EXPLOSION_TERRAIN_RADIUS);
+                    checkAreaDamage(this.x, terrain[terrainX], EXPLOSION_DAMAGE_RADIUS, this.owner);
+                    return;
+                }
+
+                for (let tank of tanks) {
+                    const tankLeft = tank.x - tank.width / 2;
+                    const tankRight = tank.x + tank.width / 2;
+                    const tankTop = tank.y;
+                    const tankBottom = tank.y + tank.height;
+
+                    if (this.x > tankLeft && this.x < tankRight && this.y > tankTop && this.y < tankBottom) {
+                        if (this.y < terrain[terrainX]) { // Asegurar que el proyectil no atraviese el terreno para golpear
+                            this.active = false;
+                            createExplosion(this.x, this.y);
+                            tank.takeDamage(35); // Daño directo mayor
+                            // Opcional: pequeña deformación del terreno también
+                            // deformTerrain(this.x, EXPLOSION_TERRAIN_RADIUS / 2); 
+                            return;
+                        }
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (!this.active) return;
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function createExplosion(x, y) {
+            explosions.push({ x, y, radius: EXPLOSION_DAMAGE_RADIUS, currentRadius: 0, life: 25, maxLife: 25 });
+        }
+
+        function drawExplosions(ctx) {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                const progress = 1 - (exp.life / exp.maxLife);
+                exp.currentRadius = exp.radius * progress;
+                const alpha = 1 - progress;
+
+                ctx.beginPath();
+                ctx.arc(exp.x, exp.y, exp.currentRadius, 0, Math.PI * 2);
+                
+                const gradient = ctx.createRadialGradient(exp.x, exp.y, 0, exp.x, exp.y, exp.currentRadius);
+                gradient.addColorStop(0, `rgba(255, 200, 0, ${alpha * 0.9})`);
+                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, ${alpha * 0.2})`);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                exp.life--;
+                if (exp.life <= 0) explosions.splice(i, 1);
+            }
+        }
+
+        function deformTerrain(impactX, radius) {
+            const startX = Math.max(0, Math.round(impactX - radius));
+            const endX = Math.min(terrain.length - 1, Math.round(impactX + radius));
+            for (let x = startX; x <= endX; x++) {
+                const distX = Math.abs(x - impactX);
+                if (distX < radius) {
+                    const dy = Math.sqrt(radius * radius - distX * distX);
+                    terrain[x] = Math.min(canvas.height -10, terrain[x] + dy * 0.8); // Crear cráter (más Y es más abajo)
+                }
+            }
+            tanks.forEach(tank => tank.updatePositionOnTerrain());
+        }
+
+        function checkAreaDamage(explosionX, explosionY, radius, projectileOwner) {
+            tanks.forEach(tank => {
+                const distX = tank.x - explosionX;
+                const distY = (tank.y + tank.height / 2) - explosionY;
+                const distance = Math.sqrt(distX * distX + distY * distY);
+                if (distance < radius) {
+                    const damage = Math.max(5, Math.round(25 * (1 - distance / radius)));
+                    tank.takeDamage(damage);
+                }
+            });
+        }
+
+        function drawTerrain() {
+            ctx.fillStyle = TERRAIN_COLOR;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let x = 0; x < terrain.length; x++) {
+                ctx.lineTo(x, terrain[x]);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = '#6F4E37'; // Sombra o línea superior del terreno
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, terrain[0]);
+            for (let x = 1; x < terrain.length; x++) {
+                ctx.lineTo(x, terrain[x]);
+            }
+            ctx.stroke();
+        }
+
+        function drawGame() {
+            ctx.fillStyle = '#ADD8E6'; // Cielo un poco más claro
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawTerrain();
+            tanks.forEach(tank => tank.draw(ctx));
+            projectiles.forEach(projectile => projectile.draw(ctx));
+            drawExplosions(ctx);
+        }
+
+        function initGame() {
+            gameState = 'playing';
+            gameMessageSpan.textContent = '';
+            resetButton.style.display = 'none';
+            fireButton.disabled = false;
+
+            if (canvas.width === 0 || canvas.height === 0) { // Si el canvas no tiene tamaño aún
+                const gameContainer = document.querySelector('.game-container');
+                if (gameContainer.offsetWidth > 0) {
+                    canvas.width = gameContainer.offsetWidth -2;
+                    canvas.height = canvas.width / (16/9);
+                    const maxHeight = window.innerHeight * 0.5;
+                    if (canvas.height > maxHeight) canvas.height = maxHeight;
+                } else { // Fallback
+                    canvas.width = 320; canvas.height = 200;
+                }
+            }
+
+            generateTerrain();
+            tanks = [];
+            const tankPadding = Math.max(40, canvas.width * 0.1);
+            tanks.push(new Tank('player1', tankPadding, '#007bff', true));
+            tanks.push(new Tank('player2', canvas.width - tankPadding, '#28a745', false));
+            
+            tanks.forEach(tank => {
+                tank.health = 100;
+                tank.updatePositionOnTerrain();
+            });
+            player1HealthSpan.textContent = tanks[0].health;
+            player2HealthSpan.textContent = tanks[1].health;
+
+            projectiles = [];
+            explosions = [];
+            currentPlayerIndex = 0;
+            updateActivePlayerUI();
+            drawGame();
+        }
+
+        function updateActivePlayerUI() {
+            if (!tanks[currentPlayerIndex]) return; // Seguridad
+            const currentPlayer = tanks[currentPlayerIndex];
+            currentPlayerTurnSpan.textContent = `Turno: ${currentPlayer.id === 'player1' ? 'Jugador 1' : 'Jugador 2'}`;
+            angleSlider.value = currentPlayer.barrelAngle;
+            powerSlider.value = currentPlayer.barrelPower;
+            angleValueSpan.textContent = currentPlayer.barrelAngle;
+            powerValueSpan.textContent = currentPlayer.barrelPower;
+
+            if (isVsAI && currentPlayer.id === 'player2') {
+                fireButton.disabled = true;
+                // Lógica IA iría aquí
+            } else {
+                fireButton.disabled = (gameState === 'gameover');
+            }
+        }
+
+        function nextTurn() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % tanks.length;
+            updateActivePlayerUI();
+            if (gameState === 'playing') fireButton.disabled = false;
+        }
+
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            if (gameState !== 'playing' && projectiles.length === 0 && explosions.length === 0) {
+                if (gameState === 'gameover') drawGame(); // Asegurar que el estado final se muestre
+                requestAnimationFrame(gameLoop); // Mantener el loop para el botón de reinicio, o pararlo.
+                return;
+            }
+            
+            // const deltaTime = (timestamp - lastTime) / 1000; // No usado explícitamente en esta física simple
+            lastTime = timestamp;
+
+            let activeProjectilesExist = false;
+            projectiles.forEach(p => {
+                if (p.active) {
+                    p.update();
+                    activeProjectilesExist = true;
+                }
+            });
+            projectiles = projectiles.filter(p => p.active);
+
+            drawGame();
+
+            if (!activeProjectilesExist && explosions.length === 0 && fireButton.disabled && gameState === 'playing') {
+                nextTurn();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        angleSlider.addEventListener('input', (e) => {
+            if (!tanks[currentPlayerIndex] || gameState !== 'playing') return;
+            const angle = parseInt(e.target.value);
+            angleValueSpan.textContent = angle;
+            tanks[currentPlayerIndex].setAim(angle, tanks[currentPlayerIndex].barrelPower);
+            drawGame();
+        });
+
+        powerSlider.addEventListener('input', (e) => {
+            if (!tanks[currentPlayerIndex] || gameState !== 'playing') return;
+            const power = parseInt(e.target.value);
+            powerValueSpan.textContent = power;
+            tanks[currentPlayerIndex].setAim(tanks[currentPlayerIndex].barrelAngle, power);
+        });
+
+        fireButton.addEventListener('click', () => {
+            if (gameState !== 'playing' || !tanks[currentPlayerIndex] || fireButton.disabled) return;
+            const currentTank = tanks[currentPlayerIndex];
+            projectiles.push(currentTank.fire());
+            fireButton.disabled = true;
+        });
+
+        resetButton.addEventListener('click', () => {
+            gameState = 'start'; 
+            resizeCanvas(); // Esto llamará a initGame
+        });
+        
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(resizeCanvas, 200); // Debounce para resize
+        });
+
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        });
+    </script>
+</body>
+</html>

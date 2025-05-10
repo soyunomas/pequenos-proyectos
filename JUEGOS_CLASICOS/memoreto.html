@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemoReto</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f2f5; 
+        }
+
+        header h1 {
+            color: #0d6efd; 
+        }
+
+        .card-container {
+            perspective: 1000px;
+            aspect-ratio: 1 / 1; 
+            padding: 2px;
+        }
+
+        .card-flip {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+            border-radius: 0.375rem; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .card-flip.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-flip.matched {
+            cursor: default;
+            /* box-shadow anterior: 0 0 8px 2px mediumseagreen; */
+            box-shadow: 0 0 8px 3px #28a745; /* Verde más definido para el borde (success de BS) */
+        }
+        
+        /* Cara frontal de una carta emparejada */
+        .card-flip.matched .card-front {
+            background-color: #e9f5e9; /* Verde muy tenue para el fondo */
+        }
+
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden; 
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 6rem; 
+            border: 1px solid #dee2e6; 
+            border-radius: 0.375rem;
+            overflow: hidden; 
+        }
+
+        .card-front { 
+            background-color: #ffffff;
+            color: #212529;
+            transform: rotateY(180deg); 
+        }
+
+        .card-back { 
+            background-color: #0d6efd; 
+            color: white;
+        }
+
+        .card-back::before {
+            content: '🧠'; 
+            font-size: 4.4rem; 
+        }
+
+        @media (max-width: 768px) { 
+            .card-face { font-size: 5.4rem; } 
+            .card-back::before { font-size: 4rem; } 
+        }
+        @media (max-width: 576px) { 
+            .card-face { font-size: 4.5rem; } 
+            .card-back::before { font-size: 3.6rem; } 
+            
+            #game-board.cols-df-4 .card-face { font-size: 3.9rem; } 
+            #game-board.cols-df-4 .card-back::before { font-size: 3rem; } 
+        }
+         @media (max-width: 400px) { 
+            .card-face { font-size: 3.6rem; } 
+            .card-back::before { font-size: 2.8rem; } 
+
+            #game-board.cols-df-4 .card-face { font-size: 3.3rem; } 
+            #game-board.cols-df-4 .card-back::before { font-size: 2.4rem; } 
+        }
+
+        #level-selection .btn {
+            padding: 0.75rem 1rem;
+            font-size: 1.1rem;
+        }
+
+        #current-level-display, #attempts-info {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+    <div class="container mt-md-3 mt-2 text-center flex-grow-1">
+        <header class="mb-3">
+            <h1>MemoReto</h1>
+        </header>
+
+        <main id="game-container">
+            <section id="level-selection" class="py-4">
+                <h2 class="h4 mb-3">Selecciona un Nivel</h2>
+                <div class="d-grid gap-2 col-10 col-sm-8 col-md-6 mx-auto">
+                    <button class="btn btn-primary" data-level="facil">Fácil (4 Pares)</button>
+                    <button class="btn btn-warning text-dark" data-level="medio">Medio (8 Pares)</button>
+                    <button class="btn btn-danger" data-level="dificil">Difícil (12 Pares)</button>
+                </div>
+            </section>
+
+            <section id="game-board-section" class="d-none">
+                <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+                    <div>
+                        <h3 id="current-level-display" class="h5 mb-0 d-inline-block me-3">Nivel: -</h3>
+                        <span id="attempts-info" class="h5 mb-0">Intentos: <span id="attempts-count">0</span></span>
+                    </div>
+                    <div>
+                        <button id="reset-game" class="btn btn-sm btn-outline-secondary me-2">Reiniciar</button>
+                        <button id="back-to-levels" class="btn btn-sm btn-outline-primary">Elegir Nivel</button>
+                    </div>
+                </div>
+                <div id="game-board" class="row g-2 g-sm-3 justify-content-center">
+                </div>
+            </section>
+        </main>
+
+        <div class="modal fade" id="victory-modal" tabindex="-1" aria-labelledby="victoryModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="victoryModalLabel">¡Felicidades!</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="victory-message">Has completado el nivel.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success" id="play-again-current-level">Jugar de Nuevo</button>
+                        <button type="button" class="btn btn-primary" id="select-new-level-from-victory" data-bs-dismiss="modal">Elegir Otro Nivel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-auto py-3 text-center text-muted">
+        <p class="mb-0">&copy; MemoReto <span id="current-year"></span></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const levelSelectionSection = document.getElementById('level-selection');
+            const gameBoardSection = document.getElementById('game-board-section');
+            const gameBoard = document.getElementById('game-board');
+            const currentLevelDisplay = document.getElementById('current-level-display');
+            const attemptsCountElement = document.getElementById('attempts-count'); // Nuevo
+            const resetGameBtn = document.getElementById('reset-game');
+            const backToLevelsBtn = document.getElementById('back-to-levels');
+            const victoryModalElement = document.getElementById('victory-modal');
+            const victoryModal = new bootstrap.Modal(victoryModalElement);
+            const victoryMessage = document.getElementById('victory-message');
+            const playAgainCurrentLevelBtn = document.getElementById('play-again-current-level');
+            const selectNewLevelFromVictoryBtn = document.getElementById('select-new-level-from-victory');
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+
+            const ALL_EMOJIS = ['☀️', '🌙', '⭐', '❤️', '🎉', '🎈', '🎁', '🍕', '🍓', '🍎', '🍌', '🍇', '🐶', '🐱', '🐭', '🐹', '🦊', '🐻', '🐼', '🐨', '⚽', '🏀', '🏈', '🎱'];
+
+            const LEVELS = {
+                facil: { name: "Fácil", pairs: 4, cols: 4, bootstrapColClass: 'col-3' },
+                medio: { name: "Medio", pairs: 8, cols: 4, bootstrapColClass: 'col-3' },
+                dificil: { name: "Difícil", pairs: 12, cols: 4, bootstrapColClass: 'col-3' }
+            };
+
+            let currentLevelKey = null;
+            let cardsData = []; 
+            let flippedCardsInfo = []; 
+            let matchedPairs = 0;
+            let totalPairsToFind = 0;
+            let lockBoardInteraction = false; 
+            let attempts = 0; // Nuevo: contador de intentos
+
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            }
+
+            function selectLevel(levelKey) {
+                currentLevelKey = levelKey;
+                const levelConfig = LEVELS[levelKey];
+                totalPairsToFind = levelConfig.pairs;
+                
+                currentLevelDisplay.textContent = `Nivel: ${levelConfig.name}`;
+                levelSelectionSection.classList.add('d-none');
+                gameBoardSection.classList.remove('d-none');
+                
+                gameBoard.classList.remove('cols-df-4'); 
+                if(levelKey === 'dificil' && levelConfig.cols === 4) {
+                    gameBoard.classList.add('cols-df-4');
+                }
+
+                initializeGame();
+            }
+
+            function initializeGame() {
+                cardsData = [];
+                flippedCardsInfo = [];
+                matchedPairs = 0;
+                lockBoardInteraction = false;
+                attempts = 0; // Resetear intentos
+                attemptsCountElement.textContent = attempts; // Actualizar UI
+                gameBoard.innerHTML = ''; 
+
+                const levelConfig = LEVELS[currentLevelKey];
+                const emojisForLevel = ALL_EMOJIS.slice(0, levelConfig.pairs);
+                let cardValues = [...emojisForLevel, ...emojisForLevel];
+                shuffleArray(cardValues);
+
+                cardValues.forEach((value, index) => {
+                    const cardId = `card-${index}`;
+                    
+                    const cardWrapper = document.createElement('div');
+                    cardWrapper.classList.add(levelConfig.bootstrapColClass, 'card-container');
+
+                    const cardFlipElement = document.createElement('div');
+                    cardFlipElement.classList.add('card-flip'); 
+                    cardFlipElement.dataset.id = cardId; 
+
+                    const cardFront = document.createElement('div');
+                    cardFront.classList.add('card-face', 'card-front');
+                    cardFront.textContent = value;
+
+                    const cardBack = document.createElement('div');
+                    cardBack.classList.add('card-face', 'card-back');
+                    
+                    cardFlipElement.appendChild(cardBack); 
+                    cardFlipElement.appendChild(cardFront); 
+                    
+                    cardWrapper.appendChild(cardFlipElement);
+                    gameBoard.appendChild(cardWrapper);
+
+                    cardsData.push({ 
+                        id: cardId, 
+                        value: value, 
+                        isFlipped: false, 
+                        isMatched: false,
+                        element: cardFlipElement 
+                    });
+
+                    cardFlipElement.addEventListener('click', () => handleCardClick(cardId));
+                });
+            }
+
+            function handleCardClick(clickedCardId) {
+                if (lockBoardInteraction) return; 
+
+                const card = cardsData.find(c => c.id === clickedCardId);
+
+                if (!card || card.isFlipped || card.isMatched || (flippedCardsInfo.length === 1 && flippedCardsInfo[0].id === card.id)) {
+                    return;
+                }
+
+                card.isFlipped = true;
+                card.element.classList.add('flipped'); 
+                flippedCardsInfo.push({ id: card.id, value: card.value, element: card.element });
+
+                if (flippedCardsInfo.length === 2) {
+                    lockBoardInteraction = true; 
+                    // Incrementar intentos aquí, ya que se van a comparar dos cartas
+                    attempts++;
+                    attemptsCountElement.textContent = attempts;
+                    setTimeout(checkForMatch, 700); 
+                }
+            }
+
+            function checkForMatch() {
+                // Los intentos ya se incrementaron en handleCardClick cuando se seleccionó la segunda carta
+                const [cardInfo1, cardInfo2] = flippedCardsInfo;
+                const cardData1 = cardsData.find(c => c.id === cardInfo1.id);
+                const cardData2 = cardsData.find(c => c.id === cardInfo2.id);
+
+                if (cardInfo1.value === cardInfo2.value) { 
+                    cardData1.isMatched = true;
+                    cardData2.isMatched = true;
+                    cardInfo1.element.classList.add('matched');
+                    cardInfo2.element.classList.add('matched');
+                    
+                    matchedPairs++;
+                    if (matchedPairs === totalPairsToFind) {
+                        setTimeout(showVictoryScreen, 500); 
+                    }
+                    resetFlippedCardsAndUnlockBoard();
+                } else { 
+                    setTimeout(() => {
+                        cardInfo1.element.classList.remove('flipped');
+                        cardInfo2.element.classList.remove('flipped');
+                        cardData1.isFlipped = false;
+                        cardData2.isFlipped = false;
+                        resetFlippedCardsAndUnlockBoard();
+                    }, 1000); 
+                }
+            }
+            
+            function resetFlippedCardsAndUnlockBoard() {
+                flippedCardsInfo = [];
+                lockBoardInteraction = false;
+            }
+
+            function showVictoryScreen() {
+                const levelConfig = LEVELS[currentLevelKey];
+                victoryMessage.textContent = `¡Has completado el nivel ${levelConfig.name} en ${attempts} intentos!`; // Mensaje de victoria actualizado
+                victoryModal.show();
+            }
+
+            function resetCurrentGame() {
+                initializeGame(); 
+            }
+
+            function goBackToLevelSelection() {
+                gameBoardSection.classList.add('d-none');
+                levelSelectionSection.classList.remove('d-none');
+                currentLevelKey = null;
+                currentLevelDisplay.textContent = `Nivel: -`;
+                attemptsCountElement.textContent = '0'; // Resetear contador en UI
+                gameBoard.innerHTML = ''; 
+            }
+
+            document.querySelectorAll('#level-selection button[data-level]').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    selectLevel(event.currentTarget.dataset.level);
+                });
+            });
+
+            resetGameBtn.addEventListener('click', resetCurrentGame);
+            backToLevelsBtn.addEventListener('click', goBackToLevelSelection);
+
+            playAgainCurrentLevelBtn.addEventListener('click', () => {
+                victoryModal.hide();
+                resetCurrentGame();
+            });
+            
+            selectNewLevelFromVictoryBtn.addEventListener('click', () => {
+                goBackToLevelSelection();
+            });
+
+        });
+    </script>
+</body>
+</html>

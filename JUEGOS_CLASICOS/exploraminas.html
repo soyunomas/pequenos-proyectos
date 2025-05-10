@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExploraMinas</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons (para la bandera y la mina) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f0f0; /* Un fondo suave */
+            overscroll-behavior: none; /* Evita el "pull-to-refresh" en móviles que interfiere con el juego */
+        }
+
+        .game-container {
+            margin-top: 1rem;
+        }
+
+        #gameBoard {
+            display: grid;
+            /* Las columnas del grid se definirán por JS */
+            border: 2px solid #777;
+            background-color: #c0c0c0; /* Color clásico del tablero */
+            touch-action: manipulation; /* Mejora la respuesta táctil y previene zoom en doble toque */
+            -webkit-touch-callout: none; /* Deshabilita el callout de iOS en toque largo */
+            -webkit-user-select: none; /* Deshabilita la selección de texto en Safari */
+            -moz-user-select: none; /* Deshabilita la selección de texto en Firefox */
+            -ms-user-select: none; /* Deshabilita la selección de texto en IE/Edge */
+            user-select: none; /* Deshabilita la selección de texto */
+        }
+
+        .cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.2rem; /* Ajustable según tamaño de casilla */
+            border: 1px solid #999;
+            background-color: #ddd;
+            aspect-ratio: 1 / 1; /* Mantiene las casillas cuadradas */
+            cursor: pointer;
+            transition: background-color 0.1s ease-in-out;
+        }
+
+        .cell:hover:not(.revealed):not(.flagged) {
+            background-color: #e8e8e8;
+        }
+
+        .cell.revealed {
+            background-color: #bdbdbd;
+            cursor: default;
+        }
+
+        .cell.mine {
+            background-color: #ff4136; /* Rojo para la mina */
+            color: black;
+        }
+        .cell.mine-hit {
+            background-color: red;
+            color: white;
+        }
+
+
+        .cell.flagged {
+            color: #FF851B; /* Naranja para la bandera */
+        }
+
+        /* Colores para los números de minas adyacentes */
+        .cell[data-mines="1"] { color: #0074D9; } /* Azul */
+        .cell[data-mines="2"] { color: #2ECC40; } /* Verde */
+        .cell[data-mines="3"] { color: #FF4136; } /* Rojo */
+        .cell[data-mines="4"] { color: #001f3f; } /* Azul Marino */
+        .cell[data-mines="5"] { color: #85144b; } /* Marrón/Púrpura */
+        .cell[data-mines="6"] { color: #39CCCC; } /* Turquesa */
+        .cell[data-mines="7"] { color: #111111; } /* Negro */
+        .cell[data-mines="8"] { color: #AAAAAA; } /* Gris */
+        
+        /* Ajuste para que el tablero no sea demasiado ancho en pantallas grandes pero use el espacio en móviles */
+        @media (min-width: 768px) {
+            #gameBoard {
+                max-width: 600px; /* Límite para que no se expanda demasiado en desktop */
+                margin-left: auto;
+                margin-right: auto;
+            }
+             .cell {
+                font-size: 1.5rem;
+             }
+        }
+        
+        .status-bar > * {
+            font-size: 1.1rem;
+            padding: 0.3rem 0.5rem;
+            background-color: #333;
+            color: white;
+            border-radius: 0.25rem;
+            min-width: 70px; /* Ancho mínimo para contadores */
+            text-align: center;
+        }
+        .status-bar .bi {
+            font-size: 1rem; /* Ajustar tamaño de íconos en la barra */
+        }
+
+        /* Iconos de Bootstrap para mina y bandera */
+        .bi-flag-fill, .bi-person-arms-up { /* usando arms-up como mina por simplicidad */
+            font-size: inherit; /* Hereda el tamaño del padre (.cell) */
+        }
+         .mine-icon {
+            color: black;
+         }
+
+    </style>
+</head>
+<body>
+
+    <div class="container text-center mt-3">
+        <h1>ExploraMinas <i class="bi bi-person-arms-up"></i></h1>
+
+        <!-- Sección de Selección de Nivel -->
+        <div id="levelSelectionScreen">
+            <h2>Selecciona un Nivel</h2>
+            <div class="d-grid gap-2 col-10 col-md-6 mx-auto mt-4">
+                <button class="btn btn-primary btn-lg" data-level="principiante">Principiante (9x9, 10 minas)</button>
+                <button class="btn btn-warning btn-lg" data-level="intermedio">Intermedio (16x16, 40 minas)</button>
+                <button class="btn btn-danger btn-lg" data-level="experto">Experto (16x30, 99 minas)</button>
+                <p class="mt-3 text-muted small">
+                    En móvil: Toca para revelar. Toca y mantén presionado (o clic derecho en PC) para poner/quitar bandera.
+                </p>
+            </div>
+        </div>
+
+        <!-- Sección del Juego -->
+        <div id="gameScreen" class="d-none">
+            <div class="d-flex justify-content-around align-items-center my-3 status-bar">
+                <div id="mineCounter" title="Minas restantes"><i class="bi bi-flag-fill"></i> <span>000</span></div>
+                <button id="resetButton" class="btn btn-secondary btn-sm" title="Reiniciar Partida Actual"><i class="bi bi-arrow-repeat"></i></button>
+                <div id="timer" title="Tiempo transcurrido"><i class="bi bi-clock-fill"></i> <span>000</span></div>
+            </div>
+
+            <div id="gameBoardContainer" class="game-container">
+                <div id="gameBoard">
+                    <!-- Las casillas se generan aquí por JS -->
+                </div>
+            </div>
+
+            <button id="backToLevelsButton" class="btn btn-outline-secondary mt-3">Volver a Selección de Nivel</button>
+        </div>
+    </div>
+
+    <!-- Modal para Mensajes de Fin de Juego -->
+    <div class="modal fade" id="gameOverModal" tabindex="-1" aria-labelledby="gameOverModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gameOverModalLabel">---</h5>
+                </div>
+                <div class="modal-body" id="gameOverModalBody">
+                    ---
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="playAgainButton">Jugar de Nuevo (Mismo Nivel)</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modalBackToLevelsButton">Elegir Otro Nivel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        // Constantes de configuración de niveles
+        const LEVELS = {
+            principiante: { name: "Principiante", rows: 9, cols: 9, mines: 10 },
+            intermedio: { name: "Intermedio", rows: 16, cols: 16, mines: 40 },
+            experto: { name: "Experto", rows: 16, cols: 30, mines: 99 } // Ajustado cols para mejor visualización en móvil
+        };
+
+        // Estado del juego
+        let gameState = {
+            currentLevelKey: null,
+            board: [], // Matriz 2D de objetos Casilla
+            rows: 0,
+            cols: 0,
+            totalMines: 0,
+            flagsPlaced: 0,
+            revealedSafeCells: 0,
+            totalSafeCells: 0,
+            gameStarted: false, // Para el cronómetro y primer clic seguro
+            gameOver: false,
+            firstClick: true,
+            timerInterval: null,
+            timeElapsed: 0
+        };
+
+        // Elementos del DOM
+        const levelSelectionScreen = document.getElementById('levelSelectionScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const gameBoardElement = document.getElementById('gameBoard');
+        const mineCounterElement = document.getElementById('mineCounter').querySelector('span');
+        const timerElement = document.getElementById('timer').querySelector('span');
+        const resetButton = document.getElementById('resetButton');
+        const backToLevelsButton = document.getElementById('backToLevelsButton');
+        
+        const gameOverModalElement = new bootstrap.Modal(document.getElementById('gameOverModal'));
+        const gameOverModalLabel = document.getElementById('gameOverModalLabel');
+        const gameOverModalBody = document.getElementById('gameOverModalBody');
+        const playAgainButton = document.getElementById('playAgainButton');
+        const modalBackToLevelsButton = document.getElementById('modalBackToLevelsButton');
+
+        // --- LÓGICA DEL JUEGO ---
+
+        function initGame(levelKey) {
+            console.log(`Iniciando juego nivel: ${levelKey}`);
+            gameState.currentLevelKey = levelKey;
+            const level = LEVELS[levelKey];
+            gameState.rows = level.rows;
+            gameState.cols = level.cols;
+            gameState.totalMines = level.mines;
+
+            gameState.flagsPlaced = 0;
+            gameState.revealedSafeCells = 0;
+            gameState.totalSafeCells = (gameState.rows * gameState.cols) - gameState.totalMines;
+            gameState.gameStarted = false;
+            gameState.gameOver = false;
+            gameState.firstClick = true;
+            gameState.timeElapsed = 0;
+            
+            stopTimer();
+            updateTimerDisplay();
+            updateMineCounterDisplay();
+
+            createLogicalBoard();
+            renderBoard();
+
+            levelSelectionScreen.classList.add('d-none');
+            gameScreen.classList.remove('d-none');
+        }
+
+        function createLogicalBoard() {
+            gameState.board = Array(gameState.rows).fill(null).map(() => Array(gameState.cols).fill(null));
+            for (let r = 0; r < gameState.rows; r++) {
+                for (let c = 0; c < gameState.cols; c++) {
+                    gameState.board[r][c] = {
+                        isMine: false,
+                        isRevealed: false,
+                        isFlagged: false,
+                        adjacentMines: 0,
+                        row: r,
+                        col: c,
+                        element: null // Se asignará en renderBoard
+                    };
+                }
+            }
+            // Las minas se colocarán después del primer clic o al inicio si no es el primer clic seguro
+        }
+
+        function placeMines(clickedRow, clickedCol) {
+            let minesToPlace = gameState.totalMines;
+            while (minesToPlace > 0) {
+                const r = Math.floor(Math.random() * gameState.rows);
+                const c = Math.floor(Math.random() * gameState.cols);
+
+                // Si es el primer clic, no colocar mina en la casilla clickeada ni en sus adyacentes inmediatas (opcional, pero buena UX)
+                if (gameState.firstClick) {
+                    const isClickedCell = (r === clickedRow && c === clickedCol);
+                    const isAdjacentToClicked = Math.abs(r - clickedRow) <= 1 && Math.abs(c - clickedCol) <= 1;
+                    if (isClickedCell || isAdjacentToClicked) {
+                        continue; 
+                    }
+                }
+                
+                if (!gameState.board[r][c].isMine) {
+                    gameState.board[r][c].isMine = true;
+                    minesToPlace--;
+                }
+            }
+
+            // Calcular minas adyacentes
+            for (let r = 0; r < gameState.rows; r++) {
+                for (let c = 0; c < gameState.cols; c++) {
+                    if (!gameState.board[r][c].isMine) {
+                        gameState.board[r][c].adjacentMines = countAdjacentMines(r, c);
+                    }
+                }
+            }
+        }
+        
+        function countAdjacentMines(row, col) {
+            let count = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = row + dr;
+                    const nc = col + dc;
+                    if (isValidCell(nr, nc) && gameState.board[nr][nc].isMine) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        function isValidCell(row, col) {
+            return row >= 0 && row < gameState.rows && col >= 0 && col < gameState.cols;
+        }
+
+        function renderBoard() {
+            gameBoardElement.innerHTML = ''; // Limpiar tablero anterior
+            gameBoardElement.style.gridTemplateColumns = `repeat(${gameState.cols}, 1fr)`;
+            // Ajustar tamaño de fuente en función del número de columnas para mejor visibilidad
+            const cellSize = gameBoardElement.clientWidth / gameState.cols;
+            let fontSize = Math.max(10, Math.min(cellSize * 0.5, 24)) + 'px'; //  Ajusta estos valores según sea necesario.
+             if (gameState.cols > 20) fontSize = Math.max(8, Math.min(cellSize * 0.6, 18)) + 'px';
+
+
+            for (let r = 0; r < gameState.rows; r++) {
+                for (let c = 0; c < gameState.cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.style.fontSize = fontSize; // Aplicar tamaño de fuente dinámico
+
+                    // Guardar referencia al elemento DOM en el objeto de la casilla
+                    gameState.board[r][c].element = cell;
+
+                    cell.addEventListener('click', () => handleCellClick(r, c));
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        handleCellRightClick(r, c);
+                    });
+                    
+                    // Simulación de toque largo para bandera en móviles
+                    let touchTimer;
+                    cell.addEventListener('touchstart', (e) => {
+                        e.preventDefault(); // Prevenir scroll u otras acciones mientras se presiona
+                        touchTimer = setTimeout(() => {
+                            handleCellRightClick(r,c);
+                            touchTimer = null; // Evita que el clic se procese si el toque largo ya lo hizo
+                        }, 500); // 500ms para toque largo
+                    }, {passive: false});
+
+                    cell.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        if (touchTimer) { // Si el timer sigue activo, fue un toque corto (clic)
+                            clearTimeout(touchTimer);
+                            touchTimer = null;
+                            handleCellClick(r,c);
+                        }
+                    });
+                     cell.addEventListener('touchmove', (e) => { // Cancelar si el dedo se mueve
+                        if (touchTimer) {
+                            clearTimeout(touchTimer);
+                            touchTimer = null;
+                        }
+                    });
+
+
+                    gameBoardElement.appendChild(cell);
+                    updateCellDisplay(r,c); // Estado inicial (oculto)
+                }
+            }
+        }
+
+        function handleCellClick(row, col) {
+            if (gameState.gameOver || gameState.board[row][col].isRevealed || gameState.board[row][col].isFlagged) {
+                return;
+            }
+
+            if (gameState.firstClick) {
+                placeMines(row, col); // Colocar minas asegurando que el primer clic sea seguro
+                gameState.firstClick = false;
+                // Si la casilla del primer clic después de colocar minas resulta ser una mina (improbable con la lógica de placeMines, pero como salvaguarda)
+                // o si no tiene minas adyacentes (es 0), está bien.
+                // No es necesario mover minas si placeMines ya lo tiene en cuenta.
+            }
+            
+            if (!gameState.gameStarted) {
+                startGameTimer();
+                gameState.gameStarted = true;
+            }
+
+            const cellData = gameState.board[row][col];
+            cellData.isRevealed = true;
+
+            if (cellData.isMine) {
+                endGame(false, row, col); // Perdió, pasar coords de la mina que explotó
+                updateCellDisplay(row, col); // Mostrar la mina que explotó
+                return;
+            }
+
+            gameState.revealedSafeCells++;
+            updateCellDisplay(row, col);
+
+            if (cellData.adjacentMines === 0) {
+                revealAdjacentCells(row, col);
+            }
+
+            checkWinCondition();
+        }
+
+        function handleCellRightClick(row, col) {
+            if (gameState.gameOver || gameState.board[row][col].isRevealed) {
+                return;
+            }
+            
+            if (!gameState.gameStarted && !gameState.firstClick) { // Si ya pasó el primer clic pero no se ha revelado ninguna celda aún
+                 // Podrías iniciar el timer aquí si quieres que poner banderas también lo inicie.
+                 // Por ahora, solo el clic izquierdo lo inicia.
+            }
+
+            const cellData = gameState.board[row][col];
+            cellData.isFlagged = !cellData.isFlagged;
+
+            if (cellData.isFlagged) {
+                gameState.flagsPlaced++;
+            } else {
+                gameState.flagsPlaced--;
+            }
+
+            updateMineCounterDisplay();
+            updateCellDisplay(row, col);
+        }
+
+        function revealAdjacentCells(row, col) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = row + dr;
+                    const nc = col + dc;
+
+                    if (isValidCell(nr, nc)) {
+                        const adjacentCell = gameState.board[nr][nc];
+                        if (!adjacentCell.isRevealed && !adjacentCell.isFlagged && !adjacentCell.isMine) {
+                            adjacentCell.isRevealed = true;
+                            gameState.revealedSafeCells++;
+                            updateCellDisplay(nr, nc);
+                            if (adjacentCell.adjacentMines === 0) {
+                                revealAdjacentCells(nr, nc); // Recursión
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateCellDisplay(row, col) {
+            const cellData = gameState.board[row][col];
+            const cellElement = cellData.element;
+            if (!cellElement) return;
+
+            cellElement.innerHTML = ''; // Limpiar contenido anterior
+            cellElement.className = 'cell'; // Resetear clases base
+
+            if (cellData.isFlagged && !cellData.isRevealed) {
+                cellElement.classList.add('flagged');
+                cellElement.innerHTML = '<i class="bi bi-flag-fill"></i>';
+            } else if (cellData.isRevealed) {
+                cellElement.classList.add('revealed');
+                if (cellData.isMine) {
+                    cellElement.classList.add('mine');
+                    // Si es la mina que causó la pérdida, destacarla
+                    if (cellData.hitMine) cellElement.classList.add('mine-hit');
+                    cellElement.innerHTML = '<i class="bi bi-person-arms-up mine-icon"></i>'; // Usamos este ícono para minas
+                } else if (cellData.adjacentMines > 0) {
+                    cellElement.textContent = cellData.adjacentMines;
+                    cellElement.dataset.mines = cellData.adjacentMines; // Para aplicar color CSS
+                } else {
+                    // Casilla vacía revelada (0 minas adyacentes)
+                }
+            } else {
+                // Casilla oculta, sin bandera
+            }
+        }
+
+        function checkWinCondition() {
+            if (gameState.revealedSafeCells === gameState.totalSafeCells) {
+                endGame(true);
+            }
+        }
+
+        function endGame(isWin, clickedMineRow = -1, clickedMineCol = -1) {
+            gameState.gameOver = true;
+            stopTimer();
+
+            // Revelar todas las minas
+            for (let r = 0; r < gameState.rows; r++) {
+                for (let c = 0; c < gameState.cols; c++) {
+                    const cellData = gameState.board[r][c];
+                    if (cellData.isMine) {
+                        cellData.isRevealed = true; // Para que updateCellDisplay la muestre
+                        if (r === clickedMineRow && c === clickedMineCol) {
+                            cellData.hitMine = true; // Marcar la mina que se pisó
+                        }
+                        updateCellDisplay(r, c);
+                    }
+                    // Si se ganó, marcar con bandera las minas no marcadas (opcional)
+                    if (isWin && cellData.isMine && !cellData.isFlagged) {
+                        cellData.isFlagged = true;
+                        updateCellDisplay(r,c); // Mostrar la bandera
+                    }
+                }
+            }
+            
+            if (isWin) {
+                gameOverModalLabel.textContent = "¡Felicidades! 🎉";
+                gameOverModalBody.textContent = `Has ganado en ${gameState.timeElapsed} segundos.`;
+            } else {
+                gameOverModalLabel.textContent = "¡BOOM! 💥";
+                gameOverModalBody.textContent = "Has perdido. ¡Mejor suerte la próxima vez!";
+            }
+            gameOverModalElement.show();
+        }
+
+        function updateMineCounterDisplay() {
+            const minesLeft = gameState.totalMines - gameState.flagsPlaced;
+            mineCounterElement.textContent = String(minesLeft).padStart(3, '0');
+        }
+
+        function startGameTimer() {
+            if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeElapsed++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(gameState.timerInterval);
+            gameState.timerInterval = null;
+        }
+
+        function updateTimerDisplay() {
+            timerElement.textContent = String(gameState.timeElapsed).padStart(3, '0');
+        }
+        
+        function showLevelSelection() {
+            stopTimer();
+            gameScreen.classList.add('d-none');
+            levelSelectionScreen.classList.remove('d-none');
+            if (gameOverModalElement._isShown) { // Ocultar modal si está visible
+                 gameOverModalElement.hide();
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        document.querySelectorAll('#levelSelectionScreen button[data-level]').forEach(button => {
+            button.addEventListener('click', () => {
+                initGame(button.dataset.level);
+            });
+        });
+
+        resetButton.addEventListener('click', () => {
+            if (gameState.currentLevelKey) {
+                initGame(gameState.currentLevelKey);
+            }
+        });
+        
+        backToLevelsButton.addEventListener('click', showLevelSelection);
+        modalBackToLevelsButton.addEventListener('click', showLevelSelection);
+
+        playAgainButton.addEventListener('click', () => {
+            gameOverModalElement.hide();
+            if (gameState.currentLevelKey) {
+                initGame(gameState.currentLevelKey); // Reinicia el mismo nivel
+            }
+        });
+
+        // Inicializar la pantalla de selección al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+             // No se necesita nada especial aquí por ahora, la pantalla de selección es visible por defecto
+        });
+
+    </script>
+</body>
+</html>
