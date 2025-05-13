@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generador Markdown a HTML vFINAL</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <!-- Add Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <style>
@@ -22,15 +21,19 @@
         /* === FIN VARIABLES CSS GLOBALES === */
 
         /* === ESTILOS DE LA APLICACIÓN GENERADORA (Interfaz - NO SE EXPORTAN) === */
-        body.app-interface { padding-top: 1rem; padding-bottom: 1rem; }
-        #markdownInput { min-height: 200px; font-family: monospace; font-size: 0.9rem; border: 1px solid #ced4da; border-radius: 0.375rem; }
+        body.app-interface { padding-top: 1rem; padding-bottom: 1rem; background-color: var(--body-bg-color); color: var(--text-color); }
+        body.app-interface h1 { color: var(--color-h1); }
+        #markdownInput { min-height: 200px; font-family: monospace; font-size: 0.9rem; border: 1px solid #ced4da; border-radius: 0.375rem; background-color: var(--bg-pre); color: var(--text-color); }
         #previewSection { margin-top: 2rem; border-top: 1px solid #dee2e6; padding-top: 2rem; }
+        #previewSection h2 { color: var(--color-h2); }
         .controls-container { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
-        .controls-container .form-select { max-width: 200px; flex-grow: 1; }
-        /* Style for the new insert button */
-        #insertAccordionBtn { padding-top: 0.25rem; padding-bottom: 0.25rem; font-size: 0.8rem; }
-        #insertAccordionBtn .bi { vertical-align: -0.1em; }
-        .offcanvas-body label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.875rem; }
+        .controls-container .form-select { max-width: 200px; flex-grow: 1; background-color: var(--bg-indice); color: var(--text-color); border-color: #ced4da; }
+        #insertAccordionBtn, #insertImageBtn { padding-top: 0.25rem; padding-bottom: 0.25rem; font-size: 0.8rem; }
+        #insertAccordionBtn .bi, #insertImageBtn .bi { vertical-align: -0.1em; }
+        .offcanvas { background-color: var(--body-bg-color); color: var(--text-color); }
+        .offcanvas-header { border-bottom: 1px solid #dee2e6;}
+        .offcanvas-header .btn-close { filter: invert(var(--bs-body-color-invert, 0)) sepia(var(--bs-body-color-sepia, 0)) saturate(var(--bs-body-color-saturate, 1)) hue-rotate(var(--bs-body-color-hue, 0deg)) brightness(var(--bs-body-color-brightness, 1)) contrast(var(--bs-body-color-contrast, 1)); }
+        .offcanvas-body label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.875rem; color: var(--text-color); }
         .offcanvas-body input[type="color"] { width: 100%; height: 35px; border: 1px solid #ccc; padding: 0.2rem; cursor: pointer; border-radius: 0.25rem; background-color: white; }
         .offcanvas-body .form-group { margin-bottom: 0.8rem; }
         /* --- FIN ESTILOS APP --- */
@@ -40,6 +43,7 @@
         #previewSection #htmlOutputBody a, .generated-html-body a { color: var(--link-color); text-decoration: none; }
         #previewSection #htmlOutputBody a:hover, .generated-html-body a:hover { color: color-mix(in srgb, var(--link-color) 80%, black); text-decoration: underline; }
         #indiceContenidoPreview, #indiceContenido { position: sticky; top: 1rem; height: calc(100vh - 2rem); overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 1rem; background-color: var(--bg-indice); }
+        #indiceContenidoPreview h5, #indiceContenido h5 { color: var(--color-h5); }
         #indiceContenidoPreview .nav-link, #indiceContenido .nav-link { color: var(--color-indice-link); padding-top: 0.3rem; padding-bottom: 0.3rem; border-radius: 0.25rem; font-size: 0.9rem; transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: normal; }
         #indiceContenidoPreview .nav-link:hover, #indiceContenido .nav-link:hover { color: var(--color-indice-link-hover); background-color: var(--bg-indice-link-hover); }
         #indiceContenidoPreview .nav-link.active, #indiceContenidoPreview .nav-link:focus, #indiceContenido .nav-link.active, #indiceContenido .nav-link:focus { color: var(--color-indice-link-active); background-color: var(--bg-indice-link-active); font-weight: normal; }
@@ -53,8 +57,7 @@
         #mainContentPreview h3, #mainContent h3 { color: var(--color-h3); font-size: 1.5rem; } #mainContentPreview h4, #mainContent h4 { color: var(--color-h4); font-size: 1.25rem; } #mainContentPreview h5, #mainContent h5 { color: var(--color-h5); font-size: 1.1rem; font-weight: bold; } #mainContentPreview h6, #mainContent h6 { color: var(--color-h6); font-size: 1rem; font-weight: bold; }
         #mainContentPreview p, #mainContentPreview li, #mainContent p, #mainContent li { line-height: 1.6; margin-bottom: 1rem; }
         #mainContentPreview ul, #mainContentPreview ol, #mainContent ul, #mainContent ol { padding-left: 2rem; } #mainContentPreview ul ul, #mainContent ul ul { margin-bottom: 0; }
-        /* Estilos para bloques de código PRE y botón de copiar */
-        #mainContentPreview pre, #mainContent pre { position: relative; /* Necesario para posicionar el botón */ background-color: var(--bg-pre); border: 1px solid #dee2e6; border-radius: 0.25rem; padding: 1rem; padding-top: 2.5rem; /* Espacio para el botón */ overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin-top: 1rem; margin-bottom: 1rem; font-size: 0.9em; }
+        #mainContentPreview pre, #mainContent pre { position: relative; background-color: var(--bg-pre); border: 1px solid #dee2e6; border-radius: 0.25rem; padding: 1rem; padding-top: 2.5rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin-top: 1rem; margin-bottom: 1rem; font-size: 0.9em; }
         #mainContentPreview code, #mainContent code { color: var(--color-code); word-wrap: break-word; font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
         #mainContentPreview pre code, #mainContent pre code { background-color: transparent; border: none; padding: 0; font-size: 1em; white-space: pre-wrap; word-break: break-all; }
         #mainContentPreview :not(pre) > code, #mainContent :not(pre) > code { background-color: var(--bg-code-inline); padding: 0.2em 0.4em; margin: 0; font-size: 85%; border-radius: 3px; }
@@ -63,19 +66,33 @@
         .copy-code-btn:hover { background-color: var(--copy-btn-hover-bg); }
         .copy-code-btn.copied { background-color: var(--copy-btn-success-bg); }
         .copy-code-btn svg { width: 1em; height: 1em; vertical-align: -0.125em; margin-right: 0.3em;}
-        /* Fin Estilos Bloque Código */
         #mainContentPreview h5 + ol, #mainContentPreview h5 + ul, #mainContent h5 + ol, #mainContent h5 + ul { border-left: 4px solid var(--border-ejercicios); padding: 1rem 1rem 1rem 1.5rem; margin-top: 1.5rem; margin-bottom: 1.5rem; background-color: var(--bg-ejercicios); border-radius: 0.25rem; list-style-position: inside; } #mainContentPreview h5 + ol > li, #mainContentPreview h5 + ul > li, #mainContent h5 + ol > li, #mainContent h5 + ul > li { margin-bottom: 0.5rem; } #mainContentPreview h5 + ol > li strong, #mainContentPreview h5 + ul > li strong, #mainContent h5 + ol > li strong, #mainContent h5 + ul > li strong { color: var(--border-ejercicios); }
         #mainContentPreview blockquote, #mainContent blockquote { padding: 0.5rem 1rem; margin: 0 0 1rem; font-size: 1rem; border-left: 0.25rem solid #e9ecef; color: #6c757d; } #mainContentPreview blockquote p, #mainContent blockquote p { margin-bottom: 0; }
         #mainContentPreview img, #mainContent img { max-width: 100%; height: auto; margin-top: 1rem; margin-bottom: 1rem; border-radius: 0.25rem; display: block; }
-        #mainContentPreview table, #mainContent table { width: 100%; margin-bottom: 1rem; color: var(--text-color); border-collapse: collapse; border: 1px solid #dee2e6; font-size: 0.9rem; } #mainContentPreview table th, #mainContent table td, #mainContent table th, #mainContent table td { padding: 0.75rem; vertical-align: top; border: 1px solid #dee2e6; } #mainContentPreview table thead th, #mainContent table thead th { vertical-align: bottom; border-bottom: 2px solid #dee2e6; background-color: #f8f9fa; font-weight: bold; } #mainContentPreview table tbody tr:nth-of-type(odd), #mainContent table tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.03); }
-        /* Estilos Acordeón */
-        .accordion { margin-bottom: 1rem; } /* Add margin below accordion group */
-        .accordion-item { margin-bottom: 0.5rem; border: 1px solid rgba(0,0,0,.125); border-radius: 0.25rem; }
-        .accordion-header button { font-weight: 500; }
-        .accordion-button:not(.collapsed) { color: var(--color-h3); background-color: var(--bg-indice-link-hover); }
-        .accordion-body { padding: 1rem 1.25rem; }
-        .accordion-body > :last-child { margin-bottom: 0; } /* Remove extra margin from last element in body */
-        /* Fin Estilos Acordeón */
+        #mainContentPreview table, #mainContent table { width: 100%; margin-bottom: 1rem; color: var(--text-color); border-collapse: collapse; border: 1px solid #dee2e6; font-size: 0.9rem; } #mainContentPreview table th, #mainContent table td, #mainContent table th, #mainContent table td { padding: 0.75rem; vertical-align: top; border: 1px solid #dee2e6; }         /* Estilo Default (Light) para thead th */
+        #mainContentPreview table thead th,
+        #mainContent table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6; /* Borde claro por defecto */
+            background-color: #f8f9fa;       /* Fondo claro por defecto */
+            color: inherit;                  /* Heredar color de texto por defecto */
+            font-weight: bold;
+        }
+
+        /* Estilo Específico para Dark Theme */
+        [data-bs-theme="dark"] #mainContentPreview table thead th,
+        [data-bs-theme="dark"] #mainContent table thead th {
+            background-color: var(--bg-pre, #212529); /* Usar variable de fondo de código o un gris oscuro */
+            color: var(--text-color, #f8f9fa);      /* Usar variable de texto del tema */
+            border-color: color-mix(in srgb, var(--text-color, #dee2e6) 30%, transparent); /* Borde más sutil basado en texto */
+        } #mainContentPreview table tbody tr:nth-of-type(odd), #mainContent table tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.03); }
+        .accordion { margin-bottom: 1rem; }
+        .accordion-item { margin-bottom: 0.5rem; border: 1px solid rgba(0,0,0,.125); border-radius: 0.25rem; background-color: var(--body-bg-color); }
+        .accordion-header button { font-weight: 500; color: var(--color-h3); background-color: var(--bg-indice-link-hover); }
+        .accordion-button:not(.collapsed) { color: var(--color-h3); background-color: var(--bg-indice-link-active); }
+        .accordion-button:focus { box-shadow: 0 0 0 0.25rem rgba(var(--bs-link-color-rgb),.25); }
+        .accordion-body { padding: 1rem 1.25rem; color: var(--text-color); background-color: var(--body-bg-color);}
+        .accordion-body > :last-child { margin-bottom: 0; }
         @media (max-width: 767.98px) { #indiceContenidoPreview, #indiceContenido { display: none; } #mainContentPreview, #mainContent { min-height: auto; } }
         /* === FIN ESTILOS UNIFICADOS === */
     </style>
@@ -88,13 +105,14 @@
             <button id="generateBtn" class="btn btn-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>Generar/Actualizar HTML</button>
             <button id="downloadBtn" class="btn btn-success"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>Descargar HTML</button>
             <button class="btn btn-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#personalizationOffcanvas" aria-controls="personalizationOffcanvas"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-palette-fill me-1" viewBox="0 0 16 16"><path d="M12.433 10.07C14.133 10.585 16 11.15 16 8a8 8 0 1 0-15.032 3.17A5 5 0 0 1 8 15a4.91 4.91 0 0 1 1.68-.325zM11.5 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m-3.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m4.5 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m-3.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/></svg>Personalizar</button>
-            <!-- === NEW BUTTON === -->
             <button id="insertAccordionBtn" class="btn btn-sm btn-outline-secondary" type="button" title="Insertar bloque de acordeón">
                 <i class="bi bi-plus-lg"></i> Acordeón
             </button>
-            <!-- === END NEW BUTTON === -->
+            <button id="insertImageBtn" class="btn btn-sm btn-outline-secondary" type="button" title="Insertar imagen desde archivo">
+                <i class="bi bi-image"></i> Imagen
+            </button>
             <label for="themeSelector" class="form-label visually-hidden">Seleccionar Tema</label>
-            <select id="themeSelector" class="form-select form-select-sm ms-auto" aria-label="Seleccionar Tema"></select> <!-- Added ms-auto to push theme selector right -->
+            <select id="themeSelector" class="form-select form-select-sm ms-auto" aria-label="Seleccionar Tema"></select>
         </div>
         <section id="previewSection"> <h2 class="mb-3">Vista Previa</h2> <div id="htmlOutputBody" data-bs-spy="scroll" data-bs-target="#indiceContenidoPreview" data-bs-offset="100"> <div class="row"> <div class="col-md-4 col-lg-3 d-none d-md-block"> <nav id="indiceContenidoPreview"><h5 class="mb-3">Índice</h5><nav class="nav nav-pills flex-column" id="indiceNavPreview"></nav></nav> </div> <div class="col-md-8 col-lg-9"> <main id="mainContentPreview"></main> </div> </div> </div> </section>
     </div>
@@ -104,16 +122,19 @@
         <div class="offcanvas-body"> <p>Ajusta los colores...</p> <h6>Contenido General</h6> <div class="row"> <div class="col-6"> <div class="form-group"><label for="colorH1">Color H1</label><input type="color" id="colorH1" class="form-control form-control-color" data-css-var="--color-h1"></div> <div class="form-group"><label for="colorH2">Color H2</label><input type="color" id="colorH2" class="form-control form-control-color" data-css-var="--color-h2"></div> <div class="form-group"><label for="colorH3">Color H3</label><input type="color" id="colorH3" class="form-control form-control-color" data-css-var="--color-h3"></div> <div class="form-group"><label for="colorH4">Color H4</label><input type="color" id="colorH4" class="form-control form-control-color" data-css-var="--color-h4"></div> <div class="form-group"><label for="colorH5">Color H5</label><input type="color" id="colorH5" class="form-control form-control-color" data-css-var="--color-h5"></div> <div class="form-group"><label for="colorH6">Color H6</label><input type="color" id="colorH6" class="form-control form-control-color" data-css-var="--color-h6"></div> </div> <div class="col-6"> <div class="form-group"><label for="linkColor">Enlaces</label><input type="color" id="linkColor" class="form-control form-control-color" data-css-var="--link-color"></div> <div class="form-group"><label for="textColor">Texto</label><input type="color" id="textColor" class="form-control form-control-color" data-css-var="--text-color"></div> <div class="form-group"><label for="colorCode">Código</label><input type="color" id="colorCode" class="form-control form-control-color" data-css-var="--color-code"></div> <div class="form-group"><label for="bgPre">Fondo Bloque Código</label><input type="color" id="bgPre" class="form-control form-control-color" data-css-var="--bg-pre"></div> <div class="form-group"><label for="bgCodeInline">Fondo Código Inline</label><input type="color" id="bgCodeInline" class="form-control form-control-color" data-css-var="--bg-code-inline"></div> <div class="form-group"><label for="bodyBgColor">Fondo Página</label><input type="color" id="bodyBgColor" class="form-control form-control-color" data-css-var="--body-bg-color"></div> </div> </div> <hr> <h6>Índice</h6> <div class="row"> <div class="col-6"> <div class="form-group"><label for="bgIndice">Fondo</label><input type="color" id="bgIndice" class="form-control form-control-color" data-css-var="--bg-indice"></div> <div class="form-group"><label for="colorIndiceLink">Texto Link</label><input type="color" id="colorIndiceLink" class="form-control form-control-color" data-css-var="--color-indice-link"></div> <div class="form-group"><label for="bgIndiceLinkHover">Fondo Hover</label><input type="color" id="bgIndiceLinkHover" class="form-control form-control-color" data-css-var="--bg-indice-link-hover"></div> </div> <div class="col-6"> <div class="form-group"><label for="colorIndiceLinkHover">Texto Hover</label><input type="color" id="colorIndiceLinkHover" class="form-control form-control-color" data-css-var="--color-indice-link-hover"></div> <div class="form-group"><label for="colorIndiceLinkActive">Texto Activo</label><input type="color" id="colorIndiceLinkActive" class="form-control form-control-color" data-css-var="--color-indice-link-active"></div> <div class="form-group"><label for="bgIndiceLinkActive">Fondo Activo</label><input type="color" id="bgIndiceLinkActive" class="form-control form-control-color" data-css-var="--bg-indice-link-active"></div> </div> </div> <div class="alert alert-info mt-3 small" role="alert">Los cambios de color se aplican en tiempo real.</div> </div>
     </div>
 
+    <input type="file" id="imageFileInput" accept="image/*" hidden>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
     <script>
         const SCROLL_OFFSET_PREVIEW = 100; const SCROLL_OFFSET_DOWNLOAD = 70;
-        // Get references to UI elements
         const markdownInput = document.getElementById('markdownInput');
         const generateBtn = document.getElementById('generateBtn');
         const downloadBtn = document.getElementById('downloadBtn');
-        const insertAccordionBtn = document.getElementById('insertAccordionBtn'); // New button
+        const insertAccordionBtn = document.getElementById('insertAccordionBtn');
+        const insertImageBtn = document.getElementById('insertImageBtn');
+        const imageFileInput = document.getElementById('imageFileInput');
         const mainContentPreview = document.getElementById('mainContentPreview');
         const indiceNavPreview = document.getElementById('indiceNavPreview');
         const htmlOutputBody = document.getElementById('htmlOutputBody');
@@ -122,54 +143,61 @@
         const themeSelector = document.getElementById('themeSelector');
         let scrollSpyInstance = null;
 
-        const defaultCssVariables = { /* ... (variables as before) ... */ '--color-h1': '#0d6efd', '--color-h2': '#0dcaf0', '--color-h3': '#6c757d', '--color-h4': '#198754', '--color-h5': '#fd7e14', '--color-h6': '#6f42c1', '--color-code': '#d63384', '--bg-pre': '#f8f9fa', '--bg-code-inline': '#f8f9fa', '--bg-indice': '#f8f9fa', '--color-indice-link': '#0d6efd', '--color-indice-link-hover': '#0a58ca', '--bg-indice-link-hover': '#e9ecef', '--color-indice-link-active': '#212529', '--bg-indice-link-active': '#dee2e6', '--border-ejercicios': '#0dcaf0', '--bg-ejercicios': '#f8f9fa', '--body-bg-color': '#ffffff', '--text-color': '#212529', '--link-color': '#0d6efd', '--copy-btn-bg': '#6c757d', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#5a6268', '--copy-btn-success-bg': '#198754' };
-        const themes = [ /* ... (themes as before) ... */
-             { name: "Documentación Clara", variables: { ...defaultCssVariables } },
-             { name: "Creative Cream", variables: { '--color-h1': '#adcbe3', '--color-h2': '#6b8da4', '--color-h3': '#708090', '--color-h4': '#ccff66', '--color-h5': '#4e6a7b', '--color-h6': '#6b8da4', '--color-code': '#4e6a7b', '--bg-pre': '#e0f2f7', '--bg-code-inline': '#e0f2f7', '--bg-indice': '#ccff66', '--color-indice-link': '#4e6a7b', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#adcbe3', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#adcbe3', '--border-ejercicios': '#adcbe3', '--bg-ejercicios': '#e0f2f7', '--body-bg-color': '#ffffff', '--text-color': '#4e6a7b', '--link-color': '#6b8da4', '--copy-btn-bg': '#6b8da4', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#4e6a7b', '--copy-btn-success-bg': '#ccff66'} },
-             { name: "Someone Like Me", variables: { '--color-h1': '#a6bfbe', '--color-h2': '#615e59', '--color-h3': '#8a8884', '--color-h4': '#a6bfbe', '--color-h5': '#615e59', '--color-h6': '#8a8884', '--color-code': '#a6bfbe', '--bg-pre': '#e8e6e1', '--bg-code-inline': '#d6d3cf', '--bg-indice': '#f7f5f2', '--color-indice-link': '#a6bfbe', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#615e59', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#615e59', '--border-ejercicios': '#a6bfbe', '--bg-ejercicios': '#e8e6e1', '--body-bg-color': '#f7f5f2', '--text-color': '#615e59', '--link-color': '#a6bfbe', '--copy-btn-bg': '#8a8884', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#615e59', '--copy-btn-success-bg': '#a6bfbe'} },
-             { name: "Vertebrae", variables: { '--color-h1': '#b8d766', '--color-h2': '#615e59', '--color-h3': '#8a8884', '--color-h4': '#b8d766', '--color-h5': '#9b9b9b', '--color-h6': '#8a8884', '--color-code': '#615e59', '--bg-pre': '#e3e3e3', '--bg-code-inline': '#d0d0d0', '--bg-indice': '#f0f0f0', '--color-indice-link': '#615e59', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#b8d766', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#b8d766', '--border-ejercicios': '#b8d766', '--bg-ejercicios': '#e3e3e3', '--body-bg-color': '#ffffff', '--text-color': '#615e59', '--link-color': '#9b9b9b', '--copy-btn-bg': '#8a8884', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#615e59', '--copy-btn-success-bg': '#b8d766'} },
-             { name: "Bubble Kitten", variables: { '--color-h1': '#f767a0', '--color-h2': '#a37fd0', '--color-h3': '#ca9be9', '--color-h4': '#89d6e8', '--color-h5': '#2da6c2', '--color-h6': '#a37fd0', '--color-code': '#f767a0', '--bg-pre': '#fce0ec', '--bg-code-inline': '#fce0ec', '--bg-indice': '#ca9be9', '--color-indice-link': '#a37fd0', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#f767a0', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#f767a0', '--border-ejercicios': '#89d6e8', '--bg-ejercicios': '#e3f8fc', '--body-bg-color': '#ffffff', '--text-color': '#333333', '--link-color': '#2da6c2', '--copy-btn-bg': '#a37fd0', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#f767a0', '--copy-btn-success-bg': '#89d6e8'} },
-             { name: "Freshhh", variables: { '--color-h1': '#00aab3', '--color-h2': '#f767a0', '--color-h3': '#8a8884', '--color-h4': '#00aab3', '--color-h5': '#615e59', '--color-h6': '#8a8884', '--color-code': '#f767a0', '--bg-pre': '#ebebeb', '--bg-code-inline': '#e0e0e0', '--bg-indice': '#f0f0f0', '--color-indice-link': '#00aab3', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#615e59', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#615e59', '--border-ejercicios': '#00aab3', '--bg-ejercicios': '#ebebeb', '--body-bg-color': '#ffffff', '--text-color': '#615e59', '--link-color': '#f767a0', '--copy-btn-bg': '#8a8884', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#615e59', '--copy-btn-success-bg': '#00aab3'} },
-             { name: "FINE Design", variables: { '--color-h1': '#fadf8b', '--color-h2': '#9b9b9b', '--color-h3': '#8a8884', '--color-h4': '#f7cf6a', '--color-h5': '#615e59', '--color-h6': '#8a8884', '--color-code': '#9b9b9b', '--bg-pre': '#fcf8e3', '--bg-code-inline': '#fcf0b3', '--bg-indice': '#fcf0b3', '--color-indice-link': '#9b9b9b', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#fadf8b', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#fadf8b', '--border-ejercicios': '#fadf8b', '--bg-ejercicios': '#fcf8e3', '--body-bg-color': '#ffffff', '--text-color': '#615e59', '--link-color': '#f7cf6a', '--copy-btn-bg': '#8a8884', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#615e59', '--copy-btn-success-bg': '#fadf8b'} },
-             { name: "Escala de Grises Frío Polar", variables: { '--color-h1': '#6c757d', '--color-h2': '#adb5bd', '--color-h3': '#ced4da', '--color-h4': '#dee2e6', '--color-h5': '#e9ecef', '--color-h6': '#f8f9fa', '--color-code': '#6c757d', '--bg-pre': '#e9ecef', '--bg-code-inline': '#f8f9fa', '--bg-indice': '#e9ecef', '--color-indice-link': '#495057', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#dee2e6', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#adb5bd', '--border-ejercicios': '#adb5bd', '--bg-ejercicios': '#f8f9fa', '--body-bg-color': '#ffffff', '--text-color': '#212529', '--link-color': '#6c757d', '--copy-btn-bg': '#adb5bd', '--copy-btn-color': 'black', '--copy-btn-hover-bg': '#6c757d', '--copy-btn-success-bg': '#dee2e6'} },
-             { name: "Bosque Oscuro", variables: { '--color-h1': '#a3b18a', '--color-h2': '#588157', '--color-h3': '#3a5a40', '--color-h4': '#344e41', '--color-h5': '#a3b18a', '--color-h6': '#588157', '--color-code': '#dad7cd', '--bg-pre': '#3a5a40', '--bg-code-inline': '#588157', '--bg-indice': '#dad7cd', '--color-indice-link': '#3a5a40', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#588157', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#344e41', '--border-ejercicios': '#588157', '--bg-ejercicios': '#e9ecef', '--body-bg-color': '#dad7cd', '--text-color': '#344e41', '--link-color': '#588157', '--copy-btn-bg': '#3a5a40', '--copy-btn-color': '#dad7cd', '--copy-btn-hover-bg': '#588157', '--copy-btn-success-bg': '#a3b18a'} },
-             { name: "Mar Profundo", variables: { '--color-h1': '#0077b6', '--color-h2': '#0096c7', '--color-h3': '#023e8a', '--color-h4': '#48cae4', '--color-h5': '#90e0ef', '--color-h6': '#ade8f4', '--color-code': '#023e8a', '--bg-pre': '#caf0f8', '--bg-code-inline': '#e0fbfc', '--bg-indice': '#e0fbfc', '--color-indice-link': '#0077b6', '--color-indice-link-hover': '#023e8a', '--bg-indice-link-hover': '#90e0ef', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#0096c7', '--border-ejercicios': '#48cae4', '--bg-ejercicios': '#caf0f8', '--body-bg-color': '#ffffff', '--text-color': '#023e8a', '--link-color': '#0077b6', '--copy-btn-bg': '#0077b6', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#0096c7', '--copy-btn-success-bg': '#90e0ef'} },
-             { name: "Atardecer Neón", variables: { '--color-h1': '#ff006e', '--color-h2': '#ffbe0b', '--color-h3': '#fb5607', '--color-h4': '#8338ec', '--color-h5': '#3a86ff', '--color-h6': '#ff006e', '--color-code': '#8338ec', '--bg-pre': '#fff0f5', '--bg-code-inline': '#fff8e1', '--bg-indice': '#fff8e1', '--color-indice-link': '#fb5607', '--color-indice-link-hover': '#ff006e', '--bg-indice-link-hover': '#ffbe0b', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#ff006e', '--border-ejercicios': '#3a86ff', '--bg-ejercicios': '#ebf1ff', '--body-bg-color': '#ffffff', '--text-color': '#333333', '--link-color': '#fb5607', '--copy-btn-bg': '#8338ec', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#ff006e', '--copy-btn-success-bg': '#3a86ff'} },
-             { name: "Café Literario", variables: { '--color-h1': '#7f5539', '--color-h2': '#9c6644', '--color-h3': '#b08968', '--color-h4': '#ddb892', '--color-h5': '#e6ccb2', '--color-h6': '#ede0d4', '--color-code': '#7f5539', '--bg-pre': '#fcf8f3', '--bg-code-inline': '#f8f1e9', '--bg-indice': '#ede0d4', '--color-indice-link': '#7f5539', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#ddb892', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#9c6644', '--border-ejercicios': '#b08968', '--bg-ejercicios': '#f8f1e9', '--body-bg-color': '#ffffff', '--text-color': '#7f5539', '--link-color': '#9c6644', '--copy-btn-bg': '#b08968', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#9c6644', '--copy-btn-success-bg': '#ddb892'} },
-             { name: "Menta Fresca", variables: { '--color-h1': '#aaf683', '--color-h2': '#60d394', '--color-h3': '#4a7c59', '--color-h4': '#eeef20', '--color-h5': '#ffba08', '--color-h6': '#60d394', '--color-code': '#4a7c59', '--bg-pre': '#f2fded', '--bg-code-inline': '#e0f8e8', '--bg-indice': '#e9fcef', '--color-indice-link': '#4a7c59', '--color-indice-link-hover': '#2d4a35', '--bg-indice-link-hover': '#aaf683', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#60d394', '--border-ejercicios': '#aaf683', '--bg-ejercicios': '#f2fded', '--body-bg-color': '#ffffff', '--text-color': '#333333', '--link-color': '#60d394', '--copy-btn-bg': '#60d394', '--copy-btn-color': 'black', '--copy-btn-hover-bg': '#4a7c59', '--copy-btn-success-bg': '#aaf683'} },
-             { name: "Galaxia Púrpura", variables: { '--color-h1': '#4d194d', '--color-h2': '#5c0067', '--color-h3': '#a3168e', '--color-h4': '#e364a4', '--color-h5': '#fe98a8', '--color-h6': '#e364a4', '--color-code': '#fe98a8', '--bg-pre': '#2e0f2e', '--bg-code-inline': '#3b133b', '--bg-indice': '#3b133b', '--color-indice-link': '#e364a4', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#5c0067', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#a3168e', '--border-ejercicios': '#e364a4', '--bg-ejercicios': '#4d194d', '--body-bg-color': '#1f0a1f', '--text-color': '#f0d8f0', '--link-color': '#fe98a8', '--copy-btn-bg': '#a3168e', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#5c0067', '--copy-btn-success-bg': '#e364a4'} },
-             { name: "Tecnología Azul", variables: { '--color-h1': '#00b4d8', '--color-h2': '#0077b6', '--color-h3': '#03045e', '--color-h4': '#90e0ef', '--color-h5': '#caf0f8', '--color-h6': '#00b4d8', '--color-code': '#03045e', '--bg-pre': '#edfaff', '--bg-code-inline': '#e6f8fc', '--bg-indice': '#caf0f8', '--color-indice-link': '#0077b6', '--color-indice-link-hover': '#03045e', '--bg-indice-link-hover': '#90e0ef', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#0077b6', '--border-ejercicios': '#90e0ef', '--bg-ejercicios': '#edfaff', '--body-bg-color': '#ffffff', '--text-color': '#03045e', '--link-color': '#00b4d8', '--copy-btn-bg': '#0077b6', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#03045e', '--copy-btn-success-bg': '#90e0ef'} },
-             { name: "Neutro Cálido", variables: { '--color-h1': '#a0937d', '--color-h2': '#bca37f', '--color-h3': '#e2c799', '--color-h4': '#f6e6cb', '--color-h5': '#a0937d', '--color-h6': '#bca37f', '--color-code': '#a0937d', '--bg-pre': '#fdfaf5', '--bg-code-inline': '#fbf5e9', '--bg-indice': '#f6e6cb', '--color-indice-link': '#a0937d', '--color-indice-link-hover': '#6f644e', '--bg-indice-link-hover': '#e2c799', '--color-indice-link-active': '#000000', '--bg-indice-link-active': '#bca37f', '--border-ejercicios': '#e2c799', '--bg-ejercicios': '#fbf5e9', '--body-bg-color': '#ffffff', '--text-color': '#4e473e', '--link-color': '#a0937d', '--copy-btn-bg': '#bca37f', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#a0937d', '--copy-btn-success-bg': '#e2c799'} },
-             { name: "Primavera Pastel", variables: { '--color-h1': '#ffb3c6', '--color-h2': '#ffdeb9', '--color-h3': '#fff1b9', '--color-h4': '#c7e5b4', '--color-h5': '#8ebbb0', '--color-h6': '#a0c6d8', '--color-code': '#8ebbb0', '--bg-pre': '#fff7fa', '--bg-code-inline': '#fffaf5', '--bg-indice': '#fffaf5', '--color-indice-link': '#ff8fab', '--color-indice-link-hover': '#e87896', '--bg-indice-link-hover': '#ffdeb9', '--color-indice-link-active': '#5c4330', '--bg-indice-link-active': '#ffb3c6', '--border-ejercicios': '#c7e5b4', '--bg-ejercicios': '#f5fcef', '--body-bg-color': '#ffffff', '--text-color': '#555555', '--link-color': '#ff8fab', '--copy-btn-bg': '#a0c6d8', '--copy-btn-color': 'black', '--copy-btn-hover-bg': '#8ebbb0', '--copy-btn-success-bg': '#c7e5b4'} },
-             { name: "Industrial Gris", variables: { '--color-h1': '#46494c', '--color-h2': '#6d6a6a', '--color-h3': '#9b9a9c', '--color-h4': '#c7c6c7', '--color-h5': '#46494c', '--color-h6': '#6d6a6a', '--color-code': '#46494c', '--bg-pre': '#f5f5f5', '--bg-code-inline': '#eeeeee', '--bg-indice': '#eeeeee', '--color-indice-link': '#6d6a6a', '--color-indice-link-hover': '#000000', '--bg-indice-link-hover': '#c7c6c7', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#6d6a6a', '--border-ejercicios': '#9b9a9c', '--bg-ejercicios': '#f5f5f5', '--body-bg-color': '#ffffff', '--text-color': '#46494c', '--link-color': '#6d6a6a', '--copy-btn-bg': '#9b9a9c', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#6d6a6a', '--copy-btn-success-bg': '#c7c6c7'} },
-             { name: "Cereza Profundo", variables: { '--color-h1': '#780000', '--color-h2': '#c1121f', '--color-h3': '#fdf0d5', '--color-h4': '#003049', '--color-h5': '#669bbc', '--color-h6': '#780000', '--color-code': '#003049', '--bg-pre': '#fffafa', '--bg-code-inline': '#fef5f5', '--bg-indice': '#fdf0d5', '--color-indice-link': '#c1121f', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#780000', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#c1121f', '--border-ejercicios': '#669bbc', '--bg-ejercicios': '#e6f0f3', '--body-bg-color': '#ffffff', '--text-color': '#003049', '--link-color': '#780000', '--copy-btn-bg': '#c1121f', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#780000', '--copy-btn-success-bg': '#669bbc'} },
-             { name: "Musgo Terroso", variables: { '--color-h1': '#9a8c98', '--color-h2': '#4a4e69', '--color-h3': '#22223b', '--color-h4': '#c9ada7', '--color-h5': '#f2e9e4', '--color-h6': '#9a8c98', '--color-code': '#22223b', '--bg-pre': '#f5f3f7', '--bg-code-inline': '#eae8ed', '--bg-indice': '#f2e9e4', '--color-indice-link': '#4a4e69', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#9a8c98', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#4a4e69', '--border-ejercicios': '#c9ada7', '--bg-ejercicios': '#f5f3f7', '--body-bg-color': '#ffffff', '--text-color': '#22223b', '--link-color': '#9a8c98', '--copy-btn-bg': '#4a4e69', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#9a8c98', '--copy-btn-success-bg': '#c9ada7'} },
-             { name: "Lavanda Suave", variables: { '--color-h1': '#9d81ba', '--color-h2': '#b39cd0', '--color-h3': '#cca8e9', '--color-h4': '#cab9e1', '--color-h5': '#e5dcef', '--color-h6': '#9d81ba', '--color-code': '#9d81ba', '--bg-pre': '#f9f7fb', '--bg-code-inline': '#f4f0f7', '--bg-indice': '#f4f0f7', '--color-indice-link': '#9d81ba', '--color-indice-link-hover': '#5e447a', '--bg-indice-link-hover': '#e5dcef', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#b39cd0', '--border-ejercicios': '#cca8e9', '--bg-ejercicios': '#f9f7fb', '--body-bg-color': '#ffffff', '--text-color': '#49385e', '--link-color': '#9d81ba', '--copy-btn-bg': '#b39cd0', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#9d81ba', '--copy-btn-success-bg': '#cca8e9'} },
-        ];
+const defaultCssVariables = {
+    '--color-h1': '#2c3e50', '--color-h2': '#3498db', '--color-h3': '#7f8c8d', '--color-h4': '#95a5a6', '--color-h5': '#1abc9c', '--color-h6': '#bdc3c7',
+    '--color-code': '#e74c3c', '--bg-pre': '#ecf0f1', '--bg-code-inline': '#f9fbfd',
+    '--bg-indice': '#f8f9fa', '--color-indice-link': '#2980b9', '--color-indice-link-hover': '#1f618d', '--bg-indice-link-hover': '#eaf2f8',
+    '--color-indice-link-active': '#154360', '--bg-indice-link-active': '#d4e6f1',
+    '--border-ejercicios': '#3498db', '--bg-ejercicios': '#e8f6fd',
+    '--body-bg-color': '#ffffff', '--text-color': '#34495e', '--link-color': '#3498db',
+    '--copy-btn-bg': '#95a5a6', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#7f8c8d', '--copy-btn-success-bg': '#2ecc71'
+};
+
+const themes = [
+     { name: "Claro Fundacional", variables: { ...defaultCssVariables }},
+     { name: "Crema Elegante", variables: { '--color-h1': '#A0AEC0', '--color-h2': '#718096', '--color-h3': '#4A5568', '--color-h4': '#A0AEC0', '--color-h5': '#718096', '--color-h6': '#CBD5E0', '--color-code': '#DD6B20', '--bg-pre': '#F7FAFC', '--bg-code-inline': '#EDF2F7', '--bg-indice': '#EDF2F7', '--color-indice-link': '#4A5568', '--color-indice-link-hover': '#2D3748', '--bg-indice-link-hover': '#E2E8F0', '--color-indice-link-active': '#1A202C', '--bg-indice-link-active': '#CBD5E0', '--border-ejercicios': '#A0AEC0', '--bg-ejercicios': '#F7FAFC', '--body-bg-color': '#ffffff', '--text-color': '#2D3748', '--link-color': '#718096', '--copy-btn-bg': '#A0AEC0', '--copy-btn-color': '#1A202C', '--copy-btn-hover-bg': '#718096', '--copy-btn-success-bg': '#68D391' }},
+     { name: "Serenidad Mineral", variables: { '--color-h1': '#52525b', '--color-h2': '#71717a', '--color-h3': '#a1a1aa', '--color-h4': '#d4d4d8', '--color-h5': '#71717a', '--color-h6': '#a1a1aa', '--color-code': '#0ea5e9', '--bg-pre': '#f4f4f5', '--bg-code-inline': '#eef2ff', '--bg-indice': '#e4e4e7', '--color-indice-link': '#52525b', '--color-indice-link-hover': '#18181b', '--bg-indice-link-hover': '#d4d4d8', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#52525b', '--border-ejercicios': '#a1a1aa', '--bg-ejercicios': '#f4f4f5', '--body-bg-color': '#fafafa', '--text-color': '#27272a', '--link-color': '#71717a', '--copy-btn-bg': '#a1a1aa', '--copy-btn-color': '#18181b', '--copy-btn-hover-bg': '#71717a', '--copy-btn-success-bg': '#86efac' }},
+     { name: "Eco Vibrante", variables: { '--color-h1': '#166534', '--color-h2': '#15803d', '--color-h3': '#65a30d', '--color-h4': '#a3e635', '--color-h5': '#4d7c0f', '--color-h6': '#84cc16', '--color-code': '#be123c', '--bg-pre': '#f0fdf4', '--bg-code-inline': '#f7fee7', '--bg-indice': '#ecfccb', '--color-indice-link': '#166534', '--color-indice-link-hover': '#052e16', '--bg-indice-link-hover': '#d9f99d', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#166534', '--border-ejercicios': '#84cc16', '--bg-ejercicios': '#f0fdf4', '--body-bg-color': '#ffffff', '--text-color': '#14532d', '--link-color': '#15803d', '--copy-btn-bg': '#65a30d', '--copy-btn-color': '#f0fdf4', '--copy-btn-hover-bg': '#4d7c0f', '--copy-btn-success-bg': '#a3e635' }},
+     { name: "Chispa de Caramelo", variables: { '--color-h1': '#d60270', '--color-h2': '#990099', '--color-h3': '#7000c4', '--color-h4': '#0099cc', '--color-h5': '#eb5000', '--color-h6': '#7000c4', '--color-code': '#009933', '--bg-pre': '#fff0f7', '--bg-code-inline': '#f5f0ff', '--bg-indice': '#ffeeff', '--color-indice-link': '#990099', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#d60270', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#7000c4', '--border-ejercicios': '#0099cc', '--bg-ejercicios': '#f0faff', '--body-bg-color': '#ffffff', '--text-color': '#333333', '--link-color': '#d60270', '--copy-btn-bg': '#990099', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#d60270', '--copy-btn-success-bg': '#0099cc' }},
+     { name: "Aqua Fresca", variables: { '--color-h1': '#06b6d4', '--color-h2': '#0891b2', '--color-h3': '#0e7490', '--color-h4': '#ef4444', '--color-h5': '#f97316', '--color-h6': '#0e7490', '--color-code': '#db2777', '--bg-pre': '#ecfeff', '--bg-code-inline': '#f0f9ff', '--bg-indice': '#e0f2fe', '--color-indice-link': '#0891b2', '--color-indice-link-hover': '#0e7490', '--bg-indice-link-hover': '#cffafe', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#06b6d4', '--border-ejercicios': '#06b6d4', '--bg-ejercicios': '#ecfeff', '--body-bg-color': '#ffffff', '--text-color': '#0f172a', '--link-color': '#0891b2', '--copy-btn-bg': '#ef4444', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#dc2626', '--copy-btn-success-bg': '#06b6d4' }},
+     { name: "Dorado Académico", variables: { '--color-h1': '#ca8a04', '--color-h2': '#a16207', '--color-h3': '#78350f', '--color-h4': '#facc15', '--color-h5': '#422006', '--color-h6': '#78350f', '--color-code': '#0369a1', '--bg-pre': '#fefce8', '--bg-code-inline': '#fffbeb', '--bg-indice': '#fef9c3', '--color-indice-link': '#78350f', '--color-indice-link-hover': '#422006', '--bg-indice-link-hover': '#fde68a', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#a16207', '--border-ejercicios': '#facc15', '--bg-ejercicios': '#fefce8', '--body-bg-color': '#ffffff', '--text-color': '#3f3015', '--link-color': '#a16207', '--copy-btn-bg': '#ca8a04', '--copy-btn-color': '#fefce8', '--copy-btn-hover-bg': '#a16207', '--copy-btn-success-bg': '#facc15' }},
+     { name: "Acero Urbano (Oscuro)", variables: { '--color-h1': '#d1d5db', '--color-h2': '#9ca3af', '--color-h3': '#6b7280', '--color-h4': '#4b5563', '--color-h5': '#374151', '--color-h6': '#9ca3af', '--color-code': '#38bdf8', '--bg-pre': '#1f2937', '--bg-code-inline': '#374151', '--bg-indice': '#111827', '--color-indice-link': '#9ca3af', '--color-indice-link-hover': '#e5e7eb', '--bg-indice-link-hover': '#374151', '--color-indice-link-active': '#38bdf8', '--bg-indice-link-active': '#1f2937', '--border-ejercicios': '#6b7280', '--bg-ejercicios': '#1f2937', '--body-bg-color': '#0f172a', '--text-color': '#f3f4f6', '--link-color': '#9ca3af', '--copy-btn-bg': '#4b5563', '--copy-btn-color': '#f3f4f6', '--copy-btn-hover-bg': '#374151', '--copy-btn-success-bg': '#38bdf8' }},
+     { name: "Sotobosque Profundo (Oscuro)", variables: { '--color-h1': '#bbf7d0', '--color-h2': '#86efac', '--color-h3': '#4ade80', '--color-h4': '#22c55e', '--color-h5': '#16a34a', '--color-h6': '#15803d', '--color-code': '#fcd34d', '--bg-pre': '#062813', '--bg-code-inline': '#073b1b', '--bg-indice': '#04180c', '--color-indice-link': '#86efac', '--color-indice-link-hover': '#bbf7d0', '--bg-indice-link-hover': '#073b1b', '--color-indice-link-active': '#fcd34d', '--bg-indice-link-active': '#062813', '--border-ejercicios': '#22c55e', '--bg-ejercicios': '#062813', '--body-bg-color': '#020e06', '--text-color': '#dcfce7', '--link-color': '#4ade80', '--copy-btn-bg': '#16a34a', '--copy-btn-color': '#dcfce7', '--copy-btn-hover-bg': '#15803d', '--copy-btn-success-bg': '#86efac' }},
+     { name: "Abisal Sereno", variables: { '--color-h1': '#0077b6', '--color-h2': '#0096c7', '--color-h3': '#023e8a', '--color-h4': '#48cae4', '--color-h5': '#90e0ef', '--color-h6': '#ade8f4', '--color-code': '#fb8500', '--bg-pre': '#e0fbfc', '--bg-code-inline': '#e7feff', '--bg-indice': '#caf0f8', '--color-indice-link': '#0077b6', '--color-indice-link-hover': '#023e8a', '--bg-indice-link-hover': '#90e0ef', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#0096c7', '--border-ejercicios': '#48cae4', '--bg-ejercicios': '#e0fbfc', '--body-bg-color': '#ffffff', '--text-color': '#023047', '--link-color': '#0077b6', '--copy-btn-bg': '#0077b6', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#0096c7', '--copy-btn-success-bg': '#219ebc' }},
+     { name: "Neón Eléctrico (Oscuro)", variables: { '--color-h1': '#ff00ff', '--color-h2': '#00ffff', '--color-h3': '#ffff00', '--color-h4': '#ff7f00', '--color-h5': '#7fff00', '--color-h6': '#ff00ff', '--color-code': '#ffffff', '--bg-pre': '#1a1a1a', '--bg-code-inline': '#2c2c2c', '--bg-indice': '#101010', '--color-indice-link': '#00ffff', '--color-indice-link-hover': '#ffff00', '--bg-indice-link-hover': '#2c2c2c', '--color-indice-link-active': '#101010', '--bg-indice-link-active': '#ff00ff', '--border-ejercicios': '#ffff00', '--bg-ejercicios': '#1a1a1a', '--body-bg-color': '#000000', '--text-color': '#e0e0e0', '--link-color': '#ff00ff', '--copy-btn-bg': '#00ffff', '--copy-btn-color': '#000000', '--copy-btn-hover-bg': '#ffff00', '--copy-btn-success-bg': '#7fff00' }},
+     { name: "Tostado Artesanal", variables: { '--color-h1': '#7f5539', '--color-h2': '#9c6644', '--color-h3': '#b08968', '--color-h4': '#ddb892', '--color-h5': '#e6ccb2', '--color-h6': '#ede0d4', '--color-code': '#4a4033', '--bg-pre': '#fdfcfb', '--bg-code-inline': '#fffaf5', '--bg-indice': '#f8f1e9', '--color-indice-link': '#7f5539', '--color-indice-link-hover': '#543a26', '--bg-indice-link-hover': '#e6ccb2', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#7f5539', '--border-ejercicios': '#b08968', '--bg-ejercicios': '#fdfcfb', '--body-bg-color': '#ffffff', '--text-color': '#543a26', '--link-color': '#9c6644', '--copy-btn-bg': '#b08968', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#9c6644', '--copy-btn-success-bg': '#a3b18a' }},
+     { name: "Hierbabuena Refrescante", variables: { '--color-h1': '#10b981', '--color-h2': '#059669', '--color-h3': '#34d399', '--color-h4': '#a7f3d0', '--color-h5': '#f59e0b', '--color-h6': '#6ee7b7', '--color-code': '#d946ef', '--bg-pre': '#f0fdfa', '--bg-code-inline': '#e6fcf5', '--bg-indice': '#d1fae5', '--color-indice-link': '#059669', '--color-indice-link-hover': '#047857', '--bg-indice-link-hover': '#a7f3d0', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#10b981', '--border-ejercicios': '#34d399', '--bg-ejercicios': '#f0fdfa', '--body-bg-color': '#ffffff', '--text-color': '#064e3b', '--link-color': '#10b981', '--copy-btn-bg': '#059669', '--copy-btn-color': '#f0fdfa', '--copy-btn-hover-bg': '#10b981', '--copy-btn-success-bg': '#f59e0b' }},
+     { name: "Nebulosa Amatista (Oscuro)", variables: { '--color-h1': '#c084fc', '--color-h2': '#a855f7', '--color-h3': '#9333ea', '--color-h4': '#e879f9', '--color-h5': '#f472b6', '--color-h6': '#d946ef', '--color-code': '#fde047', '--bg-pre': '#2e1040', '--bg-code-inline': '#3b0764', '--bg-indice': '#1e072b', '--color-indice-link': '#c084fc', '--color-indice-link-hover': '#e9d5ff', '--bg-indice-link-hover': '#3b0764', '--color-indice-link-active': '#fde047', '--bg-indice-link-active': '#2e1040', '--border-ejercicios': '#a855f7', '--bg-ejercicios': '#2e1040', '--body-bg-color': '#190526', '--text-color': '#f3e8ff', '--link-color': '#c084fc', '--copy-btn-bg': '#9333ea', '--copy-btn-color': '#f3e8ff', '--copy-btn-hover-bg': '#a855f7', '--copy-btn-success-bg': '#e879f9' }},
+     { name: "Circuito Integrado", variables: { '--color-h1': '#0ea5e9', '--color-h2': '#0284c7', '--color-h3': '#0369a1', '--color-h4': '#7dd3fc', '--color-h5': '#e0f2fe', '--color-h6': '#0ea5e9', '--color-code': '#f43f5e', '--bg-pre': '#f0f9ff', '--bg-code-inline': '#e0f2fe', '--bg-indice': '#e0f2fe', '--color-indice-link': '#0284c7', '--color-indice-link-hover': '#0369a1', '--bg-indice-link-hover': '#bae6fd', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#0ea5e9', '--border-ejercicios': '#7dd3fc', '--bg-ejercicios': '#f0f9ff', '--body-bg-color': '#ffffff', '--text-color': '#0c4a6e', '--link-color': '#0ea5e9', '--copy-btn-bg': '#0284c7', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#0369a1', '--copy-btn-success-bg': '#38bdf8' }},
+     { name: "Lienzo Natural", variables: { '--color-h1': '#a37d48', '--color-h2': '#bfa071', '--color-h3': '#d9c19e', '--color-h4': '#f5eadc', '--color-h5': '#a37d48', '--color-h6': '#bfa071', '--color-code': '#57534e', '--bg-pre': '#fefbf6', '--bg-code-inline': '#fdf8f0', '--bg-indice': '#f5eadc', '--color-indice-link': '#a37d48', '--color-indice-link-hover': '#785c34', '--bg-indice-link-hover': '#eaddc9', '--color-indice-link-active': '#44403c', '--bg-indice-link-active': '#bfa071', '--border-ejercicios': '#d9c19e', '--bg-ejercicios': '#fefbf6', '--body-bg-color': '#ffffff', '--text-color': '#44403c', '--link-color': '#a37d48', '--copy-btn-bg': '#bfa071', '--copy-btn-color': '#44403c', '--copy-btn-hover-bg': '#a37d48', '--copy-btn-success-bg': '#d9c19e' }},
+     { name: "Algodón de Azúcar", variables: { '--color-h1': '#fecdd3', '--color-h2': '#fbcfe8', '--color-h3': '#e9d5ff', '--color-h4': '#d9f99d', '--color-h5': '#bfdbfe', '--color-h6': '#a7f3d0', '--color-code': '#7c3aed', '--bg-pre': '#fff1f2', '--bg-code-inline': '#fdf4ff', '--bg-indice': '#fdf4ff', '--color-indice-link': '#f472b6', '--color-indice-link-hover': '#db2777', '--bg-indice-link-hover': '#fce7f3', '--color-indice-link-active': '#581c87', '--bg-indice-link-active': '#fecdd3', '--border-ejercicios': '#a7f3d0', '--bg-ejercicios': '#f0fdfa', '--body-bg-color': '#ffffff', '--text-color': '#52525b', '--link-color': '#f472b6', '--copy-btn-bg': '#bfdbfe', '--copy-btn-color': '#1e3a8a', '--copy-btn-hover-bg': '#93c5fd', '--copy-btn-success-bg': '#d9f99d' }},
+     { name: "Hormigón Pulido", variables: { '--color-h1': '#404040', '--color-h2': '#525252', '--color-h3': '#737373', '--color-h4': '#a3a3a3', '--color-h5': '#d4d4d4', '--color-h6': '#a3a3a3', '--color-code': '#ea580c', '--bg-pre': '#f5f5f5', '--bg-code-inline': '#fafafa', '--bg-indice': '#e5e5e5', '--color-indice-link': '#525252', '--color-indice-link-hover': '#171717', '--bg-indice-link-hover': '#d4d4d4', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#404040', '--border-ejercicios': '#a3a3a3', '--bg-ejercicios': '#f5f5f5', '--body-bg-color': '#ffffff', '--text-color': '#262626', '--link-color': '#737373', '--copy-btn-bg': '#a3a3a3', '--copy-btn-color': '#171717', '--copy-btn-hover-bg': '#737373', '--copy-btn-success-bg': '#84cc16' }},
+     { name: "Granate Intenso", variables: { '--color-h1': '#881337', '--color-h2': '#be185d', '--color-h3': '#fecaca', '--color-h4': '#1e3a8a', '--color-h5': '#60a5fa', '--color-h6': '#881337', '--color-code': '#1e3a8a', '--bg-pre': '#fff1f2', '--bg-code-inline': '#fee2e2', '--bg-indice': '#fecaca', '--color-indice-link': '#be185d', '--color-indice-link-hover': '#ffffff', '--bg-indice-link-hover': '#881337', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#be185d', '--border-ejercicios': '#60a5fa', '--bg-ejercicios': '#eff6ff', '--body-bg-color': '#ffffff', '--text-color': '#4c0519', '--link-color': '#881337', '--copy-btn-bg': '#be185d', '--copy-btn-color': 'white', '--copy-btn-hover-bg': '#881337', '--copy-btn-success-bg': '#60a5fa' }},
+     { name: "Arcilla Seca", variables: { '--color-h1': '#704214', '--color-h2': '#8c5a2b', '--color-h3': '#a97c50', '--color-h4': '#c5a784', '--color-h5': '#e0d1bf', '--color-h6': '#a97c50', '--color-code': '#047857', '--bg-pre': '#fdf8f2', '--bg-code-inline': '#fefcf9', '--bg-indice': '#fef3e5', '--color-indice-link': '#704214', '--color-indice-link-hover': '#452a0e', '--bg-indice-link-hover': '#e0d1bf', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#704214', '--border-ejercicios': '#c5a784', '--bg-ejercicios': '#fdf8f2', '--body-bg-color': '#ffffff', '--text-color': '#452a0e', '--link-color': '#8c5a2b', '--copy-btn-bg': '#a97c50', '--copy-btn-color': '#fdf8f2', '--copy-btn-hover-bg': '#8c5a2b', '--copy-btn-success-bg': '#c5a784' }},
+     { name: "Brisa de Lavanda", variables: { '--color-h1': '#8b5cf6', '--color-h2': '#a78bfa', '--color-h3': '#c4b5fd', '--color-h4': '#ddd6fe', '--color-h5': '#ede9fe', '--color-h6': '#a78bfa', '--color-code': '#16a34a', '--bg-pre': '#f5f3ff', '--bg-code-inline': '#fafaff', '--bg-indice': '#ede9fe', '--color-indice-link': '#8b5cf6', '--color-indice-link-hover': '#6d28d9', '--bg-indice-link-hover': '#ddd6fe', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#8b5cf6', '--border-ejercicios': '#c4b5fd', '--bg-ejercicios': '#f5f3ff', '--body-bg-color': '#ffffff', '--text-color': '#4c1d95', '--link-color': '#8b5cf6', '--copy-btn-bg': '#a78bfa', '--copy-btn-color': '#f5f3ff', '--copy-btn-hover-bg': '#8b5cf6', '--copy-btn-success-bg': '#c4b5fd' }},
+     { name: "Medianoche Carmesí (Oscuro)", variables: { '--color-h1': '#fca5a5', '--color-h2': '#f87171', '--color-h3': '#ef4444', '--color-h4': '#dc2626', '--color-h5': '#b91c1c', '--color-h6': '#991b1b', '--color-code': '#60a5fa', '--bg-pre': '#1e1b1b', '--bg-code-inline': '#2c1d1d', '--bg-indice': '#1c1010', '--color-indice-link': '#f87171', '--color-indice-link-hover': '#fca5a5', '--bg-indice-link-hover': '#2c1d1d', '--color-indice-link-active': '#1c1010', '--bg-indice-link-active': '#ef4444', '--border-ejercicios': '#ef4444', '--bg-ejercicios': '#1e1b1b', '--body-bg-color': '#0f0a0a', '--text-color': '#fee2e2', '--link-color': '#f87171', '--copy-btn-bg': '#dc2626', '--copy-btn-color': '#fee2e2', '--copy-btn-hover-bg': '#b91c1c', '--copy-btn-success-bg': '#f87171' }},
+     { name: "Oasis Desértico", variables: { '--color-h1': '#c27803', '--color-h2': '#d97706', '--color-h3': '#f59e0b', '--color-h4': '#fcd34d', '--color-h5': '#fef3c7', '--color-h6': '#fbbf24', '--color-code': '#059669', '--bg-pre': '#fffbeb', '--bg-code-inline': '#fefce8', '--bg-indice': '#fef3c7', '--color-indice-link': '#d97706', '--color-indice-link-hover': '#b45309', '--bg-indice-link-hover': '#fde68a', '--color-indice-link-active': '#78350f', '--bg-indice-link-active': '#fcd34d', '--border-ejercicios': '#f59e0b', '--bg-ejercicios': '#fffbeb', '--body-bg-color': '#ffffff', '--text-color': '#713f12', '--link-color': '#d97706', '--copy-btn-bg': '#f59e0b', '--copy-btn-color': '#713f12', '--copy-btn-hover-bg': '#d97706', '--copy-btn-success-bg': '#a3e635' }},
+     { name: "Ciberpunk Nocturno (Oscuro)", variables: { '--color-h1': '#ec4899', '--color-h2': '#a855f7', '--color-h3': '#0ea5e9', '--color-h4': '#34d399', '--color-h5': '#facc15', '--color-h6': '#ec4899', '--color-code': '#ffffff', '--bg-pre': '#1a001a', '--bg-code-inline': '#260026', '--bg-indice': '#0d000d', '--color-indice-link': '#a855f7', '--color-indice-link-hover': '#ec4899', '--bg-indice-link-hover': '#260026', '--color-indice-link-active': '#0d000d', '--bg-indice-link-active': '#0ea5e9', '--border-ejercicios': '#0ea5e9', '--bg-ejercicios': '#1a001a', '--body-bg-color': '#000000', '--text-color': '#e0e0e0', '--link-color': '#ec4899', '--copy-btn-bg': '#a855f7', '--copy-btn-color': '#000000', '--copy-btn-hover-bg': '#0ea5e9', '--copy-btn-success-bg': '#34d399' }}
+];
 
         // --- Helper Functions ---
-        function slugify(text) { /* ... (as before) ... */ if (!text) return ''; return text.toString().toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-\u00C0-\u017F]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, ''); }
-        function getAppliedVariables() { /* ... (as before) ... */ const appliedVariables = { ...defaultCssVariables }; const rootStyles = getComputedStyle(document.documentElement); personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; if (varName && appliedVariables.hasOwnProperty(varName)) { try { const currentValue = rootStyles.getPropertyValue(varName).trim(); if(currentValue) { appliedVariables[varName] = currentValue; } } catch(e) {} } }); return appliedVariables; }
-        function generateCssForDownload() { /* ... (as before) ... */ const appliedVars = getAppliedVariables(); let variablesString = ':root {\n'; for (const [key, value] of Object.entries(appliedVars)) { if (value) { variablesString += `    ${key}: ${value};\n`; } else { variablesString += `    ${key}: ${defaultCssVariables[key] || 'inherit'};\n`; } } variablesString += '}\n\n'; const allStyles = document.querySelector('head > style').innerHTML; const startIndex = allStyles.indexOf('/* === INICIO ESTILOS UNIFICADOS'); const endIndexMarker = '/* === FIN ESTILOS UNIFICADOS === */'; let endIndex = allStyles.indexOf(endIndexMarker); if (endIndex === -1) { endIndex = allStyles.length; } let staticStyles = ''; if (startIndex !== -1) { staticStyles = allStyles.substring(startIndex, endIndex); } else { staticStyles = ""; } return variablesString + staticStyles; }
-        function addCopyButtons(container) { /* ... (as before) ... */ const preBlocks = container.querySelectorAll('pre'); preBlocks.forEach((pre) => { if (pre.querySelector('.copy-code-btn')) { return; } const copyButton = document.createElement('button'); copyButton.className = 'btn btn-sm copy-code-btn'; copyButton.setAttribute('aria-label', 'Copiar código'); const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/></svg> Copiar`; const successSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg> Copiado!`; copyButton.innerHTML = iconSvg; copyButton.addEventListener('click', () => { const codeElement = pre.querySelector('code'); const textToCopy = codeElement ? codeElement.innerText : pre.innerText; navigator.clipboard.writeText(textToCopy).then(() => { copyButton.innerHTML = successSvg; copyButton.classList.add('copied'); setTimeout(() => { copyButton.innerHTML = iconSvg; copyButton.classList.remove('copied'); }, 2000); }).catch(err => { console.error('Error al copiar: ', err); copyButton.innerHTML = 'Error'; setTimeout(() => { copyButton.innerHTML = iconSvg; }, 2000); }); }); pre.style.position = pre.style.position || 'relative'; pre.appendChild(copyButton); }); }
+        function slugify(text) { if (!text) return ''; return text.toString().toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-\u00C0-\u017F]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, ''); }
+        function getAppliedVariables() { const appliedVariables = { ...defaultCssVariables }; const rootStyles = getComputedStyle(document.documentElement); personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; if (varName && appliedVariables.hasOwnProperty(varName)) { try { const currentValue = rootStyles.getPropertyValue(varName).trim(); if(currentValue) { appliedVariables[varName] = currentValue; } } catch(e) {} } }); return appliedVariables; }
+        function generateCssForDownload() { const appliedVars = getAppliedVariables(); let variablesString = ':root {\n'; for (const [key, value] of Object.entries(appliedVars)) { if (value) { variablesString += `    ${key}: ${value};\n`; } else { variablesString += `    ${key}: ${defaultCssVariables[key] || 'inherit'};\n`; } } variablesString += '}\n\n'; const allStyles = document.querySelector('head > style').innerHTML; const startIndex = allStyles.indexOf('/* === INICIO ESTILOS UNIFICADOS'); const endIndexMarker = '/* === FIN ESTILOS UNIFICADOS === */'; let endIndex = allStyles.indexOf(endIndexMarker); if (endIndex === -1) { endIndex = allStyles.length; } let staticStyles = ''; if (startIndex !== -1) { staticStyles = allStyles.substring(startIndex, endIndex); } else { staticStyles = ""; } return variablesString + staticStyles; }
+        function addCopyButtons(container) { const preBlocks = container.querySelectorAll('pre'); preBlocks.forEach((pre) => { if (pre.querySelector('.copy-code-btn')) { pre.querySelector('.copy-code-btn').remove(); } const copyButton = document.createElement('button'); copyButton.className = 'btn btn-sm copy-code-btn'; copyButton.setAttribute('aria-label', 'Copiar código'); const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/></svg> Copiar`; const successSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg> Copiado!`; copyButton.innerHTML = iconSvg; copyButton.addEventListener('click', () => { const codeElement = pre.querySelector('code'); const textToCopy = codeElement ? codeElement.innerText : pre.innerText; navigator.clipboard.writeText(textToCopy).then(() => { copyButton.innerHTML = successSvg; copyButton.classList.add('copied'); setTimeout(() => { copyButton.innerHTML = iconSvg; copyButton.classList.remove('copied'); }, 2000); }).catch(err => { console.error('Error al copiar: ', err); copyButton.innerHTML = 'Error'; setTimeout(() => { copyButton.innerHTML = iconSvg; }, 2000); }); }); pre.style.position = pre.style.position || 'relative'; pre.appendChild(copyButton); }); }
 
         function preprocessMarkdown(markdownText) {
             const accordionRegex = /^\+\+S\s+(.*?)\s*$([\s\S]*?)^\+\+E\s*$/gm;
             let processedText = markdownText;
             let accordionGroupCounter = 0;
-
             processedText = processedText.replace(accordionRegex, (match, title, content) => {
                 accordionGroupCounter++;
                 const accordionId = `custom-accordion-${Date.now()}-${accordionGroupCounter}`;
                 const headingId = `heading-${accordionId}-item1`;
                 const collapseId = `collapse-${accordionId}-item1`;
-
                 const escapedTitle = title.trim().replace(/"/g, '&quot;');
-
                 marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
                 const parsedInnerContent = marked.parse(content.trim());
-
-                // Asegurar CERO INDENTACIÓN INICIAL y añadir un \n al final del HTML del acordeón
                 const accordionHtml =
 `<div class="accordion" id="${accordionId}">
 <div class="accordion-item">
@@ -184,99 +212,182 @@ ${parsedInnerContent}
 </div>
 </div>
 </div>
-</div>\n`; // <-- MODIFICACIÓN: Añadido \n al final
+</div>\n`;
                 return accordionHtml;
             });
             return processedText;
         }
 
-        function generateJsForDownload(targetId = '#indiceContenido', bodySelector = '.generated-html-body', offset = SCROLL_OFFSET_DOWNLOAD) { /* ... (as before) ... */ const addCopyButtonsFuncString = addCopyButtons.toString(); return `\n            ${addCopyButtonsFuncString}\n\n            document.addEventListener('DOMContentLoaded', () => {\n                const scrollSpyTarget = document.querySelector('${targetId}');\n                const scrollSpyBody = document.querySelector('${bodySelector}');\n                const scrollOffset = ${offset};\n                let currentScrollSpy = null;\n\n                function initOrRefreshScrollSpy() {\n                    if (!scrollSpyBody || !scrollSpyTarget) {\n                        console.warn('ScrollSpy target or body not found.');\n                        return;\n                    }\n                    try {\n                        if (typeof bootstrap !== 'undefined' && bootstrap.ScrollSpy) {\n                            if (currentScrollSpy) {\n                                currentScrollSpy.dispose();\n                            }\n                            currentScrollSpy = new bootstrap.ScrollSpy(scrollSpyBody, {\n                                target: scrollSpyTarget,\n                                offset: scrollOffset,\n                                rootMargin: '0px 0px -25%'\n                            });\n                        } else {\n                            console.warn('Bootstrap ScrollSpy component not found.');\n                        }\n                    } catch (e) {\n                        console.error('Error initializing ScrollSpy:', e);\n                    }\n                }\n\n                initOrRefreshScrollSpy();\n\n                document.querySelectorAll('${targetId} a[href^="#"]').forEach(anchor => {\n                    anchor.addEventListener('click', function (e) {\n                        e.preventDefault();\n                        const targetId = this.getAttribute('href');\n                        try {\n                            const targetElement = document.querySelector(targetId);\n                            if (targetElement) {\n                                const elementPosition = targetElement.getBoundingClientRect().top;\n                                const offsetPosition = elementPosition + window.pageYOffset - scrollOffset + 5;\n                                window.scrollTo({ top: offsetPosition, behavior: 'smooth' });\n                            } else { console.warn('Scroll target element not found:', targetId); }\n                        } catch (err) { console.error('Error scrolling to element:', err); }\n                    });\n                });\n\n                const mainContentElement = document.querySelector('#mainContent');\n                if (mainContentElement) {\n                    addCopyButtons(mainContentElement); // Add copy buttons after DOM is ready\n                } else { console.warn('#mainContent not found for adding copy buttons.'); }\n\n                let resizeTimeout;\n                window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(initOrRefreshScrollSpy, 250); });\n                setTimeout(() => initOrRefreshScrollSpy(), 500); // Initial refresh\n            });`; }
-        function generateToc(contentContainer, tocContainer) { /* ... (as before) ... */ tocContainer.innerHTML = ''; const headings = contentContainer.querySelectorAll('h1:not(.accordion-body h1), h2:not(.accordion-body h2), h3:not(.accordion-body h3), h4:not(.accordion-body h4), h5:not(.accordion-body h5), h6:not(.accordion-body h6)'); let usedIds = new Set(); headings.forEach((heading, index) => { const level = parseInt(heading.tagName.substring(1)); let baseId = heading.getAttribute('id'); if (!baseId) { baseId = slugify(heading.textContent); } else { baseId = slugify(baseId); } let id = baseId || `section-${index + 1}`; let i = 1; while (usedIds.has(id) || document.getElementById(id)) { id = `${baseId || 'section'}-${index + 1}-${i}`; i++; } if (heading.getAttribute('id') !== id) { heading.setAttribute('id', id); } usedIds.add(id); const link = document.createElement('a'); link.classList.add('nav-link'); if (level > 1) { link.classList.add(`ps-${Math.min(level + 1, 6)}`); } link.href = `#${id}`; link.textContent = heading.textContent.trim() || `Sección ${index + 1}`; link.title = heading.textContent.trim() || `Sección ${index + 1}`; tocContainer.appendChild(link); }); }
-        function updateColorPickers(variables) { /* ... (as before) ... */ personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; if (varName && variables[varName]) { try { let colorValue = variables[varName]; if (!/^#([0-9a-fA-F]{3}){1,2}$/i.test(colorValue)) { colorValue = defaultCssVariables[varName] || '#000000'; } input.value = colorValue; } catch(e) { input.value = defaultCssVariables[varName] || '#000000'; } } }); }
-        function applyTheme(themeIndex) { /* ... (as before) ... */ if (themeIndex < 0 || themeIndex >= themes.length) { return; } const themeVariables = themes[themeIndex].variables; const root = document.documentElement; for (const [key, value] of Object.entries(themeVariables)) { root.style.setProperty(key, value); } updateColorPickers(themeVariables); }
+        function generateJsForDownload(targetId = '#indiceContenido', bodySelector = '.generated-html-body', offset = SCROLL_OFFSET_DOWNLOAD) {
+            return `
+            document.addEventListener('DOMContentLoaded', () => {
+                const scrollSpyTarget = document.querySelector('${targetId}');
+                const scrollSpyBody = document.querySelector('${bodySelector}');
+                const scrollOffset = ${offset};
+                let currentScrollSpy = null;
+
+                function initOrRefreshScrollSpy() {
+                    if (!scrollSpyBody || !scrollSpyTarget) {
+                        console.warn('ScrollSpy target or body not found.');
+                        return;
+                    }
+                    try {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.ScrollSpy) {
+                            if (currentScrollSpy) {
+                                currentScrollSpy.dispose();
+                            }
+                            currentScrollSpy = new bootstrap.ScrollSpy(scrollSpyBody, {
+                                target: scrollSpyTarget,
+                                offset: scrollOffset,
+                                rootMargin: '0px 0px -25%'
+                            });
+                        } else {
+                            console.warn('Bootstrap ScrollSpy component not found.');
+                        }
+                    } catch (e) {
+                        console.error('Error initializing ScrollSpy:', e);
+                    }
+                }
+
+                initOrRefreshScrollSpy();
+
+                document.querySelectorAll('${targetId} a[href^="#"]').forEach(anchor => {
+                    anchor.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const targetId = this.getAttribute('href');
+                        try {
+                            const targetElement = document.querySelector(targetId);
+                            if (targetElement) {
+                                const elementPosition = targetElement.getBoundingClientRect().top;
+                                const offsetPosition = elementPosition + window.pageYOffset - scrollOffset + 5;
+                                window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+                            } else { console.warn('Scroll target element not found:', targetId); }
+                        } catch (err) { console.error('Error scrolling to element:', err); }
+                    });
+                });
+
+                const mainContentElement = document.querySelector('#mainContent');
+                if (mainContentElement && typeof addCopyButtons === 'function') {
+                    addCopyButtons(mainContentElement);
+                } else if (!mainContentElement) {
+                     console.warn('#mainContent not found for adding copy buttons.');
+                } else {
+                     console.warn('addCopyButtons function not found.');
+                }
+
+
+                let resizeTimeout;
+                window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(initOrRefreshScrollSpy, 250); });
+                setTimeout(() => initOrRefreshScrollSpy(), 500);
+            });`;
+        }
+
+        function generateToc(contentContainer, tocContainer) { tocContainer.innerHTML = ''; const headings = contentContainer.querySelectorAll('h1:not(.accordion-body h1), h2:not(.accordion-body h2), h3:not(.accordion-body h3), h4:not(.accordion-body h4), h5:not(.accordion-body h5), h6:not(.accordion-body h6)'); let usedIds = new Set(); headings.forEach((heading, index) => { const level = parseInt(heading.tagName.substring(1)); let baseId = heading.getAttribute('id'); if (!baseId) { baseId = slugify(heading.textContent); } else { baseId = slugify(baseId); } let id = baseId || `section-${index + 1}`; let i = 1; while (usedIds.has(id) || document.getElementById(id)) { id = `${baseId || 'section'}-${index + 1}-${i}`; i++; } if (heading.getAttribute('id') !== id) { heading.setAttribute('id', id); } usedIds.add(id); const link = document.createElement('a'); link.classList.add('nav-link'); if (level > 1) { link.classList.add(`ps-${Math.min(level + 1, 6)}`); } link.href = `#${id}`; link.textContent = heading.textContent.trim() || `Sección ${index + 1}`; link.title = heading.textContent.trim() || `Sección ${index + 1}`; tocContainer.appendChild(link); }); }
+        function updateColorPickers(variables) { personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; if (varName && variables[varName]) { try { let colorValue = variables[varName]; if (!/^#([0-9a-fA-F]{3}){1,2}$/i.test(colorValue)) { colorValue = defaultCssVariables[varName] || '#000000'; } input.value = colorValue; } catch(e) { input.value = defaultCssVariables[varName] || '#000000'; } } }); }
+        function applyTheme(themeIndex) {
+            if (themeIndex < 0 || themeIndex >= themes.length) { return; }
+            const themeVariables = themes[themeIndex].variables;
+            const root = document.documentElement;
+            for (const [key, value] of Object.entries(themeVariables)) { root.style.setProperty(key, value); }
+            updateColorPickers(themeVariables);
+            // Correctly check the text color to determine if it's a "dark" theme
+            const textColor = getComputedStyle(root).getPropertyValue('--text-color').trim().toLowerCase();
+            const bgColor = getComputedStyle(root).getPropertyValue('--body-bg-color').trim().toLowerCase();
+            // Basic heuristic: if text is light (e.g., starts with #f or is 'white') and bg is dark (e.g., starts with #0, #1, #2)
+            const isLikelyDark = (textColor.startsWith('#f') || textColor === 'white') && (bgColor.startsWith('#0') || bgColor.startsWith('#1') || bgColor.startsWith('#2') || bgColor === 'black');
+
+            if (isLikelyDark) {
+                root.setAttribute('data-bs-theme', 'dark');
+            } else {
+                 root.removeAttribute('data-bs-theme');
+                 const offcanvasClose = document.querySelector('.offcanvas-header .btn-close');
+                 if(offcanvasClose) { offcanvasClose.style.display = 'none'; offcanvasClose.offsetHeight; offcanvasClose.style.display = ''; }
+            }
+        }
 
         function generateHtmlPreview() {
             const markdownText = markdownInput.value;
             const preprocessedMarkdown = preprocessMarkdown(markdownText);
-
-            marked.setOptions({
-                gfm: true,
-                breaks: false,
-                pedantic: false,
-                smartLists: true,
-                smartypants: false
-            });
+            marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
             const rawHtml = marked.parse(preprocessedMarkdown);
-
-            const cleanHtml = DOMPurify.sanitize(rawHtml, {
-                USE_PROFILES: { html: true },
-                ADD_TAGS: ['button'], // Necesario para los botones del acordeón
-                ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role'] // Atributos Bootstrap para acordeón
-            });
-
+            const cleanHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true }, ADD_TAGS: ['button'], ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style'], FORCE_REL_FOR_EXTERNAL_LINKS: true });
             mainContentPreview.innerHTML = cleanHtml;
             generateToc(mainContentPreview, indiceNavPreview);
             addCopyButtons(mainContentPreview);
-
-            if (scrollSpyInstance) {
-                scrollSpyInstance.dispose();
-                scrollSpyInstance = null;
-            }
+            if (scrollSpyInstance) { scrollSpyInstance.dispose(); scrollSpyInstance = null; }
             if (htmlOutputBody && indiceContenidoPreviewContainer && mainContentPreview.innerHTML.trim() !== '') {
                 try {
                     if (typeof bootstrap !== 'undefined' && bootstrap.ScrollSpy) {
-                        scrollSpyInstance = new bootstrap.ScrollSpy(htmlOutputBody, {
-                            target: '#indiceContenidoPreview',
-                            offset: SCROLL_OFFSET_PREVIEW,
-                            rootMargin: '0px 0px -25%'
-                        });
-                        setTimeout(() => {
-                            if (scrollSpyInstance) {
-                                scrollSpyInstance.refresh();
-                                window.dispatchEvent(new Event('scroll')); // Forzar actualización visual si es necesario
-                            }
-                        }, 300); // Pequeño retardo para asegurar que el DOM está listo
-                    } else {
-                        console.warn("Bootstrap or ScrollSpy not loaded.");
-                    }
-                } catch(e) {
-                    console.error("Error initializing ScrollSpy:", e);
-                    scrollSpyInstance = null;
-                }
-            } else if (!mainContentPreview.innerHTML.trim()) {
-                indiceNavPreview.innerHTML = ''; // Limpiar índice si no hay contenido
-            }
+                        scrollSpyInstance = new bootstrap.ScrollSpy(htmlOutputBody, { target: '#indiceContenidoPreview', offset: SCROLL_OFFSET_PREVIEW, rootMargin: '0px 0px -25%' });
+                        setTimeout(() => { if (scrollSpyInstance) { scrollSpyInstance.refresh(); window.dispatchEvent(new Event('scroll')); } }, 300);
+                    } else { console.warn("Bootstrap or ScrollSpy not loaded."); }
+                } catch(e) { console.error("Error initializing ScrollSpy:", e); scrollSpyInstance = null; }
+            } else if (!mainContentPreview.innerHTML.trim()) { indiceNavPreview.innerHTML = ''; }
         }
 
         function downloadHtml() {
             const markdownText = markdownInput.value;
-            if (!markdownText.trim()) {
-                alert("No hay contenido Markdown para descargar.");
-                return;
-            }
+            if (!markdownText.trim()) { alert("No hay contenido Markdown para descargar."); return; }
             const preprocessedMarkdown = preprocessMarkdown(markdownText);
             marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
             const rawHtml = marked.parse(preprocessedMarkdown);
-            const cleanHtml = DOMPurify.sanitize(rawHtml, {
-                USE_PROFILES: { html: true },
-                ADD_TAGS: ['button'],
-                ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role']
-            });
-
+            const cleanHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true }, ADD_TAGS: ['button'], ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style'], FORCE_REL_FOR_EXTERNAL_LINKS: true });
             const tempContent = document.createElement('div');
             tempContent.innerHTML = cleanHtml;
             const tempTocNav = document.createElement('nav');
             tempTocNav.classList.add('nav', 'nav-pills', 'flex-column');
             tempTocNav.id = 'indiceNav';
             generateToc(tempContent, tempTocNav);
-
             const cssToEmbed = generateCssForDownload();
             const jsToEmbed = generateJsForDownload('#indiceContenido', '.generated-html-body', SCROLL_OFFSET_DOWNLOAD);
-
+            const addCopyButtonsFuncStringForDownload = addCopyButtons.toString();
             const firstHeadingElement = tempContent.querySelector('h1:not(.accordion-body h1), h2:not(.accordion-body h2), h3:not(.accordion-body h3), h4:not(.accordion-body h4), h5:not(.accordion-body h5), h6:not(.accordion-body h6)');
             const pageTitle = firstHeadingElement ? firstHeadingElement.textContent.trim() : 'Documento Generado';
 
-            const htmlContent = `<!DOCTYPE html>\n<html lang="es">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>${pageTitle.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title>\n    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">\n    <style>\n/* Embedded CSS */\n${cssToEmbed}\n    </style>\n</head>\n<body class="generated-html-body" data-bs-spy="scroll" data-bs-target="#indiceContenido" data-bs-offset="${SCROLL_OFFSET_DOWNLOAD + 10}">\n    <div class="container-fluid mt-4">\n        <div class="row">\n            <div class="col-md-4 col-lg-3 d-none d-md-block">\n                <nav id="indiceContenido">\n                    <h5 class="mb-3">Índice</h5>\n                    ${tempTocNav.outerHTML}\n                </nav>\n            </div>\n            <div class="col-md-8 col-lg-9">\n                <main id="mainContent">\n                    ${tempContent.innerHTML}\n                </main>\n            </div>\n        </div>\n    </div>\n    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"><\/script>\n    <script>\n// Embedded JS\n${jsToEmbed}\n    <\/script>\n</body>\n</html>`;
+            // --- CORRECTION HERE ---
+            const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            // --- END CORRECTION ---
+
+            const htmlAttributes = isDark ? `data-bs-theme="dark"` : '';
+            const bodyClass = `generated-html-body`;
+
+            const htmlContent = `<!DOCTYPE html>
+<html lang="es" ${htmlAttributes}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${pageTitle.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+/* Embedded CSS */
+${cssToEmbed}
+    </style>
+</head>
+<body class="${bodyClass}" data-bs-spy="scroll" data-bs-target="#indiceContenido" data-bs-offset="${SCROLL_OFFSET_DOWNLOAD + 10}">
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-md-4 col-lg-3 d-none d-md-block">
+                <nav id="indiceContenido">
+                    <h5 class="mb-3">Índice</h5>
+                    ${tempTocNav.outerHTML}
+                </nav>
+            </div>
+            <div class="col-md-8 col-lg-9">
+                <main id="mainContent">
+                    ${tempContent.innerHTML}
+                </main>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"><\/script>
+    <script>
+// Embedded JS
+${addCopyButtonsFuncStringForDownload}
+${jsToEmbed}
+    <\/script>
+</body>
+</html>`;
+
             const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -289,37 +400,79 @@ ${parsedInnerContent}
             URL.revokeObjectURL(url);
         }
 
-        // === NEW FUNCTION to Insert Accordion Template ===
         function insertAccordionTemplate() {
             const textarea = markdownInput;
             const startPos = textarea.selectionStart;
             const endPos = textarea.selectionEnd;
-            const textToInsert = '++S Acordeón\n...\n++E\n';
+            const textToInsert =
+`++S Título del Acordeón
+Aquí va el contenido que estará inicialmente oculto.
+Puedes usar **Markdown** aquí dentro.
+++E
+`;
+            textarea.value = textarea.value.substring(0, startPos) + textToInsert + textarea.value.substring(endPos);
+            const titlePlaceholder = 'Título del Acordeón';
+            const cursorPos = startPos + textToInsert.indexOf(titlePlaceholder);
+            const cursorEnd = cursorPos + titlePlaceholder.length;
+            textarea.selectionStart = cursorPos;
+            textarea.selectionEnd = cursorEnd;
+            textarea.focus();
+        }
 
-            textarea.value = textarea.value.substring(0, startPos) +
-                             textToInsert +
-                             textarea.value.substring(endPos);
-
-            const cursorPos = startPos + textToInsert.indexOf('...');
+        function insertImageHtml(base64DataUrl, altText = "Imagen insertada") {
+            const textarea = markdownInput;
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            const safeAltText = altText.replace(/"/g, '&quot;');
+            const textToInsert =
+`
+<img src="${base64DataUrl}" alt="${safeAltText}" class="img-fluid">
+`;
+            textarea.value = textarea.value.substring(0, startPos) + textToInsert + textarea.value.substring(endPos);
+            const cursorPos = startPos + textToInsert.length;
             textarea.selectionStart = cursorPos;
             textarea.selectionEnd = cursorPos;
             textarea.focus();
             generateHtmlPreview();
         }
-        // === END NEW FUNCTION ===
 
+        function handleImageFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(loadEvent) { insertImageHtml(loadEvent.target.result, file.name); }
+                reader.onerror = function(errorEvent) { console.error("Error leyendo el archivo de imagen:", errorEvent); alert("Hubo un error al intentar leer el archivo de imagen."); }
+                reader.readAsDataURL(file);
+            } else if (file) { alert("Por favor, selecciona un archivo de imagen válido (jpg, png, gif, svg, webp, etc.)."); }
+            event.target.value = null;
+        }
 
         function initializeApp() {
             themes.forEach((theme, index) => { const option = document.createElement('option'); option.value = index; option.textContent = theme.name; themeSelector.appendChild(option); });
-            applyTheme(0); themeSelector.value = "0";
-
-            personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; input.addEventListener('input', (event) => { if (varName) { document.documentElement.style.setProperty(varName, event.target.value); } }); });
-            themeSelector.addEventListener('change', (event) => { const selectedIndex = parseInt(event.target.value, 10); if (!isNaN(selectedIndex) && selectedIndex >= 0) { applyTheme(selectedIndex); } });
-
+            personalizationInputs.forEach(input => {
+                const varName = input.dataset.cssVar;
+                input.addEventListener('input', (event) => {
+                    if (varName) {
+                        document.documentElement.style.setProperty(varName, event.target.value);
+                        // Re-evaluate and apply dark/light mode attribute after manual color change
+                        applyTheme(parseInt(themeSelector.value, 10)); // Re-apply the logic from the selected theme base
+                    }
+                });
+            });
+            themeSelector.addEventListener('change', (event) => {
+                const selectedIndex = parseInt(event.target.value, 10);
+                if (!isNaN(selectedIndex) && selectedIndex >= 0) {
+                    applyTheme(selectedIndex);
+                    generateHtmlPreview(); // Regenerate preview on theme change
+                }
+            });
             generateBtn.addEventListener('click', generateHtmlPreview);
             downloadBtn.addEventListener('click', downloadHtml);
             insertAccordionBtn.addEventListener('click', insertAccordionTemplate);
-
+            insertImageBtn.addEventListener('click', () => { imageFileInput.click(); });
+            imageFileInput.addEventListener('change', handleImageFileSelect);
+            applyTheme(0);
+            themeSelector.value = "0";
             generateHtmlPreview();
         }
 
