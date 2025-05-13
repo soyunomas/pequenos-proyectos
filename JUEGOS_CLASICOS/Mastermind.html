@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Mastermind JS Pro Fit Corrected</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            /* Colores base */
+            --body-bg: #f0f2f5;
+            --container-bg: #ffffff;
+            --text-color: #212529;
+            --border-color: #dee2e6;
+            --slot-empty-bg: #e9ecef;
+            --peg-black-bg: #212529; /* Negro para "acierto total" en modo claro */
+            --peg-white-bg: #f8f9fa; /* Blanco para "acierto parcial" en modo claro */
+            --peg-border-color: #6c757d; /* Borde estándar para pegs en modo claro */
+            --history-border-color: #eee;
+            --history-row-border-color: #f1f1f1;
+            --color-slot-border: #ccc;
+            --button-help-color: #6c757d;
+            --modal-text-color: #212529;
+            --modal-bg-color: #fff;
+            --modal-header-border-color: #dee2e6;
+
+            /* Tamaños base - serán ajustados por JS */
+            --main-font-size: 1rem;
+            --header-font-size: 1.5rem; /* h1 del juego */
+            --color-slot-size: 40px;
+            --palette-color-size: 40px;
+            --history-slot-size: 30px;
+            --peg-size: 15px;
+            --peg-history-size: 12px;
+            --slot-margin: 5px;
+            --peg-margin: 3px;
+            --base-padding: 20px; /* Padding del game-container */
+            --base-margin-bottom: 1rem; /* Margen general entre secciones */
+            --attempts-history-max-height: 250px; 
+            --button-padding-y: .375rem;
+            --button-padding-x: .75rem;
+        }
+
+        html[data-bs-theme="dark"] {
+            --body-bg: #212529;
+            --container-bg: #2b3035;
+            --text-color: #f8f9fa;
+            --border-color: #495057;
+            --slot-empty-bg: #343a40;
+
+            /* Pegs en modo oscuro: "negra" se ve oscura, "blanca" se ve clara */
+            --peg-black-bg: #495057;      /* Gris oscuro para "acierto total" */
+            --peg-white-bg: #dee2e6;      /* Gris muy claro para "acierto parcial" */
+            --peg-border-color: #899096;  /* Borde gris medio/claro que contrasta con ambos backgrounds de peg */
+            
+            --history-border-color: #343a40;
+            --history-row-border-color: #3e444a;
+            --color-slot-border: #495057;
+            --button-help-color: #adb5bd;
+            --modal-text-color: #f8f9fa;
+            --modal-bg-color: #2b3035;
+            --modal-header-border-color: #343a40;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--body-bg);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; 
+            min-height: 100vh; 
+            height: 100vh; 
+            overflow-y: auto; 
+            font-size: var(--main-font-size);
+            padding-top: 10px; 
+            padding-bottom: 10px; 
+            transition: background-color 0.3s, color 0.3s;
+        }
+        #game-container {
+            background-color: var(--container-bg);
+            padding: var(--base-padding);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 20px); 
+        }
+        .color-slot, .palette-color {
+            width: var(--palette-color-size);
+            height: var(--palette-color-size);
+            border-radius: 50%;
+            margin: var(--slot-margin);
+            border: 1px solid var(--color-slot-border);
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+            user-select: none; 
+        }
+        .palette-color:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        .color-slot.dragging { opacity: 0.5; border-style: dashed; }
+        .color-slot.drag-over {
+            border-color: var(--bs-primary);
+            box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.5);
+        }
+        .peg {
+            width: var(--peg-history-size); 
+            height: var(--peg-history-size);
+            border-radius: 50%;
+            margin: calc(var(--peg-margin) / 2); 
+            display: inline-block;
+            border: 1px solid var(--peg-border-color); /* Usa la variable de borde de peg */
+        }
+        #attempts-history {
+            max-height: var(--attempts-history-max-height);
+            overflow-y: auto;
+            margin-bottom: var(--base-margin-bottom);
+            border: 1px solid var(--history-border-color);
+            padding: calc(var(--base-padding) / 2);
+            border-radius: 4px;
+            background-color: var(--slot-empty-bg);
+            flex-shrink: 1; 
+        }
+        .attempt-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: calc(var(--slot-margin) / 1.5);
+            padding-bottom: calc(var(--slot-margin) / 1.5);
+            border-bottom: 1px solid var(--history-row-border-color);
+        }
+        .attempt-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .attempt-colors { display: flex; flex-grow: 1; }
+        .attempt-colors .color-slot { 
+            width: var(--history-slot-size);
+            height: var(--history-slot-size);
+            margin: calc(var(--slot-margin) / 2);
+            cursor: default;
+        }
+        .attempt-pegs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1px;
+            width: calc(var(--peg-history-size) * 2 + var(--peg-margin) * 2); 
+            margin-left: var(--slot-margin);
+            align-items: center;
+            justify-items: center;
+        }
+
+        #secret-code-area {
+            margin-top: calc(var(--base-margin-bottom) / 2);
+            padding: calc(var(--base-padding) / 3);
+            background-color: var(--slot-empty-bg);
+            border-radius: 4px;
+        }
+        #secret-code-display .color-slot { 
+            width: var(--history-slot-size); 
+            height: var(--history-slot-size); 
+            margin: calc(var(--slot-margin) / 2); 
+            cursor: default;
+        }
+        .controls button { 
+            margin: calc(var(--slot-margin) / 1.5);
+            padding: var(--button-padding-y) var(--button-padding-x);
+            font-size: calc(var(--main-font-size) * 0.9);
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: calc(var(--base-margin-bottom) / 1.5);
+        }
+        .header-controls h1 {
+            font-size: var(--header-font-size);
+            margin-bottom: 0;
+        }
+        #help-button { color: var(--button-help-color); font-weight: bold; padding: 0.2rem 0.4rem; }
+        
+        .modal-content { background-color: var(--modal-bg-color); color: var(--modal-text-color); }
+        .modal-header { border-bottom-color: var(--modal-header-border-color); }
+        .modal-footer { border-top-color: var(--modal-header-border-color); }
+        .color-slot-ejemplo { 
+            width: var(--history-slot-size); 
+            height: var(--history-slot-size);
+            margin: calc(var(--slot-margin) / 2);
+            border: 1px solid var(--color-slot-border);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .peg-ejemplo { /* Usa el tamaño de peg general y el borde de peg */
+            width: var(--peg-size); 
+            height: var(--peg-size);
+            margin: var(--peg-margin);
+            border: 1px solid var(--peg-border-color); 
+            border-radius: 50%;
+            display: inline-block;
+        }
+        #current-attempt-slots, #color-palette {
+            margin-bottom: calc(var(--base-margin-bottom) / 1.5);
+        }
+        #message-area {
+            padding: calc(var(--base-padding) / 2.5);
+            margin-bottom: calc(var(--base-margin-bottom) / 1.5);
+            font-size: calc(var(--main-font-size) * 0.9);
+        }
+        #attempts-counter {
+            margin-bottom: calc(var(--base-margin-bottom) / 2);
+            font-size: calc(var(--main-font-size) * 0.9);
+        }
+        strong { font-size: calc(var(--main-font-size) * 0.95); }
+        
+        #game-board {
+            flex-grow: 1;
+            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 380px) { 
+             :root { 
+                --slot-margin: 3px;
+             }
+        }
+    </style>
+</head>
+<body>
+    <main id="game-container">
+        <header class="header-controls">
+            <h1 id="game-title">Mastermind</h1>
+            <div>
+                <button type="button" class="btn btn-sm btn-link p-0 me-2" id="help-button" aria-label="Ayuda"
+                        data-bs-toggle="modal" data-bs-target="#ayudaModal">?</button>
+                <div class="form-check form-switch d-inline-block align-middle">
+                    <input class="form-check-input" type="checkbox" role="switch" id="darkModeSwitch">
+                    <label class="form-check-label visually-hidden" for="darkModeSwitch">Modo Oscuro</label>
+                </div>
+            </div>
+        </header>
+
+        <section id="game-board">
+            <div id="message-area" class="alert alert-info" role="alert">
+                Adivina el código secreto.
+            </div>
+
+            <div id="secret-code-area" style="display: none;">
+                <strong>Solución:</strong>
+                <div id="secret-code-display" class="d-flex justify-content-center mt-1"></div>
+            </div>
+            
+            <div class="text-center">
+                <strong>Intento Actual:</strong>
+                <div id="current-attempt-slots" class="d-flex justify-content-center my-2"></div>
+            </div>
+
+            <div id="color-palette" class="text-center"></div>
+
+            <div class="controls d-flex justify-content-center flex-wrap">
+                <button id="check-attempt-button" class="btn btn-primary">Comprobar</button>
+                <button id="clear-last-button" class="btn btn-warning">Borrar</button>
+            </div>
+            
+            <div id="attempts-counter" class="text-center">
+                Intentos restantes: <span id="attempts-left">10</span>
+            </div>
+
+            <strong class="d-block mt-2">Historial de Intentos:</strong>
+            <div id="attempts-history" class="mt-1">
+            </div>
+
+            <div class="text-center mt-auto pt-2"> 
+                <button id="reset-button" class="btn btn-success" style="display: none;">Jugar de Nuevo</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de Ayuda -->
+    <div class="modal fade" id="ayudaModal" tabindex="-1" aria-labelledby="ayudaModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="ayudaModalLabel">Cómo Jugar</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Adivina el código secreto de 4 colores en 10 intentos. Puede haber colores repetidos.</p>
+            <p><strong>Arrastra</strong> colores de la paleta a los huecos, o haz <strong>clic</strong> en un color de la paleta para añadirlo al primer hueco disponible.</p>
+            <p>Pistas:</p>
+            <ul>
+              <li><span class="peg-ejemplo" style="background-color: var(--peg-black-bg);"></span> Clavija Oscura: Color y posición correctos.</li>
+              <li><span class="peg-ejemplo" style="background-color: var(--peg-white-bg);"></span> Clavija Clara: Color correcto, posición incorrecta.</li>
+            </ul>
+            <hr/>
+            <p><strong>Ejemplo:</strong> Secreto:
+                <span class="color-slot-ejemplo" style="background-color: #dc3545;"></span>
+                <span class="color-slot-ejemplo" style="background-color: #ffc107;"></span>
+                <span class="color-slot-ejemplo" style="background-color: #198754;"></span>
+                <span class="color-slot-ejemplo" style="background-color: #dc3545;"></span>
+            (R, Am, V, R)</p>
+            <p>Intento:
+                <span class="color-slot-ejemplo" style="background-color: #dc3545;"></span>
+                <span class="color-slot-ejemplo" style="background-color: #198754;"></span>
+                <span class="color-slot-ejemplo" style="background-color: #0d6efd;"></span>
+                <span class="color-slot-ejemplo" style="background-color: #ffc107;"></span>
+                Pistas:
+                <span class="peg-ejemplo" style="background-color: var(--peg-black-bg);"></span>
+                <span class="peg-ejemplo" style="background-color: var(--peg-white-bg);"></span>
+                <span class="peg-ejemplo" style="background-color: var(--peg-white-bg);"></span>
+            <br><small>(Tu intento: R, V, Az, Am -> Resultado: 1 Oscura, 2 Claras)</small>
+            </p>
+            <p>Las pistas no indican qué color de tu intento es correcto.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Entendido</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const COLORES_DISPONIBLES_DATA = {
+            'rojo': { nombre: 'Rojo', hex: '#dc3545' },
+            'azul': { nombre: 'Azul', hex: '#0d6efd' },
+            'verde': { nombre: 'Verde', hex: '#198754' },
+            'amarillo': { nombre: 'Amarillo', hex: '#ffc107' },
+            'naranja': { nombre: 'Naranja', hex: '#fd7e14' },
+            'morado': { nombre: 'Morado', hex: '#6f42c1' }
+        };
+        const COLOR_NAMES = Object.keys(COLORES_DISPONIBLES_DATA);
+        const LONGITUD_CODIGO = 4;
+        const MAX_INTENTOS = 10;
+
+        let codigoSecreto = [];
+        let intentosRealizados = [];
+        let intentosRestantes = MAX_INTENTOS;
+        let intentoActual = Array(LONGITUD_CODIGO).fill(null);
+        let estadoJuego = 'en_curso';
+        let draggedItemData = null; 
+
+        let elPaletaColores, elIntentoActualSlots, elHistorialIntentos, elMensajeArea, 
+            elIntentosRestantes, elBtnComprobar, elBtnBorrar, elBtnReset, 
+            elCodigoSecretoDisplay, elAreaCodigoSecreto, elDarkModeSwitch, elGameTitle;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cacheDOM();
+            ajustarTamanosSegunPantalla(); 
+            initDarkMode();
+            iniciarJuego();
+            window.addEventListener('resize', ajustarTamanosSegunPantalla); 
+        });
+
+        function cacheDOM() {
+            elPaletaColores = document.getElementById('color-palette');
+            elIntentoActualSlots = document.getElementById('current-attempt-slots');
+            elHistorialIntentos = document.getElementById('attempts-history');
+            elMensajeArea = document.getElementById('message-area');
+            elIntentosRestantes = document.getElementById('attempts-left');
+            elBtnComprobar = document.getElementById('check-attempt-button');
+            elBtnBorrar = document.getElementById('clear-last-button');
+            elBtnReset = document.getElementById('reset-button');
+            elCodigoSecretoDisplay = document.getElementById('secret-code-display');
+            elAreaCodigoSecreto = document.getElementById('secret-code-area');
+            elDarkModeSwitch = document.getElementById('darkModeSwitch');
+            elGameTitle = document.getElementById('game-title');
+
+            elBtnComprobar.addEventListener('click', comprobarIntento);
+            elBtnBorrar.addEventListener('click', borrarUltimoColorLleno);
+            elBtnReset.addEventListener('click', iniciarJuego);
+            elDarkModeSwitch.addEventListener('change', toggleDarkMode);
+        }
+
+        function ajustarTamanosSegunPantalla() {
+            const rootStyle = document.documentElement.style;
+            const viewportHeight = window.innerHeight;
+            let scaleFactor = 1.0;
+
+            const baseMainFontSize = 16; 
+            const baseHeaderFontSize = 24; 
+            const baseColorSlotSize = 40; 
+            const baseHistorySlotSize = 30; 
+            const basePegSize = 15; 
+            const basePegHistorySize = 12; 
+            const baseSlotMargin = 5; 
+            const basePadding = 20; 
+            const baseMarginBottom = 16; 
+            let baseAttemptsHistoryMaxHeight = 250; 
+            const baseButtonPaddingY = 6; 
+            const baseButtonPaddingX = 12; 
+            
+            if (viewportHeight < 500) { 
+                scaleFactor = 0.65;
+                baseAttemptsHistoryMaxHeight = 100; 
+            } else if (viewportHeight < 600) { 
+                scaleFactor = 0.75;
+                baseAttemptsHistoryMaxHeight = 150;
+            } else if (viewportHeight < 700) { 
+                scaleFactor = 0.85;
+                baseAttemptsHistoryMaxHeight = 200;
+            }
+            
+            rootStyle.setProperty('--main-font-size', (baseMainFontSize * Math.max(scaleFactor, 0.75)) + 'px'); 
+            rootStyle.setProperty('--header-font-size', (baseHeaderFontSize * Math.max(scaleFactor, 0.8)) + 'px');
+            if(elGameTitle) elGameTitle.style.fontSize = `calc(${baseHeaderFontSize * Math.max(scaleFactor, 0.8)}px * 0.8)`; 
+
+
+            rootStyle.setProperty('--color-slot-size', (baseColorSlotSize * scaleFactor) + 'px');
+            rootStyle.setProperty('--palette-color-size', (baseColorSlotSize * scaleFactor) + 'px');
+            rootStyle.setProperty('--history-slot-size', (baseHistorySlotSize * scaleFactor) + 'px');
+            rootStyle.setProperty('--peg-size', (basePegSize * scaleFactor) + 'px');
+            rootStyle.setProperty('--peg-history-size', (basePegHistorySize * scaleFactor) + 'px');
+            
+            rootStyle.setProperty('--slot-margin', (baseSlotMargin * scaleFactor) + 'px');
+            rootStyle.setProperty('--peg-margin', (baseSlotMargin * scaleFactor / 2) + 'px'); 
+
+            rootStyle.setProperty('--base-padding', (basePadding * scaleFactor) + 'px');
+            rootStyle.setProperty('--base-margin-bottom', (baseMarginBottom * scaleFactor) + 'px');
+            
+            rootStyle.setProperty('--attempts-history-max-height', baseAttemptsHistoryMaxHeight + 'px');
+
+            rootStyle.setProperty('--button-padding-y', (baseButtonPaddingY * Math.max(scaleFactor, 0.8)) + 'px');
+            rootStyle.setProperty('--button-padding-x', (baseButtonPaddingX * Math.max(scaleFactor, 0.8)) + 'px');
+        }
+        
+        function initDarkMode() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            elDarkModeSwitch.checked = savedTheme === 'dark';
+        }
+
+        function toggleDarkMode() {
+            const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+        
+        function iniciarJuego() {
+            codigoSecreto = generarCodigoSecreto();
+            intentosRealizados = [];
+            intentosRestantes = MAX_INTENTOS;
+            intentoActual = Array(LONGITUD_CODIGO).fill(null);
+            estadoJuego = 'en_curso';
+
+            renderizarPaleta();
+            renderizarIntentoActualDisplay();
+            renderizarHistorial();
+            actualizarMensajesYControles();
+            
+            elAreaCodigoSecreto.style.display = 'none';
+            elBtnReset.style.display = 'none';
+            elBtnComprobar.disabled = false;
+            elBtnBorrar.disabled = false;
+            if(elPaletaColores) elPaletaColores.querySelectorAll('.palette-color').forEach(btn => btn.disabled = false);
+        }
+
+        function generarCodigoSecreto() {
+            const nuevoCodigo = [];
+            for (let i = 0; i < LONGITUD_CODIGO; i++) {
+                const indiceAleatorio = Math.floor(Math.random() * COLOR_NAMES.length);
+                nuevoCodigo.push(COLOR_NAMES[indiceAleatorio]);
+            }
+            return nuevoCodigo;
+        }
+
+        function renderizarPaleta() {
+            elPaletaColores.innerHTML = '';
+            COLOR_NAMES.forEach(nombreColor => {
+                const colorData = COLORES_DISPONIBLES_DATA[nombreColor];
+                const botonColor = document.createElement('button');
+                botonColor.classList.add('palette-color');
+                botonColor.style.backgroundColor = colorData.hex;
+                botonColor.dataset.color = nombreColor;
+                botonColor.setAttribute('aria-label', `Seleccionar color ${colorData.nombre}`);
+                
+                botonColor.draggable = true;
+                botonColor.addEventListener('dragstart', (event) => handleDragStart(event, nombreColor, 'palette'));
+                botonColor.addEventListener('click', () => seleccionarColorDesdePaleta(nombreColor));
+                
+                elPaletaColores.appendChild(botonColor);
+            });
+        }
+
+        function renderizarIntentoActualDisplay() {
+            elIntentoActualSlots.innerHTML = '';
+            for (let i = 0; i < LONGITUD_CODIGO; i++) {
+                const slot = document.createElement('div');
+                slot.classList.add('color-slot');
+                slot.dataset.index = i;
+                const colorNombre = intentoActual[i];
+                slot.style.backgroundColor = colorNombre ? COLORES_DISPONIBLES_DATA[colorNombre].hex : 'var(--slot-empty-bg)';
+
+                slot.addEventListener('dragover', handleDragOver);
+                slot.addEventListener('dragleave', handleDragLeave);
+                slot.addEventListener('drop', handleDrop);
+                
+                if (colorNombre) {
+                    slot.draggable = true;
+                    slot.addEventListener('dragstart', (event) => handleDragStart(event, colorNombre, 'attempt', i));
+                } else {
+                    slot.draggable = false;
+                }
+                elIntentoActualSlots.appendChild(slot);
+            }
+        }
+        
+        function seleccionarColorDesdePaleta(colorNombre) {
+            if (estadoJuego !== 'en_curso') return;
+            const primerSlotVacio = intentoActual.indexOf(null);
+            if (primerSlotVacio !== -1) {
+                intentoActual[primerSlotVacio] = colorNombre;
+                renderizarIntentoActualDisplay();
+            }
+        }
+
+        function borrarUltimoColorLleno() {
+            if (estadoJuego !== 'en_curso') return;
+            for (let i = LONGITUD_CODIGO - 1; i >= 0; i--) {
+                if (intentoActual[i] !== null) {
+                    intentoActual[i] = null;
+                    renderizarIntentoActualDisplay();
+                    return; 
+                }
+            }
+        }
+        
+        function handleDragStart(event, colorName, sourceType, sourceIndex = null) {
+            if (estadoJuego !== 'en_curso') {
+                event.preventDefault();
+                return;
+            }
+            draggedItemData = { color: colorName, type: sourceType, index: sourceIndex };
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', colorName); 
+            if(event.currentTarget.classList) event.currentTarget.classList.add('dragging');
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            if (estadoJuego === 'en_curso' && event.currentTarget.classList.contains('color-slot')) {
+                event.dataTransfer.dropEffect = 'move';
+                event.currentTarget.classList.add('drag-over');
+            } else {
+                event.dataTransfer.dropEffect = 'none';
+            }
+        }
+
+        function handleDragLeave(event) {
+            if (event.currentTarget.classList.contains('color-slot')) {
+                event.currentTarget.classList.remove('drag-over');
+            }
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            if (estadoJuego !== 'en_curso' || !draggedItemData) return;
+
+            const targetSlotElement = event.currentTarget;
+            targetSlotElement.classList.remove('drag-over');
+            document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+
+            const targetIndex = parseInt(targetSlotElement.dataset.index);
+
+            if (draggedItemData.type === 'palette') {
+                intentoActual[targetIndex] = draggedItemData.color;
+            } else if (draggedItemData.type === 'attempt') {
+                const sourceIndex = draggedItemData.index;
+                if (sourceIndex === targetIndex) { 
+                    draggedItemData = null;
+                    return;
+                }
+                const colorToMove = intentoActual[sourceIndex];
+                const colorAtTarget = intentoActual[targetIndex];
+
+                intentoActual[targetIndex] = colorToMove;
+                intentoActual[sourceIndex] = colorAtTarget; 
+            }
+            
+            renderizarIntentoActualDisplay();
+            draggedItemData = null;
+        }
+
+        document.addEventListener('dragend', () => {
+            document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+            draggedItemData = null;
+        });
+
+        function comprobarIntento() {
+            if (estadoJuego !== 'en_curso') return;
+            if (intentoActual.some(color => color === null)) {
+                mostrarMensaje('Completa tu intento con ' + LONGITUD_CODIGO + ' colores.', 'warning');
+                return;
+            }
+
+            const { negras, blancas } = calcularPistas(intentoActual, codigoSecreto);
+            intentosRealizados.push({ combinacion: [...intentoActual], negras, blancas });
+            intentosRestantes--;
+            intentoActual = Array(LONGITUD_CODIGO).fill(null); 
+
+            renderizarHistorial();
+            renderizarIntentoActualDisplay();
+            
+            if (negras === LONGITUD_CODIGO) {
+                finalizarJuego('ganado');
+            } else if (intentosRestantes === 0) {
+                finalizarJuego('perdido');
+            } else {
+                actualizarMensajesYControles();
+                 mostrarMensaje(`Intento ${MAX_INTENTOS - intentosRestantes}/${MAX_INTENTOS}. Pistas: ${negras} negras, ${blancas} blancas.`, 'info');
+            }
+        }
+
+        function calcularPistas(intento, secreto) {
+            let negras = 0;
+            let blancas = 0;
+            const intentoCopia = [...intento];
+            const secretoCopia = [...secreto];
+            const n = secreto.length;
+
+            for (let i = 0; i < n; i++) {
+                if (intentoCopia[i] === secretoCopia[i]) {
+                    negras++;
+                    intentoCopia[i] = null; 
+                    secretoCopia[i] = null; 
+                }
+            }
+
+            for (let i = 0; i < n; i++) {
+                if (intentoCopia[i] !== null) {
+                    const colorIntento = intentoCopia[i];
+                    const indiceEnSecreto = secretoCopia.findIndex(colorSecreto => colorSecreto === colorIntento);
+                    if (indiceEnSecreto !== -1) {
+                        blancas++;
+                        secretoCopia[indiceEnSecreto] = null; 
+                    }
+                }
+            }
+            return { negras, blancas };
+        }
+
+        function renderizarHistorial() {
+            elHistorialIntentos.innerHTML = '';
+            intentosRealizados.slice().reverse().forEach((intentoData) => {
+                const filaIntento = document.createElement('div');
+                filaIntento.classList.add('attempt-row');
+                
+                const divColoresIntento = document.createElement('div');
+                divColoresIntento.classList.add('attempt-colors');
+                intentoData.combinacion.forEach(colorNombre => {
+                    const slotColor = document.createElement('div');
+                    slotColor.classList.add('color-slot'); 
+                    slotColor.style.backgroundColor = COLORES_DISPONIBLES_DATA[colorNombre].hex;
+                    slotColor.style.cursor = 'default';
+                    divColoresIntento.appendChild(slotColor);
+                });
+
+                const divPistas = document.createElement('div');
+                divPistas.classList.add('attempt-pegs');
+                for (let i = 0; i < intentoData.negras; i++) {
+                    const peg = document.createElement('div');
+                    peg.classList.add('peg');
+                    peg.style.backgroundColor = 'var(--peg-black-bg)'; /* Usa la variable CSS */
+                    divPistas.appendChild(peg);
+                }
+                for (let i = 0; i < intentoData.blancas; i++) {
+                    const peg = document.createElement('div');
+                    peg.classList.add('peg');
+                    peg.style.backgroundColor = 'var(--peg-white-bg)'; /* Usa la variable CSS */
+                    divPistas.appendChild(peg);
+                }
+                
+                filaIntento.appendChild(divColoresIntento);
+                filaIntento.appendChild(divPistas);
+                elHistorialIntentos.appendChild(filaIntento);
+            });
+            elHistorialIntentos.scrollTop = 0; 
+        }
+        
+        function mostrarMensaje(mensaje, tipo = 'info') {
+            elMensajeArea.textContent = mensaje;
+            elMensajeArea.className = `alert alert-${tipo} text-center`; 
+        }
+
+        function actualizarMensajesYControles() {
+            elIntentosRestantes.textContent = intentosRestantes;
+            if (estadoJuego === 'en_curso') {
+                 mostrarMensaje(`Turno ${MAX_INTENTOS - intentosRestantes +1}. Elige ${LONGITUD_CODIGO} colores.`, 'info');
+            }
+        }
+
+        function finalizarJuego(resultado) {
+            estadoJuego = resultado;
+            elBtnComprobar.disabled = true;
+            elBtnBorrar.disabled = true;
+            if(elPaletaColores) elPaletaColores.querySelectorAll('.palette-color').forEach(btn => btn.disabled = true);
+            if(elIntentoActualSlots) elIntentoActualSlots.querySelectorAll('.color-slot').forEach(slot => slot.draggable = false);
+            
+            elAreaCodigoSecreto.style.display = 'block';
+            elCodigoSecretoDisplay.innerHTML = '';
+            codigoSecreto.forEach(colorNombre => {
+                const slot = document.createElement('div');
+                slot.classList.add('color-slot'); 
+                slot.style.backgroundColor = COLORES_DISPONIBLES_DATA[colorNombre].hex;
+                slot.style.cursor = 'default';
+                elCodigoSecretoDisplay.appendChild(slot);
+            });
+
+            if (resultado === 'ganado') {
+                mostrarMensaje('¡Felicidades! ¡Has ganado!', 'success');
+            } else {
+                mostrarMensaje('¡Has perdido! El código era el de arriba.', 'danger');
+            }
+            elBtnReset.style.display = 'inline-block';
+        }
+    </script>
+</body>
+</html>
