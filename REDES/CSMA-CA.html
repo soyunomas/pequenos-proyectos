@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador CSMA/CA Interactivo (802.11)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #f0f2f5;
+            --color-panel-bg: #ffffff;
+            --text-color: #212529;
+            --border-color: #dee2e6;
+
+            --node-sta-idle-fill: #0d6efd; /* Azul BS */
+            --node-ap-idle-fill: #198754;  /* Verde BS */
+            --node-text-color: #fff;
+
+            --node-status-listening: #0dcaf0; /* Cyan BS (anteriormente sensing) */
+            --node-status-backoff: #adb5bd; /* Gris BS */
+            --node-status-transmitting: #fd7e14; /* Naranja BS */
+            --node-status-waiting: #ffc107; /* Amarillo BS */
+            --node-status-nav: #6c757d; /* Gris Oscuro BS */
+            --node-status-difs-sifs: #d1ecf1; /* Info Light BS */
+            --node-status-error: #f8d7da; /* Rojo claro (para indicar fallo ACK) */
+
+
+            --signal-rts-fill: #fd7e14; 
+            --signal-rts-stroke: #b0580e;
+            --signal-cts-fill: #0dcaf0; 
+            --signal-cts-stroke: #0a8fa1;
+            --signal-data-fill: #6f42c1; 
+            --signal-data-stroke: #4d2d87;
+            --signal-ack-fill: #ffc107; 
+            --signal-ack-stroke: #b38600;
+            
+            --signal-text-color: #ffffff;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--text-color);
+            padding-top: 1rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .control-panel {
+            background-color: var(--color-panel-bg);
+            padding: 1.5rem;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            height: 650px; /* Aumentado ligeramente para más texto */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-panel h5 {
+            color: var(--node-ap-idle-fill);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .control-panel .step-info {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 0.875rem; 
+            line-height: 1.6; /* Mejorado para legibilidad */
+        }
+
+        .control-panel .button-group {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+        
+        .control-panel .btn {
+            font-size: 0.9rem;
+            padding: 0.3rem 0.8rem;
+        }
+
+        #wireless-medium-area {
+            background-color: var(--color-panel-bg);
+            border-radius: 0.375rem;
+            padding: 1rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            margin-bottom: 1rem;
+            height: 350px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        #csma-ca-svg {
+            width: 100%;
+            height: 250px;
+            overflow: visible;
+        }
+
+        .node-group .node-circle {
+            stroke: #343a40;
+            stroke-width: 2px;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.15));
+        }
+        
+        .node-group .node-label {
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            fill: var(--node-text-color);
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+        
+        .node-group .node-status-text {
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            fill: var(--text-color);
+            text-anchor: middle;
+        }
+
+        .signal-representation {
+            transition: transform 0.3s ease-out;
+        }
+
+        .signal-rect {
+            stroke-width: 1.5;
+            rx: 5;
+            ry: 5;
+            opacity: 0.9;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2));
+        }
+        .signal-text {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            font-weight: bold;
+            fill: var(--signal-text-color);
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+        
+        #step-description ul {
+            padding-left: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        #step-description li {
+            margin-bottom: 0.4rem; /* Aumentado para mejor espaciado */
+        }
+        #step-description strong {
+            color: var(--node-ap-idle-fill); /* Para resaltar términos clave */
+        }
+        .nodes-status-display { margin-top: 1rem; }
+        .node-status-item { 
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+            font-size: 0.8rem; 
+            margin-bottom: 0.3rem; 
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.2rem;
+        }
+        .node-status-item strong { color: var(--node-ap-idle-fill); }
+
+        .status-idle { background-color: #e9ecef; }
+        .status-listening { background-color: var(--node-status-listening); color: #000; }
+        .status-difs_wait, .status-sifs_wait { background-color: var(--node-status-difs-sifs); color: #000;}
+        .status-backoff { background-color: var(--node-status-backoff); color: var(--node-text-color); }
+        .status-tx_rts, .status-tx_cts, .status-tx_data, .status-tx_ack { background-color: var(--node-status-transmitting); color: var(--node-text-color); }
+        .status-wait_cts, .status-wait_ack, .status-wait_data { background-color: var(--node-status-waiting); color: #000; }
+        .status-nav_active { background-color: var(--node-status-nav); color: var(--node-text-color); }
+        .status-ack_timeout { background-color: var(--node-status-error); color: #721c24;}
+
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">Simulador CSMA/CA (802.11)</h1>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="control-panel">
+                    <h5>Controles y Escenario</h5>
+                    <div class="mb-3">
+                        <label for="scenario-select" class="form-label">Seleccionar Escenario:</label>
+                        <select id="scenario-select" class="form-select form-select-sm">
+                            <option value="successful_tx_rts_cts">1. Tx Exitosa (STA1->AP con RTS/CTS)</option>
+                            <option value="competing_stas_basic">2. Dos STAs compiten (sin RTS/CTS)</option>
+                            <option value="ack_failure_retransmission">3. Fallo de ACK y Retransmisión</option>
+                        </select>
+                    </div>
+                    
+                    <div class="step-info">
+                        <h6 id="step-title" class="mt-2">Paso 0: Inicio</h6>
+                        <div id="step-description" style="min-height: 200px;">
+                            Selecciona un escenario y usa los botones para avanzar.
+                        </div>
+                        <div id="nodes-status-summary" class="nodes-status-display">
+                            <p class="mb-1"><strong>Estado de Nodos:</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="prev-step" class="btn btn-info me-2" disabled>Anterior</button>
+                        <button id="next-step" class="btn btn-primary me-2">Siguiente</button>
+                        <button id="reset-sim" class="btn btn-secondary">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div id="wireless-medium-area">
+                    <svg id="csma-ca-svg">
+                        <defs>
+                            <g id="signal-template">
+                                <rect class="signal-rect" width="60" height="30" y="-15"></rect>
+                                <text class="signal-text" x="30" y="0">TYPE</text>
+                            </g>
+                        </defs>
+                        <g id="nodes-group"></g>
+                        <g id="signals-group"></g>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const scenarioSelect = document.getElementById('scenario-select');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset-sim');
+        const stepTitleElement = document.getElementById('step-title');
+        const stepDescriptionElement = document.getElementById('step-description');
+        const nodesStatusSummaryElement = document.getElementById('nodes-status-summary');
+        const svg = document.getElementById('csma-ca-svg');
+        const nodesGroup = document.getElementById('nodes-group');
+        const signalsGroup = document.getElementById('signals-group');
+        const signalTemplate = document.getElementById('signal-template');
+
+        const NODE_RADIUS = 25;
+        const NODE_STATUS_Y_OFFSET = 35; 
+        const MEDIUM_Y_POSITION = 125; 
+        const SIGNAL_WIDTH = 70;
+
+        const NODE_CONFIG_BASE = [
+            { id: 'STA1', type: 'STA', label: 'STA1', defaultXRatio: 0.15, color: 'var(--node-sta-idle-fill)' },
+            { id: 'AP', type: 'AP', label: 'AP', defaultXRatio: 0.5, color: 'var(--node-ap-idle-fill)' },
+            { id: 'STA2', type: 'STA', label: 'STA2', defaultXRatio: 0.85, color: 'var(--node-sta-idle-fill)' },
+        ];
+        let NODES_STATE = []; 
+
+        let currentScenarioId = 'successful_tx_rts_cts';
+        let currentStep = 0;
+        let scenarios = {};
+
+        const DIFS_SLOTS = 2; 
+        const SIFS_SLOTS = 1;
+        const CW_MIN_VAL = 15; 
+        const CW_MAX_VAL = 1023;
+        const ACK_TIMEOUT_STEPS = 3;
+
+
+        function getSvgCoords(xRatio, yPosition) {
+            const svgWidth = svg.clientWidth || svg.parentElement.clientWidth;
+            return {
+                x: (svgWidth * 0.05) + (svgWidth * 0.90 * xRatio),
+                y: yPosition
+            };
+        }
+
+        function initializeNodesDrawing() {
+            nodesGroup.innerHTML = '';
+            NODES_STATE = NODE_CONFIG_BASE.map(config => {
+                const coords = getSvgCoords(config.defaultXRatio, MEDIUM_Y_POSITION);
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute('class', 'node-group');
+                g.setAttribute('id', `node-${config.id}`);
+                g.setAttribute('transform', `translate(${coords.x}, ${coords.y})`);
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute('class', 'node-circle');
+                circle.setAttribute('r', NODE_RADIUS);
+                circle.setAttribute('fill', config.color);
+                g.appendChild(circle);
+
+                const labelText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                labelText.setAttribute('class', 'node-label');
+                labelText.textContent = config.label;
+                g.appendChild(labelText);
+                
+                const statusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                statusText.setAttribute('class', 'node-status-text');
+                statusText.setAttribute('y', NODE_STATUS_Y_OFFSET);
+                statusText.textContent = "Idle";
+                g.appendChild(statusText);
+
+                nodesGroup.appendChild(g);
+                return { 
+                    ...config, 
+                    x: coords.x, y: coords.y,
+                    el: g, circleEl: circle, statusTextEl: statusText,
+                    status: 'idle', backoffCounter: 0, contentionWindow: CW_MIN_VAL, nav: 0, attempts: 0,
+                    dataFor: null, waitingForSignal: null, currentSignalInTx: null,
+                    messageTextPanel: "Listo" 
+                };
+            });
+        }
+        
+        function updateNodeVisual(nodeInternalState) {
+            const node = NODES_STATE.find(n => n.id === nodeInternalState.id);
+            if (!node) return;
+
+            for (const key in nodeInternalState) {
+                if (nodeInternalState.hasOwnProperty(key) && node.hasOwnProperty(key)) {
+                    node[key] = nodeInternalState[key];
+                }
+            }
+            node.messageTextPanel = nodeInternalState.messageTextPanel || node.messageTextPanel;
+
+
+            let fillColor = node.color; 
+            let statusMessageSvg = node.status.replace(/_/g, ' ').toUpperCase();
+
+            switch(node.status) {
+                case 'listening': fillColor = 'var(--node-status-listening)'; break;
+                case 'difs_wait': case 'sifs_wait': fillColor = 'var(--node-status-difs-sifs)'; break;
+                case 'backoff': 
+                    fillColor = 'var(--node-status-backoff)'; 
+                    statusMessageSvg = `BACKOFF (${node.backoffCounter})`;
+                    break;
+                case 'tx_rts': case 'tx_cts': case 'tx_data': case 'tx_ack':
+                    fillColor = 'var(--node-status-transmitting)'; break;
+                case 'wait_cts': case 'wait_ack': case 'wait_data':
+                    fillColor = 'var(--node-status-waiting)'; break;
+                case 'nav_active': 
+                    fillColor = 'var(--node-status-nav)';
+                    statusMessageSvg = `NAV (${node.nav})`;
+                    break;
+                case 'ack_timeout':
+                    fillColor = 'var(--node-status-error)';
+                    statusMessageSvg = 'ACK TIMEOUT';
+                    break;
+            }
+            node.circleEl.setAttribute('fill', fillColor);
+            node.statusTextEl.textContent = statusMessageSvg;
+        }
+
+        function drawSignal(signalData) {
+            signalsGroup.innerHTML = ''; 
+            if (!signalData || !signalData.active) {
+                return;
+            }
+
+            const sourceNode = NODES_STATE.find(n => n.id === signalData.sourceId);
+            const destNode = NODES_STATE.find(n => n.id === signalData.destId);
+            if (!sourceNode || !destNode) return;
+
+            const signalEl = signalTemplate.cloneNode(true);
+            signalEl.setAttribute('id', `signal-current`);
+            signalEl.setAttribute('class', `signal-representation`); 
+            signalEl.style.display = 'block';
+            
+            const rect = signalEl.querySelector('.signal-rect');
+            const text = signalEl.querySelector('.signal-text');
+
+            text.textContent = signalData.type.toUpperCase();
+            rect.setAttribute('fill', `var(--signal-${signalData.type.toLowerCase()}-fill)`);
+            rect.setAttribute('stroke', `var(--signal-${signalData.type.toLowerCase()}-stroke)`);
+            
+            const startX = sourceNode.x;
+            const endX = destNode.x;
+            let currentX = startX - (SIGNAL_WIDTH / 2); 
+            if (signalData.progress > 0) {
+                 currentX = startX + (endX - startX) * signalData.progress - (SIGNAL_WIDTH / 2);
+            }
+            const currentY = MEDIUM_Y_POSITION;
+            
+            signalEl.setAttribute('transform', `translate(${currentX}, ${currentY})`);
+            signalsGroup.appendChild(signalEl);
+
+            if (signalData.animateIfProgress) {
+                void signalEl.offsetWidth; 
+                const finalX = startX + (endX - startX) * signalData.progress - (SIGNAL_WIDTH / 2);
+                signalEl.setAttribute('transform', `translate(${finalX}, ${currentY})`);
+            }
+        }
+        
+        function updateNodesStatusPanel(nodesCurrentStatesInStep) {
+            let summaryHtml = '<p class="mb-1"><strong>Estado de Nodos:</strong></p>';
+            NODES_STATE.forEach(node => {
+                summaryHtml += `<div class="node-status-item status-${node.status.toLowerCase()}">
+                    <strong>${node.label}:</strong> ${node.status.replace(/_/g, ' ').toUpperCase()}`;
+                if (node.status === 'backoff' && typeof node.backoffCounter !== 'undefined') {
+                    summaryHtml += ` (Contador: ${node.backoffCounter}, CW: ${node.contentionWindow || CW_MIN_VAL})`;
+                }
+                if (node.status === 'nav_active' && typeof node.nav !== 'undefined' && node.nav > 0) {
+                    summaryHtml += ` (NAV: ${node.nav})`;
+                }
+                if (node.messageTextPanel && node.messageTextPanel !== "Listo") {
+                     summaryHtml += ` - <em>${node.messageTextPanel}</em>`
+                } else if (node.status === 'idle') {
+                     summaryHtml += ` - <em>Listo</em>`;
+                }
+                summaryHtml += `</div>`;
+            });
+            nodesStatusSummaryElement.innerHTML = summaryHtml;
+        }
+        
+        function executeCurrentStep() {
+            const scenario = scenarios[currentScenarioId];
+            if (!scenario || !scenario.steps || currentStep >= scenario.steps.length) return;
+
+            const stepData = scenario.steps[currentStep];
+            stepTitleElement.textContent = `Paso ${currentStep}: ${stepData.title}`;
+            stepDescriptionElement.innerHTML = stepData.description;
+
+            stepData.nodes.forEach(nodeStepState => {
+                const baseNodeState = NODES_STATE.find(n => n.id === nodeStepState.id);
+                const combinedState = { ...baseNodeState, ...nodeStepState };
+                updateNodeVisual(combinedState);
+            });
+            
+            drawSignal(stepData.signalInAir);
+            updateNodesStatusPanel(); 
+
+            prevButton.disabled = currentStep === 0;
+            nextButton.disabled = currentStep === (scenario.steps.length - 1);
+            resetButton.disabled = currentStep === 0 && prevButton.disabled;
+        }
+
+        function generateRandomBackoff(cw) {
+            return Math.floor(Math.random() * (cw + 1));
+        }
+        
+        function getInitialNodeStates() {
+             return NODE_CONFIG_BASE.map(n => ({ 
+                id: n.id, 
+                status: 'idle', 
+                backoffCounter: 0, 
+                nav: 0, 
+                contentionWindow: CW_MIN_VAL, 
+                attempts: 0,
+                messageTextPanel: "Listo" 
+            }));
+        }
+
+
+        function defineScenarios() {
+            scenarios = {
+                'successful_tx_rts_cts': {
+                    name: "Tx Exitosa (STA1->AP con RTS/CTS)",
+                    steps: [
+                        {
+                            title: "Inicio del Escenario",
+                            description: "<ul><li>Este escenario ilustra cómo una estación (STA1) transmite datos a un Punto de Acceso (AP) usando el mecanismo <strong>RTS/CTS</strong> (Request to Send / Clear to Send).</li><li>Este mecanismo ayuda a mitigar el problema del 'nodo oculto' y reserva el medio antes de enviar la trama de datos principal.</li><li>STA2 actúa como un observador en la misma red. Todos los nodos comienzan inactivos (idle).</li></ul>",
+                            nodes: getInitialNodeStates(),
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA1 Escucha y Espera DIFS",
+                            description: "<ul><li>STA1 tiene datos para enviar al AP. Primero, <strong>escucha el medio</strong> (canal inalámbrico).</li><li>Al encontrarlo libre, debe esperar un tiempo llamado <strong>DIFS (Distributed Inter-Frame Space)</strong>. DIFS es un intervalo de silencio obligatorio que asegura que el medio esté realmente libre y da oportunidad a tramas de alta prioridad (como ACKs) de transmitirse.</li><li>Si el medio sigue libre tras DIFS, STA1 procederá a la fase de contienda.</li></ul>",
+                            nodes: [ { id: 'STA1', status: 'difs_wait', messageTextPanel: `Escuchando y esperando DIFS (${DIFS_SLOTS}u)` } ],
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA1 Inicia Contienda (Backoff)",
+                            description: `<ul><li>STA1 ha esperado DIFS y el medio sigue libre. Ahora inicia el proceso de <strong>backoff</strong>.</li><li>Elige un número aleatorio de 'slots de tiempo' para esperar, basado en su Ventana de Contención (<strong>CW</strong>, inicialmente ${CW_MIN_VAL}). Supongamos que elige <strong>5</strong> slots.</li><li>Este backoff aleatorio reduce la probabilidad de que múltiples estaciones intenten transmitir exactamente al mismo tiempo.</li></ul>`,
+                            nodes: [ { id: 'STA1', status: 'backoff', backoffCounter: 5, contentionWindow: CW_MIN_VAL, messageTextPanel: "Backoff. Contador=5" } ],
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA1 en Backoff (Decrementa a 2)",
+                            description: "<ul><li>STA1 continúa en su cuenta atrás de backoff. Por cada slot de tiempo que el medio permanece libre, decrementa su contador.</li><li>El contador de backoff de STA1 ahora es <strong>2</strong>.</li></ul>",
+                            nodes: [ { id: 'STA1', status: 'backoff', backoffCounter: 2, messageTextPanel: "Backoff. Contador=2" } ],
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA1 Termina Backoff y Envía RTS",
+                            description: "<ul><li>El contador de backoff de STA1 llega a cero. ¡Es su turno de acceder al medio!</li><li>Envía una trama <strong>RTS (Request To Send)</strong> al AP. Esta trama corta le dice al AP que STA1 quiere enviar datos y por cuánto tiempo necesitará el medio.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'tx_rts', messageTextPanel: "Enviando RTS al AP" },
+                                { id: 'AP', status: 'idle', messageTextPanel: "Escuchando el medio" },
+                                { id: 'STA2', status: 'idle', messageTextPanel: "Escuchando el medio" }
+                            ],
+                            signalInAir: { active: true, type: 'rts', sourceId: 'STA1', destId: 'AP', progress: 0, animateIfProgress: true, durationForNAV: 20 }
+                        },
+                        {
+                            title: "RTS Llega al AP; STA2 Configura NAV",
+                            description: "<ul><li>La trama RTS de STA1 llega al AP.</li><li>STA2 también escucha el RTS. La trama RTS contiene información sobre la duración de la transmisión que STA1 planea. Con esta información, STA2 configura su <strong>NAV (Network Allocation Vector)</strong> a 20 unidades de tiempo.</li><li>El NAV es un temporizador que indica a STA2 que el medio estará ocupado (virtualmente) durante ese tiempo, por lo que debe abstenerse de transmitir para no interferir.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_cts', messageTextPanel: "RTS enviado, esperando CTS" },
+                                { id: 'AP', status: 'sifs_wait', messageTextPanel: "RTS recibido de STA1. Esperando SIFS." }, 
+                                { id: 'STA2', status: 'nav_active', nav: 20, messageTextPanel: "RTS oído de STA1. NAV=20" }
+                            ],
+                            signalInAir: { active: true, type: 'rts', sourceId: 'STA1', destId: 'AP', progress: 1 }
+                        },
+                        {
+                            title: "AP Espera SIFS y Envía CTS",
+                            description: "<ul><li>El AP, después de recibir el RTS, espera un corto intervalo llamado <strong>SIFS (Short Inter-Frame Space)</strong>. SIFS es más corto que DIFS y se usa entre tramas de un mismo intercambio (como RTS-CTS o DATA-ACK) para darles la máxima prioridad.</li><li>Luego, el AP envía una trama <strong>CTS (Clear To Send)</strong> de vuelta a STA1, confirmando que está listo para recibir y que el medio está reservado.</li><li>STA2 sigue con su NAV activo.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_cts', messageTextPanel: "Esperando CTS del AP" },
+                                { id: 'AP', status: 'tx_cts', messageTextPanel: "Enviando CTS a STA1" },
+                                { id: 'STA2', status: 'nav_active', nav: 19, messageTextPanel: "NAV activo (19u restantes)" }
+                            ],
+                            signalInAir: { active: true, type: 'cts', sourceId: 'AP', destId: 'STA1', progress: 0, animateIfProgress: true, durationForNAV: 15 }
+                        },
+                         {
+                            title: "CTS Llega a STA1; STA2 Actualiza NAV",
+                            description: "<ul><li>La trama CTS del AP llega a STA1. Ahora STA1 sabe que tiene permiso para enviar sus datos.</li><li>STA2 también escucha el CTS. Si el CTS contiene una duración que actualiza la información del NAV (por ejemplo, si es más corta que la del RTS), STA2 ajustará su NAV. Aquí, lo decrementamos simulando el paso del tiempo.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'sifs_wait', messageTextPanel: "CTS recibido. Esperando SIFS." },
+                                { id: 'AP', status: 'wait_data', messageTextPanel: "CTS enviado. Esperando DATA de STA1." },
+                                { id: 'STA2', status: 'nav_active', nav: 18, messageTextPanel: "CTS oído. NAV=18" }
+                            ],
+                            signalInAir: { active: true, type: 'cts', sourceId: 'AP', destId: 'STA1', progress: 1 }
+                        },
+                        {
+                            title: "STA1 Espera SIFS y Envía DATA",
+                            description: "<ul><li>STA1, después de recibir el CTS, espera SIFS.</li><li>Luego, transmite la trama de <strong>DATA</strong> principal al AP.</li><li>STA2 continúa respetando su NAV.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'tx_data', messageTextPanel: "Enviando DATA al AP" },
+                                { id: 'AP', status: 'wait_data', messageTextPanel: "Esperando DATA de STA1" },
+                                { id: 'STA2', status: 'nav_active', nav: 17, messageTextPanel: "NAV activo (17u restantes)" }
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA1', destId: 'AP', progress: 0, animateIfProgress: true }
+                        },
+                        {
+                            title: "DATA Llega al AP",
+                            description: "<ul><li>La trama de DATA enviada por STA1 llega al AP.</li><li>STA1 ahora espera una confirmación (ACK) del AP.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_ack', messageTextPanel: "DATA enviada. Esperando ACK." },
+                                { id: 'AP', status: 'sifs_wait', messageTextPanel: "DATA recibida. Esperando SIFS." },
+                                { id: 'STA2', status: 'nav_active', nav: 10, messageTextPanel: "NAV activo (10u restantes)" } 
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA1', destId: 'AP', progress: 1 }
+                        },
+                        {
+                            title: "AP Espera SIFS y Envía ACK",
+                            description: "<ul><li>El AP, tras recibir DATA correctamente, espera SIFS.</li><li>Luego, envía una trama <strong>ACK (Acknowledgement)</strong> a STA1 para confirmar la recepción exitosa de los datos.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_ack', messageTextPanel: "Esperando ACK del AP" },
+                                { id: 'AP', status: 'tx_ack', messageTextPanel: "Enviando ACK a STA1" },
+                                { id: 'STA2', status: 'nav_active', nav: 5, messageTextPanel: "NAV activo (5u restantes)" }
+                            ],
+                            signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA1', progress: 0, animateIfProgress: true }
+                        },
+                        {
+                            title: "ACK Llega a STA1. Transmisión Exitosa.",
+                            description: "<ul><li>La trama ACK del AP llega a STA1. ¡La transmisión de datos ha sido exitosa!</li><li>STA1 considera completada su tarea.</li><li>El NAV de STA2 está a punto de expirar.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'idle', messageTextPanel: "ACK Recibido! Tx Exitosa." },
+                                { id: 'AP', status: 'idle', messageTextPanel: "ACK enviado a STA1." },
+                                { id: 'STA2', status: 'nav_active', nav: 1, messageTextPanel: "NAV a punto de expirar (1u)" }
+                            ],
+                            signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA1', progress: 1 }
+                        },
+                        {
+                            title: "Fin del Intercambio. Medio Libre.",
+                            description: "<ul><li>Todas las tramas se han transmitido y confirmado.</li><li>El NAV de STA2 expira. El medio inalámbrico vuelve a estar completamente libre para nuevas contiendas.</li></ul>",
+                            nodes: getInitialNodeStates().map(n => ({...n, messageTextPanel: "Listo para nueva Tx"})),
+                            signalInAir: { active: false }
+                        }
+                    ]
+                },
+                'competing_stas_basic': {
+                    name: "Dos STAs compiten (sin RTS/CTS)",
+                    steps: [
+                        {
+                            title: "Inicio: Múltiples Estaciones Quieren Transmitir",
+                            description: "<ul><li>En este escenario, tanto STA1 como STA2 tienen datos para enviar al AP.</li><li>Para simplificar y enfocarnos en la contienda básica, <strong>no utilizarán el mecanismo RTS/CTS</strong>. Esto significa que enviarán directamente sus tramas de DATA después del backoff.</li><li>Este enfoque es común para tramas pequeñas donde el overhead de RTS/CTS no compensa.</li></ul>",
+                            nodes: getInitialNodeStates(),
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "Ambas STAs Escuchan y Esperan DIFS",
+                            description: "<ul><li>STA1 y STA2 escuchan el medio, lo encuentran libre, y ambas esperan el tiempo <strong>DIFS</strong>.</li><li>Recordemos: DIFS es un periodo de silencio para asegurar que el medio esté libre y dar oportunidad a tramas prioritarias.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'difs_wait', messageTextPanel: `Esperando DIFS (${DIFS_SLOTS}u)` },
+                                { id: 'AP', status: 'idle', messageTextPanel: "Medio libre" },
+                                { id: 'STA2', status: 'difs_wait', messageTextPanel: `Esperando DIFS (${DIFS_SLOTS}u)` }
+                            ],
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "Ambas STAs Inician Backoff Simultáneamente",
+                            description: `<ul><li>Al finalizar DIFS y con el medio aún libre, ambas estaciones inician su proceso de <strong>backoff</strong>.</li><li>STA1 elige un backoff aleatorio de <strong>3</strong> slots.</li><li>STA2 elige un backoff aleatorio de <strong>5</strong> slots. (Ambos desde CW=${CW_MIN_VAL})</li><li>La estación con el menor contador de backoff transmitirá primero.</li></ul>`,
+                            nodes: [
+                                { id: 'STA1', status: 'backoff', backoffCounter: 3, contentionWindow: CW_MIN_VAL, messageTextPanel: "Backoff. Contador=3" },
+                                { id: 'AP', status: 'idle', messageTextPanel: "Observando contienda" },
+                                { id: 'STA2', status: 'backoff', backoffCounter: 5, contentionWindow: CW_MIN_VAL, messageTextPanel: "Backoff. Contador=5" }
+                            ],
+                            signalInAir: { active: false }
+                        },
+                        { 
+                            title: "Backoff en Progreso: Contadores Decrementan",
+                            description: "<ul><li>Pasan 2 slots de tiempo y el medio sigue libre. Ambas estaciones decrementan sus contadores.</li><li>STA1 ahora tiene un contador de backoff de <strong>1</strong>.</li><li>STA2 ahora tiene un contador de backoff de <strong>3</strong>.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'backoff', backoffCounter: 1, messageTextPanel: "Backoff. Contador=1" },
+                                { id: 'AP', status: 'idle' },
+                                { id: 'STA2', status: 'backoff', backoffCounter: 3, messageTextPanel: "Backoff. Contador=3" }
+                            ],
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA1 Gana la Contienda y Envía DATA",
+                            description: "<ul><li>El contador de backoff de STA1 llega a cero primero. Gana la contienda.</li><li>STA1 comienza a transmitir su trama de <strong>DATA</strong> directamente al AP.</li><li>STA2, que aún tiene un contador de backoff de 2, detectará que el medio se ocupa y <strong>pausará su contador de backoff</strong>.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'tx_data', messageTextPanel: "Enviando DATA al AP" },
+                                { id: 'AP', status: 'idle', messageTextPanel: "Escuchando el medio" },
+                                { id: 'STA2', status: 'backoff', backoffCounter: 2, messageTextPanel: "Backoff pausado (Contador=2), medio ocupado por STA1" } 
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA1', destId: 'AP', progress: 0, animateIfProgress: true, durationForNAV: 10 }
+                        },
+                        {
+                            title: "DATA de STA1 Llega al AP; STA2 Activa NAV",
+                            description: "<ul><li>La trama DATA de STA1 llega al AP.</li><li>STA2, al escuchar la transmisión de STA1 (o una trama que no es para ella), activa su <strong>NAV</strong> para la duración implícita de la transmisión DATA + ACK. Su backoff sigue pausado.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_ack', messageTextPanel: "DATA enviada, esperando ACK" },
+                                { id: 'AP', status: 'sifs_wait', messageTextPanel: "DATA recibida de STA1. Esperando SIFS." },
+                                { id: 'STA2', status: 'nav_active', backoffCounter: 2, nav: 10, messageTextPanel: "NAV por DATA de STA1. Backoff en 2." }
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA1', destId: 'AP', progress: 1 }
+                        },
+                        {
+                            title: "AP Envía ACK a STA1",
+                            description: "<ul><li>El AP, tras SIFS, envía el <strong>ACK</strong> a STA1.</li><li>STA2 sigue con su NAV activo, decrementándolo.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_ack', messageTextPanel: "Esperando ACK del AP" },
+                                { id: 'AP', status: 'tx_ack', messageTextPanel: "Enviando ACK a STA1" },
+                                { id: 'STA2', status: 'nav_active', backoffCounter: 2, nav: 9, messageTextPanel: "NAV activo (9u restantes)" }
+                            ],
+                            signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA1', progress: 0, animateIfProgress: true }
+                        },
+                        {
+                            title: "STA1 Recibe ACK. Transmisión de STA1 Completa.",
+                            description: "<ul><li>STA1 recibe el ACK. Su transmisión ha sido exitosa.</li><li>El NAV de STA2 está a punto de expirar tras la secuencia DATA-ACK.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'idle', messageTextPanel: "ACK Recibido. Tx Exitosa." },
+                                { id: 'AP', status: 'idle', messageTextPanel: "ACK enviado a STA1." },
+                                { id: 'STA2', status: 'nav_active', backoffCounter: 2, nav: 1, messageTextPanel: "NAV casi expira (1u)" } 
+                            ],
+                            signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA1', progress: 1 }
+                        },
+                        {
+                            title: "STA2 Reanuda Contienda",
+                            description: "<ul><li>El NAV de STA2 expira. El medio está libre.</li><li>STA2 debe esperar <strong>DIFS</strong> nuevamente antes de reanudar su contador de backoff (que estaba pausado en 2).</li></ul>",
+                             nodes: [
+                                { id: 'STA1', status: 'idle', messageTextPanel: "Listo" },
+                                { id: 'AP', status: 'idle', messageTextPanel: "Medio libre" },
+                                { id: 'STA2', status: 'difs_wait', backoffCounter: 2, nav:0, messageTextPanel: "Esperando DIFS para reanudar backoff en 2" }
+                            ],
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA2 Reanuda y Completa Backoff",
+                            description: "<ul><li>STA2 completa DIFS y reanuda su backoff. Como solo le quedaban 2 slots, y suponiendo que el medio sigue libre, su contador llega a cero.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'idle' },
+                                { id: 'AP', status: 'idle' },
+                                { id: 'STA2', status: 'backoff', backoffCounter: 0, messageTextPanel: "Backoff completado. Contador=0" }
+                            ],
+                             signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA2 Envía DATA",
+                            description: "<ul><li>STA2, habiendo completado su backoff, ahora transmite su trama de <strong>DATA</strong> al AP.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'idle', messageTextPanel: "Escuchando el medio" },
+                                { id: 'AP', status: 'idle', messageTextPanel: "Escuchando el medio" },
+                                { id: 'STA2', status: 'tx_data', messageTextPanel: "Enviando DATA al AP" }
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA2', destId: 'AP', progress: 0, animateIfProgress: true }
+                        },
+                        {
+                            title: "STA2 Completa su Transmisión (Simplificado)",
+                            description: "<ul><li>La DATA de STA2 llega al AP. El AP envía un ACK a STA2. STA2 recibe el ACK.</li><li>Ambas estaciones han logrado transmitir sus datos después de la contienda inicial.</li></ul>",
+                             nodes: [
+                                { id: 'STA1', status: 'idle', messageTextPanel: "Medio ocupado por STA2" },
+                                { id: 'AP', status: 'idle', messageTextPanel: "ACK a STA2 enviado." },
+                                { id: 'STA2', status: 'idle', messageTextPanel: "ACK Recibido. Tx Exitosa." }
+                            ],
+                           signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA2', progress: 1 } 
+                        },
+                         {
+                            title: "Fin de la Contienda",
+                            description: "<ul><li>Ambas estaciones han logrado transmitir con éxito. El medio vuelve a estar libre.</li></ul>",
+                            nodes: getInitialNodeStates().map(n => ({...n, messageTextPanel: "Listo para nueva Tx"})),
+                            signalInAir: { active: false }
+                        }
+                    ]
+                },
+                'ack_failure_retransmission': {
+                    name: "Fallo de ACK y Retransmisión",
+                     steps: [
+                        {
+                            title: "Inicio: Preparación para Transmisión con Posible Fallo",
+                            description: "<ul><li>Este escenario demuestra qué sucede cuando una trama de confirmación (<strong>ACK</strong>) se pierde.</li><li>STA1 intentará enviar DATA al AP. Supondremos que el proceso de RTS/CTS (si se usara) y el envío de DATA inicial ocurren, pero el ACK del AP a STA1 se pierde.</li><li>STA1 deberá detectar este fallo mediante un timeout y luego retransmitir.</li></ul>",
+                            nodes: getInitialNodeStates(), // O empezar desde un punto más avanzado si es muy largo
+                            signalInAir: { active: false }
+                        },
+                        { // Simulamos que RTS/CTS y el backoff inicial ya ocurrieron para STA1
+                            title: "STA1 Envía DATA (Intento 1)",
+                            description: "<ul><li>Asumimos que STA1 ha ganado la contienda y está enviando su trama de <strong>DATA</strong> al AP (este es su primer intento).</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'tx_data', attempts: 0, messageTextPanel: "Enviando DATA al AP (Intento 1)" },
+                                { id: 'AP', status: 'wait_data', messageTextPanel: "Esperando DATA" }, 
+                                { id: 'STA2', status: 'nav_active', nav: 10, messageTextPanel: "NAV por DATA de STA1" } // STA2 observa
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA1', destId: 'AP', progress: 0, animateIfProgress: true }
+                        },
+                        {
+                            title: "DATA Llega al AP, pero el ACK del AP se Perderá",
+                            description: "<ul><li>La trama DATA llega correctamente al AP. El AP procesa la DATA y, después de SIFS, envía una trama <strong>ACK</strong>.</li><li>Sin embargo, simularemos que esta trama ACK <strong>se pierde en el medio</strong> y nunca llega a STA1.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_ack', attempts: 0, messageTextPanel: "DATA enviada. Esperando ACK..." },
+                                { id: 'AP', status: 'tx_ack', messageTextPanel: "Enviando ACK (pero se perderá)" }, 
+                                { id: 'STA2', status: 'nav_active', nav: 5, messageTextPanel: "NAV activo (5u restantes)" }
+                            ],
+                            signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA1', progress: 0.5 } // ACK a mitad de camino "perdido"
+                        },
+                        {
+                            title: "STA1 Entra en Timeout de ACK",
+                            description: `<ul><li>STA1 ha estado esperando el ACK del AP. Como el ACK se perdió, STA1 no lo recibe.</li><li>Después de un periodo de espera (<strong>ACK Timeout</strong>, aquí simulado por ${ACK_TIMEOUT_STEPS} pasos/unidades de tiempo), STA1 asume que su transmisión de DATA falló.</li><li>El AP, habiendo enviado el ACK (aunque perdido), vuelve a estado Idle. El NAV de STA2 expira.</li></ul>`,
+                            nodes: [
+                                { id: 'STA1', status: 'ack_timeout', attempts: 0, messageTextPanel: "Timeout! ACK no recibido." },
+                                { id: 'AP', status: 'idle', messageTextPanel: "ACK (perdido) enviado. Ahora Idle." }, 
+                                { id: 'STA2', status: 'idle', nav: 0, messageTextPanel: "NAV expirado. Medio libre." } 
+                            ],
+                            signalInAir: { active: false } 
+                        },
+                        {
+                            title: "STA1 Prepara Retransmisión: Aumenta CW y Espera DIFS",
+                            description: `<ul><li>Debido al fallo, STA1 debe reintentar. Incrementa su contador de <strong>intentos de transmisión</strong> a 1.</li><li>Para reducir la probabilidad de futuras colisiones (especialmente si el fallo fue por una), <strong>duplica su Ventana de Contención (CW)</strong>. Si antes era ${CW_MIN_VAL}, ahora podría ser ${CW_MIN_VAL*2+1} (o un valor similar hasta CW_MAX).</li><li>Luego, debe volver a competir por el medio, comenzando por esperar <strong>DIFS</strong>.</li></ul>`,
+                            nodes: [
+                                { id: 'STA1', status: 'difs_wait', attempts: 1, contentionWindow: CW_MIN_VAL*2+1, messageTextPanel: `Esperando DIFS. Intentos=1, CW=${CW_MIN_VAL*2+1}` },
+                                { id: 'AP', status: 'idle' }, { id: 'STA2', status: 'idle' }
+                            ],
+                            signalInAir: { active: false }
+                        },
+                        {
+                            title: "STA1 Inicia Nuevo Backoff con CW Aumentada",
+                            description: `<ul><li>STA1 completa DIFS. Ahora elige un nuevo valor de <strong>backoff aleatorio</strong>, pero esta vez de su Ventana de Contención (CW) aumentada (ej. ${CW_MIN_VAL*2+1}). Supongamos que elige <strong>8</strong> slots.</li><li>Una CW mayor significa un rango más amplio para el backoff, espaciando más los intentos.</li></ul>`,
+                            nodes: [
+                                { id: 'STA1', status: 'backoff', attempts: 1, backoffCounter: 8, contentionWindow: CW_MIN_VAL*2+1, messageTextPanel: "Nuevo Backoff. Contador=8" }
+                            ],
+                            signalInAir: { active: false }
+                        },
+                        // ... (Aquí podrían ir más pasos mostrando el decremento del backoff de STA1) ...
+                        {
+                            title: "STA1 Envía DATA (Intento 2)",
+                            description: "<ul><li>STA1 completa su nuevo backoff. Ahora retransmite la trama de <strong>DATA</strong> (este es su segundo intento).</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'tx_data', attempts: 1, messageTextPanel: "Enviando DATA (Intento 2)" },
+                                { id: 'AP', status: 'wait_data', messageTextPanel: "Esperando DATA" }, 
+                                { id: 'STA2', status: 'idle', messageTextPanel: "Escuchando el medio" }
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA1', destId: 'AP', progress: 0, animateIfProgress: true }
+                        },
+                        {
+                            title: "DATA (Intento 2) Llega al AP",
+                            description: "<ul><li>La DATA retransmitida por STA1 llega al AP.</li><li>Esta vez, supondremos que el ACK del AP no se perderá.</li></ul>",
+                             nodes: [
+                                { id: 'STA1', status: 'wait_ack', attempts: 1, messageTextPanel: "DATA (Intento 2) enviada. Esperando ACK." },
+                                { id: 'AP', status: 'sifs_wait', messageTextPanel: "DATA (Intento 2) recibida. Esperando SIFS." }
+                            ],
+                            signalInAir: { active: true, type: 'data', sourceId: 'STA1', destId: 'AP', progress: 1 }
+                        },
+                         {
+                            title: "AP Envía ACK (Esta Vez Exitoso)",
+                            description: "<ul><li>El AP, tras SIFS, envía el <strong>ACK</strong> a STA1.</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'wait_ack', attempts: 1, messageTextPanel: "Esperando ACK del AP" },
+                                { id: 'AP', status: 'tx_ack', messageTextPanel: "Enviando ACK a STA1" }
+                            ],
+                            signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA1', progress: 0, animateIfProgress: true }
+                        },
+                        {
+                            title: "STA1 Recibe ACK (Intento 2 Exitoso)",
+                            description: "<ul><li>¡STA1 recibe el ACK! La retransmisión ha sido exitosa.</li><li>Después de una transmisión exitosa, STA1 <strong>resetea su Ventana de Contención (CW)</strong> al valor mínimo (CW_MIN).</li></ul>",
+                            nodes: [
+                                { id: 'STA1', status: 'idle', attempts: 1, contentionWindow: CW_MIN_VAL, messageTextPanel: "ACK Recibido! Tx Exitosa (Intento 2). CW reseteada." }, 
+                                { id: 'AP', status: 'idle', messageTextPanel: "ACK enviado a STA1." }
+                            ],
+                           signalInAir: { active: true, type: 'ack', sourceId: 'AP', destId: 'STA1', progress: 1 }
+                        },
+                        {
+                            title: "Fin de la Secuencia de Retransmisión",
+                            description: "<ul><li>La transmisión de datos se completó con éxito después de un reintento. El medio vuelve a estar libre.</li></ul>",
+                            nodes: getInitialNodeStates().map(n => ({...n, messageTextPanel: "Listo para nueva Tx"})),
+                            signalInAir: { active: false }
+                        }
+                    ]
+                }
+            };
+        }
+
+        function handleScenarioChange() {
+            currentScenarioId = scenarioSelect.value;
+            currentStep = 0;
+            initializeNodesDrawing(); 
+            NODES_STATE.forEach(node => { 
+                Object.assign(node, getInitialNodeStates().find(n => n.id === node.id));
+            });
+            executeCurrentStep();
+        }
+        
+        function handleResize() {
+            NODES_STATE.forEach(node => {
+                const coords = getSvgCoords(node.defaultXRatio, MEDIUM_Y_POSITION);
+                node.x = coords.x;
+                node.y = coords.y; 
+                if (node.el) {
+                    node.el.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+                }
+            });
+            if (scenarios[currentScenarioId] && scenarios[currentScenarioId].steps[currentStep]) {
+                 executeCurrentStep();
+            }
+        }
+
+        scenarioSelect.addEventListener('change', handleScenarioChange);
+        nextButton.addEventListener('click', () => {
+            const scenario = scenarios[currentScenarioId];
+            if (currentStep < scenario.steps.length - 1) {
+                currentStep++;
+                executeCurrentStep();
+            }
+        });
+        prevButton.addEventListener('click', () => {
+            if (currentStep > 0) {
+                const targetStep = currentStep - 1; // El paso al que queremos ir
+                currentStep = 0; // Resetear al inicio del escenario actual
+                NODES_STATE.forEach(node => { 
+                    Object.assign(node, getInitialNodeStates().find(n => n.id === node.id));
+                });
+                executeCurrentStep(); // Ejecuta paso 0
+                
+                // Avanzar hasta el paso deseado (targetStep)
+                while(currentStep < targetStep) {
+                    currentStep++;
+                    // Ejecutar cada paso intermedio para reconstruir el estado
+                    const scenario = scenarios[currentScenarioId];
+                    if (!scenario || !scenario.steps || currentStep >= scenario.steps.length) break;
+                    const stepData = scenario.steps[currentStep];
+                    stepData.nodes.forEach(nodeStepState => {
+                        const baseNodeState = NODES_STATE.find(n => n.id === nodeStepState.id);
+                        const combinedState = { ...baseNodeState, ...nodeStepState };
+                        // Actualizar estado lógico sin redibujar SVG completo, solo datos
+                         for (const key in combinedState) {
+                            if (combinedState.hasOwnProperty(key) && baseNodeState.hasOwnProperty(key)) {
+                                baseNodeState[key] = combinedState[key];
+                            }
+                        }
+                        baseNodeState.messageTextPanel = combinedState.messageTextPanel || baseNodeState.messageTextPanel;
+                    });
+                    // Actualizar NAV y contadores de backoff si es necesario, según el paso
+                }
+                 // Finalmente, ejecutar visualmente el paso destino
+                executeCurrentStep();
+            }
+        });
+        resetButton.addEventListener('click', () => {
+            currentStep = 0;
+             NODES_STATE.forEach(node => { 
+                Object.assign(node, getInitialNodeStates().find(n => n.id === node.id));
+            });
+            executeCurrentStep(); 
+        });
+
+        window.addEventListener('resize', handleResize);
+        
+        initializeNodesDrawing(); 
+        defineScenarios();      
+        handleScenarioChange(); 
+    </script>
+</body>
+</html>

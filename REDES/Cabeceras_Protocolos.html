@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Cabeceras de Protocolo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            padding-top: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .protocol-selector-area {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header-diagram-container {
+            border: 2px solid #0056b3;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+            overflow-x: auto; 
+        }
+
+        .header-row {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+            min-width: 600px; 
+        }
+        .header-row:last-child {
+            border-bottom: none;
+        }
+
+        .header-field {
+            border-right: 1px dashed #ddd;
+            padding: 8px 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            word-break: break-word; 
+            position: relative; 
+            display: flex; /* Para centrar verticalmente */
+            align-items: center; /* Para centrar verticalmente */
+            justify-content: center; /* Para centrar horizontalmente */
+        }
+        .header-field:last-child {
+            border-right: none;
+        }
+        .header-field:hover {
+            background-color: #e9ecef;
+        }
+        .header-field.active {
+            background-color: #0d6efd;
+            color: white;
+            font-weight: bold;
+        }
+        .header-field.active:hover {
+            background-color: #0b5ed7;
+        }
+        
+        /* Anchos proporcionales (base 32 bits por fila) */
+        .bits-1   { flex: 0 0 3.125%; }  /* 1/32 */
+        .bits-2   { flex: 0 0 6.25%; }   /* 2/32 */
+        .bits-3   { flex: 0 0 9.375%; }  /* 3/32 */
+        .bits-4   { flex: 0 0 12.5%; }   /* 4/32 */
+        .bits-5   { flex: 0 0 15.625%; } /* 5/32 */
+        .bits-6   { flex: 0 0 18.75%; }  /* 6/32 */
+        .bits-8   { flex: 0 0 25%; }     /* 8/32 */
+        .bits-12  { flex: 0 0 37.5%; }   /* 12/32 */
+        .bits-13  { flex: 0 0 40.625%; } /* 13/32 */
+        .bits-16  { flex: 0 0 50%; }     /* 16/32 */
+        .bits-20  { flex: 0 0 62.5%; }   /* 20/32 */
+        .bits-24  { flex: 0 0 75%; }     /* 24/32 */
+        .bits-32  { flex: 0 0 100%; }    /* 32/32 */
+        .bits-48  { flex: 0 0 100%; font-style: italic; } /* Casos especiales como MAC, se mostrarán en múltiples líneas de 32 bits lógicamente */
+                                                         /* Esta clase bits-48 aquí es más un placeholder para campos que se dividen */
+
+        .control-bits-group { /* Específico para TCP Flags, puede necesitar adaptación para otros */
+            display: flex;
+            flex: 0 0 18.75%; /* 6 bits / 32 bits para los 6 flags de TCP */
+            padding: 0; 
+        }
+        .control-bits-group .header-field { /* Cada flag de TCP */
+            flex-grow: 1; 
+            padding: 8px 2px; 
+            font-size: 0.7rem;
+        }
+
+        .field-info-display {
+            background-color: #e9f5ff;
+            border: 1px solid #b8d6f0;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 100px;
+            margin-top: 20px;
+        }
+        .field-info-display h3 {
+            margin-top: 0;
+            color: #004085;
+        }
+
+        .bit-ruler {
+            display: flex;
+            font-size: 0.7em;
+            color: #6c757d;
+            margin-left: 1px; 
+            min-width: 600px;
+        }
+        .bit-ruler span {
+            flex: 0 0 25%; 
+            text-align: left;
+            padding-left: 5px;
+        }
+         .bit-ruler span:first-child {
+             padding-left: 0;
+         }
+         .bit-ruler .bit-pos {
+            font-size: 0.9em;
+            color: #333;
+         }
+         .info-note {
+            font-size: 0.85em;
+            color: #555;
+            margin-top: 5px;
+         }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Visualizador Interactivo de Cabeceras de Protocolo</h1>
+
+        <div class="protocol-selector-area">
+            <label for="protocolSelect" class="form-label fs-5">Selecciona un protocolo:</label>
+            <select id="protocolSelect" class="form-select form-select-lg w-auto d-inline-block">
+                <option value="ethernet-ii">Ethernet II Frame Header</option>
+                <option value="ieee8021q">IEEE 802.1Q (VLAN Tagging)</option>
+                <option value="ppp">PPP (Point-to-Point Protocol) Frame</option>
+                <option value="wifi">Wi-Fi (IEEE 802.11) Frame Header</option>
+                <option value="arp">ARP (Address Resolution Protocol) Packet</option>
+                <option value="ipv4">IPv4 (Internet Protocol version 4) Header</option>
+                <option value="icmp">ICMP (Internet Control Message Protocol) Header</option>
+                <option value="tcp" selected>TCP (Transmission Control Protocol) Segment Header</option>
+                <option value="udp">UDP (User Datagram Protocol) Datagram Header</option>
+            </select>
+        </div>
+        
+        <h2 id="headerTitle" class="fs-4 mt-4"></h2>
+        <div class="bit-ruler" id="bitRuler">
+            <span>0<span class="bit-pos"> (bit 0)</span></span>
+            <span>1<span class="bit-pos"> (bit 8)</span></span>
+            <span>2<span class="bit-pos"> (bit 16)</span></span>
+            <span>3<span class="bit-pos"> (bit 24)</span></span>
+        </div>
+        <div class="header-diagram-container" id="headerDiagram">
+            </div>
+
+        <div class="field-info-display" id="fieldInfoDisplay">
+            <p class="text-muted">Selecciona un protocolo y luego haz clic en un campo de la cabecera para ver su descripción.</p>
+        </div>
+    </div>
+
+    <script>
+        const protocolDefinitions = {
+            "ethernet-ii": {
+                displayName: "Ethernet II Frame Header",
+                rows: [
+                    // Los campos Preamble (7 bytes) y SFD (1 byte) son de capa física y no suelen ser procesados por software.
+                    // Se omiten para enfocarse en la trama que ve la NIC y el OS.
+                    { fields: [
+                        { id: "eth-dest-mac-1", label: "Destination MAC Address (Bytes 0-3)", bits: 32, description: "<strong>Dirección MAC de Destino (48 bits):</strong> Los primeros 32 bits (4 bytes) de la dirección física del adaptador de red de destino. Ejemplo: 00:1A:2B:3C:4D:5E" },
+                    ]},
+                    { fields: [
+                        { id: "eth-dest-mac-2", label: "Dest MAC (Bytes 4-5)", bits: 16, description: "<strong>Dirección MAC de Destino (48 bits):</strong> Los últimos 16 bits (2 bytes) de la dirección física del adaptador de red de destino." },
+                        { id: "eth-src-mac-1", label: "Source MAC Address (Bytes 0-1)", bits: 16, description: "<strong>Dirección MAC de Origen (48 bits):</strong> Los primeros 16 bits (2 bytes) de la dirección física del adaptador de red de origen." },
+                    ]},
+                    { fields: [
+                        { id: "eth-src-mac-2", label: "Source MAC Address (Bytes 2-5)", bits: 32, description: "<strong>Dirección MAC de Origen (48 bits):</strong> Los últimos 32 bits (4 bytes) de la dirección física del adaptador de red de origen." },
+                    ]},
+                    { fields: [
+                        { id: "eth-ethertype", label: "EtherType / Length", bits: 16, description: "<strong>EtherType (16 bits):</strong> Indica el protocolo de capa superior encapsulado en la carga útil (payload) de la trama. Ejemplos: 0x0800 para IPv4, 0x0806 para ARP, 0x86DD para IPv6. Si el valor es <= 1500 (0x05DC), indica la longitud de la carga útil (usado en IEEE 802.3)." },
+                        { id: "eth-payload-placeholder", label: "Data (Payload)", bits: 16, customClass: "bits-variable", description: "<strong>Datos (Carga útil):</strong> Los datos del protocolo de capa superior (ej. un paquete IP). Su longitud varía entre 46 y 1500 bytes. Si es menor de 46 bytes, se añade relleno (padding)." }
+                    ]},
+                    // FCS (Frame Check Sequence - 4 bytes) se calcula y añade al final, pero se verifica y elimina en hardware.
+                    // { fields: [ { id: "eth-fcs", label: "Frame Check Sequence (FCS)", bits: 32, description: "..." } ]}
+                ],
+                note: "El Preámbulo (7 bytes) y el Delimitador de Inicio de Trama (SFD, 1 byte) preceden a estos campos, y la Secuencia de Verificación de Trama (FCS, 4 bytes) los sigue, pero típicamente son manejados por el hardware de red."
+            },
+            "ieee8021q": {
+                displayName: "IEEE 802.1Q VLAN Tag",
+                rows: [
+                    { fields: [
+                        { id: "vlan-tpid", label: "Tag Protocol Identifier (TPID)", bits: 16, description: "<strong>Identificador de Protocolo de Etiqueta (TPID - 16 bits):</strong> Un valor de 0x8100 identifica la trama como una trama etiquetada IEEE 802.1Q." },
+                        { id: "vlan-tci-pcp", label: "PCP", bits: 3, description: "<strong>Priority Code Point (PCP - 3 bits):</strong> Parte del Tag Control Information (TCI). Indica la prioridad de la trama (0-7) para Calidad de Servicio (QoS)." },
+                        { id: "vlan-tci-dei", label: "DEI", bits: 1, description: "<strong>Drop Eligible Indicator (DEI - 1 bit):</strong> Parte del TCI. Si está a 1, indica que la trama puede ser descartada en caso de congestión." },
+                        { id: "vlan-tci-vid", label: "VLAN ID (VID)", bits: 12, description: "<strong>VLAN Identifier (VID - 12 bits):</strong> Parte del TCI. Identifica la VLAN a la que pertenece la trama. Permite hasta 4094 VLANs (0 y 4095 están reservados)." }
+                    ]}
+                ],
+                note: "La etiqueta VLAN de 4 bytes se inserta entre la Dirección MAC de Origen y el campo EtherType/Length de una trama Ethernet II."
+            },
+            "ppp": {
+                displayName: "PPP (Point-to-Point Protocol) Frame (HDLC-like framing)",
+                 rows: [
+                    { fields: [
+                        { id: "ppp-flag-start", label: "Flag (0x7E)", bits: 8, description: "<strong>Bandera de Inicio (8 bits):</strong> Secuencia 0x7E (01111110) que indica el inicio de una trama PPP." },
+                        { id: "ppp-address", label: "Address (0xFF)", bits: 8, description: "<strong>Dirección (8 bits):</strong> En PPP, este campo se establece típicamente a 0xFF (todos unos), indicando una dirección de broadcast, ya que PPP es punto a punto." },
+                        { id: "ppp-control", label: "Control (0x03)", bits: 8, description: "<strong>Control (8 bits):</strong> Típicamente 0x03, que indica una trama de información no numerada en HDLC." },
+                        { id: "ppp-protocol-1", label: "Protocol (Byte 1)", bits: 8, description: "<strong>Protocolo (16 bits):</strong> Identifica el protocolo encapsulado en el campo de información. Ej: 0x0021 para IP, 0xC021 para LCP. Este es el primer byte." }
+                    ]},
+                    { fields: [
+                        { id: "ppp-protocol-2", label: "Protocol (Byte 2)", bits: 8, description: "<strong>Protocolo (16 bits):</strong> Segundo byte del campo de protocolo." },
+                        { id: "ppp-info-placeholder", label: "Information (Payload)", bits: 24, customClass: "bits-variable", description: "<strong>Información (Carga útil):</strong> Contiene el datagrama del protocolo especificado en el campo Protocolo. Longitud variable." }
+                    ]},
+                    // FCS (2 o 4 bytes) y Flag de Fin (1 byte) siguen.
+                ],
+                note: "Esta es una estructura simplificada. Siguen el FCS (16 o 32 bits) y otra Bandera de Fin (0x7E). El 'bit stuffing' se usa para evitar que la secuencia 0x7E aparezca en los datos."
+            },
+            "wifi": {
+                displayName: "Wi-Fi (IEEE 802.11) MAC Frame Header (Data Frame)",
+                rows: [
+                    { fields: [
+                        { id: "wifi-frame-control-1", label: "Frame Control (Byte 1)", bits: 8, description: "<strong>Control de Trama (16 bits):</strong> Contiene varios subcampos como Versión del Protocolo, Tipo, Subtipo, To DS, From DS, More Fragments, Retry, Power Mgmt, More Data, Protected Frame, Order. Define la función de la trama." },
+                        { id: "wifi-frame-control-2", label: "Frame Control (Byte 2)", bits: 8, description: "<strong>Control de Trama (16 bits):</strong> Continuación de los subcampos de control de trama." },
+                        { id: "wifi-duration-id-1", label: "Duration/ID (Byte 1)", bits: 8, description: "<strong>Duración/ID (16 bits):</strong> Dependiendo del tipo de trama, puede indicar el tiempo que el medio estará ocupado (NAV), o un ID de asociación para tramas de gestión." },
+                        { id: "wifi-duration-id-2", label: "Duration/ID (Byte 2)", bits: 8, description: "<strong>Duración/ID (16 bits):</strong> Continuación del campo Duración/ID." }
+                    ]},
+                    { fields: [
+                        { id: "wifi-addr1-1", label: "Address 1 (Dest MAC - Bytes 0-3)", bits: 32, description: "<strong>Dirección 1 (48 bits):</strong> Usualmente la dirección MAC del receptor (ej. AP en modo infraestructura si To DS=1, From DS=0)." },
+                    ]},
+                    { fields: [
+                        { id: "wifi-addr1-2", label: "Addr1 (Bytes 4-5)", bits: 16, description: "<strong>Dirección 1 (48 bits):</strong> Continuación." },
+                        { id: "wifi-addr2-1", label: "Address 2 (Src MAC - Bytes 0-1)", bits: 16, description: "<strong>Dirección 2 (48 bits):</strong> Usualmente la dirección MAC del transmisor (ej. Estación cliente si To DS=1, From DS=0)." },
+                    ]},
+                    { fields: [
+                        { id: "wifi-addr2-2", label: "Address 2 (Bytes 2-5)", bits: 32, description: "<strong>Dirección 2 (48 bits):</strong> Continuación." },
+                    ]},
+                    { fields: [
+                        { id: "wifi-addr3-1", label: "Address 3 (BSSID/SA/DA - Bytes 0-3)", bits: 32, description: "<strong>Dirección 3 (48 bits):</strong> Su significado depende de los flags To DS/From DS. Puede ser MAC del AP (BSSID), Origen Original (en WDS), o Destino Final (en WDS)." },
+                    ]},
+                    { fields: [
+                        { id: "wifi-addr3-2", label: "Addr3 (Bytes 4-5)", bits: 16, description: "<strong>Dirección 3 (48 bits):</strong> Continuación." },
+                        { id: "wifi-seq-ctrl-1", label: "Sequence Control (Frag #)", bits: 4, description: "<strong>Control de Secuencia (16 bits):</strong> Los primeros 4 bits son el Número de Fragmento." },
+                        { id: "wifi-seq-ctrl-2", label: "Sequence Control (Seq #)", bits: 12, description: "<strong>Control de Secuencia (16 bits):</strong> Los últimos 12 bits son el Número de Secuencia de la trama." }
+                    ]},
+                    // Address 4 (opcional, 48 bits), QoS Control (opcional, 16 bits), HT Control (opcional, 32 bits) pueden seguir.
+                    // Luego el Frame Body (payload) y FCS (32 bits).
+                ],
+                note: "Cabecera de una trama de datos Wi-Fi. Campos como Address 4, QoS Control y HT Control son opcionales y no se muestran. La interpretación exacta de las direcciones depende de los flags To DS y From DS en el campo Frame Control."
+            },
+            "arp": {
+                displayName: "ARP (Address Resolution Protocol) Packet",
+                rows: [
+                    { fields: [
+                        { id: "arp-htype", label: "Hardware Type", bits: 16, description: "<strong>Tipo de Hardware (16 bits):</strong> Especifica el tipo de interfaz de red. Comúnmente 1 para Ethernet." },
+                        { id: "arp-ptype", label: "Protocol Type", bits: 16, description: "<strong>Tipo de Protocolo (16 bits):</strong> Especifica el protocolo de internetwork para el cual es esta solicitud ARP. Comúnmente 0x0800 para IPv4." }
+                    ]},
+                    { fields: [
+                        { id: "arp-hlen", label: "Hardware Address Length", bits: 8, description: "<strong>Longitud de Dirección Hardware (8 bits):</strong> Longitud en bytes de una dirección de hardware. 6 para Ethernet MAC." },
+                        { id: "arp-plen", label: "Protocol Address Length", bits: 8, description: "<strong>Longitud de Dirección de Protocolo (8 bits):</strong> Longitud en bytes de una dirección de protocolo. 4 para IPv4." },
+                        { id: "arp-oper", label: "Operation", bits: 16, description: "<strong>Operación (16 bits):</strong> Especifica la operación que el emisor está realizando: 1 para solicitud ARP (ARP request), 2 para respuesta ARP (ARP reply)." }
+                    ]},
+                    { fields: [
+                        { id: "arp-sha-1", label: "Sender Hardware Addr (Bytes 0-3)", bits: 32, description: "<strong>Dirección Hardware del Emisor (SHA - variable, típicamente 48 bits para Ethernet):</strong> Dirección MAC del dispositivo emisor." },
+                    ]},
+                    { fields: [
+                        { id: "arp-sha-2", label: "Sender Hw Addr (Bytes 4-5)", bits: 16, description: "<strong>Dirección Hardware del Emisor (SHA):</strong> Continuación." },
+                        { id: "arp-spa-1", label: "Sender Protocol Addr (Bytes 0-1)", bits: 16, description: "<strong>Dirección de Protocolo del Emisor (SPA - variable, típicamente 32 bits para IPv4):</strong> Dirección IP del dispositivo emisor." },
+                    ]},
+                    { fields: [
+                        { id: "arp-spa-2", label: "Sender Prot Addr (Bytes 2-3)", bits: 16, description: "<strong>Dirección de Protocolo del Emisor (SPA):</strong> Continuación." },
+                        { id: "arp-tha-1", label: "Target Hardware Addr (Bytes 0-1)", bits: 16, description: "<strong>Dirección Hardware del Destinatario (THA - variable):</strong> Dirección MAC del dispositivo destinatario. En una solicitud ARP, este campo puede ser 0s si es desconocido." },
+                    ]},
+                     { fields: [
+                        { id: "arp-tha-2", label: "Target Hw Addr (Bytes 2-5)", bits: 32, description: "<strong>Dirección Hardware del Destinatario (THA):</strong> Continuación." },
+                    ]},
+                    { fields: [
+                        { id: "arp-tpa", label: "Target Protocol Address", bits: 32, description: "<strong>Dirección de Protocolo del Destinatario (TPA - variable):</strong> Dirección IP del dispositivo destinatario cuya MAC se está solicitando." }
+                    ]}
+                ]
+            },
+            "ipv4": {
+                displayName: "IPv4 (Internet Protocol version 4) Header",
+                rows: [
+                    { fields: [
+                        { id: "ipv4-version", label: "Version", bits: 4, description: "<strong>Versión (4 bits):</strong> Número de versión del protocolo IP. Para IPv4, siempre es 4." },
+                        { id: "ipv4-ihl", label: "IHL", bits: 4, description: "<strong>Internet Header Length (IHL - 4 bits):</strong> Longitud de la cabecera IP en palabras de 32 bits. Mínimo 5 (20 bytes), máximo 15 (60 bytes si hay opciones)." },
+                        { id: "ipv4-dscp", label: "DSCP", bits: 6, description: "<strong>Differentiated Services Code Point (DSCP - 6 bits):</strong> Utilizado para Calidad de Servicio (QoS). Originalmente campo Type of Service (ToS)." },
+                        { id: "ipv4-ecn", label: "ECN", bits: 2, description: "<strong>Explicit Congestion Notification (ECN - 2 bits):</strong> Permite la notificación de congestión de extremo a extremo sin descartar paquetes." },
+                        { id: "ipv4-total-length", label: "Total Length", bits: 16, description: "<strong>Longitud Total (16 bits):</strong> Longitud total del datagrama IP (cabecera + datos), en bytes. Máximo 65,535 bytes." }
+                    ]},
+                    { fields: [
+                        { id: "ipv4-identification", label: "Identification", bits: 16, description: "<strong>Identificación (16 bits):</strong> Valor asignado por el emisor para ayudar a reensamblar fragmentos de un datagrama IP." },
+                        { id: "ipv4-flags-r", label: "R", bits: 1, description: "<strong>Flag Reservado (1 bit):</strong> Debe ser cero." },
+                        { id: "ipv4-flags-df", label: "DF", bits: 1, description: "<strong>Don't Fragment (DF - 1 bit):</strong> Si es 1, indica que este datagrama no debe ser fragmentado. Si se requiere fragmentación pero DF=1, el datagrama se descarta." },
+                        { id: "ipv4-flags-mf", label: "MF", bits: 1, description: "<strong>More Fragments (MF - 1 bit):</strong> Si es 1, indica que este es un fragmento y hay más fragmentos después de este. Si es 0, este es el último fragmento (o el datagrama no está fragmentado)." },
+                        { id: "ipv4-fragment-offset", label: "Fragment Offset", bits: 13, description: "<strong>Desplazamiento de Fragmento (13 bits):</strong> Indica dónde, en el datagrama original, pertenece este fragmento. Medido en unidades de 8 bytes." }
+                    ]},
+                    { fields: [
+                        { id: "ipv4-ttl", label: "Time To Live (TTL)", bits: 8, description: "<strong>Tiempo de Vida (TTL - 8 bits):</strong> Límite en el número de routers (saltos) que un datagrama puede atravesar. Cada router decrementa el TTL en 1. Cuando TTL=0, el datagrama se descarta." },
+                        { id: "ipv4-protocol", label: "Protocol", bits: 8, description: "<strong>Protocolo (8 bits):</strong> Indica el protocolo de capa superior encapsulado en la porción de datos de este datagrama IP. Ej: 1 (ICMP), 6 (TCP), 17 (UDP)." },
+                        { id: "ipv4-header-checksum", label: "Header Checksum", bits: 16, description: "<strong>Suma de Verificación de Cabecera (16 bits):</strong> Suma de verificación para detectar errores solo en la cabecera IP." }
+                    ]},
+                    { fields: [
+                        { id: "ipv4-source-ip", label: "Source IP Address", bits: 32, description: "<strong>Dirección IP de Origen (32 bits):</strong> Dirección IPv4 del emisor del datagrama." }
+                    ]},
+                    { fields: [
+                        { id: "ipv4-destination-ip", label: "Destination IP Address", bits: 32, description: "<strong>Dirección IP de Destino (32 bits):</strong> Dirección IPv4 del receptor del datagrama." }
+                    ]},
+                    { fields: [
+                        { id: "ipv4-options", label: "Options (+Padding)", bits: 32, customClass:"bits-variable", description: "<strong>Opciones (y Relleno - longitud variable):</strong> Si IHL > 5, este campo contiene opciones IP. El relleno se usa para asegurar que la cabecera sea múltiplo de 32 bits. Raramente usado en la práctica moderna." }
+                    ]}
+                ]
+            },
+            "icmp": {
+                displayName: "ICMP (Internet Control Message Protocol) Header",
+                rows: [
+                    { fields: [
+                        { id: "icmp-type", label: "Type", bits: 8, description: "<strong>Tipo (8 bits):</strong> Define el tipo de mensaje ICMP. Ej: 0 (Echo Reply), 3 (Destination Unreachable), 8 (Echo Request), 11 (Time Exceeded)." },
+                        { id: "icmp-code", label: "Code", bits: 8, description: "<strong>Código (8 bits):</strong> Proporciona más especificidad sobre el tipo de mensaje. Ej: para Type 3, Code 0 = Network Unreachable, Code 1 = Host Unreachable." },
+                        { id: "icmp-checksum", label: "Checksum", bits: 16, description: "<strong>Suma de Verificación (16 bits):</strong> Calculada sobre toda la cabecera y datos ICMP para detección de errores." }
+                    ]},
+                    { fields: [
+                        { id: "icmp-rest-of-header", label: "Rest of Header / Data", bits: 32, customClass: "bits-variable", description: "<strong>Resto de la Cabecera / Datos (variable):</strong> El contenido de esta parte varía según el Tipo y Código del mensaje ICMP. Por ejemplo, para Echo Request/Reply, contiene un Identificador (16 bits) y un Número de Secuencia (16 bits), seguido opcionalmente por datos." }
+                    ]}
+                ],
+                note: "ICMP se encapsula directamente en IP. Su estructura más allá de los primeros 4 bytes depende del Tipo y Código del mensaje."
+            },
+            "tcp": { // Esta es la definición original, la mantenemos
+                displayName: "TCP (Transmission Control Protocol) Segment Header",
+                rows: [
+                    { fields: [
+                        { id: "tcp-source-port", label: "Source Port", bits: 16, description: "<strong>Puerto de Origen (16 bits):</strong> Identifica el puerto de la aplicación emisora." },
+                        { id: "tcp-destination-port", label: "Destination Port", bits: 16, description: "<strong>Puerto de Destino (16 bits):</strong> Identifica el puerto de la aplicación receptora." }
+                    ]},
+                    { fields: [
+                        { id: "tcp-sequence-number", label: "Sequence Number", bits: 32, description: "<strong>Número de Secuencia (32 bits):</strong> Número de secuencia del primer byte de datos en este segmento o el ISN si SYN está activo." }
+                    ]},
+                    { fields: [
+                        { id: "tcp-acknowledgment-number", label: "Acknowledgment Number", bits: 32, description: "<strong>Número de Reconocimiento (32 bits):</strong> Si ACK está activo, el próximo número de secuencia esperado." }
+                    ]},
+                    { fields: [
+                        { id: "tcp-data-offset", label: "Data Offset", bits: 4, description: "<strong>Desplazamiento de Datos (4 bits):</strong> Longitud de la cabecera TCP en palabras de 32 bits." },
+                        { id: "tcp-reserved", label: "Reserved", bits: 6, description: "<strong>Reservado (6 bits):</strong> Para uso futuro, debe ser cero." },
+                        // Grupo de Flags TCP
+                        { id: "tcp-flag-urg", label: "URG", bits: 1, isFlag: true, description: "<strong>URG (1 bit):</strong> Puntero Urgente significativo." },
+                        { id: "tcp-flag-ack", label: "ACK", bits: 1, isFlag: true, description: "<strong>ACK (1 bit):</strong> Campo de Reconocimiento significativo." },
+                        { id: "tcp-flag-psh", label: "PSH", bits: 1, isFlag: true, description: "<strong>PSH (1 bit):</strong> Función Push." },
+                        { id: "tcp-flag-rst", label: "RST", bits: 1, isFlag: true, description: "<strong>RST (1 bit):</strong> Reiniciar la conexión." },
+                        { id: "tcp-flag-syn", label: "SYN", bits: 1, isFlag: true, description: "<strong>SYN (1 bit):</strong> Sincronizar números de secuencia." },
+                        { id: "tcp-flag-fin", label: "FIN", bits: 1, isFlag: true, description: "<strong>FIN (1 bit):</strong> No más datos del emisor." },
+                        // Fin Grupo de Flags TCP
+                        { id: "tcp-window-size", label: "Window Size", bits: 16, description: "<strong>Tamaño de Ventana (16 bits):</strong> Número de bytes que el emisor está dispuesto a aceptar." }
+                    ]},
+                    { fields: [
+                        { id: "tcp-checksum", label: "Checksum", bits: 16, description: "<strong>Suma de Verificación (16 bits):</strong> Para detección de errores en cabecera y datos." },
+                        { id: "tcp-urgent-pointer", label: "Urgent Pointer", bits: 16, description: "<strong>Puntero Urgente (16 bits):</strong> Si URG está activo, offset al último byte de datos urgentes." }
+                    ]},
+                    { fields: [
+                        { id: "tcp-options", label: "Options (+Padding)", bits: 32, customClass: "bits-variable", description: "<strong>Opciones y Relleno (longitud variable):</strong> Para funcionalidades extendidas como MSS, Timestamps, etc." }
+                    ]}
+                ]
+            },
+            "udp": {
+                displayName: "UDP (User Datagram Protocol) Datagram Header",
+                rows: [
+                    { fields: [
+                        { id: "udp-source-port", label: "Source Port", bits: 16, description: "<strong>Puerto de Origen (16 bits):</strong> Identifica el puerto del proceso emisor. Es opcional; si no se usa, se establece en cero." },
+                        { id: "udp-destination-port", label: "Destination Port", bits: 16, description: "<strong>Puerto de Destino (16 bits):</strong> Identifica el puerto del proceso receptor. Es requerido." }
+                    ]},
+                    { fields: [
+                        { id: "udp-length", label: "Length", bits: 16, description: "<strong>Longitud (16 bits):</strong> Longitud en bytes del datagrama UDP (cabecera + datos). La longitud mínima es 8 bytes (solo cabecera)." },
+                        { id: "udp-checksum", label: "Checksum", bits: 16, description: "<strong>Suma de Verificación (16 bits):</strong> Para detección de errores en la cabecera UDP, los datos UDP y una pseudo-cabecera IP. Es opcional en IPv4 (si es cero, no se calcula); obligatorio en IPv6 (excepto para túneles específicos)." }
+                    ]}
+                ]
+            }
+        };
+
+        const protocolSelect = document.getElementById('protocolSelect');
+        const headerDiagramContainer = document.getElementById('headerDiagram');
+        const fieldInfoDisplay = document.getElementById('fieldInfoDisplay');
+        const headerTitleElement = document.getElementById('headerTitle');
+        let currentActiveFieldElement = null;
+
+        function renderHeader(protocolKey) {
+            const protocol = protocolDefinitions[protocolKey];
+            if (!protocol) return;
+
+            headerTitleElement.textContent = protocol.displayName;
+            headerDiagramContainer.innerHTML = '';
+            fieldInfoDisplay.innerHTML = '<p class="text-muted">Haz clic en un campo de la cabecera para ver su descripción.</p>';
+            if (currentActiveFieldElement) {
+                currentActiveFieldElement.classList.remove('active');
+                currentActiveFieldElement = null;
+            }
+             // Mostrar nota si existe
+            const existingNote = document.getElementById('protocolNote');
+            if (existingNote) existingNote.remove();
+
+            if (protocol.note) {
+                const noteEl = document.createElement('p');
+                noteEl.className = 'info-note text-center';
+                noteEl.id = 'protocolNote';
+                noteEl.innerHTML = protocol.note;
+                headerDiagramContainer.insertAdjacentElement('afterend', noteEl);
+            }
+
+
+            protocol.rows.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'header-row';
+                
+                let isTcpControlGroupRendered = false; // Para manejar el grupo de flags TCP específicamente
+
+                row.fields.forEach(field => {
+                    if (protocolKey === "tcp" && field.isFlag && !isTcpControlGroupRendered) {
+                        // Renderizar el grupo de control de TCP
+                        const controlGroupDiv = document.createElement('div');
+                        controlGroupDiv.className = 'control-bits-group';
+                        
+                        // Encontrar todos los flags en esta fila de la definición TCP
+                        const tcpFlagsInRow = protocol.rows.flatMap(r => r.fields).filter(f => f.isFlag);
+
+                        tcpFlagsInRow.forEach(flagField => {
+                            const fieldDiv = createFieldElement(flagField, protocolKey);
+                            controlGroupDiv.appendChild(fieldDiv);
+                        });
+                        rowDiv.appendChild(controlGroupDiv);
+                        isTcpControlGroupRendered = true; 
+                        // Saltar los flags individuales porque ya se renderizaron en el grupo
+                        // Esto asume que todos los flags de TCP están en una misma 'agrupación' lógica en la definición.
+                        // Y que el primer flag encontrado dispara la creación del grupo.
+                        return; // Salir del forEach de este campo, ya que los flags se manejan en grupo
+                    }
+                    
+                    if (protocolKey === "tcp" && field.isFlag && isTcpControlGroupRendered) {
+                        return; // Ya se renderizó este flag dentro del grupo
+                    }
+
+                    const fieldDiv = createFieldElement(field, protocolKey);
+                    rowDiv.appendChild(fieldDiv);
+                });
+                headerDiagramContainer.appendChild(rowDiv);
+            });
+        }
+        
+        function createFieldElement(field, protocolKey) {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'header-field';
+            if (field.bits) {
+                 // Para campos que se dividen, como MAC Address, pueden necesitar una clase base
+                // y luego la clase de bits para la parte actual.
+                if (field.customClass && field.customClass === "bits-variable") {
+                     fieldDiv.classList.add(`bits-32`); // Default para variables, el texto lo indicará
+                     fieldDiv.style.fontStyle = "italic";
+                } else if (field.bits > 32 && (protocolKey === "ethernet-ii" || protocolKey === "wifi" || protocolKey === "arp") ) {
+                    // Para campos muy largos como MAC, usamos bits-32 si es una parte de 32 bits.
+                    // El label debe indicar que es parte de un campo mayor.
+                    fieldDiv.classList.add(`bits-${field.bits}`);
+                }
+                else {
+                    fieldDiv.classList.add(`bits-${field.bits}`);
+                }
+            }
+             if (field.customClass && field.customClass !== "bits-variable") {
+                 fieldDiv.classList.add(field.customClass);
+             }
+
+            fieldDiv.textContent = field.label;
+            fieldDiv.dataset.fieldId = field.id;
+
+            fieldDiv.addEventListener('click', () => {
+                if (currentActiveFieldElement) {
+                    currentActiveFieldElement.classList.remove('active');
+                }
+                fieldDiv.classList.add('active');
+                currentActiveFieldElement = fieldDiv;
+
+                fieldInfoDisplay.innerHTML = `
+                    <h3>${field.label} (${field.bits} bits)</h3>
+                    <p>${field.description}</p>
+                `;
+            });
+            return fieldDiv;
+        }
+
+
+        protocolSelect.addEventListener('change', (event) => {
+            renderHeader(event.target.value);
+        });
+
+        // Renderizar la cabecera TCP por defecto al cargar
+        renderHeader('tcp');
+
+    </script>
+</body>
+</html>
