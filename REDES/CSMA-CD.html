@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador CSMA/CD Interactivo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #f0f2f5;
+            --color-panel-bg: #ffffff;
+            --color-bus: #343a40;
+            --node-color-a: #0d6efd; /* Azul BS */
+            --node-color-b: #ffc107; /* Amarillo BS */
+            --node-color-c: #198754; /* Verde BS */
+            --node-color-idle-text: #fff;
+            --node-color-transmitting: #fd7e14; /* Naranja BS */
+            --node-color-collided: #dc3545; /* Rojo BS */
+            --node-color-jamming: #6f42c1; /* Indigo BS */
+            --node-color-sensing: #0dcaf0; /* Cyan BS */
+            --node-color-backoff: #adb5bd; /* Gris BS */
+            --signal-data-fill: rgba(25, 135, 84, 0.5); /* Verde con transparencia */
+            --signal-data-stroke: #198754;
+            --signal-jam-fill: rgba(220, 53, 69, 0.5); /* Rojo con transparencia */
+            --signal-jam-stroke: #dc3545;
+            --collision-indicator-color: #dc3545;
+            --text-color: #212529;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--text-color);
+            padding-top: 1rem;
+        }
+
+        .control-panel {
+            background-color: var(--color-panel-bg);
+            padding: 1.5rem;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            height: 500px; /* Altura fija para el panel */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-panel h5 {
+            color: var(--color-bus);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .control-panel .step-info {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+
+        .control-panel .button-group {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+        
+        .control-panel .btn {
+            font-size: 0.9rem;
+            padding: 0.3rem 0.8rem;
+        }
+
+        #bus-visualization-area {
+            background-color: var(--color-panel-bg);
+            border-radius: 0.375rem;
+            padding: 1rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            margin-bottom: 1rem;
+            height: 280px; /* Altura para el área de visualización del bus */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        #csma-cd-svg {
+            width: 100%;
+            height: 180px; /* Altura del SVG para bus y señales */
+            overflow: visible;
+        }
+
+        .ethernet-bus-line {
+            stroke: var(--color-bus);
+            stroke-width: 5;
+            stroke-linecap: round;
+        }
+
+        .node-representation circle {
+            stroke: var(--color-bus);
+            stroke-width: 2.5;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.2));
+        }
+        
+        .node-representation text.node-id {
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            fill: var(--node-color-idle-text);
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+        
+        .node-representation text.node-message {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            fill: var(--text-color);
+            text-anchor: middle;
+        }
+
+        .signal-rect {
+            stroke-width: 1.5;
+            rx: 3;
+            ry: 3;
+            opacity: 0.8;
+        }
+        .signal-data {
+            fill: var(--signal-data-fill);
+            stroke: var(--signal-data-stroke);
+        }
+        .signal-jam {
+            fill: var(--signal-jam-fill);
+            stroke: var(--signal-jam-stroke);
+        }
+
+        .collision-indicator {
+            font-size: 30px;
+            fill: var(--collision-indicator-color);
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+        
+        #step-description ul {
+            padding-left: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        #step-description li {
+            margin-bottom: 0.3rem;
+        }
+        .node-status-display { margin-top: 1rem; }
+        .node-status-item { font-family: monospace; font-size: 0.75rem; margin-bottom: 0.2rem; }
+
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">Simulador CSMA/CD</h1>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="control-panel">
+                    <h5>Controles y Escenario</h5>
+                    <div class="mb-3">
+                        <label for="scenario-select" class="form-label">Seleccionar Escenario:</label>
+                        <select id="scenario-select" class="form-select form-select-sm">
+                            <option value="tx_success">1. Transmisión Exitosa (A)</option>
+                            <option value="collision_recovery">2. Colisión y Recuperación (A y C)</option>
+                            <option value="carrier_sense">3. Detección de Portadora (B espera a A)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="step-info">
+                        <h6 id="step-title" class="mt-2">Paso 0: Inicio</h6>
+                        <div id="step-description" style="min-height: 120px;">
+                            Selecciona un escenario y usa los botones para avanzar.
+                        </div>
+                        <div id="nodes-status-summary" class="node-status-display">
+                            <p class="mb-1"><strong>Estado de Nodos:</strong></p>
+                            
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="prev-step" class="btn btn-info me-2" disabled>Anterior</button>
+                        <button id="next-step" class="btn btn-primary me-2">Siguiente</button>
+                        <button id="reset-sim" class="btn btn-secondary">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <div id="bus-visualization-area">
+                    <svg id="csma-cd-svg">
+                        <line id="ethernet-bus" class="ethernet-bus-line" y1="100" y2="100" />
+                        <g id="signals-group"></g>
+                        <g id="nodes-group"></g>
+                        <g id="annotations-group"></g>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const scenarioSelect = document.getElementById('scenario-select');
+        const prevButton = document.getElementById('prev-step');
+        const nextButton = document.getElementById('next-step');
+        const resetButton = document.getElementById('reset-sim');
+        const stepTitleElement = document.getElementById('step-title');
+        const stepDescriptionElement = document.getElementById('step-description');
+        const nodesStatusSummaryElement = document.getElementById('nodes-status-summary');
+
+        const svg = document.getElementById('csma-cd-svg');
+        const busLine = document.getElementById('ethernet-bus');
+        const nodesGroup = document.getElementById('nodes-group');
+        const signalsGroup = document.getElementById('signals-group');
+        const annotationsGroup = document.getElementById('annotations-group');
+
+        const BUS_Y = 100;
+        const NODE_RADIUS = 18;
+        const SIGNAL_HEIGHT = 30;
+        const NODE_MESSAGE_Y_OFFSET = 35;
+        let BUS_START_X = 50;
+        let BUS_END_X = 750;
+        
+        const NODE_CONFIG = [
+            { id: 'A', label: 'A', defaultXRatio: 0.15, color: 'var(--node-color-a)' },
+            { id: 'B', label: 'B', defaultXRatio: 0.5, color: 'var(--node-color-b)' },
+            { id: 'C', label: 'C', defaultXRatio: 0.85, color: 'var(--node-color-c)' },
+        ];
+        let NODES = [];
+
+        let currentScenarioId = 'tx_success';
+        let currentStep = 0;
+        let scenarios = {}; // Se llenará después
+
+        function drawBus() {
+            const svgWidth = svg.clientWidth || svg.parentElement.clientWidth;
+            BUS_START_X = svgWidth * 0.05;
+            BUS_END_X = svgWidth * 0.95;
+            busLine.setAttribute('x1', BUS_START_X);
+            busLine.setAttribute('x2', BUS_END_X);
+        }
+
+        function initializeNodes() {
+            nodesGroup.innerHTML = '';
+            NODES = NODE_CONFIG.map(config => {
+                const nodeX = BUS_START_X + (BUS_END_X - BUS_START_X) * config.defaultXRatio;
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute('class', 'node-representation');
+                g.setAttribute('id', `node-${config.id}`);
+                g.setAttribute('transform', `translate(${nodeX}, ${BUS_Y})`);
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute('r', NODE_RADIUS);
+                circle.setAttribute('fill', config.color);
+                g.appendChild(circle);
+
+                const textId = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textId.setAttribute('class', 'node-id');
+                textId.textContent = config.label;
+                g.appendChild(textId);
+                
+                const textMessage = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textMessage.setAttribute('class', 'node-message');
+                textMessage.setAttribute('y', NODE_MESSAGE_Y_OFFSET);
+                textMessage.textContent = "Listo";
+                g.appendChild(textMessage);
+
+                nodesGroup.appendChild(g);
+                return { 
+                    ...config, 
+                    x: nodeX, 
+                    el: g, 
+                    circleEl: circle,
+                    messageEl: textMessage,
+                    // Estado inicial que se sobreescribirá por el escenario
+                    status: 'idle', 
+                    signal: { active: false, left_edge: nodeX, right_edge: nodeX, type: 'data' },
+                    backoff: 0,
+                    attempts: 0,
+                    messageText: "Listo"
+                };
+            });
+        }
+        
+        function updateNodeVisuals(nodeState) {
+            const node = NODES.find(n => n.id === nodeState.id);
+            if (!node) return;
+
+            node.status = nodeState.status;
+            node.signal = JSON.parse(JSON.stringify(nodeState.signal)); // Deep copy
+            node.backoff = nodeState.backoff;
+            node.attempts = nodeState.attempts;
+            node.messageText = nodeState.messageText || "";
+            node.messageEl.textContent = node.messageText;
+
+            let fillColor = node.color;
+            switch(nodeState.status) {
+                case 'transmitting': fillColor = 'var(--node-color-transmitting)'; break;
+                case 'sensing': fillColor = 'var(--node-color-sensing)'; break;
+                case 'collided': fillColor = 'var(--node-color-collided)'; break;
+                case 'jamming': fillColor = 'var(--node-color-jamming)'; break;
+                case 'backoff': fillColor = 'var(--node-color-backoff)'; break;
+                default: fillColor = node.color; // idle
+            }
+            node.circleEl.setAttribute('fill', fillColor);
+        }
+
+        function drawSignalsAndAnnotations(nodesCurrentStates, annotations) {
+            signalsGroup.innerHTML = '';
+            annotationsGroup.innerHTML = '';
+
+            nodesCurrentStates.forEach(nodeState => {
+                if (nodeState.signal && nodeState.signal.active) {
+                    const signal = nodeState.signal;
+                    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    
+                    const x = Math.max(BUS_START_X, signal.left_edge);
+                    const width = Math.min(signal.right_edge, BUS_END_X) - x;
+
+                    if (width > 0) {
+                        rect.setAttribute('x', x);
+                        rect.setAttribute('y', BUS_Y - SIGNAL_HEIGHT / 2);
+                        rect.setAttribute('width', width);
+                        rect.setAttribute('height', SIGNAL_HEIGHT);
+                        rect.setAttribute('class', `signal-rect signal-${signal.type}`);
+                        signalsGroup.appendChild(rect);
+                    }
+                }
+            });
+
+            if (annotations && annotations.collisionPoint) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute('x', annotations.collisionPoint);
+                text.setAttribute('y', BUS_Y);
+                text.setAttribute('class', 'collision-indicator');
+                text.textContent = '💥';
+                annotationsGroup.appendChild(text);
+            }
+        }
+        
+        function updateNodesStatusSummary(nodesCurrentStates) {
+            let summaryHtml = '<p class="mb-1"><strong>Estado de Nodos:</strong></p>';
+            nodesCurrentStates.forEach(nodeState => {
+                const node = NODES.find(n => n.id === nodeState.id);
+                summaryHtml += `<div class="node-status-item"><strong>${node.label}:</strong> ${nodeState.status}`;
+                if (nodeState.status === 'backoff') {
+                    summaryHtml += ` (espera ${nodeState.backoff} slots, intentos ${nodeState.attempts})`;
+                } else if (nodeState.attempts > 0) {
+                     summaryHtml += ` (intentos ${nodeState.attempts})`;
+                }
+                if (nodeState.messageText && nodeState.messageText !== "Listo") {
+                     summaryHtml += ` - <em>${nodeState.messageText}</em>`
+                }
+                summaryHtml += `</div>`;
+            });
+            nodesStatusSummaryElement.innerHTML = summaryHtml;
+        }
+
+        function executeStep() {
+            const scenario = scenarios[currentScenarioId];
+            if (!scenario || !scenario.steps || currentStep >= scenario.steps.length) return;
+
+            const stepData = scenario.steps[currentStep];
+            stepTitleElement.textContent = `Paso ${currentStep}: ${stepData.title}`;
+            stepDescriptionElement.innerHTML = stepData.description;
+
+            stepData.nodes.forEach(nodeState => updateNodeVisuals(nodeState));
+            drawSignalsAndAnnotations(stepData.nodes, stepData.annotations);
+            updateNodesStatusSummary(stepData.nodes);
+
+            prevButton.disabled = currentStep === 0;
+            nextButton.disabled = currentStep === (scenario.steps.length - 1);
+            resetButton.disabled = currentStep === 0 && prevButton.disabled;
+        }
+        
+        function calculateBackoffValue(attempts) {
+            // k = min(n, 10)
+            // R = random(0, 2^k -1)
+            // For simulation, R is the number of abstract "slots" or steps to wait.
+            const k = Math.min(attempts, 10);
+            const maxRand = Math.pow(2, k) -1;
+            return Math.floor(Math.random() * (maxRand + 1));
+        }
+
+        scenarios = {
+            'tx_success': {
+                name: "Transmisión Exitosa (A)",
+                steps: [
+                    {
+                        title: "Inicio",
+                        description: "<ul><li>Todos los nodos están inactivos (idle).</li><li>El bus Ethernet está libre.</li></ul>",
+                        nodes: NODE_CONFIG.map(n => ({ id: n.id, status: 'idle', signal: { active: false, left_edge: NODES.find(nd=>nd.id === n.id)?.x || 0, right_edge: NODES.find(nd=>nd.id === n.id)?.x || 0, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }))
+                    },
+                    {
+                        title: "A decide transmitir",
+                        description: "<ul><li>Nodo A tiene datos para enviar.</li><li>A sensa el medio (Carrier Sense).</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'sensing', signal: { active: false, left_edge: 150, right_edge: 150, type: 'data' }, backoff: 0, attempts: 0, messageText: "Escuchando..." },
+                            { id: 'B', status: 'idle', signal: { active: false, left_edge: 350, right_edge: 350, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'idle', signal: { active: false, left_edge: 550, right_edge: 550, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                    {
+                        title: "A comienza a transmitir",
+                        description: "<ul><li>A encuentra el medio libre y comienza a transmitir su trama.</li><li>La señal de A se propaga por el bus en ambas direcciones.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, left_edge: (NODES.find(n=>n.id==='A')?.x || 150) - 30, right_edge: (NODES.find(n=>n.id==='A')?.x || 150) + 30, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." },
+                            { id: 'B', status: 'idle', signal: { active: false, left_edge: 350, right_edge: 350, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'idle', signal: { active: false, left_edge: 550, right_edge: 550, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                    {
+                        title: "Señal de A se propaga",
+                        description: "<ul><li>La trama de A continúa propagándose.</li><li>Los nodos B y C eventualmente detectarán esta transmisión.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, left_edge: (NODES.find(n=>n.id==='A')?.x || 150) - 200, right_edge: (NODES.find(n=>n.id==='A')?.x || 150) + 200, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." },
+                            { id: 'B', status: 'idle', signal: { active: false, left_edge: 350, right_edge: 350, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando A" },
+                            { id: 'C', status: 'idle', signal: { active: false, left_edge: 550, right_edge: 550, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                     {
+                        title: "A completa la transmisión",
+                        description: "<ul><li>A termina de enviar todos los bits de su trama.</li><li>La señal sigue en el bus hasta que se propaga completamente y desaparece.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'idle', signal: { active: true, left_edge: (NODES.find(n=>n.id==='A')?.x || 150) - 400, right_edge: (NODES.find(n=>n.id==='A')?.x || 150) + 400, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx Enviada" },
+                            { id: 'B', status: 'idle', signal: { active: false, left_edge: 350, right_edge: 350, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando A" },
+                            { id: 'C', status: 'idle', signal: { active: false, left_edge: 550, right_edge: 550, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando A" }
+                        ]
+                    },
+                    {
+                        title: "Transmisión finalizada",
+                        description: "<ul><li>La trama de A ha recorrido todo el bus y es eliminada.</li><li>El bus vuelve a estar libre.</li></ul>",
+                        nodes: NODE_CONFIG.map(n => ({ id: n.id, status: 'idle', signal: { active: false, left_edge: NODES.find(nd=>nd.id === n.id)?.x || 0, right_edge: NODES.find(nd=>nd.id === n.id)?.x || 0, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }))
+                    }
+                ]
+            },
+            'collision_recovery': {
+                name: "Colisión y Recuperación (A y C)",
+                // Los valores de left_edge/right_edge se calcularán basados en NODES[idx].x en el momento de la ejecución del paso.
+                // Usaremos valores placeholder aquí para la estructura.
+                steps: [
+                    {
+                        title: "Inicio",
+                        description: "<ul><li>Todos los nodos están inactivos.</li></ul>",
+                        nodes: NODE_CONFIG.map(n => ({ id: n.id, status: 'idle', signal: { active: false, left_edge: 0, right_edge: 0, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }))
+                    },
+                    {
+                        title: "A y C deciden transmitir",
+                        description: "<ul><li>Nodo A y Nodo C (más alejado) quieren transmitir casi simultáneamente.</li><li>Ambos sensan el medio.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Escuchando..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Escuchando..." }
+                        ]
+                    },
+                    {
+                        title: "A y C comienzan a transmitir",
+                        description: "<ul><li>Ambos encuentran el medio libre (la señal del otro aún no ha llegado) y comienzan a transmitir.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 30, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'transmitting', signal: { active: true, spread: 30, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." }
+                        ]
+                    },
+                    {
+                        title: "Señales se propagan",
+                        description: "<ul><li>Las señales de A y C se expanden por el bus.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 120, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando..." },
+                            { id: 'C', status: 'transmitting', signal: { active: true, spread: 120, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." }
+                        ]
+                    },
+                    {
+                        title: "¡Colisión!",
+                        description: "<ul><li>Las señales se encuentran y colisionan en el medio del bus.</li><li>Los nodos A y C aún no son conscientes de la colisión.</li></ul>",
+                        annotations: { collisionPoint: ( (NODES.find(n=>n.id==='A')?.x || 0) + (NODES.find(n=>n.id==='C')?.x || 0) ) / 2 }, // Aproximado
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 200, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." }, // spread tal que colisionan
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando..." },
+                            { id: 'C', status: 'transmitting', signal: { active: true, spread: 200, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." }
+                        ]
+                    },
+                     {
+                        title: "Nodos detectan colisión",
+                        description: "<ul><li>La 'noticia' de la colisión (aumento de energía) se propaga de vuelta a los transmisores.</li><li>A y C detectan la colisión.</li></ul>",
+                        annotations: { collisionPoint: ( (NODES.find(n=>n.id==='A')?.x || 0) + (NODES.find(n=>n.id==='C')?.x || 0) ) / 2 },
+                        nodes: [
+                            { id: 'A', status: 'collided', signal: { active: true, spread: 210, type: 'data' }, backoff: 0, attempts: 1, messageText: "¡Colisión!" },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Colisión Detectada" },
+                            { id: 'C', status: 'collided', signal: { active: true, spread: 210, type: 'data' }, backoff: 0, attempts: 1, messageText: "¡Colisión!" }
+                        ]
+                    },
+                    {
+                        title: "Envío de Jam Signal",
+                        description: "<ul><li>A y C dejan de transmitir datos y envían una señal 'Jam' para asegurar que todos los nodos en el segmento reconozcan la colisión.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'jamming', signal: { active: true, spread: 30, type: 'jam' }, backoff: 0, attempts: 1, messageText: "Jamming!" },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Jam Detectado" },
+                            { id: 'C', status: 'jamming', signal: { active: true, spread: 30, type: 'jam' }, backoff: 0, attempts: 1, messageText: "Jamming!" }
+                        ]
+                    },
+                    {
+                        title: "Jam Signal se propaga",
+                        description: "<ul><li>Las señales Jam se propagan, reforzando la detección de la colisión.</li></ul>",
+                         nodes: [
+                            { id: 'A', status: 'jamming', signal: { active: true, spread: 250, type: 'jam' }, backoff: 0, attempts: 1, messageText: "Jamming!" },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Jam Detectado" },
+                            { id: 'C', status: 'jamming', signal: { active: true, spread: 250, type: 'jam' }, backoff: 0, attempts: 1, messageText: "Jamming!" }
+                        ]
+                    },
+                    {
+                        title: "Inicio de Backoff",
+                        description: "<ul><li>Después del Jamming, A y C aplican el algoritmo de Backoff Exponencial Binario.</li><li>Esperarán un tiempo aleatorio antes de intentar retransmitir. El contador de intentos aumenta.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'backoff', signal: { active: false, type: 'jam' }, backoff: calculateBackoffValue(1), attempts: 1, messageText: "Backoff..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'backoff', signal: { active: false, type: 'jam' }, backoff: calculateBackoffValue(1), attempts: 1, messageText: "Backoff..." }
+                        ]
+                    },
+                    // Suponemos que A tiene un backoff menor (ej. 0 slots) y C mayor (ej. 1 slot)
+                    {
+                        title: "A termina Backoff, C espera",
+                        description: "<ul><li>A completa su tiempo de backoff. C sigue esperando.</li><li>A vuelve a sensar el medio.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 1, messageText: "Escuchando (reintento)" },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'backoff', signal: { active: false, type: 'jam' }, backoff: 1, attempts: 1, messageText: "Backoff (1 slot)" } // Asumimos que el backoff de C fue 1
+                        ]
+                    },
+                    {
+                        title: "A retransmite exitosamente",
+                        description: "<ul><li>A encuentra el medio libre y retransmite.</li></ul>",
+                        nodes: [ // Similar a tx_success, paso 2
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 30, type: 'data' }, backoff: 0, attempts: 1, messageText: "Retransmitiendo..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'backoff', signal: { active: false, type: 'jam' }, backoff: 1, attempts: 1, messageText: "Backoff (1 slot)" }
+                        ]
+                    },
+                     {
+                        title: "Señal de A se propaga (reintento)",
+                        description: "<ul><li>La retransmisión de A se propaga. C sigue en backoff pero ahora detecta la transmisión de A.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 200, type: 'data' }, backoff: 0, attempts: 1, messageText: "Retransmitiendo..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando A" },
+                            { id: 'C', status: 'backoff', signal: { active: false, type: 'jam' }, backoff: 1, attempts: 1, messageText: "Backoff (1 slot), A Tx" }
+                        ]
+                    },
+                    {
+                        title: "A termina retransmisión. C termina backoff.",
+                        description: "<ul><li>A completa su retransmisión. La trama se propaga.</li><li>C termina su backoff y sensa el medio.</li></ul>",
+                        nodes: [
+                             { id: 'A', status: 'idle', signal: { active: true, spread: 400, type: 'data' }, backoff: 0, attempts: 1, messageText: "Retransmisión OK" },
+                             { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando A" },
+                             { id: 'C', status: 'sensing', signal: { active: false, type: 'jam' }, backoff: 0, attempts: 1, messageText: "Escuchando..." }
+                        ]
+                    },
+                    {
+                        title: "C transmite exitosamente",
+                        description: "<ul><li>Bus libre (trama de A ya pasó). C sensa medio libre y transmite.</li></ul>",
+                        nodes: [ // Similar a tx_success, paso 2 para C
+                            { id: 'A', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 1, messageText: "Listo" },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'transmitting', signal: { active: true, spread: 30, type: 'data' }, backoff: 0, attempts: 1, messageText: "Transmitiendo..." }
+                        ]
+                    },
+                    {
+                        title: "Fin de recuperación",
+                        description: "<ul><li>Ambas transmisiones (A y C) se completaron después de la colisión y recuperación.</li></ul>",
+                        nodes: NODE_CONFIG.map(n => ({ id: n.id, status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }))
+                    }
+                ]
+            },
+            'carrier_sense': {
+                name: "Detección de Portadora (B espera a A)",
+                steps: [
+                    {
+                        title: "Inicio",
+                        description: "<ul><li>Todos los nodos inactivos.</li></ul>",
+                        nodes: NODE_CONFIG.map(n => ({ id: n.id, status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }))
+                    },
+                    {
+                        title: "A decide transmitir",
+                        description: "<ul><li>Nodo A decide transmitir y sensa el medio.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Escuchando..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                    {
+                        title: "A comienza a transmitir",
+                        description: "<ul><li>A encuentra el medio libre y comienza a transmitir.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 30, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." },
+                            { id: 'B', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'C', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                    {
+                        title: "B decide transmitir mientras A transmite",
+                        description: "<ul><li>La señal de A se propaga.</li><li>Nodo B también quiere transmitir y sensa el medio.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 150, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." }, // Suficiente para que B lo detecte
+                            { id: 'B', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Escuchando..." },
+                            { id: 'C', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                    {
+                        title: "B detecta medio ocupado",
+                        description: "<ul><li>B detecta la transmisión de A (Carrier Sense).</li><li>B pospone su transmisión (defer) y sigue escuchando.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'transmitting', signal: { active: true, spread: 200, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." },
+                            { id: 'B', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Medio Ocupado. Esperando..." },
+                            { id: 'C', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando A" }
+                        ]
+                    },
+                    {
+                        title: "A termina transmisión",
+                        description: "<ul><li>A completa el envío de su trama. La señal de A todavía está en el bus.</li><li>B sigue esperando.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'idle', signal: { active: true, spread: 400, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx Enviada" },
+                            { id: 'B', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Medio Ocupado. Esperando..." },
+                            { id: 'C', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Detectando A" }
+                        ]
+                    },
+                    {
+                        title: "Bus libre, B sensa de nuevo",
+                        description: "<ul><li>La trama de A ha abandonado el bus.</li><li>B, que seguía escuchando, ahora detecta el medio libre.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'B', status: 'sensing', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Escuchando... Medio Libre!" },
+                            { id: 'C', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                    {
+                        title: "B comienza a transmitir",
+                        description: "<ul><li>B encuentra el medio libre y comienza su transmisión.</li></ul>",
+                        nodes: [
+                            { id: 'A', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" },
+                            { id: 'B', status: 'transmitting', signal: { active: true, spread: 30, type: 'data' }, backoff: 0, attempts: 0, messageText: "Tx..." },
+                            { id: 'C', status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }
+                        ]
+                    },
+                    {
+                        title: "Transmisión de B finalizada",
+                        description: "<ul><li>B completa su transmisión exitosamente.</li></ul>",
+                        nodes: NODE_CONFIG.map(n => ({ id: n.id, status: 'idle', signal: { active: false, type: 'data' }, backoff: 0, attempts: 0, messageText: "Listo" }))
+                    }
+                ]
+            }
+        };
+        
+        // Pre-procesar escenarios para calcular edges de señales
+        Object.values(scenarios).forEach(scenario => {
+            scenario.steps.forEach(step => {
+                step.nodes.forEach(nodeState => {
+                    const nodeConfig = NODES.find(n => n.id === nodeState.id);
+                    if (nodeConfig && nodeState.signal) { // Asegurar que nodeConfig y signal existen
+                        if (typeof nodeState.signal.spread !== 'undefined') { // Usar 'spread' si está definido
+                            nodeState.signal.left_edge = nodeConfig.x - nodeState.signal.spread;
+                            nodeState.signal.right_edge = nodeConfig.x + nodeState.signal.spread;
+                        } else if (!nodeState.signal.active) { // Si no está activo y no hay spread, centrar en el nodo
+                             nodeState.signal.left_edge = nodeConfig.x;
+                             nodeState.signal.right_edge = nodeConfig.x;
+                        }
+                        // Si está activo pero no tiene spread, debe tener left/right_edge definidos explícitamente.
+                        // Si no, puede haber un error en la definición del escenario.
+                    }
+                });
+            });
+        });
+
+
+        function changeScenario() {
+            currentScenarioId = scenarioSelect.value;
+            currentStep = 0;
+            // Esperar a que NODES se actualice con sus posiciones 'x' si la pantalla se redimensionó
+            setTimeout(() => {
+                Object.values(scenarios).forEach(scenario => {
+                    scenario.steps.forEach(step => {
+                        step.nodes.forEach(nodeState => {
+                            const nodeCfg = NODES.find(n => n.id === nodeState.id);
+                            if (nodeCfg && nodeState.signal) {
+                                if (typeof nodeState.signal.spread !== 'undefined') {
+                                    nodeState.signal.left_edge = nodeCfg.x - nodeState.signal.spread;
+                                    nodeState.signal.right_edge = nodeCfg.x + nodeState.signal.spread;
+                                } else if (!nodeState.signal.active) {
+                                     nodeState.signal.left_edge = nodeCfg.x;
+                                     nodeState.signal.right_edge = nodeCfg.x;
+                                }
+                            }
+                        });
+                    });
+                });
+                executeStep();
+            }, 50); // Pequeño delay
+        }
+        
+        function handleResize() {
+            drawBus();
+            // Recalcular posiciones de nodos y actualizar visualización
+            NODES.forEach(node => {
+                node.x = BUS_START_X + (BUS_END_X - BUS_START_X) * node.defaultXRatio;
+                node.el.setAttribute('transform', `translate(${node.x}, ${BUS_Y})`);
+            });
+            // Re-ejecutar el paso actual para que las señales se ajusten
+            if (scenarios[currentScenarioId]) { // Asegurarse que el escenario está cargado
+                 // Re-procesar spreads para el paso actual con nuevas posiciones de nodos
+                const scenario = scenarios[currentScenarioId];
+                if (scenario && scenario.steps && scenario.steps[currentStep]) {
+                    const stepData = scenario.steps[currentStep];
+                    stepData.nodes.forEach(nodeState => {
+                        const nodeCfg = NODES.find(n => n.id === nodeState.id);
+                        if (nodeCfg && nodeState.signal && typeof nodeState.signal.spread !== 'undefined') {
+                            nodeState.signal.left_edge = nodeCfg.x - nodeState.signal.spread;
+                            nodeState.signal.right_edge = nodeCfg.x + nodeState.signal.spread;
+                        }
+                    });
+                     drawSignalsAndAnnotations(stepData.nodes, stepData.annotations); // Redibujar señales inmediatamente
+                }
+            }
+        }
+
+        scenarioSelect.addEventListener('change', changeScenario);
+        nextButton.addEventListener('click', () => {
+            const scenario = scenarios[currentScenarioId];
+            if (currentStep < scenario.steps.length - 1) {
+                currentStep++;
+                executeStep();
+            }
+        });
+        prevButton.addEventListener('click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                executeStep();
+            }
+        });
+        resetButton.addEventListener('click', () => {
+            currentStep = 0;
+            executeStep();
+        });
+
+        window.addEventListener('resize', handleResize);
+        
+        // Inicialización
+        drawBus();
+        initializeNodes(); // Inicializa NODES con sus elementos y posiciones base
+        changeScenario(); // Carga el escenario inicial y procesa los spreads
+
+    </script>
+</body>
+</html>
