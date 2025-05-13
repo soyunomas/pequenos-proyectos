@@ -123,6 +123,8 @@ Una colección de diversas herramientas y visualizadores web, cada uno implement
 
 [`terratankDuel.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/terratankDuel.html)
 
+[`Mastermind.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/Mastermind.html)
+
 # System Prompts para IA - Roles de Desarrollo
 
 **Instrucciones de Uso:**
