@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor Interactivo Cabecera IPv4 y RFCs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .header-container {
+            border: 1px solid #dee2e6;
+            padding: 0;
+            margin-bottom: 1rem;
+            background-color: #fff;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+        }
+        .header-row {
+            display: flex;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .header-row:last-child {
+            border-bottom: none;
+        }
+        .header-field {
+            border-right: 1px solid #e9ecef;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            word-break: break-word; /* Prevents long words from breaking layout */
+        }
+        .header-field:last-child {
+            border-right: none;
+        }
+        .header-field:hover {
+            background-color: #e2e6ea;
+        }
+        .header-field.active {
+            background-color: #0d6efd;
+            color: white;
+            font-weight: bold;
+        }
+        .field-version { flex-basis: 12.5%; } /* 4 bits / 32 bits */
+        .field-ihl { flex-basis: 12.5%; } /* 4 bits / 32 bits */
+        .field-tos { flex-basis: 25%; } /* 8 bits / 32 bits */
+        .field-total-length { flex-basis: 50%; } /* 16 bits / 32 bits */
+        .field-identification { flex-basis: 50%; } /* 16 bits / 32 bits */
+        .field-flags { flex-basis: 9.375%; } /* 3 bits / 32 bits */
+        .field-fragment-offset { flex-basis: 40.625%; } /* 13 bits / 32 bits */
+        .field-ttl { flex-basis: 25%; } /* 8 bits / 32 bits */
+        .field-protocol { flex-basis: 25%; } /* 8 bits / 32 bits */
+        .field-header-checksum { flex-basis: 50%; } /* 16 bits / 32 bits */
+        .field-source-address { flex-basis: 100%; } /* 32 bits / 32 bits */
+        .field-destination-address { flex-basis: 100%; } /* 32 bits / 32 bits */
+        .field-options { flex-basis: 100%; } /* Variable, representation */
+
+        #rfc-details-container {
+            height: 85vh; /* Adjust as needed */
+            overflow-y: auto;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+        }
+        #rfc-details h3 {
+            color: #0d6efd;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 2px solid #0d6efd;
+            padding-bottom: 0.25rem;
+        }
+        #rfc-details h4 {
+            color: #0a58ca;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        #rfc-details strong {
+            color: #212529;
+        }
+        #rfc-details pre {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            white-space: pre-wrap; /* Allow text to wrap */
+            word-break: break-all; /* Break long words if necessary */
+        }
+        #rfc-details code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f8f9fa;
+            padding: 0.1em 0.3em;
+            border-radius: 3px;
+            color: #d63384;
+        }
+        .bit-representation {
+            font-size: 0.7rem;
+            color: #6c757d;
+            display: block;
+        }
+        .main-content-row {
+            height: calc(100vh - 56px - 2rem); /* Adjust 56px if navbar height changes, 2rem for mt-3 */
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">Visor de Cabecera IPv4 y RFCs</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="row main-content-row">
+            <div class="col-lg-4 col-md-5">
+                <h5>Cabecera IPv4 (RFC 791)</h5>
+                <div class="header-container">
+                    <div class="header-row">
+                        <div class="header-field field-version" data-field="Version">
+                            Versión <span class="bit-representation">(4 bits)</span>
+                        </div>
+                        <div class="header-field field-ihl" data-field="IHL">
+                            IHL <span class="bit-representation">(4 bits)</span>
+                        </div>
+                        <div class="header-field field-tos" data-field="TypeOfService">
+                            Tipo de Servicio / DS Field <span class="bit-representation">(8 bits)</span>
+                        </div>
+                        <div class="header-field field-total-length" data-field="TotalLength">
+                            Longitud Total <span class="bit-representation">(16 bits)</span>
+                        </div>
+                    </div>
+                    <div class="header-row">
+                        <div class="header-field field-identification" data-field="Identification">
+                            Identificación <span class="bit-representation">(16 bits)</span>
+                        </div>
+                        <div class="header-field field-flags" data-field="Flags">
+                            Flags <span class="bit-representation">(3 bits)</span>
+                        </div>
+                        <div class="header-field field-fragment-offset" data-field="FragmentOffset">
+                            Offset Fragmento <span class="bit-representation">(13 bits)</span>
+                        </div>
+                    </div>
+                    <div class="header-row">
+                        <div class="header-field field-ttl" data-field="TTL">
+                            TTL <span class="bit-representation">(8 bits)</span>
+                        </div>
+                        <div class="header-field field-protocol" data-field="Protocol">
+                            Protocolo <span class="bit-representation">(8 bits)</span>
+                        </div>
+                        <div class="header-field field-header-checksum" data-field="HeaderChecksum">
+                            Checksum Cabecera <span class="bit-representation">(16 bits)</span>
+                        </div>
+                    </div>
+                    <div class="header-row">
+                        <div class="header-field field-source-address" data-field="SourceAddress">
+                            Dirección IP Origen <span class="bit-representation">(32 bits)</span>
+                        </div>
+                    </div>
+                    <div class="header-row">
+                        <div class="header-field field-destination-address" data-field="DestinationAddress">
+                            Dirección IP Destino <span class="bit-representation">(32 bits)</span>
+                        </div>
+                    </div>
+                    <div class="header-row">
+                        <div class="header-field field-options" data-field="Options">
+                            Opciones (+ Relleno) <span class="bit-representation">(Variable)</span>
+                        </div>
+                    </div>
+                </div>
+                 <small class="text-muted">Haz clic en un campo para ver los detalles del RFC.</small>
+            </div>
+            <div class="col-lg-8 col-md-7">
+                <div id="rfc-details-container" class="p-3">
+                    <div id="rfc-details">
+                        <h4 class="text-center text-muted mt-5">Selecciona un campo de la cabecera IP a la izquierda para ver su descripción detallada según los RFCs proporcionados.</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rfcData = {
+            "Version": `
+                <h3>Versión (Version)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> El campo Versión indica el formato de la cabecera de internet. Este documento describe la versión 4.</p>
+                <p><strong>Tamaño:</strong> 4 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Identifica la versión del protocolo IP al que pertenece el datagrama. Para IPv4, este valor es siempre 4 (binario 0100).</li>
+                    <li>Permite que diferentes versiones del protocolo coexistan en la red, aunque en la práctica IPv4 e IPv6 son tratados como protocolos distintos.</li>
+                    <li>Los routers y hosts utilizan este campo para determinar cómo interpretar el resto de la cabecera del datagrama. Si un dispositivo no soporta la versión especificada, normalmente descarta el paquete.</li>
+                </ul>`,
+            "IHL": `
+                <h3>Longitud de Cabecera de Internet (IHL - Internet Header Length)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Internet Header Length es la longitud de la cabecera de internet en palabras de 32 bits, y por lo tanto, apunta al comienzo de los datos. Nótese que el valor mínimo para una cabecera correcta es 5.</p>
+                <p><strong>Tamaño:</strong> 4 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Indica la longitud total de la cabecera IPv4, expresada en unidades de palabras de 4 bytes (32 bits).</li>
+                    <li>El valor mínimo es 5, que corresponde a una cabecera de 5 * 4 = 20 bytes (cuando no hay opciones).</li>
+                    <li>El valor máximo es 15, que corresponde a una cabecera de 15 * 4 = 60 bytes (máxima longitud de cabecera con opciones).</li>
+                    <li>Este campo es crucial porque la sección de "Opciones" puede variar en tamaño. IHL permite al receptor saber dónde termina la cabecera y dónde comienzan los datos del payload.</li>
+                </ul>`,
+            "TypeOfService": `
+                <h3>Tipo de Servicio (Type of Service / ToS) / Campo de Servicios Diferenciados (DS Field)</h3>
+                
+                <h4>RFC 2474 - Definition of the Differentiated Services Field (DS Field) (Obsoleta RFC 1349)</h4>
+                <p>Esta es la definición <strong>actual</strong> de este octeto.</p>
+                <p><strong>Definición (DS Field):</strong> Un campo de cabecera de reemplazo, llamado campo DS, se define, con la intención de reemplazar las definiciones existentes del octeto TOS de IPv4 y el octeto de Clase de Tráfico de IPv6.</p>
+                <p>Seis bits del campo DS se utilizan como un codepoint (DSCP) para seleccionar el PHB (Per-Hop Behavior) que un paquete experimenta en cada nodo. Un campo de dos bits actualmente no utilizado (CU) está reservado.</p>
+                <pre>
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   |         DSCP          |  CU   |
+   +---+---+---+---+---+---+---+---+
+     DSCP: differentiated services codepoint
+     CU:   currently unused
+                </pre>
+                <p><strong>DSCP (Differentiated Services Codepoint):</strong> 6 bits. Usado para seleccionar el comportamiento por salto (PHB) que un paquete experimenta en cada nodo. Múltiples codepoints pueden mapear al mismo PHB.</p>
+                <p><strong>CU (Currently Unused):</strong> 2 bits. Reservado. Los nodos compatibles con DS deben ignorar el valor de los bits CU.</p>
+                <p><strong>Compatibilidad con IP Precedence:</strong> RFC 2474 introduce "Class Selector Codepoints" (xxx000) para compatibilidad con el uso histórico del campo de Precedencia IP.</p>
+                
+                <h4>RFC 1349 - Type of Service in the Internet Protocol Suite (Obsoletado por RFC 2474)</h4>
+                <p>Esta RFC redefinió el campo TOS, pero fue posteriormente obsoletada.</p>
+                <p><strong>Definición (según RFC 1349):</strong> Redefine el campo TOS a 4 bits (bits 3-6 del octeto) y lo trata como un valor enumerado único en lugar de bits independientes.</p>
+                <pre>
+     0     1     2     3     4     5     6     7
+  +-----+-----+-----+-----+-----+-----+-----+-----+
+  |                 |                       |     |
+  |   PRECEDENCE    |          TOS          | MBZ |
+  |                 |                       |     |
+  +-----+-----+-----+-----+-----+-----+-----+-----+
+                </pre>
+                <p><strong>Valores TOS definidos en RFC 1349:</strong></p>
+                <ul>
+                    <li><code>1000</code>: Minimizar Retardo</li>
+                    <li><code>0100</code>: Maximizar Rendimiento (Throughput)</li>
+                    <li><code>0010</code>: Maximizar Fiabilidad</li>
+                    <li><code>0001</code>: Minimizar Costo Monetario</li>
+                    <li><code>0000</code>: Servicio Normal</li>
+                </ul>
+                <p><strong>Precedencia:</strong> 3 bits (0-2). Indica la importancia o prioridad del datagrama.</p>
+                <p><strong>MBZ (Must Be Zero):</strong> 1 bit (7). No usado, debe ser cero.</p>
+
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1 - Definición Original)</h4>
+                <p>Esta fue la definición original, ahora mayormente superada.</p>
+                <p><strong>Definición:</strong> Proporciona una indicación de los parámetros abstractos de la calidad de servicio deseada. Estos parámetros deben usarse para guiar la selección de los parámetros de servicio reales al transmitir un datagrama a través de una red particular.</p>
+                <p><strong>Tamaño:</strong> 8 bits.</p>
+                <p><strong>Estructura original:</strong></p>
+                <pre>
+      Bits 0-2:  Precedencia.
+      Bit    3:  0 = Retardo Normal,      1 = Bajo Retardo (D).
+      Bits   4:  0 = Rendimiento Normal, 1 = Alto Rendimiento (T).
+      Bits   5:  0 = Fiabilidad Normal,  1 = Alta Fiabilidad (R).
+      Bit  6-7:  Reservado para Uso Futuro (MBZ - Must Be Zero).
+
+         0     1     2     3     4     5     6     7
+      +-----+-----+-----+-----+-----+-----+-----+-----+
+      |                 |     |     |     |     |     |
+      |   PRECEDENCE    |  D  |  T  |  R  |  0  |  0  |
+      |                 |     |     |     |     |     |
+      +-----+-----+-----+-----+-----+-----+-----+-----+
+                </pre>
+                <p><strong>Precedencia (Bits 0-2):</strong></p>
+                <ul>
+                    <li>111 - Network Control</li>
+                    <li>110 - Internetwork Control</li>
+                    <li>101 - CRITIC/ECP</li>
+                    <li>100 - Flash Override</li>
+                    <li>011 - Flash</li>
+                    <li>010 - Immediate</li>
+                    <li>001 - Priority</li>
+                    <li>000 - Routine</li>
+                </ul>
+                <p><strong>Uso:</strong> El uso de las indicaciones de Retardo, Rendimiento y Fiabilidad puede aumentar el costo del servicio. En muchos casos, un mejor rendimiento para uno de estos parámetros se acopla con un peor rendimiento en otro. Excepto en casos muy inusuales, como máximo dos de estas tres indicaciones deben establecerse.</p>
+                `,
+            "TotalLength": `
+                <h3>Longitud Total (Total Length)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Longitud total del datagrama, medida en octetos (bytes), incluyendo la cabecera de internet y los datos. Este campo permite que la longitud de un datagrama sea de hasta 65,535 octetos.</p>
+                <p><strong>Tamaño:</strong> 16 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Incluye tanto la cabecera como los datos del payload.</li>
+                    <li>Dado que el campo IHL (longitud de cabecera) está en palabras de 32 bits y la longitud total en bytes, la longitud de los datos se puede calcular como: <code>Longitud_Datos = Longitud_Total - (IHL * 4)</code>.</li>
+                    <li>Todos los hosts deben estar preparados para aceptar datagramas de hasta 576 octetos (ya sea enteros o en fragmentos). Se recomienda que los hosts solo envíen datagramas mayores de 576 octetos si tienen la seguridad de que el destino está preparado para aceptarlos.</li>
+                    <li>El número 576 se selecciona para permitir un bloque de datos de tamaño razonable (p.ej., 512 octetos) más información de cabecera (p.ej., 64 octetos).</li>
+                </ul>`,
+            "Identification": `
+                <h3>Identificación (Identification)</h3>
+                <h4>RFC 6864 - Updated Specification of the IPv4 ID Field (Actualiza RFC 791)</h4>
+                <p><strong>Uso actualizado:</strong> Este documento define el valor del campo ID de IPv4 <strong>solo para fragmentación y reensamblaje</strong>.</p>
+                <ul>
+                    <li>"El campo ID de IPv4 NO DEBE usarse para propósitos distintos a la fragmentación y reensamblaje."</li>
+                    <li>"Las fuentes originadoras PUEDEN establecer el campo ID de IPv4 de los datagramas atómicos (no fragmentados y DF=1) a cualquier valor." (Antes se requería unicidad).</li>
+                    <li>"Todos los dispositivos que examinan cabeceras IPv4 DEBEN ignorar el campo ID de IPv4 de los datagramas atómicos."</li>
+                    <li>Para datagramas no atómicos (fragmentos o fragmentables con DF=0), el campo ID DEBE seguir siendo único dentro de la MDL (Maximum Datagram Lifetime) para una tupla dada de dirección origen/destino/protocolo.</li>
+                </ul>
+                <p><strong>Impacto:</strong> Deprecia otros usos como la detección de duplicados (para eso se sugieren métodos basados en hash). Simplifica la generación de IDs para tráfico no fragmentado y alinea IPv4 más con IPv6 donde el ID solo existe en la cabecera de fragmentación.</p>
+
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1 - Definición Original)</h4>
+                <p><strong>Definición:</strong> Un valor identificador asignado por el emisor para ayudar en el ensamblaje de los fragmentos de un datagrama.</p>
+                <p><strong>Tamaño:</strong> 16 bits.</p>
+                <p><strong>Detalles originales:</strong></p>
+                <ul>
+                    <li>Utilizado para identificar unívocamente los fragmentos de un datagrama original. Todos los fragmentos de un mismo datagrama llevan el mismo valor de identificación.</li>
+                    <li>El módulo de protocolo que ensambla los fragmentos juzga que los fragmentos pertenecen al mismo datagrama si tienen la misma dirección de origen, destino, protocolo e Identificador.</li>
+                    <li>El emisor debe elegir el Identificador para que sea único para esta pareja de origen-destino y protocolo durante el tiempo que el datagrama (o cualquier fragmento del mismo) pueda estar activo en el sistema de internet.</li>
+                    <li>Se sugiere que los protocolos de nivel superior (como TCP) puedan elegir el identificador, especialmente en retransmisiones, para que los fragmentos de la transmisión original y la retransmisión puedan usarse para construir un segmento TCP correcto. (Nota: RFC 6864 desaconseja la reutilización del ID en retransmisiones de datagramas no atómicos).</li>
+                </ul>`,
+            "Flags": `
+                <h3>Indicadores (Flags)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Varios indicadores de control.</p>
+                <p><strong>Tamaño:</strong> 3 bits.</p>
+                <p><strong>Estructura:</strong></p>
+                <pre>
+      Bit 0: reservado, debe ser cero.
+      Bit 1: (DF) 0 = Puede Fragmentar,  1 = No Fragmentar.
+      Bit 2: (MF) 0 = Último Fragmento, 1 = Más Fragmentos.
+
+          0   1   2
+        +---+---+---+
+        |   | D | M |
+        | 0 | F | F |
+        +---+---+---+
+                </pre>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li><strong>Bit 0 (Reservado):</strong> Siempre debe estar en 0.</li>
+                    <li><strong>Bit 1 (DF - Don't Fragment):</strong>
+                        <ul>
+                            <li>Si está en 1 (<code>DF=1</code>), indica que este datagrama no debe ser fragmentado por los routers intermedios. Si un router necesita fragmentar un datagrama con DF=1 pero no puede, debe descartar el datagrama y, opcionalmente, enviar un mensaje ICMP "Destination Unreachable - Fragmentation Needed and DF set" (Tipo 3, Código 4) al origen.</li>
+                            <li>Es utilizado por mecanismos como Path MTU Discovery (PMTUD) para determinar el tamaño máximo de paquete que puede atravesar una ruta sin fragmentación.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Bit 2 (MF - More Fragments):</strong>
+                        <ul>
+                            <li>Si está en 1 (<code>MF=1</code>), indica que este datagrama es un fragmento y que hay más fragmentos después de este.</li>
+                            <li>Si está en 0 (<code>MF=0</code>), indica que este es el último fragmento de un datagrama original, o que el datagrama no está fragmentado en absoluto.</li>
+                            <li>Un datagrama no fragmentado tendrá <code>MF=0</code> y un "Fragment Offset" de 0.</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>RFC 6864 - Updated Specification of the IPv4 ID Field (Sección 4.3)</h4>
+                <p>Reafirma la importancia de los flags DF/MF:</p>
+                <ul>
+                     <li>"Los datagramas IPv4 cuyo DF=1 NO DEBEN ser fragmentados."</li>
+                     <li>"Los dispositivos de tránsito de datagramas IPv4 NO DEBEN borrar el bit DF."</li>
+                </ul>
+                <p>Datagramas atómicos (no fragmentados y no fragmentables) se definen como: <code>(DF==1) && (MF==0) && (frag_offset==0)</code></p>`,
+            "FragmentOffset": `
+                <h3>Desplazamiento de Fragmento (Fragment Offset)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Este campo indica dónde, en el datagrama original, pertenece este fragmento. El desplazamiento del fragmento se mide en unidades de 8 octetos (64 bits). El primer fragmento tiene desplazamiento cero.</p>
+                <p><strong>Tamaño:</strong> 13 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Indica la posición de los datos de este fragmento con respecto al inicio de los datos del datagrama original (no fragmentado).</li>
+                    <li>La unidad es de 8 bytes. Esto significa que, excepto para el último fragmento, todos los fragmentos (excepto el último) deben tener una longitud de datos que sea múltiplo de 8 bytes.</li>
+                    <li>Permite hasta 2<sup>13</sup> = 8192 fragmentos. Con cada fragmento pudiendo llevar datos (aunque la cabecera también cuenta para el tamaño máximo de paquete de la red subyacente), y cada unidad de offset siendo 8 bytes, se pueden direccionar hasta 8192 * 8 = 65,536 bytes de datos, lo cual concuerda con el campo "Total Length".</li>
+                    <li>Un datagrama no fragmentado tendrá un Fragment Offset de 0 (y el flag MF = 0).</li>
+                    <li>El primer fragmento de un datagrama fragmentado siempre tendrá un Fragment Offset de 0.</li>
+                </ul>`,
+            "TTL": `
+                <h3>Tiempo de Vida (TTL - Time to Live)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Este campo indica el tiempo máximo que se permite que el datagrama permanezca en el sistema de internet. Si este campo contiene el valor cero, entonces el datagrama debe ser destruido. Este campo se modifica en el procesamiento de la cabecera de internet. El tiempo se mide en unidades de segundos, pero como cada módulo que procesa un datagrama debe disminuir el TTL en al menos uno, incluso si procesa el datagrama en menos de un segundo, el TTL debe considerarse solo como un límite superior del tiempo que un datagrama puede existir. La intención es hacer que los datagramas no entregables sean descartados y limitar la vida máxima del datagrama.</p>
+                <p><strong>Tamaño:</strong> 8 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Valor inicial establecido por el host de origen (típicamente 64, 128 o 255).</li>
+                    <li>Cada router que procesa el datagrama decrementa el TTL en 1.</li>
+                    <li>Si un router recibe un datagrama con TTL=1, lo decrementa a 0, descarta el paquete y envía un mensaje ICMP "Time Exceeded" (Tipo 11, Código 0) al host de origen.</li>
+                    <li>Esto previene que los datagramas circulen indefinidamente en la red en caso de bucles de enrutamiento.</li>
+                    <li>El valor máximo es 255. Dado que se mide en segundos, la vida máxima teórica es de 255 segundos (aproximadamente 4.25 minutos). Sin embargo, en la práctica, se interpreta más como un contador de saltos.</li>
+                    <li>Utilizado por herramientas como <code>traceroute</code> (o <code>tracert</code> en Windows) para descubrir la ruta hacia un destino, enviando paquetes con TTLs crecientes.</li>
+                </ul>`,
+            "Protocol": `
+                <h3>Protocolo (Protocol)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Este campo indica el protocolo de siguiente nivel utilizado en la porción de datos del datagrama de internet. Los valores para varios protocolos se especifican en "Assigned Numbers" (RFC 1700 y posteriores, actualmente gestionado por IANA).</p>
+                <p><strong>Tamaño:</strong> 8 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Indica a qué protocolo de capa superior (transporte o red) deben entregarse los datos del datagrama una vez que llega al host destino.</li>
+                    <li>Algunos valores comunes:
+                        <ul>
+                            <li><strong>1:</strong> ICMP (Internet Control Message Protocol)</li>
+                            <li><strong>6:</strong> TCP (Transmission Control Protocol)</li>
+                            <li><strong>17:</strong> UDP (User Datagram Protocol)</li>
+                            <li><strong>89:</strong> OSPF (Open Shortest Path First)</li>
+                            <li><strong>47:</strong> GRE (Generic Routing Encapsulation)</li>
+                            <li><strong>50:</strong> ESP (IPsec Encapsulating Security Payload)</li>
+                            <li><strong>51:</strong> AH (IPsec Authentication Header)</li>
+                        </ul>
+                    </li>
+                    <li>La lista completa de números de protocolo asignados es mantenida por IANA.</li>
+                </ul>`,
+            "HeaderChecksum": `
+                <h3>Suma de Comprobación de Cabecera (Header Checksum)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Una suma de comprobación solo sobre la cabecera. Dado que algunos campos de la cabecera cambian (p.ej., tiempo de vida), esta se recalcula y verifica en cada punto donde se procesa la cabecera de internet.</p>
+                <p><strong>Algoritmo de checksum:</strong> El campo de checksum es el complemento a uno de 16 bits de la suma de complementos a uno de todas las palabras de 16 bits en la cabecera. Para propósitos de calcular el checksum, el valor del campo de checksum es cero.</p>
+                <p><strong>Tamaño:</strong> 16 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Se calcula únicamente sobre los bytes de la cabecera IPv4. No cubre los datos del payload.</li>
+                    <li>El procedimiento es:
+                        <ol>
+                            <li>Establecer el campo de checksum a 0.</li>
+                            <li>Sumar todas las palabras de 16 bits de la cabecera usando aritmética de complemento a uno.</li>
+                            <li>El resultado de la suma se complementa a uno (se invierten todos los bits) y se inserta en el campo de checksum.</li>
+                        </ol>
+                    </li>
+                    <li>Cuando un router o host recibe un datagrama:
+                        <ol>
+                            <li>Suma todas las palabras de 16 bits de la cabecera (incluyendo el campo de checksum recibido).</li>
+                            <li>Si el resultado es una palabra de 16 bits con todos los bits a 1 (FFFF en hexadecimal), la cabecera es considerada correcta. Si no, se asume un error y el paquete se descarta.</li>
+                        </ol>
+                    </li>
+                    <li>Debe ser recalculado por cualquier router que modifique campos de la cabecera (principalmente el TTL, o si se modifican opciones como Record Route).</li>
+                </ul>`,
+            "SourceAddress": `
+                <h3>Dirección Origen (Source Address)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> La dirección origen.</p>
+                <p><strong>Tamaño:</strong> 32 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Identifica la dirección IPv4 del host que originó el datagrama.</li>
+                    <li>Debe ser una dirección IP unicast válida del host emisor.</li>
+                    <li>Los routers utilizan esta dirección (junto con la de destino) para tomar decisiones de enrutamiento y para que el destino pueda enviar respuestas.</li>
+                    <li>En el contexto de NAT (Network Address Translation), la dirección IP origen puede ser modificada por el dispositivo NAT.</li>
+                    <li>Formato de dirección:
+                        <ul>
+                            <li>Clase A: 7 bits de red, 24 bits de host (primer bit 0).</li>
+                            <li>Clase B: 14 bits de red, 16 bits de host (primeros bits 10).</li>
+                            <li>Clase C: 21 bits de red, 8 bits de host (primeros bits 110).</li>
+                        </ul>
+                        (Nota: El direccionamiento por clases es mayormente histórico; CIDR (Classless Inter-Domain Routing) es la norma actual, pero la estructura de 32 bits permanece.)
+                    </li>
+                </ul>`,
+            "DestinationAddress": `
+                <h3>Dirección Destino (Destination Address)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> La dirección destino.</p>
+                <p><strong>Tamaño:</strong> 32 bits.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Identifica la dirección IPv4 del host o hosts a los que está destinado el datagrama.</li>
+                    <li>Puede ser una dirección unicast (un solo host), multicast (un grupo de hosts) o broadcast (todos los hosts en una subred).</li>
+                    <li>Los routers utilizan esta dirección para encaminar el paquete hacia su destino final.</li>
+                    <li>En el contexto de NAT, la dirección IP destino puede ser modificada por el dispositivo NAT al traducir una dirección pública a una privada.</li>
+                     <li>Formato de dirección (similar a la dirección origen):
+                        <ul>
+                            <li>Clase A, B, C según la definición histórica.</li>
+                        </ul>
+                    </li>
+                </ul>`,
+            "Options": `
+                <h3>Opciones (Options) y Relleno (Padding)</h3>
+                <h4>RFC 791 - INTERNET PROTOCOL (Sección 3.1)</h4>
+                <p><strong>Definición:</strong> Las opciones pueden aparecer o no en los datagramas. Deben ser implementadas por todos los módulos IP (host y gateways). Lo que es opcional es su transmisión en un datagrama particular, no su implementación. El campo de opción es de longitud variable. Puede haber cero o más opciones.</p>
+                <p><strong>Formato de una opción:</strong></p>
+                <ul>
+                    <li><strong>Caso 1:</strong> Un solo octeto de tipo de opción.</li>
+                    <li><strong>Caso 2:</strong> Un octeto de tipo de opción, un octeto de longitud de opción y los octetos de datos de la opción reales. La longitud cuenta el tipo, la longitud y los datos.</li>
+                </ul>
+                <p><strong>Estructura del tipo de opción (1 octeto):</strong></p>
+                <ul>
+                    <li><strong>Bit 0 (Copied flag):</strong> 0 = no copiada en fragmentación, 1 = copiada en todos los fragmentos.</li>
+                    <li><strong>Bits 1-2 (Option Class):</strong> 0 = control, 2 = depuración y medida. (1 y 3 reservados).</li>
+                    <li><strong>Bits 3-7 (Option Number):</strong> Número específico de la opción.</li>
+                </ul>
+
+                <h4>Opciones Definidas Comunes (RFC 791):</h4>
+                <p><strong>End of Option List (EOOL)</strong></p>
+                <ul>
+                    <li>Tipo: 0 (00000000)</li>
+                    <li>Longitud: 1 octeto.</li>
+                    <li>Descripción: Indica el final de la lista de opciones. Se usa si el final de las opciones no coincide con el final de la cabecera IP (según IHL).</li>
+                </ul>
+                <p><strong>No Operation (NOP)</strong></p>
+                <ul>
+                    <li>Tipo: 1 (00000001)</li>
+                    <li>Longitud: 1 octeto.</li>
+                    <li>Descripción: Se puede usar entre opciones para alinear el comienzo de una opción subsiguiente en un límite de 32 bits.</li>
+                </ul>
+                <p><strong>Security (SEC)</strong></p>
+                <ul>
+                    <li>Tipo: 130 (10000010)</li>
+                    <li>Longitud: 11 octetos.</li>
+                    <li>Descripción: Para transportar parámetros de Seguridad, Compartimentación, Grupo de Usuarios (TCC) y Restricciones de Manejo. Debe copiarse en la fragmentación.</li>
+                </ul>
+                <p><strong>Loose Source and Record Route (LSRR)</strong></p>
+                <ul>
+                    <li>Tipo: 131 (10000011)</li>
+                    <li>Longitud: Variable.</li>
+                    <li>Descripción: Permite al origen especificar una lista de direcciones IP por las que el datagrama debe pasar. La ruta entre los nodos especificados es "suelta" (loose), es decir, puede haber otros routers intermedios. También registra la ruta tomada. Debe copiarse en la fragmentación.</li>
+                </ul>
+                <p><strong>Strict Source and Record Route (SSRR)</strong></p>
+                <ul>
+                    <li>Tipo: 137 (10001001)</li>
+                    <li>Longitud: Variable.</li>
+                    <li>Descripción: Similar a LSRR, pero la ruta entre los nodos especificados es "estricta", el datagrama debe ir directamente al siguiente nodo en la lista a través de una red directamente conectada. También registra la ruta. Debe copiarse en la fragmentación.</li>
+                </ul>
+                <p><strong>Record Route (RR)</strong></p>
+                <ul>
+                    <li>Tipo: 7 (00000111)</li>
+                    <li>Longitud: Variable.</li>
+                    <li>Descripción: Registra las direcciones IP de los routers por los que pasa el datagrama. No se copia en la fragmentación (solo va en el primer fragmento).</li>
+                </ul>
+                <p><strong>Stream Identifier (SID)</strong></p>
+                <ul>
+                    <li>Tipo: 136 (10001000)</li>
+                    <li>Longitud: 4 octetos.</li>
+                    <li>Descripción: Para transportar el identificador de flujo SATNET de 16 bits. Debe copiarse en la fragmentación. (Histórico)</li>
+                </ul>
+                <p><strong>Internet Timestamp (TS)</strong></p>
+                <ul>
+                    <li>Tipo: 68 (01000100)</li>
+                    <li>Longitud: Variable (máx. 40 octetos).</li>
+                    <li>Descripción: Registra marcas de tiempo (y opcionalmente direcciones IP) en los nodos por los que pasa. No se copia en la fragmentación (solo va en el primer fragmento).
+                        <ul>
+                            <li>Flag 0: solo marcas de tiempo.</li>
+                            <li>Flag 1: dirección IP y marca de tiempo.</li>
+                            <li>Flag 3: direcciones IP preespecificadas, solo se registra timestamp si coincide.</li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h4>Relleno (Padding)</h4>
+                <p><strong>Definición (RFC 791):</strong> El relleno de la cabecera de internet se utiliza para asegurar que la cabecera de internet termine en un límite de 32 bits. El relleno es cero.</p>
+                <p><strong>Detalles:</strong></p>
+                <ul>
+                    <li>Dado que el campo IHL especifica la longitud de la cabecera en palabras de 32 bits, y las opciones tienen longitudes variables, se pueden necesitar octetos de relleno (todos ceros) para asegurar que la cabecera total sea un múltiplo de 4 bytes.</li>
+                    <li>Si se usa relleno, y la última opción no es EOOL, implícitamente el primer byte de relleno (que sería 0) actúa como un EOOL.</li>
+                </ul>
+                <p><strong>Consideraciones Adicionales:</strong></p>
+                <ul>
+                    <li>El uso de opciones en IPv4 es poco común en el tráfico general de Internet debido al impacto en el rendimiento (los routers suelen procesar paquetes con opciones en una "ruta lenta") y a problemas de seguridad (algunas opciones pueden ser explotadas).</li>
+                    <li>Muchas opciones son manejadas por ICMP (por ejemplo, un router puede enviar un ICMP Parameter Problem si una opción es incorrecta).</li>
+                    <li>IPv6 simplificó la cabecera principal y movió la funcionalidad de opciones a "Cabeceras de Extensión".</li>
+                </ul>
+                `
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const fields = document.querySelectorAll('.header-field');
+            const detailsDiv = document.getElementById('rfc-details');
+            let currentActiveField = null;
+
+            fields.forEach(field => {
+                field.addEventListener('click', () => {
+                    const fieldName = field.getAttribute('data-field');
+                    
+                    if (currentActiveField) {
+                        currentActiveField.classList.remove('active');
+                    }
+                    field.classList.add('active');
+                    currentActiveField = field;
+
+                    if (rfcData[fieldName]) {
+                        detailsDiv.innerHTML = rfcData[fieldName];
+                    } else {
+                        // Modificado para usar concatenación de strings en lugar de template literal
+                        detailsDiv.innerHTML = '<p class="text-muted">Información para el campo \'<strong>' + String(fieldName) + '</strong>\' no encontrada o no procesada.</p>';
+                    }
+                    // Scroll to top of details container
+                    document.getElementById('rfc-details-container').scrollTop = 0;
+                });
+            });
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
