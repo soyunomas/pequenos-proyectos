@@ -607,7 +607,7 @@ Puedes usar **Markdown** aquí dentro.
                 input.addEventListener('input', (event) => {
                     if (varName) {
                         document.documentElement.style.setProperty(varName, event.target.value);
-                        applyTheme(parseInt(themeSelector.value, 10));
+
                          generateHtmlPreview(); // Regenerate preview on manual color change too
                     }
                 });
