@@ -144,6 +144,11 @@
         const indiceContenidoPreviewContainer = document.getElementById('indiceContenidoPreview');
         const themeSelector = document.getElementById('themeSelector');
         let scrollSpyInstance = null;
+        
+        let accordionContentPlaceholders = {};
+        let imageStore = {}; // Objeto para almacenar Base64 de imágenes { 'img-id-123': 'data:image/png;base64,...' }
+        let imageIdCounter = 0; // Para generar IDs únicos para las imágenes
+
 
 const defaultCssVariables = {
     '--color-h1': '#2c3e50', '--color-h2': '#3498db', '--color-h3': '#7f8c8d', '--color-h4': '#95a5a6', '--color-h5': '#1abc9c', '--color-h6': '#bdc3c7',
@@ -180,7 +185,6 @@ const themes = [
      { name: "Medianoche Carmesí (Oscuro)", variables: { '--color-h1': '#fca5a5', '--color-h2': '#f87171', '--color-h3': '#ef4444', '--color-h4': '#dc2626', '--color-h5': '#b91c1c', '--color-h6': '#991b1b', '--color-code': '#60a5fa', '--bg-pre': '#1e1b1b', '--bg-code-inline': '#2c1d1d', '--bg-indice': '#1c1010', '--color-indice-link': '#f87171', '--color-indice-link-hover': '#fca5a5', '--bg-indice-link-hover': '#2c1d1d', '--color-indice-link-active': '#1c1010', '--bg-indice-link-active': '#ef4444', '--border-ejercicios': '#ef4444', '--bg-ejercicios': '#1e1b1b', '--body-bg-color': '#0f0a0a', '--text-color': '#fee2e2', '--link-color': '#f87171', '--copy-btn-bg': '#dc2626', '--copy-btn-color': '#fee2e2', '--copy-btn-hover-bg': '#b91c1c', '--copy-btn-success-bg': '#f87171' }},
      { name: "Oasis Desértico", variables: { '--color-h1': '#c27803', '--color-h2': '#d97706', '--color-h3': '#f59e0b', '--color-h4': '#fcd34d', '--color-h5': '#fef3c7', '--color-h6': '#fbbf24', '--color-code': '#059669', '--bg-pre': '#fffbeb', '--bg-code-inline': '#fefce8', '--bg-indice': '#fef3c7', '--color-indice-link': '#d97706', '--color-indice-link-hover': '#b45309', '--bg-indice-link-hover': '#fde68a', '--color-indice-link-active': '#78350f', '--bg-indice-link-active': '#fcd34d', '--border-ejercicios': '#f59e0b', '--bg-ejercicios': '#fffbeb', '--body-bg-color': '#ffffff', '--text-color': '#713f12', '--link-color': '#d97706', '--copy-btn-bg': '#f59e0b', '--copy-btn-color': '#713f12', '--copy-btn-hover-bg': '#d97706', '--copy-btn-success-bg': '#a3e635' }},
      { name: "Ciberpunk Nocturno (Oscuro)", variables: { '--color-h1': '#ec4899', '--color-h2': '#a855f7', '--color-h3': '#0ea5e9', '--color-h4': '#34d399', '--color-h5': '#facc15', '--color-h6': '#ec4899', '--color-code': '#ffffff', '--bg-pre': '#1a001a', '--bg-code-inline': '#260026', '--bg-indice': '#0d000d', '--color-indice-link': '#a855f7', '--color-indice-link-hover': '#ec4899', '--bg-indice-link-hover': '#260026', '--color-indice-link-active': '#0d000d', '--bg-indice-link-active': '#0ea5e9', '--border-ejercicios': '#0ea5e9', '--bg-ejercicios': '#1a001a', '--body-bg-color': '#000000', '--text-color': '#e0e0e0', '--link-color': '#ec4899', '--copy-btn-bg': '#a855f7', '--copy-btn-color': '#000000', '--copy-btn-hover-bg': '#0ea5e9', '--copy-btn-success-bg': '#34d399' }},
-     // --- Añadiendo 20 temas adicionales (claros y legibles) ---
      { name: "Marfil Clásico", variables: { '--color-h1': '#4a4a4a', '--color-h2': '#666666', '--color-h3': '#888888', '--color-h4': '#aaaaaa', '--color-h5': '#cccccc', '--color-h6': '#dddddd', '--color-code': '#d62728', '--bg-pre': '#fcfcfc', '--bg-code-inline': '#f8f8f8', '--bg-indice': '#f5f5f5', '--color-indice-link': '#556b2f', '--color-indice-link-hover': '#3a4b20', '--bg-indice-link-hover': '#e0e0e0', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#556b2f', '--border-ejercicios': '#aaaaaa', '--bg-ejercicios': '#fcfcfc', '--body-bg-color': '#fffff0', '--text-color': '#333333', '--link-color': '#556b2f', '--copy-btn-bg': '#888888', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#666666', '--copy-btn-success-bg': '#2ca02c' }},
      { name: "Azul Pálido", variables: { '--color-h1': '#1f497d', '--color-h2': '#3c64a5', '--color-h3': '#6c8dc3', '--color-h4': '#a7bfde', '--color-h5': '#d3e5f8', '--color-h6': '#eaf2f8', '--color-code': '#c50f1f', '--bg-pre': '#f0f8ff', '--bg-code-inline': '#eef7ff', '--bg-indice': '#e1f5fe', '--color-indice-link': '#1f497d', '--color-indice-link-hover': '#143258', '--bg-indice-link-hover': '#bddbf7', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#1f497d', '--border-ejercicios': '#a7bfde', '--bg-ejercicios': '#f0f8ff', '--body-bg-color': '#ffffff', '--text-color': '#212121', '--link-color': '#1f497d', '--copy-btn-bg': '#3c64a5', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#1f497d', '--copy-btn-success-bg': '#3cb44a' }},
      { name: "Verde Menta", variables: { '--color-h1': '#005d4a', '--color-h2': '#00796b', '--color-h3': '#009688', '--color-h4': '#4db6ac', '--color-h5': '#80cbc4', '--color-h6': '#b2dfdb', '--color-code': '#d32f2f', '--bg-pre': '#e0f2f1', '--bg-code-inline': '#e7fcf9', '--bg-indice': '#ccf0ec', '--color-indice-link': '#00796b', '--color-indice-link-hover': '#004d40', '--bg-indice-link-hover': '#a7d9d3', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#005d4a', '--border-ejercicios': '#80cbc4', '--bg-ejercicios': '#e0f2f1', '--body-bg-color': '#ffffff', '--text-color': '#263238', '--link-color': '#00796b', '--copy-btn-bg': '#009688', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#00796b', '--copy-btn-success-bg': '#8bc34a' }},
@@ -212,7 +216,6 @@ const themes = [
      { name: "Maíz Dulce", variables: { '--color-h1': '#f57c00', '--color-h2': '#ffb300', '--color-h3': '#ffc107', '--color-h4': '#ffca28', '--color-h5': '#ffeb3b', '--color-h6': '#fff59d', '--color-code': '#e53935', '--bg-pre': '#fff8e1', '--bg-code-inline': '#fffde7', '--bg-indice': '#fff59d', '--color-indice-link': '#ffb300', '--color-indice-link-hover': '#f57c00', '--bg-indice-link-hover': '#ffecb3', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#ffb300', '--border-ejercicios': '#ffc107', '--bg-ejercicios': '#fff8e1', '--body-bg-color': '#fffff0', '--text-color': '#424242', '--link-color': '#ffb300', '--copy-btn-bg': '#ffc107', '--copy-btn-color': '#424242', '--copy-btn-hover-bg': '#ffb300', '--copy-btn-success-bg': '#8bc34a' }},
      { name: "Nube de Algodón", variables: { '--color-h1': '#424242', '--color-h2': '#616161', '--color-h3': '#757575', '--color-h4': '#9e9e9e', '--color-h5': '#bdbdbd', '--color-h6': '#e0e0e0', '--color-code': '#2196f3', '--bg-pre': '#fcfcfc', '--bg-code-inline': '#f5f5f5', '--bg-indice': '#eeeeee', '--color-indice-link': '#616161', '--color-indice-link-hover': '#424242', '--bg-indice-link-hover': '#bdbdbd', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#616161', '--border-ejercicios': '#9e9e9e', '--bg-ejercicios': '#fcfcfc', '--body-bg-color': '#ffffff', '--text-color': '#212121', '--link-color': '#616161', '--copy-btn-bg': '#757575', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#616161', '--copy-btn-success-bg': '#4caf50' }},
      { name: "Verde Musgo Claro", variables: { '--color-h1': '#33691e', '--color-h2': '#558b2f', '--color-h3': '#689f38', '--color-h4': '#8bc34a', '--color-h5': '#aed581', '--color-h6': '#c5e1a5', '--color-code': '#f44336', '--bg-pre': '#f1f8e9', '--bg-code-inline': '#e8f5e9', '--bg-indice': '#dcedc8', '--color-indice-link': '#558b2f', '--color-indice-link-hover': '#33691e', '--bg-indice-link-hover': '#c5e1a5', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#558b2f', '--border-ejercicios': '#8bc34a', '--bg-ejercicios': '#f1f8e9', '--body-bg-color': '#fafff7', '--text-color': '#333333', '--link-color': '#558b2f', '--copy-btn-bg': '#689f38', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#558b2f', '--copy-btn-success-bg': '#ffb300' }},
-     // --- Añadiendo 20 temas adicionales (parte 2) ---
      { name: "Azul Crema", variables: { '--color-h1': '#1f497d', '--color-h2': '#3c64a5', '--color-h3': '#6c8dc3', '--color-h4': '#a7bfde', '--color-h5': '#d3e5f8', '--color-h6': '#eaf2f8', '--color-code': '#d32f2f', '--bg-pre': '#f0f8ff', '--bg-code-inline': '#eef7ff', '--bg-indice': '#e1f5fe', '--color-indice-link': '#1f497d', '--color-indice-link-hover': '#143258', '--bg-indice-link-hover': '#bddbf7', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#1f497d', '--border-ejercicios': '#a7bfde', '--bg-ejercicios': '#f0f8ff', '--body-bg-color': '#f8faff', '--text-color': '#212121', '--link-color': '#1f497d', '--copy-btn-bg': '#3c64a5', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#1f497d', '--copy-btn-success-bg': '#3cb44a' }},
      { name: "Menta Limpia", variables: { '--color-h1': '#005d4a', '--color-h2': '#00796b', '--color-h3': '#009688', '--color-h4': '#4db6ac', '--color-h5': '#80cbc4', '--color-h6': '#b2dfdb', '--color-code': '#ef5350', '--bg-pre': '#e0f2f1', '--bg-code-inline': '#e7fcf9', '--bg-indice': '#ccf0ec', '--color-indice-link': '#00796b', '--color-indice-link-hover': '#004d40', '--bg-indice-link-hover': '#a7d9d3', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#005d4a', '--border-ejercicios': '#80cbc4', '--bg-ejercicios': '#e0f2f1', '--body-bg-color': '#f7fffb', '--text-color': '#263238', '--link-color': '#00796b', '--copy-btn-bg': '#009688', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#00796b', '--copy-btn-success-bg': '#8bc34a' }},
      { name: "Rosa Pétalo", variables: { '--color-h1': '#880e4f', '--color-h2': '#c2185b', '--color-h3': '#e91e63', '--color-h4': '#f06292', '--color-h5': '#f48fb1', '--color-h6': '#f8bbd0', '--color-code': '#2196f3', '--bg-pre': '#fce4ec', '--bg-code-inline': '#f8e9ed', '--bg-indice': '#f8bbd0', '--color-indice-link': '#c2185b', '--color-indice-link-hover': '#880e4f', '--bg-indice-link-hover': '#f48fb1', '--color-indice-link-active': '#ffffff', '--bg-indice-link-active': '#c2185b', '--border-ejercicios': '#f06292', '--bg-ejercicios': '#fce4ec', '--body-bg-color': '#fff5f8', '--text-color': '#4e342e', '--link-color': '#c2185b', '--copy-btn-bg': '#e91e63', '--copy-btn-color': '#ffffff', '--copy-btn-hover-bg': '#c2185b', '--copy-btn-success-bg': '#4caf50' }},
@@ -243,19 +246,63 @@ const themes = [
         function generateCssForDownload() { const appliedVars = getAppliedVariables(); let variablesString = ':root {\n'; for (const [key, value] of Object.entries(appliedVars)) { if (value) { variablesString += `    ${key}: ${value};\n`; } else { variablesString += `    ${key}: ${defaultCssVariables[key] || 'inherit'};\n`; } } variablesString += '}\n\n'; const allStyles = document.querySelector('head > style').innerHTML; const startIndex = allStyles.indexOf('/* === INICIO ESTILOS UNIFICADOS'); const endIndexMarker = '/* === FIN ESTILOS UNIFICADOS === */'; let endIndex = allStyles.indexOf(endIndexMarker); if (endIndex === -1) { endIndex = allStyles.length; } let staticStyles = ''; if (startIndex !== -1) { staticStyles = allStyles.substring(startIndex, endIndex + endIndexMarker.length); } else { staticStyles = ""; } return variablesString + staticStyles; }
         function addCopyButtons(container) { const preBlocks = container.querySelectorAll('pre'); preBlocks.forEach((pre) => { if (pre.querySelector('.copy-code-btn')) { pre.querySelector('.copy-code-btn').remove(); } const copyButton = document.createElement('button'); copyButton.className = 'btn btn-sm copy-code-btn'; copyButton.setAttribute('aria-label', 'Copiar código'); const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/></svg>`; const successSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg> Copiado!`; copyButton.innerHTML = iconSvg; copyButton.addEventListener('click', () => { const codeElement = pre.querySelector('code'); const textToCopy = codeElement ? codeElement.innerText : pre.innerText; navigator.clipboard.writeText(textToCopy).then(() => { copyButton.innerHTML = successSvg; copyButton.classList.add('copied'); setTimeout(() => { copyButton.innerHTML = iconSvg; copyButton.classList.remove('copied'); }, 2000); }).catch(err => { console.error('Error al copiar: ', err); copyButton.innerHTML = 'Error'; setTimeout(() => { copyButton.innerHTML = iconSvg; }, 2000); }); }); pre.style.position = pre.style.position || 'relative'; pre.appendChild(copyButton); }); }
 
-        function preprocessMarkdown(markdownText) {
-            const accordionRegex = /^\+\+S\s+(.*?)\s*$([\s\S]*?)^\+\+E\s*$/gm;
-            let processedText = markdownText;
-            let accordionGroupCounter = 0;
-            processedText = processedText.replace(accordionRegex, (match, title, content) => {
-                accordionGroupCounter++;
-                const accordionId = `custom-accordion-${Date.now()}-${accordionGroupCounter}`;
-                const headingId = `heading-${accordionId}-item1`;
-                const collapseId = `collapse-${accordionId}-item1`;
-                const escapedTitle = title.trim().replace(/"/g, '&quot;');
-                marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
-                const parsedInnerContent = marked.parse(content.trim());
-                const accordionHtml =
+// --- INICIO CAMBIOS PARA IMÁGENES ---
+function cleanupImageStore() {
+    const currentMarkdown = markdownInput.value;
+    const activeImageIds = new Set();
+    const imgPlaceholderRegex = /<img\s+data-img-id="([^"]+)"/g;
+    let match;
+    while ((match = imgPlaceholderRegex.exec(currentMarkdown)) !== null) {
+        activeImageIds.add(match[1]);
+    }
+    for (const storedId in imageStore) {
+        if (!activeImageIds.has(storedId)) {
+            delete imageStore[storedId];
+            // console.log(`Imagen ${storedId} eliminada del store.`);
+        }
+    }
+}
+
+function preprocessImagePlaceholders(markdown) {
+    let processedMarkdown = markdown;
+    const imgPlaceholderRegex = /<img\s+data-img-id="([^"]+)"\s+alt="([^"]*)"\s+src="#image-placeholder"\s*(class="[^"]*")?\s*\/?>/g;
+
+    processedMarkdown = processedMarkdown.replace(imgPlaceholderRegex, (match, imgId, altText, classAttr) => {
+        if (imageStore[imgId]) {
+            const base64Src = imageStore[imgId];
+            const classes = classAttr ? classAttr.trim() : 'class="img-fluid"';
+            return `<img src="${base64Src}" alt="${altText}" ${classes}>`;
+        }
+        console.warn(`Image with ID ${imgId} not found in store.`);
+        return `<p style="color:red; border:1px solid red; padding: 0.5em;">[Error: Imagen ${imgId} no encontrada en el almacén. Placeholder original: ${match}]</p>`;
+    });
+    return processedMarkdown;
+}
+// --- FIN CAMBIOS PARA IMÁGENES ---
+
+
+function preprocessMarkdown(markdownText) {
+    let processedText = markdownText;
+    
+    // --- PRIMERO, procesar los placeholders de imágenes ---
+    processedText = preprocessImagePlaceholders(processedText);
+    // --- FIN DEL PROCESAMIENTO DE IMÁGENES ---
+
+    const accordionRegex = /^\+\+S\s+(.*?)\s*$([\s\S]*?)^\+\+E\s*$/gm;
+    let accordionGroupCounter = 0;
+    accordionContentPlaceholders = {}; 
+
+    processedText = processedText.replace(accordionRegex, (match, title, content) => {
+        accordionGroupCounter++;
+        const accordionId = `custom-accordion-${Date.now()}-${accordionGroupCounter}`;
+        const headingId = `heading-${accordionId}-item1`;
+        const collapseId = `collapse-${accordionId}-item1`;
+        const placeholderId = `accordion-content-placeholder-${accordionId}`; 
+        
+        const escapedTitle = title.trim().replace(/"/g, '"');
+        accordionContentPlaceholders[placeholderId] = content.trim();
+
+        const accordionHtml =
 `<div class="accordion" id="${accordionId}">
 <div class="accordion-item">
 <h2 class="accordion-header" id="${headingId}">
@@ -264,16 +311,15 @@ ${escapedTitle}
 </button>
 </h2>
 <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headingId}" data-bs-parent="#${accordionId}">
-<div class="accordion-body">
-${parsedInnerContent}
+<div class="accordion-body" data-accordion-placeholder-id="${placeholderId}">
 </div>
 </div>
 </div>
 </div>\n`;
-                return accordionHtml;
-            });
-            return processedText;
-        }
+        return accordionHtml;
+    });
+    return processedText;
+}
 
         function generateJsForDownload(targetId = '#indiceContenido', bodySelector = '.generated-html-body', offset = SCROLL_OFFSET_DOWNLOAD) {
             return `
@@ -289,31 +335,26 @@ ${parsedInnerContent}
                         return;
                     }
                     try {
-                        // Check if ScrollSpy is available before using it
                         if (typeof bootstrap !== 'undefined' && bootstrap.ScrollSpy) {
-                            // Dispose previous instance if exists
                             if (currentScrollSpy) {
                                 currentScrollSpy.dispose();
                             }
-                            // Initialize ScrollSpy
                             currentScrollSpy = new bootstrap.ScrollSpy(scrollSpyBody, {
                                 target: scrollSpyTarget,
                                 offset: scrollOffset,
-                                rootMargin: '0px 0px -25%' // Adjust rootMargin if needed
+                                rootMargin: '0px 0px -25%'
                             });
                         } else {
                             console.warn('Bootstrap ScrollSpy component not found.');
                         }
                     } catch (e) {
-                        // Catch potential errors during initialization (like invalid selectors from target)
                         console.error('Error initializing ScrollSpy:', e);
                     }
                 }
 
 
-                initOrRefreshScrollSpy(); // Initial call
+                initOrRefreshScrollSpy();
 
-                // Smooth scroll for index links
                 document.querySelectorAll('${targetId} a[href^="#"]').forEach(anchor => {
                     anchor.addEventListener('click', function (e) {
                         e.preventDefault();
@@ -322,14 +363,13 @@ ${parsedInnerContent}
                             const targetElement = document.querySelector(targetId);
                             if (targetElement) {
                                 const elementPosition = targetElement.getBoundingClientRect().top;
-                                const offsetPosition = elementPosition + window.pageYOffset - scrollOffset + 5; // Add small positive offset
+                                const offsetPosition = elementPosition + window.pageYOffset - scrollOffset + 5;
                                 window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
                             } else { console.warn('Scroll target element not found:', targetId); }
-                        } catch (err) { console.error('Error scrolling to element:', err); } // Catch errors during querySelector/scrolling
+                        } catch (err) { console.error('Error scrolling to element:', err); }
                     });
                 });
 
-                // Add copy buttons (assuming addCopyButtons is defined globally)
                 const mainContentElement = document.querySelector('#mainContent');
                 if (mainContentElement && typeof addCopyButtons === 'function') {
                     addCopyButtons(mainContentElement);
@@ -339,20 +379,16 @@ ${parsedInnerContent}
                      console.warn('addCopyButtons function not found.');
                 }
 
-
-                // Refresh ScrollSpy on resize with debounce
                 let resizeTimeout;
                 window.addEventListener('resize', () => {
                     clearTimeout(resizeTimeout);
-                    resizeTimeout = setTimeout(initOrRefreshScrollSpy, 250); // Debounce resize events
+                    resizeTimeout = setTimeout(initOrRefreshScrollSpy, 250);
                 });
 
-                // Extra refresh after a short delay, sometimes helps after dynamic content loading
                 setTimeout(() => initOrRefreshScrollSpy(), 500);
             });`;
         }
 
-        // --- CORRECTED generateToc Function ---
         function generateToc(contentContainer, tocContainer) {
             tocContainer.innerHTML = '';
             const headings = contentContainer.querySelectorAll(
@@ -367,51 +403,41 @@ ${parsedInnerContent}
                 if (!baseId) {
                     baseId = slugify(heading.textContent);
                 } else {
-                    baseId = slugify(baseId); // Ensure provided IDs are also slugified
+                    baseId = slugify(baseId);
                 }
 
                 let id = baseId || `section-${index + 1}`;
-                const originalIdAttempt = id; // Keep track for the while loop
+                const originalIdAttempt = id; 
 
-                // --- ID Prefix Correction ---
                 if (/^\d/.test(id)) {
                     id = 'h-' + id;
                 }
-                // --- End Correction ---
-
+                
                 let i = 1;
-                // Check for duplicates using the potentially prefixed ID
                 while (usedIds.has(id) || document.getElementById(id)) {
-                    // Regenerate ID based on the original attempt
                     id = `${originalIdAttempt || 'section'}-${index + 1}-${i}`;
-                     // --- ID Prefix Correction (inside while) ---
                     if (/^\d/.test(id)) {
                          id = 'h-' + id;
                     }
-                     // --- End Correction ---
                     i++;
                 }
 
-                // Set the final, valid ID
                 if (heading.getAttribute('id') !== id) {
                     heading.setAttribute('id', id);
                 }
                 usedIds.add(id);
 
-                // Create the TOC link
                 const link = document.createElement('a');
                 link.classList.add('nav-link');
                 if (level > 1) {
                     link.classList.add(`ps-${Math.min(level + 1, 6)}`);
                 }
-                link.href = `#${id}`; // Use the final, valid ID
+                link.href = `#${id}`;
                 link.textContent = heading.textContent.trim() || `Sección ${index + 1}`;
                 link.title = heading.textContent.trim() || `Sección ${index + 1}`;
                 tocContainer.appendChild(link);
             });
         }
-        // --- End Corrected generateToc Function ---
-
 
         function updateColorPickers(variables) { personalizationInputs.forEach(input => { const varName = input.dataset.cssVar; if (varName && variables[varName]) { try { let colorValue = variables[varName]; if (!/^#([0-9a-fA-F]{3}){1,2}$/i.test(colorValue)) { colorValue = defaultCssVariables[varName] || '#000000'; } input.value = colorValue; } catch(e) { input.value = defaultCssVariables[varName] || '#000000'; } } }); }
         function applyTheme(themeIndex) {
@@ -433,83 +459,134 @@ ${parsedInnerContent}
             }
         }
 
-        function generateHtmlPreview() {
-            const markdownText = markdownInput.value;
-            const preprocessedMarkdown = preprocessMarkdown(markdownText);
-            marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
-            const rawHtml = marked.parse(preprocessedMarkdown);
-            const cleanHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true }, ADD_TAGS: ['button'], ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style'], FORCE_REL_FOR_EXTERNAL_LINKS: true });
-            mainContentPreview.innerHTML = cleanHtml;
-            generateToc(mainContentPreview, indiceNavPreview); // Generate TOC *before* initializing ScrollSpy
-            addCopyButtons(mainContentPreview);
+function generateHtmlPreview() {
+    cleanupImageStore(); // Limpia el imageStore
+    const markdownText = markdownInput.value;
+    const preprocessedMarkdown = preprocessMarkdown(markdownText); 
 
-            if (scrollSpyInstance) {
-                scrollSpyInstance.dispose();
-                scrollSpyInstance = null;
-            }
+    marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
+    const rawHtml = marked.parse(preprocessedMarkdown); 
+    
+    const cleanHtml = DOMPurify.sanitize(rawHtml, { 
+        USE_PROFILES: { html: true }, 
+        ADD_TAGS: ['button'], 
+        ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style', 'data-accordion-placeholder-id', 'data-img-id'], // data-img-id podría no ser necesario aquí ya que se resuelve antes
+        FORCE_REL_FOR_EXTERNAL_LINKS: true 
+    });
+    
+    mainContentPreview.innerHTML = cleanHtml;
 
-            // Ensure TOC links are generated and valid before initializing ScrollSpy
-            if (htmlOutputBody && indiceContenidoPreviewContainer && mainContentPreview.innerHTML.trim() !== '' && indiceNavPreview.hasChildNodes()) {
-                 // Wrap ScrollSpy initialization in a try...catch
-                 try {
-                    if (typeof bootstrap !== 'undefined' && bootstrap.ScrollSpy) {
-                        scrollSpyInstance = new bootstrap.ScrollSpy(htmlOutputBody, {
-                             target: '#indiceContenidoPreview', // Use the ID of the NAV container
-                             offset: SCROLL_OFFSET_PREVIEW,
-                             rootMargin: '0px 0px -25%'
-                        });
-                         // Delay refresh slightly
-                        setTimeout(() => {
-                             if (scrollSpyInstance) {
-                                 scrollSpyInstance.refresh();
-                                 window.dispatchEvent(new Event('scroll')); // Trigger scroll to update active item
-                             }
-                        }, 300);
-                    } else {
-                        console.warn("Bootstrap or ScrollSpy not loaded.");
-                    }
-                } catch(e) {
-                    console.error("Error initializing ScrollSpy:", e); // Log the specific error
-                    scrollSpyInstance = null;
-                 }
-            } else if (!mainContentPreview.innerHTML.trim()) {
-                indiceNavPreview.innerHTML = ''; // Clear TOC if no content
-            } else {
-                 // Content exists but TOC might be empty or invalid, log warning
-                 console.warn("ScrollSpy not initialized. Check if content generates valid headings for the TOC.");
-            }
+    const accordionBodyPlaceholders = mainContentPreview.querySelectorAll('[data-accordion-placeholder-id]');
+    accordionBodyPlaceholders.forEach(bodyElement => {
+        const placeholderId = bodyElement.dataset.accordionPlaceholderId;
+        if (accordionContentPlaceholders[placeholderId]) {
+            const accordionMarkdownContent = accordionContentPlaceholders[placeholderId];
+            // El contenido del acordeón (accordionMarkdownContent) ya ha pasado por preprocessImagePlaceholders
+            // porque se tomó de 'processedText' después de la llamada a preprocessImagePlaceholders.
+            // Así que las imágenes dentro del acordeón ya deberían tener su src Base64.
+            const accordionRawHtml = marked.parse(accordionMarkdownContent);
+            bodyElement.innerHTML = DOMPurify.sanitize(accordionRawHtml, { 
+                USE_PROFILES: { html: true }, 
+                ADD_TAGS: ['button'],
+                ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style']
+            });
         }
+        bodyElement.removeAttribute('data-accordion-placeholder-id');
+    });
+
+    generateToc(mainContentPreview, indiceNavPreview);
+    addCopyButtons(mainContentPreview); 
+
+    if (scrollSpyInstance) {
+        scrollSpyInstance.dispose();
+        scrollSpyInstance = null;
+    }
+
+    if (htmlOutputBody && indiceContenidoPreviewContainer && mainContentPreview.innerHTML.trim() !== '' && indiceNavPreview.hasChildNodes()) {
+         try {
+            if (typeof bootstrap !== 'undefined' && bootstrap.ScrollSpy) {
+                scrollSpyInstance = new bootstrap.ScrollSpy(htmlOutputBody, {
+                     target: '#indiceContenidoPreview',
+                     offset: SCROLL_OFFSET_PREVIEW,
+                     rootMargin: '0px 0px -25%'
+                });
+                setTimeout(() => {
+                     if (scrollSpyInstance) {
+                         scrollSpyInstance.refresh();
+                         window.dispatchEvent(new Event('scroll'));
+                     }
+                }, 300);
+            } else {
+                console.warn("Bootstrap or ScrollSpy not loaded.");
+            }
+        } catch(e) {
+            console.error("Error initializing ScrollSpy:", e);
+            scrollSpyInstance = null;
+         }
+    } else if (!mainContentPreview.innerHTML.trim()) {
+        indiceNavPreview.innerHTML = '';
+    } else {
+         console.warn("ScrollSpy not initialized. Check if content generates valid headings for the TOC.");
+    }
+}
 
 
-        function downloadHtml() {
-            const markdownText = markdownInput.value;
-            if (!markdownText.trim()) { alert("No hay contenido Markdown para descargar."); return; }
-            const preprocessedMarkdown = preprocessMarkdown(markdownText);
-            marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
-            const rawHtml = marked.parse(preprocessedMarkdown);
-            const cleanHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true }, ADD_TAGS: ['button'], ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style'], FORCE_REL_FOR_EXTERNAL_LINKS: true });
-            const tempContent = document.createElement('div');
-            tempContent.innerHTML = cleanHtml;
-            const tempTocNav = document.createElement('nav');
-            tempTocNav.classList.add('nav', 'nav-pills', 'flex-column');
-            tempTocNav.id = 'indiceNav'; // Ensure this matches the target in generateJsForDownload if needed for the downloaded file
-            generateToc(tempContent, tempTocNav); // Use the corrected generateToc
-            const cssToEmbed = generateCssForDownload();
-            // Pass the correct ID for the TOC NAV element in the downloaded file
-            const jsToEmbed = generateJsForDownload('#indiceContenido', '.generated-html-body', SCROLL_OFFSET_DOWNLOAD);
-            const addCopyButtonsFuncStringForDownload = addCopyButtons.toString();
-            const firstHeadingElement = tempContent.querySelector('h1:not(.accordion-body h1), h2:not(.accordion-body h2), h3:not(.accordion-body h3), h4:not(.accordion-body h4), h5:not(.accordion-body h5), h6:not(.accordion-body h6)');
-            const pageTitle = firstHeadingElement ? firstHeadingElement.textContent.trim() : 'Documento Generado';
-            const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-            const htmlAttributes = isDark ? `data-bs-theme="dark"` : '';
-            const bodyClass = `generated-html-body`;
+function downloadHtml() {
+    cleanupImageStore(); // Limpia el imageStore
+    const markdownText = markdownInput.value;
+    if (!markdownText.trim()) { alert("No hay contenido Markdown para descargar."); return; }
+    
+    const preprocessedMarkdown = preprocessMarkdown(markdownText); 
 
-            const htmlContent = `<!DOCTYPE html>
+    marked.setOptions({ gfm: true, breaks: false, pedantic: false, smartLists: true, smartypants: false });
+    const rawHtmlSkeleton = marked.parse(preprocessedMarkdown);
+    
+    const cleanHtmlSkeleton = DOMPurify.sanitize(rawHtmlSkeleton, { 
+        USE_PROFILES: { html: true }, 
+        ADD_TAGS: ['button'], 
+        ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style', 'data-accordion-placeholder-id', 'data-img-id'], // Igual que en preview
+        FORCE_REL_FOR_EXTERNAL_LINKS: true 
+    });
+    
+    const tempContent = document.createElement('div');
+    tempContent.innerHTML = cleanHtmlSkeleton;
+
+    const accordionBodyPlaceholdersInTemp = tempContent.querySelectorAll('[data-accordion-placeholder-id]');
+    accordionBodyPlaceholdersInTemp.forEach(bodyElement => {
+        const placeholderId = bodyElement.dataset.accordionPlaceholderId;
+        if (accordionContentPlaceholders[placeholderId]) {
+            const accordionMarkdownContent = accordionContentPlaceholders[placeholderId];
+            const accordionRawHtml = marked.parse(accordionMarkdownContent);
+            bodyElement.innerHTML = DOMPurify.sanitize(accordionRawHtml, { 
+                USE_PROFILES: { html: true }, 
+                ADD_TAGS: ['button'], 
+                ADD_ATTR: ['data-bs-toggle', 'data-bs-target', 'aria-controls', 'aria-expanded', 'aria-labelledby', 'data-bs-parent', 'aria-label', 'role', 'class', 'alt', 'src', 'id', 'style']
+            });
+        }
+        bodyElement.removeAttribute('data-accordion-placeholder-id');
+    });
+
+    const tempTocNav = document.createElement('nav');
+    tempTocNav.classList.add('nav', 'nav-pills', 'flex-column');
+    tempTocNav.id = 'indiceNav'; 
+    generateToc(tempContent, tempTocNav); 
+    
+    const cssToEmbed = generateCssForDownload();
+    const jsToEmbed = generateJsForDownload('#indiceContenido', '.generated-html-body', SCROLL_OFFSET_DOWNLOAD);
+    const addCopyButtonsFuncStringForDownload = addCopyButtons.toString();
+    
+    const firstHeadingElement = tempContent.querySelector('h1:not(.accordion-body h1), h2:not(.accordion-body h2), h3:not(.accordion-body h3), h4:not(.accordion-body h4), h5:not(.accordion-body h5), h6:not(.accordion-body h6)');
+    const pageTitle = firstHeadingElement ? firstHeadingElement.textContent.trim() : 'Documento Generado';
+    const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const htmlAttributes = isDark ? `data-bs-theme="dark"` : '';
+    const bodyClass = `generated-html-body`;
+
+    const htmlContent = `<!DOCTYPE html>
 <html lang="es" ${htmlAttributes}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${pageTitle.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title>
+    <title>${pageTitle.replace(/</g, "<").replace(/>/g, ">")}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <style>
 /* Embedded CSS */
@@ -520,7 +597,7 @@ ${cssToEmbed}
     <div class="container-fluid mt-4">
         <div class="row">
             <div class="col-md-4 col-lg-3 d-none d-md-block">
-                <nav id="indiceContenido"> <!-- Ensure this ID matches the target in JS -->
+                <nav id="indiceContenido">
                     <h5 class="mb-3">Índice</h5>
                     ${tempTocNav.outerHTML}
                 </nav>
@@ -541,17 +618,17 @@ ${jsToEmbed}
 </body>
 </html>`;
 
-            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const filenameBase = firstHeadingElement ? slugify(firstHeadingElement.textContent.trim()) : 'documento';
-            a.download = `${filenameBase || 'generado'}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const filenameBase = firstHeadingElement ? slugify(firstHeadingElement.textContent.trim()) : 'documento';
+    a.download = `${filenameBase || 'generado'}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
         function insertAccordionTemplate() {
             const textarea = markdownInput;
@@ -572,33 +649,52 @@ Puedes usar **Markdown** aquí dentro.
             textarea.focus();
         }
 
-        function insertImageHtml(base64DataUrl, altText = "Imagen insertada") {
+        // --- INICIO CAMBIOS PARA IMÁGENES ---
+        function insertImagePlaceholderInTextarea(altText = "Imagen insertada") {
             const textarea = markdownInput;
             const startPos = textarea.selectionStart;
             const endPos = textarea.selectionEnd;
-            const safeAltText = altText.replace(/"/g, '&quot;');
-            const textToInsert =
-`
-<img src="${base64DataUrl}" alt="${safeAltText}" class="img-fluid">
-`;
+
+            imageIdCounter++;
+            const uniqueImageId = `embedded-img-${Date.now()}-${imageIdCounter}`;
+            // Escapar comillas dobles en altText para el atributo HTML
+            const safeAltText = altText.replace(/"/g, '&quot;'); 
+
+            // Este es el placeholder que se insertará en el textarea
+            const textToInsert = `\n<img data-img-id="${uniqueImageId}" alt="${safeAltText}" src="#image-placeholder" class="img-fluid">\n`;
+
             textarea.value = textarea.value.substring(0, startPos) + textToInsert + textarea.value.substring(endPos);
             const cursorPos = startPos + textToInsert.length;
             textarea.selectionStart = cursorPos;
             textarea.selectionEnd = cursorPos;
             textarea.focus();
-            generateHtmlPreview();
+            return uniqueImageId; // Devuelve el ID para usarlo en imageStore
         }
 
         function handleImageFileSelect(event) {
             const file = event.target.files[0];
             if (file && file.type.startsWith('image/')) {
+                // Primero inserta el placeholder y obtiene el ID
+                const imageId = insertImagePlaceholderInTextarea(file.name); 
+                
                 const reader = new FileReader();
-                reader.onload = function(loadEvent) { insertImageHtml(loadEvent.target.result, file.name); }
-                reader.onerror = function(errorEvent) { console.error("Error leyendo el archivo de imagen:", errorEvent); alert("Hubo un error al intentar leer el archivo de imagen."); }
+                reader.onload = function(loadEvent) {
+                    imageStore[imageId] = loadEvent.target.result; // Guarda el Base64 en el store
+                    generateHtmlPreview(); // Ahora genera la vista previa, ya que el Base64 está listo
+                }
+                reader.onerror = function(errorEvent) {
+                    console.error("Error leyendo el archivo de imagen:", errorEvent);
+                    alert("Hubo un error al intentar leer el archivo de imagen.");
+                    // Opcional: remover el placeholder si la lectura falla
+                    markdownInput.value = markdownInput.value.replace(new RegExp(`<img data-img-id="${imageId}"[^>]*>`, 'g'), '');
+                }
                 reader.readAsDataURL(file);
-            } else if (file) { alert("Por favor, selecciona un archivo de imagen válido (jpg, png, gif, svg, webp, etc.)."); }
-            event.target.value = null;
+            } else if (file) {
+                alert("Por favor, selecciona un archivo de imagen válido (jpg, png, gif, svg, webp, etc.).");
+            }
+            event.target.value = null; // Resetea el input
         }
+        // --- FIN CAMBIOS PARA IMÁGENES ---
 
         function initializeApp() {
             themes.forEach((theme, index) => { const option = document.createElement('option'); option.value = index; option.textContent = theme.name; themeSelector.appendChild(option); });
@@ -607,8 +703,7 @@ Puedes usar **Markdown** aquí dentro.
                 input.addEventListener('input', (event) => {
                     if (varName) {
                         document.documentElement.style.setProperty(varName, event.target.value);
-
-                         generateHtmlPreview(); // Regenerate preview on manual color change too
+                        generateHtmlPreview(); 
                     }
                 });
             });
@@ -623,7 +718,8 @@ Puedes usar **Markdown** aquí dentro.
             downloadBtn.addEventListener('click', downloadHtml);
             insertAccordionBtn.addEventListener('click', insertAccordionTemplate);
             insertImageBtn.addEventListener('click', () => { imageFileInput.click(); });
-            imageFileInput.addEventListener('change', handleImageFileSelect);
+            imageFileInput.addEventListener('change', handleImageFileSelect); // Usará el nuevo handleImageFileSelect
+            
             applyTheme(0);
             themeSelector.value = "0";
             generateHtmlPreview();
