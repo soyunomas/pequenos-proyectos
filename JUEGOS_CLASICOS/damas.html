@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DamasClásicas Web</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            overscroll-behavior-y: contain; 
+            padding-top: 0.5rem; 
+        }
+
+        .game-container {
+            max-width: 95vmin; 
+            margin: 0 auto; 
+            padding: 1rem;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        @media (min-width: 600px) { 
+            .game-container {
+                max-width: 550px; 
+            }
+        }
+        
+        @media (min-width: 768px) { 
+            .game-container {
+                max-width: 600px;
+            }
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 1.75rem; 
+        }
+
+        .board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1rem;
+            background: #c0c0c0; 
+            padding: 10px; 
+            border-radius: 6px;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.2);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 100%; 
+            aspect-ratio: 1 / 1; 
+            border: 3px solid #4a3b31; 
+            max-width: 500px; 
+            margin: 0 auto; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        .square {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(3vmin, 5vw, 35px); 
+            user-select: none;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .square.dark {
+            background-color: #774936; 
+        }
+
+        .square.light {
+            background-color: #E1C1A3; 
+        }
+
+        .piece {
+            width: 75%; 
+            height: 75%;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 3px rgba(0,0,0,0.2);
+            transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+        }
+        .piece:hover {
+            transform: translateY(-2px);
+            box-shadow: inset 0 -2px 4px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .piece.red {
+            background-color: #d9534f; 
+            border: 2px solid #b33c38;
+        }
+
+        .piece.black {
+            background-color: #2c3e50; 
+            border: 2px solid #1a252f;
+        }
+        
+        .piece.king::after {
+            content: "👑"; 
+            font-size: 65%; 
+            color: #ffd700; 
+            text-shadow: 0 0 3px rgba(0,0,0,0.7);
+            line-height: 1; 
+        }
+
+        .selected-piece {
+            outline: 3px solid #0dcaf0; 
+            outline-offset: 3px;
+            box-shadow: inset 0 -2px 4px rgba(0,0,0,0.4), 0 0 10px #0dcaf0, 0 2px 3px rgba(0,0,0,0.2) !important;
+        }
+
+        .valid-move {
+            background-color: rgba(40, 167, 69, 0.45) !important; 
+            cursor: pointer;
+        }
+        
+        .valid-capture {
+            background-color: rgba(255, 193, 7, 0.55) !important; 
+            cursor: pointer;
+        }
+
+        .status-message {
+            font-size: 1.25rem;
+            font-weight: 500;
+            min-height: 1.5em; 
+            color: #34495e;
+            transition: color 0.3s;
+        }
+        
+        .captured-pieces-area {
+            min-height: 28px; 
+            margin-bottom: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .captured-display {
+            font-size: 0.85rem;
+            color: #555;
+        }
+        .captured-piece-display {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            box-shadow: inset 0 0 3px rgba(0,0,0,0.2);
+            vertical-align: middle;
+        }
+        .captured-piece-display.red { background-color: #d9534f; }
+        .captured-piece-display.black { background-color: #2c3e50; }
+
+        .form-label {
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+        .form-select-sm {
+            font-size: 0.9rem;
+        }
+        .btn-sm {
+            font-size: 0.9rem;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container game-container">
+        <header class="text-center my-2">
+            <h1>DamasClásicas Web</h1>
+        </header>
+
+        <div class="row mb-3 align-items-center gy-2">
+            <div class="col-sm-5 col-md-4">
+                <label for="gameModeSelect" class="form-label">Modo de Juego:</label>
+                <select class="form-select form-select-sm" id="gameModeSelect">
+                    <option value="HUMANO_VS_HUMANO" selected>Humano vs Humano</option>
+                    <option value="HUMANO_VS_IA">Humano vs IA (Mejorada)</option>
+                </select>
+            </div>
+            <div class="col-sm-7 col-md-4 text-sm-center">
+                <p id="statusMessage" class="status-message mb-0"></p>
+            </div>
+            <div class="col-12 col-md-4 text-md-end text-center mt-2 mt-md-0">
+                <button id="resetButton" class="btn btn-primary btn-sm w-100 w-md-auto">Reiniciar Partida</button>
+            </div>
+        </div>
+        
+        <div class="captured-pieces-area text-center">
+            <div id="capturedByRed" class="captured-display">Rojas capturan: </div>
+            <div id="capturedByBlack" class="captured-display">Negras capturan: </div>
+        </div>
+
+        <div class="board-container">
+            <div id="board" class="board">
+                {/* Las casillas se generarán con JavaScript */}
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Constantes de jugadores y piezas
+        const PLAYER_RED = 'ROJO';
+        const PLAYER_BLACK = 'NEGRO';
+        const PIECE_NORMAL = 'NORMAL';
+        const PIECE_KING = 'REY';
+
+        // Estado del juego
+        let boardState; 
+        let currentPlayer;
+        let selectedPiece = null; 
+        let gameMode = 'HUMANO_VS_HUMANO';
+        let gameState = 'INICIO'; 
+        let mustCapture = false; 
+        let availableCaptures = [];
+        let capturedPiecesByRedCount = 0; 
+        let capturedPiecesByBlackCount = 0; 
+
+        // Estado de la IA
+        let iaMultiCaptureInProgress = false;
+        let iaPieceForMultiCapture = null; // {row, col}
+
+        // Elementos del DOM
+        const boardElement = document.getElementById('board');
+        const statusMessageElement = document.getElementById('statusMessage');
+        const resetButton = document.getElementById('resetButton');
+        const gameModeSelect = document.getElementById('gameModeSelect');
+        const capturedByRedElement = document.getElementById('capturedByRed');
+        const capturedByBlackElement = document.getElementById('capturedByBlack');
+
+        const BOARD_SIZE = 8;
+
+        function initializeBoard() {
+            boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if ((row + col) % 2 !== 0) { 
+                        if (row < 3) {
+                            boardState[row][col] = { player: PLAYER_BLACK, type: PIECE_NORMAL };
+                        } else if (row > 4) {
+                            boardState[row][col] = { player: PLAYER_RED, type: PIECE_NORMAL };
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            removeHighlights();
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square');
+                    square.classList.add((row + col) % 2 === 0 ? 'light' : 'dark');
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+
+                    const pieceData = boardState[row][col];
+                    if (pieceData) {
+                        const pieceElement = document.createElement('div');
+                        pieceElement.classList.add('piece');
+                        pieceElement.classList.add(pieceData.player === PLAYER_RED ? 'red' : 'black');
+                        if (pieceData.type === PIECE_KING) {
+                            pieceElement.classList.add('king');
+                        }
+                        square.appendChild(pieceElement);
+                    }
+                    square.addEventListener('click', () => onSquareClick(row, col));
+                    boardElement.appendChild(square);
+                }
+            }
+            updateCapturedPiecesDisplay();
+        }
+
+        function startGame() {
+            initializeBoard();
+            currentPlayer = PLAYER_RED; 
+            selectedPiece = null;
+            mustCapture = false;
+            availableCaptures = [];
+            gameState = 'EN_JUEGO';
+            capturedPiecesByRedCount = 0;
+            capturedPiecesByBlackCount = 0;
+            iaMultiCaptureInProgress = false;
+            iaPieceForMultiCapture = null;
+            updateStatusMessage();
+            renderBoard();
+            checkObligatoryCaptures(); 
+            if (currentPlayer === PLAYER_BLACK && gameMode === 'HUMANO_VS_IA' && gameState === 'EN_JUEGO') {
+                setTimeout(makeAIMove, 600);
+            }
+        }
+        
+        function updateCapturedPiecesDisplay() {
+            capturedByRedElement.innerHTML = `Rojas capturan (${capturedPiecesByRedCount}): `;
+            for(let i = 0; i < capturedPiecesByRedCount; i++) {
+                const capturedDisplay = document.createElement('span');
+                capturedDisplay.classList.add('captured-piece-display', 'black');
+                capturedByRedElement.appendChild(capturedDisplay);
+            }
+
+            capturedByBlackElement.innerHTML = `Negras capturan (${capturedPiecesByBlackCount}): `;
+             for(let i = 0; i < capturedPiecesByBlackCount; i++) {
+                const capturedDisplay = document.createElement('span');
+                capturedDisplay.classList.add('captured-piece-display', 'red');
+                capturedByBlackElement.appendChild(capturedDisplay);
+            }
+        }
+
+        function onSquareClick(row, col) {
+            if (gameState !== 'EN_JUEGO') return;
+            if (gameMode === 'HUMANO_VS_IA' && currentPlayer === PLAYER_BLACK) return; 
+
+            const pieceData = boardState[row][col];
+
+            if (selectedPiece) { 
+                let isValidTarget = false;
+                let moveDetails = null;
+                
+                const possibleMovesForSelected = getAllPossibleMovesForPiece(selectedPiece.row, selectedPiece.col);
+
+                for (const move of possibleMovesForSelected) {
+                    if (move.to.row === row && move.to.col === col) {
+                        isValidTarget = true;
+                        moveDetails = move;
+                        break;
+                    }
+                }
+                
+                if (mustCapture && (!moveDetails || !moveDetails.isCapture)) {
+                    if (pieceData && pieceData.player === currentPlayer && (selectedPiece.row !== row || selectedPiece.col !== col)) {
+                        const canNewPieceCapture = availableCaptures.some(m => m.from.row === row && m.from.col === col);
+                        if (canNewPieceCapture) {
+                            deselectPiece();
+                            selectPiece(row, col);
+                        } 
+                    } else if (selectedPiece.row === row && selectedPiece.col === col) { 
+                        deselectPiece(); 
+                    }
+                    return; 
+                }
+
+                if (isValidTarget) {
+                    makeMove(selectedPiece.row, selectedPiece.col, row, col, moveDetails.isCapture, moveDetails.capturedPiece);
+                    deselectPiece();
+
+                    if (moveDetails.isCapture) {
+                        const furtherCaptures = getPossibleCapturesForPiece(row, col); 
+                        if (furtherCaptures.length > 0) {
+                            mustCapture = true; 
+                            availableCaptures = furtherCaptures; 
+                            selectPiece(row, col, true); 
+                            updateStatusMessage("¡Captura múltiple disponible!");
+                            return; 
+                        }
+                    }
+                    switchTurn();
+
+                } else if (pieceData && pieceData.player === currentPlayer) { 
+                    deselectPiece();
+                    selectPiece(row, col); 
+                } else { 
+                    deselectPiece();
+                }
+            } else if (pieceData && pieceData.player === currentPlayer) { 
+                 if (mustCapture) { 
+                    const canThisPieceCapture = availableCaptures.some(m => m.from.row === row && m.from.col === col);
+                    if (canThisPieceCapture) {
+                        selectPiece(row, col);
+                    }
+                } else {
+                    selectPiece(row, col);
+                }
+            }
+        }
+
+        function selectPiece(row, col, partOfMultiCapture = false) {
+            if (selectedPiece) deselectPiece();
+
+            const pieceData = boardState[row][col];
+            if (!pieceData || pieceData.player !== currentPlayer) return;
+
+            if (mustCapture && !partOfMultiCapture) {
+                const canThisPieceMakeObligatoryCapture = availableCaptures.some(
+                    move => move.from.row === row && move.from.col === col
+                );
+                if (!canThisPieceMakeObligatoryCapture) return;
+            }
+
+            const squareElement = getSquareElement(row, col);
+            selectedPiece = { row, col, element: squareElement ? squareElement.querySelector('.piece') : null };
+            if (selectedPiece.element) {
+                 selectedPiece.element.classList.add('selected-piece');
+            }
+            highlightPossibleMoves(row, col, partOfMultiCapture);
+        }
+
+        function deselectPiece() {
+            if (selectedPiece && selectedPiece.element) {
+                selectedPiece.element.classList.remove('selected-piece');
+            }
+            selectedPiece = null;
+            removeHighlights();
+        }
+
+        function highlightPossibleMoves(row, col, partOfMultiCapture = false) {
+            removeHighlights();
+            const allMovesForPiece = getAllPossibleMovesForPiece(row, col); 
+            
+            let movesToHighlight = allMovesForPiece;
+
+            if (partOfMultiCapture) { 
+                movesToHighlight = availableCaptures.filter(m => m.from.row === row && m.from.col === col);
+            } else if (mustCapture) {
+                movesToHighlight = availableCaptures.filter(m => m.from.row === row && m.from.col === col);
+            }
+
+            movesToHighlight.forEach(move => {
+                const targetSquare = getSquareElement(move.to.row, move.to.col);
+                if (targetSquare) {
+                    targetSquare.classList.add(move.isCapture ? 'valid-capture' : 'valid-move');
+                }
+            });
+        }
+
+        function removeHighlights() {
+            document.querySelectorAll('.valid-move, .valid-capture').forEach(sq => {
+                sq.classList.remove('valid-move');
+                sq.classList.remove('valid-capture');
+            });
+        }
+
+        function makeMove(fromRow, fromCol, toRow, toCol, isCapture, capturedPiecePos) {
+            const piece = boardState[fromRow][fromCol];
+            boardState[toRow][toCol] = piece;
+            boardState[fromRow][fromCol] = null;
+
+            if (isCapture && capturedPiecePos) {
+                boardState[capturedPiecePos.row][capturedPiecePos.col] = null;
+                if (currentPlayer === PLAYER_RED) {
+                    capturedPiecesByRedCount++;
+                } else {
+                    capturedPiecesByBlackCount++;
+                }
+            }
+
+            // Coronación (afecta a la pieza en su nueva posición)
+            const movedPiece = boardState[toRow][toCol]; // Referencia a la pieza en la nueva casilla
+            if (movedPiece) { // Asegurarse que la pieza existe allí
+                if (movedPiece.player === PLAYER_RED && toRow === 0 && movedPiece.type === PIECE_NORMAL) {
+                    movedPiece.type = PIECE_KING;
+                } else if (movedPiece.player === PLAYER_BLACK && toRow === BOARD_SIZE - 1 && movedPiece.type === PIECE_NORMAL) {
+                    movedPiece.type = PIECE_KING;
+                }
+            }
+            renderBoard(); 
+        }
+
+        function getPossibleNonCaptureMovesForPiece(row, col) {
+            const piece = boardState[row][col];
+            if (!piece) return [];
+
+            const moves = [];
+            const directions = [];
+
+            if (piece.type === PIECE_NORMAL) {
+                const forwardDir = piece.player === PLAYER_RED ? -1 : 1;
+                directions.push({ dr: forwardDir, dc: -1 }, { dr: forwardDir, dc: 1 });
+            } else { 
+                directions.push({ dr: -1, dc: -1 }, { dr: -1, dc: 1 }, { dr: 1, dc: -1 }, { dr: 1, dc: 1 });
+            }
+            
+            for (const dir of directions) {
+                if (piece.type === PIECE_NORMAL) {
+                    const nextRow = row + dir.dr;
+                    const nextCol = col + dir.dc;
+                    if (isValidSquare(nextRow, nextCol) && !boardState[nextRow][nextCol]) {
+                        moves.push({ from: {row, col}, to: { row: nextRow, col: nextCol }, isCapture: false });
+                    }
+                } else { 
+                    for (let i = 1; i < BOARD_SIZE; i++) {
+                        const nextRow = row + dir.dr * i;
+                        const nextCol = col + dir.dc * i;
+                        if (!isValidSquare(nextRow, nextCol)) break; 
+                        if (boardState[nextRow][nextCol]) break; 
+                        moves.push({ from: {row, col}, to: { row: nextRow, col: nextCol }, isCapture: false });
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function getPossibleCapturesForPiece(row, col) {
+            // Esta función opera sobre el boardState global
+            return getPossibleCapturesForPieceOnBoard(row, col, boardState);
+        }
+        
+        // *** NUEVA FUNCIÓN AUXILIAR PARA IA ***
+        function getPossibleCapturesForPieceOnBoard(row, col, boardToCheck) {
+            const piece = boardToCheck[row][col];
+            if (!piece) return [];
+
+            const captures = [];
+            const directions = [];
+
+            if (piece.type === PIECE_NORMAL) {
+                const playerDir = piece.player === PLAYER_RED ? -1 : 1;
+                 directions.push({ dr: playerDir, dc: -1 }, { dr: playerDir, dc: 1 });
+            } else { // PIECE_KING
+                directions.push({ dr: -1, dc: -1 }, { dr: -1, dc: 1 }, { dr: 1, dc: -1 }, { dr: 1, dc: 1 });
+            }
+            
+            for (const dir of directions) {
+                const opponentRowOver = row + dir.dr;
+                const opponentColOver = col + dir.dc;
+                const landingRow = row + dir.dr * 2;
+                const landingCol = col + dir.dc * 2;
+
+                if (isValidSquare(landingRow, landingCol) && !boardToCheck[landingRow][landingCol]) {
+                    const opponentPieceData = isValidSquare(opponentRowOver, opponentColOver) ? boardToCheck[opponentRowOver][opponentColOver] : null;
+                    if (opponentPieceData && opponentPieceData.player !== piece.player) {
+                        captures.push({
+                            from: {row, col},
+                            to: { row: landingRow, col: landingCol },
+                            isCapture: true,
+                            capturedPiece: { row: opponentRowOver, col: opponentColOver }
+                        });
+                    }
+                }
+            }
+            return captures;
+        }
+        
+        function getAllPossibleMovesForPiece(row, col) {
+            if (mustCapture) {
+                return availableCaptures.filter(m => m.from.row === row && m.from.col === col);
+            } else {
+                const captures = getPossibleCapturesForPiece(row, col);
+                if (captures.length > 0) {
+                    return captures; 
+                }
+                return getPossibleNonCaptureMovesForPiece(row, col);
+            }
+        }
+
+        function checkObligatoryCaptures() {
+            availableCaptures = [];
+            mustCapture = false;
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const piece = boardState[r][c];
+                    if (piece && piece.player === currentPlayer) {
+                        const capturesForThisPiece = getPossibleCapturesForPiece(r, c);
+                        if (capturesForThisPiece.length > 0) {
+                            mustCapture = true;
+                            availableCaptures.push(...capturesForThisPiece);
+                        }
+                    }
+                }
+            }
+            
+            if (mustCapture) {
+                 updateStatusMessage("¡Captura obligatoria!");
+            } else {
+                 updateStatusMessage(); 
+            }
+        }
+
+        function isValidSquare(row, col) {
+            return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
+        }
+
+        function switchTurn() {
+            currentPlayer = (currentPlayer === PLAYER_RED) ? PLAYER_BLACK : PLAYER_RED;
+            selectedPiece = null; 
+            mustCapture = false;  // Se recalculará con checkObligatoryCaptures
+            availableCaptures = []; // Se recalculará
+            
+            iaMultiCaptureInProgress = false; // Resetear estado de IA para el nuevo turno
+            iaPieceForMultiCapture = null;
+
+            renderBoard(); 
+            checkWinConditions(); 
+            if (gameState === 'EN_JUEGO') {
+                checkObligatoryCaptures(); // Esto prepara mustCapture y availableCaptures para el nuevo jugador
+                // updateStatusMessage() ya se llama dentro de checkObligatoryCaptures
+                if (currentPlayer === PLAYER_BLACK && gameMode === 'HUMANO_VS_IA') {
+                    setTimeout(makeAIMove, 800); 
+                }
+            }
+        }
+
+        function updateStatusMessage(customMessage = "") {
+            if (gameState === 'FIN_JUEGO') {
+                return;
+            }
+            if (customMessage) {
+                statusMessageElement.textContent = customMessage;
+                return;
+            }
+            
+            let turnText = `Turno de ${currentPlayer === PLAYER_RED ? 'Rojas' : 'Negras'}`;
+            if (mustCapture && availableCaptures.length > 0) { 
+                turnText += " (¡Captura obligatoria!)";
+            }
+            statusMessageElement.textContent = turnText;
+        }
+
+        function checkWinConditions() {
+            if (gameState === 'FIN_JUEGO') return;
+
+            const redPlayerMoves = getAllPossibleMovesForPlayer(PLAYER_RED);
+            const blackPlayerMoves = getAllPossibleMovesForPlayer(PLAYER_BLACK);
+
+            let redPiecesCount = 0;
+            let blackPiecesCount = 0;
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (boardState[r][c]?.player === PLAYER_RED) redPiecesCount++;
+                    if (boardState[r][c]?.player === PLAYER_BLACK) blackPiecesCount++;
+                }
+            }
+
+            if (redPiecesCount === 0 && blackPiecesCount > 0) return endGame(PLAYER_BLACK);
+            if (blackPiecesCount === 0 && redPiecesCount > 0) return endGame(PLAYER_RED);
+            if (blackPiecesCount === 0 && redPiecesCount === 0) return endGame(null); // Empate por falta de piezas
+
+            // Si el jugador actual no tiene movimientos, pierde.
+            if (currentPlayer === PLAYER_RED && redPlayerMoves.length === 0) return endGame(PLAYER_BLACK);
+            if (currentPlayer === PLAYER_BLACK && blackPlayerMoves.length === 0) return endGame(PLAYER_RED);
+        }
+        
+        function getAllPossibleMovesForPlayer(player) {
+            const allMoves = [];
+            let hasCaptures = false;
+            const playerCaptures = [];
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const piece = boardState[r][c];
+                    if (piece && piece.player === player) {
+                        const captures = getPossibleCapturesForPiece(r, c); // Usa el boardState global
+                        if (captures.length > 0) {
+                            hasCaptures = true;
+                            playerCaptures.push(...captures);
+                        }
+                    }
+                }
+            }
+
+            if (hasCaptures) return playerCaptures; 
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const piece = boardState[r][c];
+                    if (piece && piece.player === player) {
+                        allMoves.push(...getPossibleNonCaptureMovesForPiece(r, c));
+                    }
+                }
+            }
+            return allMoves;
+        }
+
+        function endGame(winner) {
+            gameState = 'FIN_JUEGO';
+            deselectPiece(); 
+            removeHighlights(); 
+            if (winner) {
+                statusMessageElement.textContent = `¡Ganan ${winner === PLAYER_RED ? 'Rojas' : 'Negras'}! 🎉`;
+                statusMessageElement.style.color = winner === PLAYER_RED ? '#d9534f' : '#2c3e50';
+            } else {
+                statusMessageElement.textContent = "¡Empate!"; 
+                statusMessageElement.style.color = '#34495e';
+            }
+        }
+
+        // --- IA MEJORADA ---
+
+        // *** NUEVA FUNCIÓN AUXILIAR PARA IA ***
+        function isSquareSafeForMovingPiece(targetRow, targetCol, playerWhosePieceIsMoving, boardAfterMove) {
+            const opponent = playerWhosePieceIsMoving === PLAYER_RED ? PLAYER_BLACK : PLAYER_RED;
+            
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const potentialAttackerPiece = boardAfterMove[r][c];
+                    if (potentialAttackerPiece && potentialAttackerPiece.player === opponent) {
+                        const opponentCaptures = getPossibleCapturesForPieceOnBoard(r, c, boardAfterMove);
+                        for (const capture of opponentCaptures) {
+                            if (capture.capturedPiece.row === targetRow && capture.capturedPiece.col === targetCol) {
+                                return false; 
+                            }
+                        }
+                    }
+                }
+            }
+            return true; 
+        }
+
+        // *** LÓGICA DE IA MEJORADA ***
+        function makeAIMove() {
+            if (gameState !== 'EN_JUEGO' || currentPlayer !== PLAYER_BLACK) {
+                iaMultiCaptureInProgress = false; 
+                iaPieceForMultiCapture = null;
+                return;
+            }
+
+            let currentTurnMoves;
+
+            if (iaMultiCaptureInProgress && iaPieceForMultiCapture) {
+                // Continuar multi-captura: solo usar capturas de la pieza específica
+                currentTurnMoves = getPossibleCapturesForPiece(iaPieceForMultiCapture.row, iaPieceForMultiCapture.col);
+                if (currentTurnMoves.length === 0) { 
+                    iaMultiCaptureInProgress = false;
+                    iaPieceForMultiCapture = null;
+                    switchTurn(); // No más capturas para esta pieza, cambiar turno.
+                    return;
+                }
+            } else {
+                // Inicio del turno de IA o no hay multi-captura en progreso.
+                // `availableCaptures` y `mustCapture` globales ya están seteados por `checkObligatoryCaptures`.
+                currentTurnMoves = mustCapture ? availableCaptures : getAllPossibleMovesForPlayer(PLAYER_BLACK);
+            }
+
+            if (currentTurnMoves.length === 0) {
+                iaMultiCaptureInProgress = false; 
+                iaPieceForMultiCapture = null;
+                switchTurn(); // IA no tiene movimientos, el otro jugador gana (manejado por checkWinConditions)
+                return;
+            }
+
+            let bestMoves = [];
+            const isCapturingNow = currentTurnMoves[0].isCapture;
+
+            if (isCapturingNow) {
+                // Priorizar capturas que coronan
+                bestMoves = currentTurnMoves.filter(move => {
+                    const piece = boardState[move.from.row][move.from.col];
+                    return (piece.player === PLAYER_BLACK && move.to.row === BOARD_SIZE - 1 && piece.type === PIECE_NORMAL);
+                });
+                if (bestMoves.length === 0) { // Si ninguna corona, tomar cualquier captura
+                    bestMoves = currentTurnMoves;
+                }
+            } else { // Movimientos normales (no capturas)
+                // 1. Priorizar movimientos que coronan
+                let crowningMoves = currentTurnMoves.filter(move => {
+                    const piece = boardState[move.from.row][move.from.col];
+                    return (piece.player === PLAYER_BLACK && move.to.row === BOARD_SIZE - 1 && piece.type === PIECE_NORMAL);
+                });
+
+                if (crowningMoves.length > 0) {
+                    let safeCrowningMoves = [];
+                    for (const move of crowningMoves) {
+                        const tempBoard = JSON.parse(JSON.stringify(boardState));
+                        const pieceToMoveCopy = {...tempBoard[move.from.row][move.from.col]}; // Copia de la pieza
+                        tempBoard[move.to.row][move.to.col] = pieceToMoveCopy;
+                        tempBoard[move.from.row][move.from.col] = null;
+                        // Simular coronación en el tablero temporal para la comprobación de seguridad
+                        if (pieceToMoveCopy.player === PLAYER_BLACK && move.to.row === BOARD_SIZE - 1 && pieceToMoveCopy.type === PIECE_NORMAL) {
+                            tempBoard[move.to.row][move.to.col].type = PIECE_KING;
+                        }
+                        if (isSquareSafeForMovingPiece(move.to.row, move.to.col, PLAYER_BLACK, tempBoard)) {
+                            safeCrowningMoves.push(move);
+                        }
+                    }
+                    bestMoves = safeCrowningMoves.length > 0 ? safeCrowningMoves : crowningMoves;
+                } else {
+                    // 2. Si no hay coronación, priorizar movimientos seguros
+                    let safeMoves = [];
+                    for (const move of currentTurnMoves) { 
+                        const tempBoard = JSON.parse(JSON.stringify(boardState));
+                        const pieceToMoveCopy = {...tempBoard[move.from.row][move.from.col]};
+                        tempBoard[move.to.row][move.to.col] = pieceToMoveCopy;
+                        tempBoard[move.from.row][move.from.col] = null;
+                        if (isSquareSafeForMovingPiece(move.to.row, move.to.col, PLAYER_BLACK, tempBoard)) {
+                            safeMoves.push(move);
+                        }
+                    }
+                    bestMoves = safeMoves.length > 0 ? safeMoves : currentTurnMoves; // Si no hay seguros, cualquiera
+                }
+            }
+
+            if (bestMoves.length > 0) {
+                const chosenMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                
+                makeMove(chosenMove.from.row, chosenMove.from.col, chosenMove.to.row, chosenMove.to.col, chosenMove.isCapture, chosenMove.capturedPiece);
+                
+                if (chosenMove.isCapture) {
+                    const furtherCapturesForThisPiece = getPossibleCapturesForPiece(chosenMove.to.row, chosenMove.to.col);
+                    if (furtherCapturesForThisPiece.length > 0) {
+                        iaMultiCaptureInProgress = true;
+                        iaPieceForMultiCapture = { row: chosenMove.to.row, col: chosenMove.to.col };
+                        // availableCaptures y mustCapture no necesitan ser actualizados globalmente aquí,
+                        // porque la siguiente llamada a makeAIMove los tratará específicamente.
+                        // Sin embargo, es importante que la siguiente llamada a makeAIMove sepa que debe usar
+                        // solo las capturas de iaPieceForMultiCapture.
+                        setTimeout(makeAIMove, 600); 
+                        return; 
+                    }
+                }
+            }
+            // Si no hay "bestMoves" (raro, debería haber al menos currentTurnMoves si son válidos),
+            // o si el movimiento se completó (no captura o última de la cadena):
+            iaMultiCaptureInProgress = false; 
+            iaPieceForMultiCapture = null;
+            switchTurn();
+        }
+
+
+        function getSquareElement(row, col) {
+            return boardElement.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+        }
+
+        resetButton.addEventListener('click', startGame);
+        gameModeSelect.addEventListener('change', (e) => {
+            gameMode = e.target.value;
+            startGame(); 
+        });
+
+        startGame();
+
+    </script>
+</body>
+</html>
