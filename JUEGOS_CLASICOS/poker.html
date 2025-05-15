@@ -3,130 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Texas Hold'em AI Showdown - Móvil Responsivo</title>
+    <title>Texas Hold'em AI Showdown - Full Screen Fit</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        html {
+            height: 100%;
+        }
         body {
             font-family: 'Arial', sans-serif;
             background-color: #004D40;
             color: #fff;
-            padding-top: 10px; /* Reducido para móviles */
-            font-size: 14px; /* Base font size */
+            margin: 0;
+            font-size: 14px;
+            height: 100vh; /* Ocupa toda la altura del viewport */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* ¡CRUCIAL! Evita el scroll en el body */
         }
         .game-container {
-            max-width: 1000px; margin: auto; background-color: #00695C;
-            padding: 10px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            max-width: 1000px; 
+            width: 100%;
+            margin: 0 auto;
+            background-color: #00695C;
+            padding: 8px; /* Reducido ligeramente el padding general */
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1; /* Ocupa el espacio vertical disponible en body */
+            min-height: 0; /* ¡CRUCIAL! Para que flex-grow funcione bien con hijos que tienen min-height */
+            overflow-y: auto; /* Scroll DENTRO del game-container si es necesario */
         }
-        h1 { font-size: 1.5rem; margin-bottom: 0.8rem !important; }
-        h4 { font-size: 1.1rem; margin-bottom: 0.5rem !important; }
-        h5 { font-size: 1rem; margin-bottom: 0.3rem !important; }
+
+        h1 { font-size: 1.4rem; margin-top: 0.2rem; margin-bottom: 0.5rem !important; } /* Reducido y márgenes ajustados */
+        h4 { font-size: 1.05rem; margin-top: 0.1rem; margin-bottom: 0.3rem !important; }
+        h5 { font-size: 0.95rem; margin-top: 0.1rem; margin-bottom: 0.2rem !important; }
 
         .player-row {
             display: flex;
-            flex-wrap: wrap; /* Permite que los elementos pasen a la siguiente línea si no caben */
-            margin-bottom: 5px;
+            flex-wrap: wrap;
+            margin-bottom: 4px; /* Reducido */
         }
         .player-area-container {
-            flex: 1 1 50%; /* En pantallas grandes, cada jugador ocupa el 50% */
-            padding: 5px;
-            box-sizing: border-box;
+            flex: 1 1 50%; 
+            padding: 4px; /* Reducido */
         }
         .player-area {
-            border: 1px solid #B2DFDB; padding: 8px; /* Reducido */
-            border-radius: 5px; min-height: 115px; /* Ajustado */
+            border: 1px solid #B2DFDB; padding: 6px; /* Reducido */
+            border-radius: 5px; 
+            min-height: 100px; /* Reducido ligeramente, el contenido dictará más */
             position: relative;
-            background-color: #00584C; /* Un poco más oscuro para contraste */
+            background-color: #00584C; 
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* Distribuye el espacio */
+            justify-content: space-between; 
         }
         .player-area.active-player { border: 2px solid #FFD700; box-shadow: 0 0 8px #FFD700; }
-        
-        .player-cards { margin-top: 3px; text-align: center; }
+
+        .player-cards { margin-top: 2px; text-align: center; } /* Reducido */
         .player-cards .card-display, .community-cards .card-display {
-            display: inline-block; border: 1px solid #333; padding: 8px 5px; /* Ajustado */
-            margin: 2px; min-width: 38px; /* Ajustado */
+            display: inline-block; border: 1px solid #333; padding: 7px 4px; /* Ajustado */
+            margin: 1px; min-width: 36px; /* Ajustado */
             text-align: center; border-radius: 4px;
             background-color: #fff; color: #000; font-weight: bold;
-            font-size: 1.1em; /* Ajustado */
+            font-size: 1em; /* Ajustado */
             line-height: 1;
         }
         .card-display.hidden { background-color: #B0BEC5; color: #B0BEC5; }
-        
+
         .dealer-btn, .sb-btn, .bb-btn {
-            display: inline-block; width: 20px; height: 20px; border-radius: 50%;
-            text-align: center; line-height: 18px; font-size: 10px; font-weight: bold;
-            margin-left: 3px; color: #000; border: 1px solid #333;
+            display: inline-block; width: 18px; height: 18px; border-radius: 50%; /* Ligeramente más pequeño */
+            text-align: center; line-height: 16px; font-size: 9px; font-weight: bold;
+            margin-left: 2px; color: #000; border: 1px solid #333;
         }
         .dealer-btn { background-color: #FFC107; } .sb-btn { background-color: #8BC34A; }
         .bb-btn { background-color: #03A9F4; }
-        
+
         .player-info-line { display: flex; justify-content: space-between; align-items: center; }
-        .player-info { font-size: 0.8rem; } /* Reducido */
-        .player-status { font-style: italic; color: #FFEB3B; font-size: 0.75rem; }
-        .bet-amount-display { font-weight: bold; color: #FFEB3B; font-size: 0.8rem; }
+        .player-info { font-size: 0.75rem; } /* Reducido */
+        .player-status { font-style: italic; color: #FFEB3B; font-size: 0.7rem; } /* Reducido */
+        .bet-amount-display { font-weight: bold; color: #FFEB3B; font-size: 0.75rem; } /* Reducido */
 
-        .pot-display { text-align: center; font-size: 1.2em; margin: 10px 0; }
-        
-        .action-controls { margin: 10px 0; }
-        .action-buttons button { margin: 3px; padding: 0.25rem 0.5rem; font-size: 0.8rem;}
-        .action-controls label { font-size: 0.9rem; }
+        .community-cards-area { text-align: center; margin: 6px 0; } /* Reducido */
+        .pot-display { text-align: center; font-size: 1.1em; margin: 8px 0; } /* Reducido */
+
+        .action-controls { margin: 8px 0; } /* Reducido */
+        .action-buttons button { margin: 2px; padding: 0.2rem 0.4rem; font-size: 0.75rem;} /* Reducido */
+        .action-controls label { font-size: 0.85rem; } /* Reducido */
         .action-controls input[type="number"] {
-            width: 70px !important; padding: 0.25rem; font-size: 0.9rem;
+            width: 65px !important; padding: 0.2rem; font-size: 0.85rem; /* Reducido */
         }
-        
-        .message-log-container { margin-top: 10px; }
+
+        .message-log-container {
+            margin-top: 8px; /* Reducido */
+            flex-grow: 1; /* Permite que este contenedor crezca */
+            min-height: 30px; /* Reducido para ser menos restrictivo */
+            display: flex;
+            flex-direction: column; 
+        }
         .message-log {
-            height: 80px; overflow-y: auto; border: 1px solid #B2DFDB;
-            padding: 5px; background-color: #004D40; font-size: 0.75em;
+            flex-grow: 1; /* El log en sí mismo crece */
+            overflow-y: auto;
+            border: 1px solid #B2DFDB;
+            padding: 4px; /* Reducido */
+            background-color: #004D40;
+            font-size: 0.7em; /* Reducido */
+            min-height: 25px; /* Reducido para ser menos restrictivo */
         }
-        .bottom-buttons button { font-size: 0.9rem; padding: 0.3rem 0.6rem; }
+        .bottom-buttons { margin-top: 6px; } /* Reducido */
+        .bottom-buttons button { font-size: 0.85rem; padding: 0.25rem 0.5rem; } /* Reducido */
 
-        /* --- Responsive adjustments for smaller screens --- */
-        @media (max-width: 767px) { /* Bootstrap's md breakpoint */
-            body { padding-top: 5px; font-size: 13px; }
-            .game-container { padding: 5px; }
-            h1 { font-size: 1.3rem; }
-            h4 { font-size: 1rem; }
-            h5 { font-size: 0.9rem; }
+        /* --- Responsive adjustments --- */
+        @media (max-width: 767px) {
+            body { font-size: 13px; }
+            .game-container { padding: 4px; }
+            
+            h1 { font-size: 1.2rem; margin-bottom: 0.4rem !important; }
+            h4 { font-size: 0.95rem; margin-bottom: 0.2rem !important;}
+            h5 { font-size: 0.85rem; margin-bottom: 0.1rem !important;}
 
-            .player-row { flex-direction: column; } /* Apila los jugadores en la misma fila */
-            .player-area-container {
-                flex: 1 1 100%; /* Cada jugador ocupa el 100% del ancho */
-                margin-bottom: 5px; /* Espacio entre jugadores apilados */
-            }
-            .player-area { min-height: 100px; padding: 6px; }
+            .player-area { min-height: 90px; padding: 5px; } /* Reducido */
 
             .player-cards .card-display, .community-cards .card-display {
-                padding: 6px 4px; min-width: 32px; font-size: 1em; margin: 1px;
+                padding: 5px 3px; min-width: 30px; font-size: 0.9em;
             }
-            .community-cards .card-display { min-width: 35px; padding: 8px 5px; }
+            .community-cards .card-display { min-width: 32px; padding: 6px 4px; }
 
+            .action-buttons button { flex-basis: calc(33.33% - 4px); margin: 2px;}
+            .action-controls input[type="number"] { width: 55px !important; }
 
-            .action-buttons { display: flex; flex-wrap: wrap; justify-content: center; }
-            .action-buttons button { flex-basis: calc(33.33% - 6px); /* Tres botones por fila aprox */ }
-            .action-controls input[type="number"] { width: 60px !important; }
-
-            .message-log { height: 70px; font-size: 0.7em; }
+            .message-log-container { min-height: 25px; }
+            .message-log { min-height: 40px; font-size: 0.65em; } /* min-height del log puede ser un poco más grande en móvil si hay espacio */
         }
 
-        @media (max-width: 480px) { /* Even smaller screens */
-             h1 { font-size: 1.1rem; }
+        @media (max-width: 480px) {
+             h1 { font-size: 1rem; }
              .player-cards .card-display, .community-cards .card-display {
-                padding: 5px 3px; min-width: 28px; font-size: 0.9em;
+                padding: 4px 2px; min-width: 26px; font-size: 0.8em;
             }
-            .community-cards .card-display { min-width: 30px; padding: 6px 4px;}
+            .community-cards .card-display { min-width: 28px; padding: 5px 3px;}
 
-            .action-buttons button { flex-basis: calc(50% - 6px); /* Dos botones por fila */ }
+            .action-buttons button { flex-basis: calc(50% - 4px); }
+            .message-log-container { min-height: 20px; }
+            .message-log { min-height: 30px; }
         }
-
     </style>
 </head>
 <body>
+    <!-- El contenido del BODY (estructura HTML y el tag SCRIPT con su JS) 
+         permanece EXACTAMENTE IGUAL que en la solución anterior donde se introdujo DOMContentLoaded.
+         NO necesitas copiarlo de nuevo aquí si ya lo tienes.
+         Este bloque solo muestra el CSS modificado. -->
+
     <div class="container game-container">
         <h1 class="text-center mb-4">Texas Hold'em AI Showdown</h1>
 
-        <!-- Fila para IA 2 y IA 3 -->
         <div class="player-row">
             <div class="player-area-container">
                 <div id="player-2-area" class="player-area">
@@ -160,7 +195,6 @@
             <div class="pot-display">Bote: <span id="pot-amount">0</span></div>
         </div>
 
-        <!-- Fila para Humano y IA 1 -->
         <div class="player-row">
              <div class="player-area-container">
                 <div id="player-0-area" class="player-area">
@@ -214,9 +248,8 @@
         </div>
     </div>
 
-    <!-- Modales (sin cambios significativos en su estructura interna para responsividad, Bootstrap los maneja) -->
     <div class="modal fade" id="rulesModal" tabindex="-1" aria-labelledby="rulesModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable"> {/* modal-dialog-scrollable para contenido largo en móviles */}
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content bg-dark text-white">
                 <div class="modal-header"><h5 class="modal-title" id="rulesModalLabel">Reglas del Póker y Ranking de Manos</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
                 <div class="modal-body">
@@ -233,7 +266,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // --- CONSTANTES Y VARIABLES GLOBALES (SIN CAMBIOS) ---
+        // --- CONSTANTES Y VARIABLES GLOBALES ---
         const SUITS = ['H', 'D', 'C', 'S'];
         const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
         const HAND_RANKINGS_MAP = { 
@@ -261,22 +294,13 @@
         let gameInProgress = false;
         let bbPlayerId = -1;
 
-        const potAmountEl = document.getElementById('pot-amount');
-        const communityCardsEl = document.getElementById('community-cards');
-        const messageLogEl = document.getElementById('message-log');
-        const betAmountInput = document.getElementById('bet-amount');
-        const btnFold = document.getElementById('btn-fold');
-        const btnCheck = document.getElementById('btn-check');
-        const btnCall = document.getElementById('btn-call');
-        const btnBet = document.getElementById('btn-bet');
-        const btnRaise = document.getElementById('btn-raise');
-        const btnAllIn = document.getElementById('btn-all-in');
-        const btnStartGame = document.getElementById('btn-start-game');
-        const btnRestartGame = document.getElementById('btn-restart-game');
+        let potAmountEl, communityCardsEl, messageLogEl, betAmountInput;
+        let btnFold, btnCheck, btnCall, btnBet, btnRaise, btnAllIn;
+        let btnStartGame, btnRestartGame;
         let gameOverModalInstance;
 
-        // --- FUNCIONES UTILITARIAS (SIN CAMBIOS EN LÓGICA INTERNA, SOLO EN TEXTOS DE LOG) ---
         function logMessage(message) {
+            if (!messageLogEl) return;
             const p = document.createElement('p');
             p.textContent = message;
             messageLogEl.appendChild(p);
@@ -313,9 +337,10 @@
             }
         }
 
-        // --- FUNCIONES DE ACTUALIZACIÓN DE UI (LÓGICA SIN CAMBIOS, TEXTOS YA TRADUCIDOS) ---
         function updatePlayerUI(player) {
             const playerAreaEl = document.getElementById(`player-${player.id}-area`);
+            if (!playerAreaEl) return;
+
             document.getElementById(`player-${player.id}-chips`).textContent = player.chips;
             document.getElementById(`player-${player.id}-bet`).textContent = player.currentBetInRound;
             
@@ -336,10 +361,13 @@
             if (player.hasFolded) statusEl.textContent = 'Retirado';
             else if (player.isAllIn) statusEl.textContent = 'All-in';
             else if (!player.isActiveInGame) statusEl.textContent = 'Fuera de juego';
+            
             playerAreaEl.classList.toggle('active-player', player.id === currentPlayerIndex && !player.hasFolded && player.isActiveInGame && currentRound !== 'showdown');
+            
             const roleEl = document.getElementById(`player-${player.id}-role`);
             roleEl.innerHTML = '';
             if (player.id === dealerButtonIndex) roleEl.innerHTML += '<span class="dealer-btn">D</span>';
+            
             const activeGamePlayers = getActivePlayersInGame();
             if (activeGamePlayers.length >= 2) {
                 const dealerActualPlayer = players.find(p => p.id === dealerButtonIndex);
@@ -361,6 +389,7 @@
         }
 
         function updateCommunityCardsUI() {
+            if (!communityCardsEl) return;
             communityCardsEl.innerHTML = '';
             communityCards.forEach(card => {
                 const cardDiv = document.createElement('span');
@@ -369,7 +398,9 @@
                 communityCardsEl.appendChild(cardDiv);
             });
         }
-        function updatePotUI() { potAmountEl.textContent = pot; }
+        function updatePotUI() { 
+            if (potAmountEl) potAmountEl.textContent = pot; 
+        }
 
         function updateAllUI() {
             players.forEach(updatePlayerUI);
@@ -380,21 +411,30 @@
         
         function updateActionButtons() {
             const player = players.find(p => p.id === currentPlayerIndex);
+            if (!btnFold || !betAmountInput) return; 
+
             if (!player || !gameInProgress || !player.isHuman || player.hasFolded || player.isAllIn || currentRound === 'showdown') {
-                [btnFold, btnCheck, btnCall, btnBet, btnRaise, btnAllIn].forEach(btn => btn.disabled = true);
-                betAmountInput.disabled = true; return;
+                [btnFold, btnCheck, btnCall, btnBet, btnRaise, btnAllIn].forEach(btn => { if(btn) btn.disabled = true; });
+                if (betAmountInput) betAmountInput.disabled = true; 
+                return;
             }
             betAmountInput.max = player.chips;
             betAmountInput.min = Math.min(minRaiseAmount, player.chips);
             const amountToCall = highestBetInRound - player.currentBetInRound;
-            btnFold.disabled = false; btnAllIn.disabled = false; betAmountInput.disabled = false;
+            
+            btnFold.disabled = false; 
+            btnAllIn.disabled = false; 
+            betAmountInput.disabled = false;
 
             if (amountToCall === 0) {
-                btnCheck.disabled = false; btnCall.disabled = true; btnCall.textContent = 'Igualar';
-                btnBet.disabled = player.chips === 0; btnRaise.disabled = true;
+                btnCheck.disabled = false; 
+                btnCall.disabled = true; btnCall.textContent = 'Igualar';
+                btnBet.disabled = player.chips === 0; 
+                btnRaise.disabled = true;
                 betAmountInput.value = Math.min(BIG_BLIND_AMOUNT, player.chips);
             } else {
-                btnCheck.disabled = true; btnBet.disabled = true;
+                btnCheck.disabled = true; 
+                btnBet.disabled = true;
                 btnCall.disabled = player.chips < amountToCall && player.chips > 0;
                 btnRaise.disabled = player.chips <= amountToCall || player.chips < (amountToCall + minRaiseAmount);
                 betAmountInput.value = Math.min(highestBetInRound + minRaiseAmount, player.chips + player.currentBetInRound);
@@ -402,10 +442,9 @@
             if (amountToCall > 0 && player.chips <= amountToCall) {
                 btnCall.textContent = `All-in (${player.chips})`; btnCall.disabled = false; btnRaise.disabled = true;
             } else if (amountToCall > 0) { btnCall.textContent = `Igualar (${amountToCall})`;
-            } else { btnCall.textContent = 'Igualar'; } // Mantener "Igualar" si no hay nada que igualar pero el botón está activo por otra razón (no debería)
+            } else { btnCall.textContent = 'Igualar'; }
         }
 
-        // --- LÓGICA DEL JUEGO (TEXTOS DE LOG TRADUCIDOS) ---
         function initializePlayers() {
             players = [];
             for (let i = 0; i < NUM_PLAYERS; i++) {
@@ -436,7 +475,7 @@
                 for(let i=0; i<NUM_PLAYERS; ++i) {
                     tempDealerId = (tempDealerId + 1) % NUM_PLAYERS;
                     const p = players.find(pl => pl.id === tempDealerId);
-                    if(p && p.isActiveInGame) { dealerIdxInActive = activePlayers.indexOf(p); break; }
+                    if(p && p.isActiveInGame) { dealerIdxInActive = activeGamePlayers.indexOf(p); break; }
                 }
                 if(dealerIdxInActive === -1) dealerIdxInActive = 0;
              }
@@ -484,9 +523,11 @@
         }
         
         function startGame() {
+            if (!btnStartGame) return;
             gameInProgress = true; btnStartGame.textContent = "Reiniciar Juego";
             btnStartGame.classList.replace('btn-success', 'btn-danger');
-            messageLogEl.innerHTML = ''; initializePlayers();
+            if(messageLogEl) messageLogEl.innerHTML = ''; 
+            initializePlayers();
             dealerButtonIndex = NUM_PLAYERS -1; startNewHand();
         }
 
@@ -739,53 +780,98 @@
         }
 
         function gameOver(message) {
-            gameInProgress = false; document.getElementById('gameOverMessage').textContent = message;
-            if (!gameOverModalInstance) gameOverModalInstance = new bootstrap.Modal(document.getElementById('gameOverModal'));
-            gameOverModalInstance.show();
+            gameInProgress = false; 
+            const gameOverMessageEl = document.getElementById('gameOverMessage');
+            if (gameOverMessageEl) gameOverMessageEl.textContent = message;
+            
+            if (gameOverModalInstance) {
+                gameOverModalInstance.show();
+            } else {
+                alert(message); 
+            }
         }
 
-        // --- EVENT LISTENERS (SIN CAMBIOS EN LÓGICA, TEXTOS DE LOG YA TRADUCIDOS) ---
-        btnStartGame.addEventListener('click', startGame);
-        btnRestartGame.addEventListener('click', () => { if (gameOverModalInstance) gameOverModalInstance.hide(); startGame(); });
-        btnFold.addEventListener('click', () => { if (players.find(p=>p.id===currentPlayerIndex).isHuman) handlePlayerAction(players.find(p=>p.id===currentPlayerIndex), 'fold'); });
-        btnCheck.addEventListener('click', () => { if (players.find(p=>p.id===currentPlayerIndex).isHuman) handlePlayerAction(players.find(p=>p.id===currentPlayerIndex), 'check'); });
-        btnCall.addEventListener('click', () => { if (players.find(p=>p.id===currentPlayerIndex).isHuman) handlePlayerAction(players.find(p=>p.id===currentPlayerIndex), 'call'); });
-        
-        btnBet.addEventListener('click', () => {
-            const player = players.find(p=>p.id===currentPlayerIndex);
-            if (player.isHuman) {
-                let amount = parseInt(betAmountInput.value);
-                if (isNaN(amount) || amount <= 0) { logMessage("Cantidad de apuesta inválida."); return; }
-                if (amount < Math.min(BIG_BLIND_AMOUNT, player.chips) && amount < player.chips) { logMessage(`La apuesta mínima es ${Math.min(BIG_BLIND_AMOUNT, player.chips)}.`); return; }
-                handlePlayerAction(player, 'bet', Math.min(amount, player.chips));
-            }
-        });
-        btnRaise.addEventListener('click', () => {
-            const player = players.find(p=>p.id===currentPlayerIndex);
-            if (player.isHuman) {
-                let raiseToAmount = parseInt(betAmountInput.value);
-                const callAmount = highestBetInRound - player.currentBetInRound;
-                const actualRaiseByAmount = raiseToAmount - highestBetInRound;
-                if (isNaN(raiseToAmount) || raiseToAmount <= highestBetInRound) { logMessage(`La subida debe ser mayor que ${highestBetInRound}.`); return; }
-                if (actualRaiseByAmount < minRaiseAmount && (player.chips > callAmount + minRaiseAmount && player.chips + player.currentBetInRound > raiseToAmount )) { logMessage(`El incremento mínimo de subida es ${minRaiseAmount}. Total ${highestBetInRound + minRaiseAmount}.`); return; }
-                handlePlayerAction(player, 'raise', Math.min(raiseToAmount, player.chips + player.currentBetInRound));
-            }
-        });
-        btnAllIn.addEventListener('click', () => {
-            const player = players.find(p=>p.id===currentPlayerIndex);
-            if (player.isHuman) {
-                const amountToCall = highestBetInRound - player.currentBetInRound;
-                let action = (highestBetInRound === 0 || player.chips <= amountToCall) ? (highestBetInRound === 0 ? 'bet' : 'call') : 'raise';
-                let actionAmount = (action === 'bet') ? player.chips : player.chips + player.currentBetInRound;
-                handlePlayerAction(player, action, actionAmount);
-            }
-        });
+        document.addEventListener('DOMContentLoaded', function() {
+            potAmountEl = document.getElementById('pot-amount');
+            communityCardsEl = document.getElementById('community-cards');
+            messageLogEl = document.getElementById('message-log');
+            betAmountInput = document.getElementById('bet-amount');
+            
+            btnFold = document.getElementById('btn-fold');
+            btnCheck = document.getElementById('btn-check');
+            btnCall = document.getElementById('btn-call');
+            btnBet = document.getElementById('btn-bet');
+            btnRaise = document.getElementById('btn-raise');
+            btnAllIn = document.getElementById('btn-all-in');
+            
+            btnStartGame = document.getElementById('btn-start-game');
+            btnRestartGame = document.getElementById('btn-restart-game');
 
-        // --- INICIALIZACIÓN ---
-        updateAllUI(); logMessage("¡Bienvenido! Haz clic en 'Iniciar Juego'.");
-        [btnFold, btnCheck, btnCall, btnBet, btnRaise, btnAllIn].forEach(btn => btn.disabled = true);
-        betAmountInput.disabled = true;
-        gameOverModalInstance = new bootstrap.Modal(document.getElementById('gameOverModal'), { keyboard: false, backdrop: 'static' });
+            if (!btnStartGame) {
+                console.error('ERROR CRÍTICO: El botón con ID "btn-start-game" no fue encontrado en el DOM.');
+                alert('Error al cargar el juego: No se encontró el botón de inicio. Por favor, revise la consola del navegador.');
+                return;
+            }
+            
+            const gameOverModalElement = document.getElementById('gameOverModal');
+            if (gameOverModalElement && typeof bootstrap !== 'undefined') {
+                 gameOverModalInstance = new bootstrap.Modal(gameOverModalElement, { keyboard: false, backdrop: 'static' });
+            } else {
+                console.error("Elemento del modal 'gameOverModal' no encontrado o Bootstrap no cargado.");
+            }
+
+            btnStartGame.addEventListener('click', startGame);
+            
+            if (btnRestartGame) {
+                btnRestartGame.addEventListener('click', () => { 
+                    if (gameOverModalInstance) gameOverModalInstance.hide(); 
+                    startGame(); 
+                });
+            }
+
+            if(btnFold) btnFold.addEventListener('click', () => { if (players.find(p=>p.id===currentPlayerIndex).isHuman) handlePlayerAction(players.find(p=>p.id===currentPlayerIndex), 'fold'); });
+            if(btnCheck) btnCheck.addEventListener('click', () => { if (players.find(p=>p.id===currentPlayerIndex).isHuman) handlePlayerAction(players.find(p=>p.id===currentPlayerIndex), 'check'); });
+            if(btnCall) btnCall.addEventListener('click', () => { if (players.find(p=>p.id===currentPlayerIndex).isHuman) handlePlayerAction(players.find(p=>p.id===currentPlayerIndex), 'call'); });
+            
+            if(btnBet) btnBet.addEventListener('click', () => {
+                const player = players.find(p=>p.id===currentPlayerIndex);
+                if (player.isHuman) {
+                    let amount = parseInt(betAmountInput.value);
+                    if (isNaN(amount) || amount <= 0) { logMessage("Cantidad de apuesta inválida."); return; }
+                    if (amount < Math.min(BIG_BLIND_AMOUNT, player.chips) && amount < player.chips) { logMessage(`La apuesta mínima es ${Math.min(BIG_BLIND_AMOUNT, player.chips)}.`); return; }
+                    handlePlayerAction(player, 'bet', Math.min(amount, player.chips));
+                }
+            });
+            if(btnRaise) btnRaise.addEventListener('click', () => {
+                const player = players.find(p=>p.id===currentPlayerIndex);
+                if (player.isHuman) {
+                    let raiseToAmount = parseInt(betAmountInput.value);
+                    const callAmount = highestBetInRound - player.currentBetInRound;
+                    const actualRaiseByAmount = raiseToAmount - highestBetInRound;
+                    if (isNaN(raiseToAmount) || raiseToAmount <= highestBetInRound) { logMessage(`La subida debe ser mayor que ${highestBetInRound}.`); return; }
+                    if (actualRaiseByAmount < minRaiseAmount && (player.chips > callAmount + minRaiseAmount && player.chips + player.currentBetInRound > raiseToAmount )) { logMessage(`El incremento mínimo de subida es ${minRaiseAmount}. Total ${highestBetInRound + minRaiseAmount}.`); return; }
+                    handlePlayerAction(player, 'raise', Math.min(raiseToAmount, player.chips + player.currentBetInRound));
+                }
+            });
+            if(btnAllIn) btnAllIn.addEventListener('click', () => {
+                const player = players.find(p=>p.id===currentPlayerIndex);
+                if (player.isHuman) {
+                    const amountToCall = highestBetInRound - player.currentBetInRound;
+                    let action = (highestBetInRound === 0 || player.chips <= amountToCall) ? (highestBetInRound === 0 ? 'bet' : 'call') : 'raise';
+                    let actionAmount = (action === 'bet') ? player.chips : player.chips + player.currentBetInRound;
+                    handlePlayerAction(player, action, actionAmount);
+                }
+            });
+
+            updateAllUI(); 
+            logMessage("¡Bienvenido! Haz clic en 'Iniciar Juego'.");
+            
+            const actionButtons = [btnFold, btnCheck, btnCall, btnBet, btnRaise, btnAllIn];
+            actionButtons.forEach(btn => {
+                if (btn) btn.disabled = true;
+            });
+            if (betAmountInput) betAmountInput.disabled = true;
+        });
     </script>
 </body>
 </html>
