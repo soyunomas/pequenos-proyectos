@@ -125,9 +125,9 @@ Una colección de diversas herramientas y visualizadores web, cada uno implement
 
 [`Mastermind.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/Mastermind.html)
 
-[`Mastermind.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/poker.html)
+[`poker.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/poker.html)
 
-[`Mastermind.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/damas.html)
+[`damas.html`](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/damas.html)
 
 # System Prompts para IA - Roles de Desarrollo
 
