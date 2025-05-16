@@ -114,7 +114,7 @@ Una colección de diversas herramientas y visualizadores web, cada uno implement
     Combina el contenido de múltiples archivos de texto cargados por el usuario en un solo archivo, añadiendo un encabezado y pie de página con el nombre original de cada archivo incluido.
 
 14. **Error_Crítico - Simulador:**
-    [`Error_critico.html`](https://soyunomas.github.io/pequenos-proyectos/otros/Error_critico.html)
+    [`Error_critico.html`](https://soyunomas.github.io/pequenos-proyectos/OTROS/Error_critico.html)
     Simula un error crítico en el sistema operativo.
 
 ## Categoría: JUEGOS CLÁSICOS
