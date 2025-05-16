@@ -68,7 +68,7 @@
             font-family: var(--font-sans);
             color: var(--text-color);
             background-color: #05050A;
-            background-image: 
+            background-image:
                 radial-gradient(ellipse at 5% 5%, var(--body-bg-critical-1) 0%, transparent 40%),
                 radial-gradient(ellipse at 95% 95%, var(--body-bg-critical-2) 0%, transparent 40%),
                 linear-gradient(160deg, #0c0808 0%, #181010 100%);
@@ -78,16 +78,16 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            overflow: hidden; 
-            padding: 10px; 
+            overflow: hidden;
+            padding: 10px;
             transition: background-image 2s ease-in-out;
         }
 
         .control-deck-container {
             width: calc(100% - 20px);
             height: calc(100vh - 20px);
-            max-width: 1800px; 
-            max-height: 1000px; 
+            max-width: 1800px;
+            max-height: 1000px;
             background: var(--glass-bg);
             backdrop-filter: blur(8px) saturate(120%);
             -webkit-backdrop-filter: blur(8px) saturate(120%);
@@ -105,10 +105,10 @@
             gap: 10px;
             padding: 15px;
             position: relative;
-            overflow: hidden; 
+            overflow: hidden;
             transition: border-color 1s ease-in-out, box-shadow 1s ease-in-out;
         }
-        
+
         .panel {
             background-color: var(--panel-bg);
             border: 1px solid var(--panel-border); /* Default border */
@@ -116,7 +116,7 @@
             padding: 10px;
             display: flex;
             flex-direction: column;
-            overflow: hidden; 
+            overflow: hidden;
             box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
             transition: border-color 0.5s ease-in-out;
         }
@@ -156,7 +156,7 @@
             color: var(--success-color);
             border-bottom-color: rgba(var(--rgb-success-color), 0.2);
          }
-        
+
         .panel-content {
             flex-grow: 1;
             overflow-y: auto;
@@ -181,19 +181,10 @@
             font-size: 1.8rem;
             font-weight: 700;
             letter-spacing: 0.1em;
-            background: linear-gradient(90deg, var(--danger-color), var(--warning-color));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: logo-flicker 5s infinite steps(1);
-            transition: background 1s ease-in-out;
+            color: white; /* MODIFICADO: Texto siempre blanco */
         }
-        @keyframes logo-flicker {
-            0%, 100% { opacity: 1; text-shadow: 0 0 5px var(--warning-color); }
-            50% { opacity: 0.8; text-shadow: 0 0 10px var(--danger-color); }
-            50.5% { opacity: 1; } 
-            75% { opacity: 0.9; }
-        }
+        /* @keyframes logo-flicker eliminado porque el color del logo es fijo */
+
         .deck-header .system-status { font-size: 0.9rem; }
         .status-indicator {
             display: inline-block; width: 10px; height: 10px; border-radius: 50%;
@@ -203,7 +194,7 @@
         .status-indicator.warning { background-color: var(--warning-color); animation: pulse-warning 1.2s infinite; }
         .status-indicator.danger { background-color: var(--danger-color); animation: pulse-danger 1s infinite; }
 
-        @keyframes pulse { 
+        @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(var(--rgb-success-color), 0.7); }
             70% { box-shadow: 0 0 0 10px rgba(var(--rgb-success-color), 0); }
             100% { box-shadow: 0 0 0 0 rgba(var(--rgb-success-color), 0); }
@@ -219,16 +210,16 @@
             100% { box-shadow: 0 0 0 0 rgba(var(--rgb-danger-color), 0); }
         }
 
-        .sidebar-left, .sidebar-right { 
-            grid-area: var(--grid-area-name); 
-            display: flex; 
-            flex-direction: column; 
-            gap: 10px; 
-            overflow-y: auto; 
-            height: 100%; 
+        .sidebar-left, .sidebar-right {
+            grid-area: var(--grid-area-name);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            height: 100%;
             padding-bottom: 5px;
             scrollbar-width: thin;
-            scrollbar-color: var(--danger-color) var(--panel-bg); 
+            scrollbar-color: var(--danger-color) var(--panel-bg);
         }
         .sidebar-left { --grid-area-name: sidebar-left; }
         .sidebar-right { --grid-area-name: sidebar-right; }
@@ -236,14 +227,14 @@
         .sidebar-left::-webkit-scrollbar, .sidebar-right::-webkit-scrollbar { width: 6px; }
         .sidebar-left::-webkit-scrollbar-track, .sidebar-right::-webkit-scrollbar-track { background: var(--panel-bg); border-radius: 3px; }
         .sidebar-left::-webkit-scrollbar-thumb, .sidebar-right::-webkit-scrollbar-thumb { background-color: var(--danger-color); border-radius: 3px; }
-        
+
         .main-content {
             grid-area: main-content;
             display: grid;
-            grid-template-columns: 1fr 1fr; 
+            grid-template-columns: 1fr 1fr;
             grid-auto-rows: minmax(150px, auto);
             gap: 10px;
-            overflow-y: auto; 
+            overflow-y: auto;
              scrollbar-width: thin;
             scrollbar-color: var(--accent-color-secondary) var(--panel-bg);
         }
@@ -257,11 +248,11 @@
 
         .data-blur-container { display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; min-height: 60px; }
         .blurred-text {
-            font-family: var(--font-mono); font-size: 1.1rem; color: var(--danger-color); 
-            text-shadow: 0 0 5px var(--danger-color), 0 0 10px var(--danger-color); 
-            filter: blur(1.5px); 
+            font-family: var(--font-mono); font-size: 1.1rem; color: var(--danger-color);
+            text-shadow: 0 0 5px var(--danger-color), 0 0 10px var(--danger-color);
+            filter: blur(1.5px);
             animation: text-content-flicker 0.1s infinite alternate;
-            transition: filter 0.5s ease-in-out, color 0.5s ease-in-out, text-shadow 0.5s ease-in-out; 
+            transition: filter 0.5s ease-in-out, color 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
             overflow-wrap: break-word; word-break: break-all; max-width: 95%; line-height: 1.4;
         }
         @keyframes text-content-flicker { from { opacity: 0.6; } to { opacity: 1; transform: skewX(-0.5deg); } }
@@ -291,12 +282,12 @@
 
 
         .deck-footer {
-            grid-area: footer; font-size: 0.75rem; color: var(--text-color-dim); 
+            grid-area: footer; font-size: 0.75rem; color: var(--text-color-dim);
             display: flex; /* Use flex for console layout */
             align-items: center; /* Vertically align items */
             padding: 5px 10px; /* Adjust padding */
             border-top: 1px solid var(--glass-border-critical); /* Start critical */
-            position: relative; 
+            position: relative;
             transition: border-top-color 1s ease-in-out;
         }
         .console-prompt {
@@ -327,7 +318,7 @@
         .data-list li { padding: 4px 2px; border-bottom: 1px dashed rgba(255,255,255,0.05); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .data-list li:last-child { border-bottom: none; }
         .data-list .value { color: var(--accent-color-secondary); float: right; transition: color 0.5s ease-in-out; }
-        .data-list .value.danger-text { color: var(--danger-color); font-weight: bold; } 
+        .data-list .value.danger-text { color: var(--danger-color); font-weight: bold; }
         .data-list .value.warning-text { color: var(--warning-color); }
         .data-list .value.success-text { color: var(--success-color); }
 
@@ -393,25 +384,25 @@
 
         @keyframes spark-animation {
             0%, 100% { opacity: 0; transform: scale(0.5) translate(0,0); }
-            20% { opacity: 1; transform: scale(1) translate(5px, -5px); } 
-            40% { opacity: 0.8; transform: scale(0.8) translate(-3px, 3px); } 
-            60% { opacity: 1; transform: scale(1.2) translate(2px, -2px); } 
-            80% { opacity: 0; transform: scale(0.3) translate(0,0); } 
+            20% { opacity: 1; transform: scale(1) translate(5px, -5px); }
+            40% { opacity: 0.8; transform: scale(0.8) translate(-3px, 3px); }
+            60% { opacity: 1; transform: scale(1.2) translate(2px, -2px); }
+            80% { opacity: 0; transform: scale(0.3) translate(0,0); }
         }
 
 
         .screen-distortion {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            pointer-events: none; z-index: 9999; overflow: hidden; 
+            pointer-events: none; z-index: 9999; overflow: hidden;
         }
-        .screen-distortion::before { 
+        .screen-distortion::before {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-image: linear-gradient( transparent 50%, var(--glitch-line-color) 50% );
             background-size: 100% 4px; opacity: 0.08; animation: scanlines-anim 10s linear infinite;
             transition: opacity 1s ease-out;
         }
         @keyframes scanlines-anim { 0% { background-position: 0 0; } 100% { background-position: 0 100px; } }
-        .screen-distortion::after { 
+        .screen-distortion::after {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: inherit; opacity: 0; animation: screen-glitch 8s steps(2, jump-none) infinite;
             transition: opacity 1s ease-out;
@@ -424,10 +415,10 @@
             10.2% { opacity: 0; clip-path: inset(0% 0% 0% 0%); transform: translateY(0); }
             30% { opacity: 0.06; clip-path: inset(5% 50% 60% 5%); transform: translateX(-7px); }
             30.2% { opacity: 0; clip-path: inset(0% 0% 0% 0%); transform: translateX(0); }
-            50.0% { opacity: 0; transform: translate(0,0); } 
-            50.1% { opacity: 0.1; transform: translate(var(--glitch-x, 0), var(--glitch-y, 0)); 
+            50.0% { opacity: 0; transform: translate(0,0); }
+            50.1% { opacity: 0.1; transform: translate(var(--glitch-x, 0), var(--glitch-y, 0));
                    clip-path: polygon( 0% var(--p1, 0%), 100% var(--p2, 0%), 100% var(--p3, 100%), 0% var(--p4, 100%) );
-            } 
+            }
             50.3% { opacity: 0; transform: translate(0,0); }
         }
 
@@ -442,7 +433,7 @@
 
         body::-webkit-scrollbar { width: 8px; }
         body::-webkit-scrollbar-track { background: #0a0a10; }
-        body::-webkit-scrollbar-thumb { background-color: var(--danger-color); border-radius: 4px; transition: background-color 1s ease-in-out; } 
+        body::-webkit-scrollbar-thumb { background-color: var(--danger-color); border-radius: 4px; transition: background-color 1s ease-in-out; }
         body { scrollbar-width: thin; scrollbar-color: var(--danger-color) #0a0a10; }
 
         .text-center { text-align: center; }
@@ -460,8 +451,8 @@
         }
         .critical-warning-text {
             font-family: var(--font-mono);
-            font-size: 2.2rem; 
-            font-weight: 900; 
+            font-size: 2.2rem;
+            font-weight: 900;
             color: var(--danger-color);
             text-align: center;
             text-transform: uppercase;
@@ -493,10 +484,10 @@
         .integrity-pulse-container {
             display: flex;
             justify-content: space-around;
-            align-items: flex-end; 
-            height: 60px; 
+            align-items: flex-end;
+            height: 60px;
             padding: 10px 5px;
-            border-radius: 0 0 0.4rem 0.4rem; 
+            border-radius: 0 0 0.4rem 0.4rem;
             background-color: rgba(0,0,0,0.2);
         }
         .pulse-bar {
@@ -526,17 +517,17 @@
                 grid-template-columns: 220px 1fr 220px; grid-template-rows: 50px 1fr 40px; padding: 10px;
             }
             .deck-header .logo { font-size: 1.5rem; }
-            .main-content { grid-template-columns: 1fr; } 
-            .panel-full-width { grid-column: 1 / -1; } 
+            .main-content { grid-template-columns: 1fr; }
+            .panel-full-width { grid-column: 1 / -1; }
         }
         @media (max-width: 768px) {
             body { padding: 5px; }
             .control-deck-container {
-                grid-template-columns: 1fr; grid-template-rows: 50px auto auto auto auto 40px; 
+                grid-template-columns: 1fr; grid-template-rows: 50px auto auto auto auto 40px;
                 grid-template-areas: "header" "sidebar-left" "main-content" "sidebar-right" "footer";
-                height: auto; max-height: none; overflow-y: auto; 
+                height: auto; max-height: none; overflow-y: auto;
             }
-            .sidebar-left, .sidebar-right { min-height: 200px; overflow-y: visible; height: auto;} 
+            .sidebar-left, .sidebar-right { min-height: 200px; overflow-y: visible; height: auto;}
             .main-content { overflow-y: visible; }
             .panel-content { font-size: 0.75rem; }
             .led-display { font-size: 1.5rem; }
@@ -551,7 +542,7 @@
 
     <div class="control-deck-container sparks-effect" id="controlDeckContainer">
         <header class="deck-header" id="deckHeader">
-            <div class="logo" id="auroraLogo">AURORA_OS // C&C</div>
+            <div class="logo" id="auroraLogo">CIFP EN ADEJE - Operating System</div>
             <div class="system-status">
                 SYSTEM STATUS: <span class="status-indicator danger" id="mainStatusIndicator"></span> <span id="mainStatusText">SYSTEM CRITICAL <span class="danger-text" style="animation-duration: 0.6s;">| HULL BREACH IMMINENT</span></span>
             </div>
@@ -751,7 +742,7 @@
                 rgbSuccess: rootStyles.getPropertyValue('--rgb-success-color').trim(),
                 rgbAccentSecondary: rootStyles.getPropertyValue('--accent-color-secondary-rgb').trim(),
             };
-            
+
             // Ensure RGB vars are available for JS that might use them (like canvas)
             document.documentElement.style.setProperty('--rgb-success-color', colors.rgbSuccess);
             document.documentElement.style.setProperty('--rgb-danger-color', colors.rgbDanger);
@@ -777,22 +768,22 @@
                 for (let i = 0; i < count; i++) {
                     const logEntry = generatorFn();
                     const li = document.createElement('li');
-                    li.innerHTML = logEntry.text; 
+                    li.innerHTML = logEntry.text;
                     if (logEntry.className) li.className = logEntry.className;
-                    element.prepend(li); 
+                    element.prepend(li);
                      if (element.children.length > maxEntries) {
                         element.removeChild(element.lastChild);
                     }
                 }
-                element.scrollTop = 0; 
+                element.scrollTop = 0;
             }
-            
+
             // --- Data Generators (Dynamic based on stabilizationStep) ---
             const generateActiveModule = () => {
                 const baseStatuses = ['ONLINE', 'STANDBY', 'OPTIMAL'];
                 const warningStatuses = ['DEGRADED', 'UNSTABLE', 'HIGH LOAD'];
                 const criticalStatuses = ['ERROR', 'FAILING', 'COMPROMISED', 'OFFLINE'];
-                
+
                 let statuses = criticalStatuses;
                 if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.75) statuses = baseStatuses;
                 else if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.4) statuses = [...baseStatuses, ...warningStatuses];
@@ -814,7 +805,7 @@
                 if (criticalStatuses.includes(status)) valueClass = 'danger-text';
                 else if (warningStatuses.includes(status)) valueClass = 'warning-text';
                 else if (status === 'OPTIMAL' || status === 'ONLINE') valueClass = 'success-text';
-                
+
                 return `MOD-${getRandomInt(100,999)} <span class="value ${valueClass}">${status}</span>`;
             };
 
@@ -824,7 +815,7 @@
                 if (systemIsStable) level = getRandom(85, 100).toFixed(0);
                 else if (stabilizationStep > 12) level = getRandom(70, 95).toFixed(0);
                 else if (stabilizationStep > 7) level = getRandom(40, 80).toFixed(0);
-                else level = getRandom(0, 60).toFixed(0); 
+                else level = getRandom(0, 60).toFixed(0);
 
                 let valueClass = '';
                 if (level < 20) valueClass = 'danger-text';
@@ -832,7 +823,7 @@
                 else valueClass = 'success-text';
                 return `${choose(systems)} <span class="value ${valueClass}">${level}%</span>`;
             };
-            
+
             const generateCommsLog = () => {
                 const infoTypes = [
                     { prefix: '[INFO]', text: `Telemetry packet ${getRandomInt(1000,9999)} received from Outpost ${String.fromCharCode(65 + getRandomInt(0,5))}${getRandomInt(1,9)}`, class: 'log-info'},
@@ -847,7 +838,7 @@
                     { prefix: '[SEVR]', text: `Subspace comms link UNSTABLE. Low-band active...`, class: 'log-error danger-text'},
                     { prefix: '[SOS ]', text: `Distress signal from ${choose(['Titan', 'Europa'])} - Response pending`, class: 'log-warn warning-text'},
                 ];
-                
+
                 let entry;
                 if(systemIsStable) entry = choose(infoTypes);
                 else if (stabilizationStep > 10) entry = choose([...infoTypes, ...warnTypes]);
@@ -862,7 +853,7 @@
                 return { text: `${entry.prefix} ${entry.text}`, className: entry.class };
             };
 
-            const generateCriticalAlert = () => { 
+            const generateCriticalAlert = () => {
                  const criticalAlerts = [
                     { text: `REACTOR OVERLOAD IMMINENT - EVACUATE`, class: 'log-error danger-text'},
                     { text: `HULL BREACH DETECTED - SECTOR ${getRandomInt(1,7)}-${String.fromCharCode(65 + getRandomInt(0,3))}`, class: 'log-error danger-text'},
@@ -917,7 +908,7 @@
                     { text: `${choose(systems)}: Nominal. Status GREEN.`, class: 'log-success' },
                     { text: `${choose(systems)}: Diagnostics PASSED.`, class: 'log-info' }
                 ];
-                
+
                 if (systemIsStable || stabilizationStep > 13) return choose(info);
                 if (stabilizationStep > 7) return choose(warning);
                 return choose(critical);
@@ -930,23 +921,23 @@
                 populateList(dom.activeModulesList, getRandomInt(4,7), generateActiveModule);
                 populateList(dom.powerLevelsList, getRandomInt(3,5), generatePowerLevel);
                 populateLog(dom.commsLog, getRandomInt(1, systemIsStable ? 1 : 2), generateCommsLog);
-                
+
                 if (!systemIsStable || Math.random() < 0.1) { // Less frequent if stable
-                    populateLog(dom.securityLog, 1, generateSecurityLogEntry); 
+                    populateLog(dom.securityLog, 1, generateSecurityLogEntry);
                     populateLog(dom.diagnosticLog, getRandomInt(0, systemIsStable ? 1 : 2), generateDiagnosticLogEntry);
                 }
 
                 // Critical alerts should become less frequent and eventually stop
                 if (stabilizationStep < TOTAL_STABILIZATION_STEPS * 0.8 || (!systemIsStable && Math.random() < 0.3)) {
-                    populateLog(dom.criticalAlertsLog, 1, generateCriticalAlert, 10); 
+                    populateLog(dom.criticalAlertsLog, 1, generateCriticalAlert, 10);
                 } else if (dom.criticalAlertsLog.children.length > 0 && stabilizationStep >= TOTAL_STABILIZATION_STEPS * 0.8){
                     // Gradually clear old critical alerts if stabilizing
                      if(dom.criticalAlertsLog.lastChild) dom.criticalAlertsLog.removeChild(dom.criticalAlertsLog.lastChild);
                 }
-                
+
                 // Main status text update based on general state not specific step
                 if (!systemIsStable) {
-                     if (stabilizationStep > 10 && Math.random() < 0.1) { 
+                     if (stabilizationStep > 10 && Math.random() < 0.1) {
                         const statuses = ['RECOVERY IN PROGRESS', 'SYSTEM STABILIZING', 'FINAL CHECKS'];
                         dom.mainStatusText.innerHTML = `${choose(statuses)} <span class="warning-text" style="animation-duration: ${getRandom(0.5,1).toFixed(1)}s;">| PLEASE WAIT</span>`;
                      } else if (stabilizationStep > 5 && Math.random() < 0.15) {
@@ -965,33 +956,33 @@
             function initECG() {
                 if (!dom.ecgCanvas) return;
                 ecgCtx = dom.ecgCanvas.getContext('2d');
-                
+
                 const newWidth = dom.ecgCanvas.clientWidth;
                 const newHeight = dom.ecgCanvas.clientHeight;
 
                 if (newWidth === 0 || newHeight === 0) {
-                    requestAnimationFrame(initECG); 
+                    requestAnimationFrame(initECG);
                     return;
                 }
 
                 dom.ecgCanvas.width = newWidth;
                 dom.ecgCanvas.height = newHeight;
-                ecgDataMaxLength = Math.max(50, Math.floor(dom.ecgCanvas.width / 2.5)); 
+                ecgDataMaxLength = Math.max(50, Math.floor(dom.ecgCanvas.width / 2.5));
 
-                ecgData = []; 
+                ecgData = [];
                 for (let i = 0; i < ecgDataMaxLength; i++) {
                     ecgData.push(dom.ecgCanvas.height / 2);
                 }
             }
 
-            function drawECG() { 
+            function drawECG() {
                 if (!ecgCtx || !dom.ecgCanvas.width || !dom.ecgCanvas.height) return;
                 ecgCtx.clearRect(0, 0, dom.ecgCanvas.width, dom.ecgCanvas.height);
-                
+
                 let strokeColor = `rgba(${colors.rgbDanger}, 0.7)`;
                 if (systemIsStable) strokeColor = `rgba(${colors.rgbSuccess}, 0.7)`;
                 else if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.6) strokeColor = `rgba(${colors.rgbWarning}, 0.7)`;
-                
+
                 ecgCtx.strokeStyle = strokeColor;
                 ecgCtx.lineWidth = 1.5;
                 ecgCtx.beginPath();
@@ -1003,9 +994,9 @@
                 else if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.4) spikeFactor = 0.25; // Stabilizing
 
 
-                if (Math.random() < (systemIsStable ? 0.02 : (0.08 - stabilizationStep*0.004))) nextVal += getRandom(-dom.ecgCanvas.height * spikeFactor, dom.ecgCanvas.height * spikeFactor); 
-                else if (Math.random() < (systemIsStable ? 0.1 : (0.25 - stabilizationStep*0.01))) nextVal += getRandom(-dom.ecgCanvas.height * (spikeFactor*0.33), dom.ecgCanvas.height * (spikeFactor*0.33)); 
-                
+                if (Math.random() < (systemIsStable ? 0.02 : (0.08 - stabilizationStep*0.004))) nextVal += getRandom(-dom.ecgCanvas.height * spikeFactor, dom.ecgCanvas.height * spikeFactor);
+                else if (Math.random() < (systemIsStable ? 0.1 : (0.25 - stabilizationStep*0.01))) nextVal += getRandom(-dom.ecgCanvas.height * (spikeFactor*0.33), dom.ecgCanvas.height * (spikeFactor*0.33));
+
                 ecgData.push(nextVal);
                 if (ecgData.length > ecgDataMaxLength) ecgData.shift();
                 while (ecgData.length < ecgDataMaxLength) {
@@ -1034,10 +1025,10 @@
                 dom.sineCanvas.width = newWidth;
                 dom.sineCanvas.height = newHeight;
             }
-            function drawSineWaves() { 
+            function drawSineWaves() {
                  if (!sineCtx || !dom.sineCanvas.width || !dom.sineCanvas.height) return;
                 sineCtx.clearRect(0, 0, dom.sineCanvas.width, dom.sineCanvas.height);
-                sineTime += 0.05; 
+                sineTime += 0.05;
 
                 const drawWave = (amplitude, frequency, phase, colorRGB, baseOpacity, lineWidth = 1.5) => {
                     sineCtx.beginPath();
@@ -1057,17 +1048,17 @@
                     }
                     sineCtx.stroke();
                 };
-                
+
                 // Base waves
-                drawWave(dom.sineCanvas.height * 0.35, 5, 0, colors.rgbDanger, 0.7); 
+                drawWave(dom.sineCanvas.height * 0.35, 5, 0, colors.rgbDanger, 0.7);
                 drawWave(dom.sineCanvas.height * 0.25, 7, Math.PI / 2, colors.rgbWarning, 0.6);
-                
+
                 // This wave becomes more prominent as system stabilizes
                 let stableWaveOpacity = 0.3 + stabilizationStep * 0.04;
                 if(systemIsStable) stableWaveOpacity = 0.8;
-                drawWave(dom.sineCanvas.height * 0.20, 4, Math.PI, colors.rgbSuccess, stableWaveOpacity); 
+                drawWave(dom.sineCanvas.height * 0.20, 4, Math.PI, colors.rgbSuccess, stableWaveOpacity);
             }
-            
+
             // --- Blurred Data ---
             function updateBlurredData() {
                 if (!dom.blurredData) return;
@@ -1093,7 +1084,7 @@
 
                 const numbers = Array.from({length: 20}, () => getRandomInt(0,9)).join('');
                 const hexString = Array.from({length: 16}, () => Math.floor(Math.random()*16).toString(16)).join('').toUpperCase();
-                
+
                 if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.6) {
                     dom.blurredData.textContent = choose(stabilizingPhrases);
                 } else if (Math.random() < 0.6) {
@@ -1103,10 +1094,10 @@
                 } else {
                     dom.blurredData.textContent = `0x${hexString} 0x${Array.from({length: 16}, () => Math.floor(Math.random()*16).toString(16)).join('')} - CORRUPT`;
                 }
-                
+
                 const blurAmount = Math.max(0, 1.5 - (stabilizationStep * 0.1));
-                dom.blurredData.style.filter = `blur(${blurAmount.toFixed(1)}px)`; 
-                
+                dom.blurredData.style.filter = `blur(${blurAmount.toFixed(1)}px)`;
+
                 if (blurAmount < 0.5) {
                     dom.blurredData.classList.remove('danger-text');
                     dom.blurredData.classList.add('warning-text');
@@ -1125,13 +1116,13 @@
                     if (counterEl) {
                         counterStates[index] = {
                             value: getRandomInt(500, 4000),
-                            increment: choose([-1, 1]) * getRandomInt(10, 50), 
+                            increment: choose([-1, 1]) * getRandomInt(10, 50),
                             min: getRandomInt(0, 200),
                             max: getRandomInt(4000, 9999),
                             targetValue: null, // For stabilization
                             isCriticalFn: (val) => { // Default critical conditions
-                                if (index === 0 && val > 85) return true; 
-                                if (index === 1 && val < 500) return true; 
+                                if (index === 0 && val > 85) return true;
+                                if (index === 1 && val < 500) return true;
                                 if (index === 2 && (val > 500 || val < 50)) return true;
                                 return false;
                             },
@@ -1143,9 +1134,9 @@
                             }
                         };
                          // Initial critical values
-                         if (index === 0) counterStates[index].value = getRandomInt(90, 120); 
-                         if (index === 1) counterStates[index].value = getRandomInt(100, 400); 
-                         if (index === 2) counterStates[index].value = getRandomInt(550, 800); 
+                         if (index === 0) counterStates[index].value = getRandomInt(90, 120);
+                         if (index === 1) counterStates[index].value = getRandomInt(100, 400);
+                         if (index === 2) counterStates[index].value = getRandomInt(550, 800);
                          if (index === 3) counterStates[index].value = getRandomInt(2000, 3500); // Shield starts ok
                     }
                 });
@@ -1155,7 +1146,7 @@
                 dom.ledCounters.forEach((counterEl, index) => {
                     if (!counterEl || !counterStates[index]) return;
                     let state = counterStates[index];
-                    
+
                     if (state.targetValue !== null) { // Stabilizing towards target
                         const diff = state.targetValue - state.value;
                         if (Math.abs(diff) < Math.abs(state.increment) || Math.abs(diff) < 10) {
@@ -1168,9 +1159,9 @@
                     } else if (!systemIsStable) { // Random fluctuation if not stabilizing and not stable
                         state.value += state.increment;
                         if (state.value > state.max || state.value < state.min) {
-                            state.increment *= -1; 
-                            state.value = Math.max(state.min, Math.min(state.max, state.value)); 
-                             if (Math.random() < 0.3) state.increment = choose([-1, 1]) * getRandomInt(20, 70); 
+                            state.increment *= -1;
+                            state.value = Math.max(state.min, Math.min(state.max, state.value));
+                             if (Math.random() < 0.3) state.increment = choose([-1, 1]) * getRandomInt(20, 70);
                         }
                     } else { // Gentle fluctuation when stable
                          state.value += state.increment;
@@ -1192,7 +1183,7 @@
                     }
                 });
             }
-            
+
             function updateTargetingDisplay() {
                 if (!dom.targetingStatusEl) return;
 
@@ -1214,7 +1205,7 @@
                     const threatsCrit = ["CRITICAL", "UNKNOWN - SENSOR MALFUNCTION", "MULTIPLE HOSTILES"];
                     const threatsWarn = ["HIGH", "MODERATE", "POTENTIAL THREAT"];
                     const threatsInfo = ["LOW", "NONE", "NEUTRAL"];
-                    
+
                     let currentStatus, currentThreat, statusClass, threatClass;
 
                     if (stabilizationStep < 5) {
@@ -1238,8 +1229,8 @@
                     dom.targetingStatusEl.textContent = currentStatus;
                     dom.targetingCoordsEl.textContent = `${getRandomInt(100,999)}:${getRandomInt(100,999)}:${getRandomInt(100,999)} ${systemIsStable ? "" : "(UNCERTAIN)"}`;
                     dom.threatLevelEl.textContent = currentThreat;
-                    
-                    dom.targetingStatusEl.className = statusClass; 
+
+                    dom.targetingStatusEl.className = statusClass;
                     dom.threatLevelEl.className = threatClass;
 
                     let weaponStatus, weaponClass;
@@ -1254,7 +1245,7 @@
             function updateClock() {
                 if (!dom.clockDisplay) return;
                 const now = new Date();
-                dom.clockDisplay.textContent = now.toLocaleTimeString('en-GB'); 
+                dom.clockDisplay.textContent = now.toLocaleTimeString('en-GB');
             }
 
             function triggerScreenGlitch() {
@@ -1272,7 +1263,7 @@
                 const root = document.documentElement;
                 // Reduce glitch intensity as system stabilizes
                 const intensityFactor = 1 - (stabilizationStep / (TOTAL_STABILIZATION_STEPS * 1.5));
-                if (Math.random() < (0.1 * intensityFactor) ) { 
+                if (Math.random() < (0.1 * intensityFactor) ) {
                     root.style.setProperty('--glitch-x', `${getRandom(-10, 10) * intensityFactor}px`);
                     root.style.setProperty('--glitch-y', `${getRandom(-10, 10) * intensityFactor}px`);
                     root.style.setProperty('--p1', `${getRandomInt(0, 15 * intensityFactor)}%`);
@@ -1301,7 +1292,7 @@
                         dom.criticalWarningContainer.style.borderColor = colors.warning;
                         dom.criticalWarningContainer.style.backgroundColor = `rgba(${colors.rgbWarning}, 0.1)`;
                         dom.criticalWarningContainer.style.boxShadow = `0 0 10px rgba(${colors.rgbWarning},0.4), inset 0 0 8px rgba(${colors.rgbWarning},0.2)`;
-                        
+
                         dom.mainStatusText.innerHTML = 'INITIATING RECOVERY <span class="warning-text">| STAND BY</span>';
                         dom.btnEmergencyStop.classList.remove('danger');
                         dom.btnEmergencyStop.classList.add('warning');
@@ -1310,8 +1301,9 @@
                     case 2:
                         message = "Primary systems check. Power core stabilizing...";
                         dom.mainStatusIndicator.className = 'status-indicator warning';
-                        dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.danger}, ${colors.warning})`;
-                        
+                        // MODIFICADO: Se elimina la manipulación del background del logo
+                        // dom.auroraLogo.style.background = `linear-gradient(90deg,${colors.warning},${colors.danger})`;
+
                         // Power Distribution Panel
                         dom.powerDistPanel.classList.remove('critical-panel');
                         dom.powerDistPanel.classList.add('warning-panel');
@@ -1371,7 +1363,7 @@
                         dom.encryptedDataPanel.classList.add('warning-panel');
                         dom.encryptedDataHeader.classList.remove('critical');
                         dom.encryptedDataHeader.classList.add('warning');
-                        
+
                         // All LEDs to warning (if not already)
                         dom.ledCounters.forEach(led => {
                             if (led) {
@@ -1384,7 +1376,8 @@
                     case 8:
                         message = "Shield generators online. Strength at 60% and rising.";
                         dom.criticalWarningTextElem.textContent = "SHIELDS UP";
-                        dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.warning}, ${colors.accentSecondary})`;
+                        // MODIFICADO: Se elimina la manipulación del background del logo
+                        // dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.warning}, ${colors.accentSecondary})`;
                         dom.controlDeckContainer.style.borderColor = `rgba(${colors.rgbWarning}, 0.5)`;
                         dom.deckHeader.style.borderBottomColor = `rgba(${colors.rgbWarning}, 0.4)`;
                         dom.deckFooterElem.style.borderTopColor = `rgba(${colors.rgbWarning}, 0.4)`;
@@ -1407,7 +1400,7 @@
                         dom.auxPowerStatus.textContent = "AUXILIARY POWER NOMINAL";
                         dom.auxPowerStatus.classList.remove('warning-text');
                         dom.auxPowerStatus.classList.add('success-text'); // Green text
-                        
+
                         if(counterStates[0]) counterStates[0].targetValue = 60; // Core temp good
                         if(counterStates[1]) counterStates[1].targetValue = 2500; // Flux good
                         break;
@@ -1419,7 +1412,7 @@
                         dom.criticalAlertsHeader.classList.add('stable');
                         dom.criticalAlertsPanel.classList.remove('warning-panel');
                         dom.criticalAlertsPanel.classList.add('stable-panel');
-                        
+
                         // Integrity pulse bars to success color
                         dom.integrityPulseDisplay.querySelectorAll('.pulse-bar').forEach(bar => {
                             bar.style.backgroundColor = colors.success;
@@ -1430,7 +1423,7 @@
                         message = "Communication systems fully operational. Long-range scanners active.";
                         dom.mainStatusIndicator.className = 'status-indicator success'; // Solid Green
                         dom.mainStatusIndicator.style.animation = 'pulse 1.5s infinite'; // Normal pulse
-                        
+
                         // LED Counters become green
                         dom.ledCounters.forEach((led, idx) => {
                             if (led) {
@@ -1448,16 +1441,17 @@
                     case 12:
                         message = "System integrity at 99.9%. All parameters nominal.";
                         dom.mainStatusText.innerHTML = 'SYSTEM STABLE <span class="success-text">| ALL SYSTEMS GREEN</span>';
-                        dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.accentSecondary}, ${colors.success})`;
-                        dom.auroraLogo.style.animation = 'none'; // Stop flicker, could add a gentle glow
-                        dom.auroraLogo.style.textShadow = `0 0 8px ${colors.success}`;
-                        
+                        // MODIFICADO: Se eliminan la manipulación del background, animación y textShadow del logo
+                        // dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.accentSecondary}, ${colors.success})`;
+                           dom.auroraLogo.style.animation = 'none';
+                           dom.auroraLogo.style.textShadow = `0 0 8px ${colors.success}`;
+
                         // Body background to stable
                         dom.body.style.backgroundImage = `
                             radial-gradient(ellipse at 5% 5%, var(--body-bg-stable-1) 0%, transparent 40%),
                             radial-gradient(ellipse at 95% 95%, var(--body-bg-stable-2) 0%, transparent 40%),
                             linear-gradient(160deg, #0A0F0A 0%, #101810 100%)`; // Darker green-ish base
-                        
+
                         // Container borders to stable/accent
                         dom.controlDeckContainer.style.borderColor = `var(--glass-border-accent)`;
                         dom.deckHeader.style.borderBottomColor = `var(--glass-border-accent)`;
@@ -1476,7 +1470,7 @@
                         dom.criticalWarningContainer.style.borderColor = colors.success;
                         dom.criticalWarningContainer.style.backgroundColor = `rgba(${colors.rgbSuccess}, 0.1)`;
                         dom.criticalWarningContainer.style.boxShadow = `0 0 10px rgba(${colors.rgbSuccess},0.4), inset 0 0 8px rgba(${colors.rgbSuccess},0.2)`;
-                        
+
                         // Change emergency stop button to a system diagnostic or similar
                         dom.btnEmergencyStop.classList.remove('warning');
                         dom.btnEmergencyStop.classList.add('success');
@@ -1511,7 +1505,7 @@
                         clearInterval(intervals.blurredData);
                         clearInterval(intervals.screenGlitch); // Stop glitch explicitly if not fully handled by opacity
                         // Let other intervals like clock, data updates, canvases continue but with stable data/visuals
-                        
+
                         // Final canvas colors
                         drawECG(); // one last draw with stable colors
                         drawSineWaves(); // one last draw with stable colors
@@ -1544,7 +1538,7 @@
                         dom.stabilizationMessageFooter.textContent = `System> Command "${command}" acknowledged. System is stable.`;
                         return;
                     }
-                    
+
                     if (stabilizationStep === 0 && command.toLowerCase() !== "initiate_recovery" && command !== "") {
                          dom.stabilizationMessageFooter.textContent = "Error: Must type 'initiate_recovery' or press Enter on empty to start.";
                          dom.stabilizationMessageFooter.style.color = colors.danger;
@@ -1563,7 +1557,7 @@
                             dom.stabilizationMessageFooter.style.color = colors.warning; // Ensure it's warning after first step
                         }
                     }
-                    
+
                     if (stabilizationStep === 1) { // After first Enter, remove placeholder
                         dom.consoleInput.placeholder = "Press Enter to continue stabilization...";
                     }
@@ -1583,19 +1577,19 @@
                 initECG();
                 initSine();
                 initLedCounters();
-                updateDynamicData(); 
+                updateDynamicData();
                 updateClock();
                 updateBlurredData();
                 updateLedCounters();
                 updateTargetingDisplay();
 
                 // Set intervals
-                intervals.dataUpdate = setInterval(updateDynamicData, 2000); 
-                intervals.clock = setInterval(updateClock, 1000); 
-                intervals.screenGlitch = setInterval(triggerScreenGlitch, 300); 
-                intervals.blurredData = setInterval(updateBlurredData, 300); 
+                intervals.dataUpdate = setInterval(updateDynamicData, 2000);
+                intervals.clock = setInterval(updateClock, 1000);
+                intervals.screenGlitch = setInterval(triggerScreenGlitch, 300);
+                intervals.blurredData = setInterval(updateBlurredData, 300);
                 intervals.ledCounters = setInterval(updateLedCounters, getRandomInt(150, 250)); // Slower update for LEDs
-                intervals.targeting = setInterval(updateTargetingDisplay, 1200); 
+                intervals.targeting = setInterval(updateTargetingDisplay, 1200);
 
                 if(dom.ecgCanvas || dom.sineCanvas) {
                     requestAnimationFrame(animationLoop);
@@ -1605,26 +1599,26 @@
                 dom.stabilizationMessageFooter.textContent = ""; // Start empty or with a prompt
                 dom.stabilizationMessageFooter.style.color = colors.warning;
             }
-            
+
             initializeDashboard();
 
 
             // Resize handler for canvases
             window.addEventListener('resize', () => {
-                if(dom.ecgCanvas) initECG(); 
-                if(dom.sineCanvas) initSine(); 
+                if(dom.ecgCanvas) initECG();
+                if(dom.sineCanvas) initSine();
             });
-            
-            // Restart logo animation on iteration for continuous effect (if desired when not stable)
-            if (dom.auroraLogo) { 
-                dom.auroraLogo.addEventListener('animationiteration', () => {
-                    if (!systemIsStable) { // Only restart if not stable
-                        dom.auroraLogo.style.animation = 'none';
-                        void dom.auroraLogo.offsetWidth; 
-                        dom.auroraLogo.style.animation = ''; 
-                    }
-                });
-            }
+
+            // MODIFICADO: Se elimina el listener de 'animationiteration' para el logo, ya que no tiene animación.
+            if (dom.auroraLogo) {
+                 dom.auroraLogo.addEventListener('animationiteration', () => {
+                     if (!systemIsStable) { // Only restart if not stable
+                         dom.auroraLogo.style.animation = 'none';
+                         void dom.auroraLogo.offsetWidth;
+                         dom.auroraLogo.style.animation = '';
+                     }
+                 });
+             }
         });
     </script>
 
