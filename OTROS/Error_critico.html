@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuroraOS - Advanced Control Deck v0.8 - CRITICAL STATE</title>
+    <style>
+        :root {
+            --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --font-mono: 'Consolas', 'Menlo', 'Monaco', monospace;
+            --text-color: #e0e0e0;
+            --text-color-darker: #a0a0a0;
+            --text-color-dim: #707070;
+            --accent-glow: rgba(128, 0, 128, 0.6); /* Morado */
+            --accent-glow-secondary: rgba(0, 128, 128, 0.5); /* Teal */
+            --accent-color-main: #8A2BE2; /* BlueViolet, más vibrante */
+            --accent-color-secondary: #00E5E5; /* Cyan / Teal brillante */
+            --warning-color: #FFD700; /* Gold */
+            --danger-color: #FF4500; /* OrangeRed */
+            --success-color: #32CD32; /* LimeGreen */
+
+            --glass-bg: rgba(15, 15, 25, 0.65);
+            --glass-bg-light: rgba(25, 25, 40, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border-accent: rgba(0, 229, 229, 0.3);
+            --glass-border-critical: rgba(255, 69, 0, 0.4); /* For critical state */
+
+            --panel-bg: rgba(10, 10, 20, 0.7);
+            --panel-border: rgba(0, 229, 229, 0.2);
+            --panel-border-critical: rgba(255, 69, 0, 0.3); /* For critical state */
+            --panel-header-bg: rgba(0, 229, 229, 0.1);
+            --panel-header-bg-critical: rgba(255, 69, 0, 0.2); /* For critical state */
+
+
+            --glitch-line-color: rgba(0, 229, 229, 0.3);
+            --spark-color-1: var(--accent-color-secondary);
+            --spark-color-2: white;
+
+            /* RGB versions for RGBA usage in CSS */
+            --rgb-success-color: 50, 205, 50;
+            --rgb-danger-color: 255, 69, 0;
+            --rgb-warning-color: 255, 215, 0;
+            --accent-color-secondary-rgb: 0, 229, 229;
+
+            /* Body background gradients */
+            --body-bg-critical-1: rgba(255,0,0,0.3);
+            --body-bg-critical-2: rgba(255,69,0,0.4);
+            --body-bg-stabilizing-1: rgba(255,165,0,0.25); /* Orange */
+            --body-bg-stabilizing-2: rgba(255,215,0,0.3); /* Gold */
+            --body-bg-stable-1: rgba(0,128,128,0.2);    /* Teal */
+            --body-bg-stable-2: rgba(50,205,50,0.15);   /* LimeGreen */
+
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            color: var(--text-color);
+            background-color: #05050A;
+            background-image: 
+                radial-gradient(ellipse at 5% 5%, var(--body-bg-critical-1) 0%, transparent 40%),
+                radial-gradient(ellipse at 95% 95%, var(--body-bg-critical-2) 0%, transparent 40%),
+                linear-gradient(160deg, #0c0808 0%, #181010 100%);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden; 
+            padding: 10px; 
+            transition: background-image 2s ease-in-out;
+        }
+
+        .control-deck-container {
+            width: calc(100% - 20px);
+            height: calc(100vh - 20px);
+            max-width: 1800px; 
+            max-height: 1000px; 
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px) saturate(120%);
+            -webkit-backdrop-filter: blur(8px) saturate(120%);
+            border: 1px solid var(--glass-border-critical); /* Start with critical border */
+            border-radius: 1rem;
+            box-shadow: 0 0 30px rgba(var(--rgb-danger-color), 0.3),
+                        inset 0 0 15px rgba(var(--rgb-danger-color), 0.4);
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            grid-template-rows: 60px 1fr 50px;
+            grid-template-areas:
+                "header header header"
+                "sidebar-left main-content sidebar-right"
+                "footer footer footer";
+            gap: 10px;
+            padding: 15px;
+            position: relative;
+            overflow: hidden; 
+            transition: border-color 1s ease-in-out, box-shadow 1s ease-in-out;
+        }
+        
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border); /* Default border */
+            border-radius: 0.5rem;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
+            transition: border-color 0.5s ease-in-out;
+        }
+        .panel.critical-panel {
+            border-color: var(--panel-border-critical);
+        }
+        .panel.warning-panel {
+            border-color: rgba(var(--rgb-warning-color), 0.4);
+        }
+         .panel.stable-panel {
+            border-color: var(--panel-border); /* Back to normal or specific stable color */
+        }
+
+
+        .panel-header {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent-color-secondary);
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--panel-header-bg);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+            transition: color 0.5s ease-in-out, border-bottom-color 0.5s ease-in-out;
+        }
+         .panel.critical-panel .panel-header,
+         .panel .panel-header.critical {
+            color: var(--danger-color);
+            border-bottom-color: var(--panel-header-bg-critical);
+         }
+         .panel .panel-header.warning {
+            color: var(--warning-color);
+            border-bottom-color: rgba(var(--rgb-warning-color), 0.2);
+         }
+         .panel .panel-header.stable {
+            color: var(--success-color);
+            border-bottom-color: rgba(var(--rgb-success-color), 0.2);
+         }
+        
+        .panel-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color-secondary) var(--panel-bg);
+        }
+        .panel-content::-webkit-scrollbar { width: 6px; }
+        .panel-content::-webkit-scrollbar-track { background: var(--panel-bg); border-radius: 3px; }
+        .panel-content::-webkit-scrollbar-thumb { background-color: var(--accent-color-secondary); border-radius: 3px; }
+
+        .deck-header {
+            grid-area: header;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid var(--glass-border-critical); /* Start critical */
+            transition: border-bottom-color 1s ease-in-out;
+        }
+        .deck-header .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            background: linear-gradient(90deg, var(--danger-color), var(--warning-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: logo-flicker 5s infinite steps(1);
+            transition: background 1s ease-in-out;
+        }
+        @keyframes logo-flicker {
+            0%, 100% { opacity: 1; text-shadow: 0 0 5px var(--warning-color); }
+            50% { opacity: 0.8; text-shadow: 0 0 10px var(--danger-color); }
+            50.5% { opacity: 1; } 
+            75% { opacity: 0.9; }
+        }
+        .deck-header .system-status { font-size: 0.9rem; }
+        .status-indicator {
+            display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+            margin-right: 5px; background-color: var(--success-color); animation: pulse 1.5s infinite;
+            transition: background-color 0.5s ease-in-out;
+        }
+        .status-indicator.warning { background-color: var(--warning-color); animation: pulse-warning 1.2s infinite; }
+        .status-indicator.danger { background-color: var(--danger-color); animation: pulse-danger 1s infinite; }
+
+        @keyframes pulse { 
+            0% { box-shadow: 0 0 0 0 rgba(var(--rgb-success-color), 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(var(--rgb-success-color), 0); }
+            100% { box-shadow: 0 0 0 0 rgba(var(--rgb-success-color), 0); }
+        }
+         @keyframes pulse-warning {
+            0% { box-shadow: 0 0 0 0 rgba(var(--rgb-warning-color), 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(var(--rgb-warning-color), 0); }
+            100% { box-shadow: 0 0 0 0 rgba(var(--rgb-warning-color), 0); }
+        }
+         @keyframes pulse-danger {
+            0% { box-shadow: 0 0 0 0 rgba(var(--rgb-danger-color), 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(var(--rgb-danger-color), 0); }
+            100% { box-shadow: 0 0 0 0 rgba(var(--rgb-danger-color), 0); }
+        }
+
+        .sidebar-left, .sidebar-right { 
+            grid-area: var(--grid-area-name); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            overflow-y: auto; 
+            height: 100%; 
+            padding-bottom: 5px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--danger-color) var(--panel-bg); 
+        }
+        .sidebar-left { --grid-area-name: sidebar-left; }
+        .sidebar-right { --grid-area-name: sidebar-right; }
+
+        .sidebar-left::-webkit-scrollbar, .sidebar-right::-webkit-scrollbar { width: 6px; }
+        .sidebar-left::-webkit-scrollbar-track, .sidebar-right::-webkit-scrollbar-track { background: var(--panel-bg); border-radius: 3px; }
+        .sidebar-left::-webkit-scrollbar-thumb, .sidebar-right::-webkit-scrollbar-thumb { background-color: var(--danger-color); border-radius: 3px; }
+        
+        .main-content {
+            grid-area: main-content;
+            display: grid;
+            grid-template-columns: 1fr 1fr; 
+            grid-auto-rows: minmax(150px, auto);
+            gap: 10px;
+            overflow-y: auto; 
+             scrollbar-width: thin;
+            scrollbar-color: var(--accent-color-secondary) var(--panel-bg);
+        }
+        .main-content::-webkit-scrollbar { width: 6px; }
+        .main-content::-webkit-scrollbar-track { background: var(--panel-bg); }
+        .main-content::-webkit-scrollbar-thumb { background-color: var(--accent-color-secondary); border-radius: 3px; }
+
+        .panel-full-width { grid-column: 1 / -1; }
+        .panel-content-canvas { display: flex; align-items: center; justify-content: center; padding: 0; background-color: rgba(0,0,0,0.2); border-radius: 0 0 0.4rem 0.4rem; }
+        .panel-content-canvas canvas { display: block; width: 100%; height: 100%; }
+
+        .data-blur-container { display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; min-height: 60px; }
+        .blurred-text {
+            font-family: var(--font-mono); font-size: 1.1rem; color: var(--danger-color); 
+            text-shadow: 0 0 5px var(--danger-color), 0 0 10px var(--danger-color); 
+            filter: blur(1.5px); 
+            animation: text-content-flicker 0.1s infinite alternate;
+            transition: filter 0.5s ease-in-out, color 0.5s ease-in-out, text-shadow 0.5s ease-in-out; 
+            overflow-wrap: break-word; word-break: break-all; max-width: 95%; line-height: 1.4;
+        }
+        @keyframes text-content-flicker { from { opacity: 0.6; } to { opacity: 1; transform: skewX(-0.5deg); } }
+
+        .led-counters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; padding: 5px 0; }
+        .led-counter-group { text-align: center; background-color: rgba(0,0,0,0.1); padding: 8px 5px; border-radius: 4px; border: 1px solid rgba(var(--panel-border), 0.5); }
+        .led-label { display: block; font-size: 0.65rem; color: var(--text-color-dim); margin-bottom: 4px; text-transform: uppercase; }
+        .led-display {
+            font-family: var(--font-mono); font-weight: bold; font-size: 1.8rem; color: var(--success-color);
+            background-color: #040804; padding: 6px 4px; border-radius: 3px; letter-spacing: 2px;
+            text-shadow: 0 0 4px currentColor, 0 0 8px currentColor, 0 0 12px rgba(var(--rgb-success-color), 0.6);
+            line-height: 1; display: flex; align-items: center; justify-content: center; min-height: 36px;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.4); overflow: hidden; white-space: nowrap;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+        .led-display.critical {
+            color: var(--danger-color);
+            text-shadow: 0 0 4px var(--danger-color), 0 0 8px var(--danger-color), 0 0 12px rgba(var(--rgb-danger-color), 0.6);
+            animation: led-critical-pulse 0.5s infinite alternate;
+        }
+         .led-display.warning { /* New state */
+            color: var(--warning-color);
+            text-shadow: 0 0 4px var(--warning-color), 0 0 8px var(--warning-color), 0 0 12px rgba(var(--rgb-warning-color), 0.6);
+            animation: none; /* Or a more subtle warning pulse */
+        }
+        @keyframes led-critical-pulse { from { opacity: 0.7; } to { opacity: 1; } }
+
+
+        .deck-footer {
+            grid-area: footer; font-size: 0.75rem; color: var(--text-color-dim); 
+            display: flex; /* Use flex for console layout */
+            align-items: center; /* Vertically align items */
+            padding: 5px 10px; /* Adjust padding */
+            border-top: 1px solid var(--glass-border-critical); /* Start critical */
+            position: relative; 
+            transition: border-top-color 1s ease-in-out;
+        }
+        .console-prompt {
+            font-family: var(--font-mono);
+            color: var(--accent-color-secondary);
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+        .console-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            outline: none;
+            padding: 2px 0;
+        }
+        .stabilization-message-footer {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--warning-color); /* Start with warning */
+            flex-grow: 1; /* Take available space */
+            text-align: left;
+        }
+
+
+        .data-list li { padding: 4px 2px; border-bottom: 1px dashed rgba(255,255,255,0.05); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .data-list li:last-child { border-bottom: none; }
+        .data-list .value { color: var(--accent-color-secondary); float: right; transition: color 0.5s ease-in-out; }
+        .data-list .value.danger-text { color: var(--danger-color); font-weight: bold; } 
+        .data-list .value.warning-text { color: var(--warning-color); }
+        .data-list .value.success-text { color: var(--success-color); }
+
+
+        .log-list li { padding: 3px 0; font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.3; color: var(--text-color-darker); transition: color 0.5s ease-in-out, font-weight 0.5s ease-in-out; }
+        .log-list .log-warn { color: var(--warning-color); }
+        .log-list .log-error { color: var(--danger-color); font-weight: 500; }
+        .log-list .log-info { color: var(--accent-color-secondary); }
+        .log-list .log-success { color: var(--success-color); font-weight: normal; }
+
+
+        .control-buttons button {
+            display: block; width: 100%; padding: 8px; margin-bottom: 8px;
+            font-family: var(--font-sans); font-weight: 600; color: var(--text-color);
+            background-color: rgba(var(--accent-color-secondary-rgb, 0, 229, 229), 0.2);
+            border: 1px solid rgba(var(--accent-color-secondary-rgb, 0, 229, 229), 0.5);
+            border-radius: 4px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;
+        }
+        .control-buttons button:hover {
+            background-color: rgba(var(--accent-color-secondary-rgb, 0, 229, 229), 0.4);
+            border-color: var(--accent-color-secondary);
+        }
+        .control-buttons button.danger {
+            background-color: rgba(var(--rgb-danger-color), 0.2);
+            border-color: rgba(var(--rgb-danger-color), 0.5);
+        }
+        .control-buttons button.danger:hover {
+            background-color: rgba(var(--rgb-danger-color), 0.4);
+            border-color: var(--danger-color);
+        }
+         .control-buttons button.warning { /* New state */
+            background-color: rgba(var(--rgb-warning-color), 0.2);
+            border-color: rgba(var(--rgb-warning-color), 0.5);
+        }
+        .control-buttons button.warning:hover {
+            background-color: rgba(var(--rgb-warning-color), 0.4);
+            border-color: var(--warning-color);
+        }
+         .control-buttons button.success { /* New state */
+            background-color: rgba(var(--rgb-success-color), 0.2);
+            border-color: rgba(var(--rgb-success-color), 0.5);
+        }
+        .control-buttons button.success:hover {
+            background-color: rgba(var(--rgb-success-color), 0.4);
+            border-color: var(--success-color);
+        }
+
+
+        .sparks-effect::before, .sparks-effect::after {
+            content: ''; position: absolute; width: 3px; height: 3px; background: var(--spark-color-1);
+            border-radius: 50%; box-shadow: 0 0 5px var(--spark-color-1), 0 0 10px var(--spark-color-1), 0 0 15px var(--spark-color-2);
+            opacity: 0; animation: spark-animation 1.5s infinite; pointer-events: none;
+            transition: opacity 0.5s ease-out, background-color 0.5s ease-in-out, box-shadow 0.5s ease-in-out;
+        }
+        .sparks-effect::before { top: -2px; left: -2px; animation-delay: 0s; }
+        .sparks-effect::after { bottom: -2px; right: -2px; animation-delay: 0.75s; }
+        .panel.critical-panel.sparks-effect::before { top: -2px; right: -2px; left: auto; animation-delay: 0.2s; background: var(--danger-color); box-shadow: 0 0 5px var(--danger-color), 0 0 10px var(--danger-color), 0 0 15px var(--warning-color); }
+        .panel.critical-panel.sparks-effect::after { bottom: -2px; left: -2px; right: auto; animation-delay: 1s; background: var(--danger-color); box-shadow: 0 0 5px var(--danger-color), 0 0 10px var(--danger-color), 0 0 15px var(--warning-color); }
+        .sparks-effect.stable::before, .sparks-effect.stable::after {
+            opacity: 0; /* Hide sparks when stable */
+        }
+
+
+        @keyframes spark-animation {
+            0%, 100% { opacity: 0; transform: scale(0.5) translate(0,0); }
+            20% { opacity: 1; transform: scale(1) translate(5px, -5px); } 
+            40% { opacity: 0.8; transform: scale(0.8) translate(-3px, 3px); } 
+            60% { opacity: 1; transform: scale(1.2) translate(2px, -2px); } 
+            80% { opacity: 0; transform: scale(0.3) translate(0,0); } 
+        }
+
+
+        .screen-distortion {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 9999; overflow: hidden; 
+        }
+        .screen-distortion::before { 
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: linear-gradient( transparent 50%, var(--glitch-line-color) 50% );
+            background-size: 100% 4px; opacity: 0.08; animation: scanlines-anim 10s linear infinite;
+            transition: opacity 1s ease-out;
+        }
+        @keyframes scanlines-anim { 0% { background-position: 0 0; } 100% { background-position: 0 100px; } }
+        .screen-distortion::after { 
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: inherit; opacity: 0; animation: screen-glitch 8s steps(2, jump-none) infinite;
+            transition: opacity 1s ease-out;
+        }
+        @keyframes screen-glitch {
+            0%, 100% { opacity: 0; clip-path: inset(0% 0% 0% 0%); }
+            5% { opacity: 0.05; clip-path: inset(10% 20% 30% 10%); transform: translateX(5px); }
+            5.2% { opacity: 0; clip-path: inset(0% 0% 0% 0%); transform: translateX(0); }
+            10% { opacity: 0.03; clip-path: inset(40% 5% 15% 25%); transform: translateY(-3px); }
+            10.2% { opacity: 0; clip-path: inset(0% 0% 0% 0%); transform: translateY(0); }
+            30% { opacity: 0.06; clip-path: inset(5% 50% 60% 5%); transform: translateX(-7px); }
+            30.2% { opacity: 0; clip-path: inset(0% 0% 0% 0%); transform: translateX(0); }
+            50.0% { opacity: 0; transform: translate(0,0); } 
+            50.1% { opacity: 0.1; transform: translate(var(--glitch-x, 0), var(--glitch-y, 0)); 
+                   clip-path: polygon( 0% var(--p1, 0%), 100% var(--p2, 0%), 100% var(--p3, 100%), 0% var(--p4, 100%) );
+            } 
+            50.3% { opacity: 0; transform: translate(0,0); }
+        }
+
+        .warning-text { color: var(--warning-color); animation: text-flicker 1s infinite; }
+        .danger-text { color: var(--danger-color); font-weight: bold; animation: text-pulse-strong 0.8s infinite; }
+        .success-text { color: var(--success-color); font-weight: bold; animation: text-pulse-subtle 1.2s infinite; }
+
+        @keyframes text-flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes text-pulse-strong { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } }
+        @keyframes text-pulse-subtle { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+
+
+        body::-webkit-scrollbar { width: 8px; }
+        body::-webkit-scrollbar-track { background: #0a0a10; }
+        body::-webkit-scrollbar-thumb { background-color: var(--danger-color); border-radius: 4px; transition: background-color 1s ease-in-out; } 
+        body { scrollbar-width: thin; scrollbar-color: var(--danger-color) #0a0a10; }
+
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 0.5rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+
+        .critical-warning-text-container {
+            padding: 10px 5px;
+            border: 2px solid var(--danger-color);
+            border-radius: 0.5rem;
+            background-color: rgba(var(--rgb-danger-color), 0.15);
+            margin-bottom: 10px;
+            box-shadow: 0 0 10px rgba(var(--rgb-danger-color),0.5), inset 0 0 8px rgba(var(--rgb-danger-color),0.3);
+            transition: border-color 0.5s ease-in-out, background-color 0.5s ease-in-out, box-shadow 0.5s ease-in-out;
+        }
+        .critical-warning-text {
+            font-family: var(--font-mono);
+            font-size: 2.2rem; 
+            font-weight: 900; 
+            color: var(--danger-color);
+            text-align: center;
+            text-transform: uppercase;
+            animation: crt-warning-flicker 1.2s infinite steps(2);
+            line-height: 1;
+            letter-spacing: 1px;
+            transition: color 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
+        }
+
+        @keyframes crt-warning-flicker {
+            0%, 100% { opacity: 1; text-shadow: 0 0 3px var(--danger-color), 0 0 8px var(--danger-color), 0 0 1px #fff; transform: none; }
+            5% { opacity: 0.8; text-shadow: 0 0 6px var(--danger-color), 0 0 12px var(--danger-color), 0 0 2px #fff; }
+            10% { opacity: 1; }
+            15% { opacity: 0.5; text-shadow: 0 0 3px var(--danger-color), 0 0 6px var(--danger-color); }
+            20% { opacity: 1; }
+            50% { opacity: 0.9; transform: skewX(-0.8deg) skewY(0.3deg); text-shadow: 0 0 5px var(--danger-color), 0 0 10px var(--danger-color), 1px 1px 1px #f30; }
+            50.5% { opacity: 1; transform: skewX(0); }
+        }
+        @keyframes crt-stabilizing-flicker { /* For stabilizing state */
+            0%, 100% { opacity: 1; text-shadow: 0 0 3px var(--warning-color), 0 0 6px var(--warning-color); transform: none; }
+            50% { opacity: 0.7; text-shadow: 0 0 5px var(--warning-color), 0 0 10px var(--warning-color); }
+        }
+        @keyframes crt-stable-glow { /* For stable state */
+            0%, 100% { opacity: 1; text-shadow: 0 0 4px var(--success-color), 0 0 8px var(--success-color), 0 0 1px #fff; }
+            50% { opacity: 0.9; text-shadow: 0 0 6px var(--success-color), 0 0 12px var(--success-color), 0 0 2px #fff; }
+        }
+
+
+        .integrity-pulse-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end; 
+            height: 60px; 
+            padding: 10px 5px;
+            border-radius: 0 0 0.4rem 0.4rem; 
+            background-color: rgba(0,0,0,0.2);
+        }
+        .pulse-bar {
+            width: 18%;
+            background-color: var(--danger-color);
+            border-radius: 2px 2px 0 0;
+            animation: pulse-bar-animation-critical 1s infinite ease-in-out;
+            transition: background-color 0.5s ease-in-out, height 0.5s ease-in-out;
+        }
+        .pulse-bar:nth-child(1) { animation-delay: -0.75s; }
+        .pulse-bar:nth-child(2) { animation-delay: -0.5s; background-color: var(--warning-color); }
+        .pulse-bar:nth-child(3) { animation-delay: -0.25s; }
+        .pulse-bar:nth-child(4) { animation-delay: 0s; background-color: var(--warning-color); }
+
+        @keyframes pulse-bar-animation-critical {
+            0%, 100% { height: 15%; opacity: 0.6; box-shadow: 0 0 2px currentColor; }
+            50% { height: 85%; opacity: 1; box-shadow: 0 0 5px currentColor, 0 0 10px currentColor; }
+        }
+        @keyframes pulse-bar-animation-stable {
+            0%, 100% { height: 60%; opacity: 0.8; box-shadow: 0 0 3px currentColor; }
+            50% { height: 95%; opacity: 1; box-shadow: 0 0 6px currentColor, 0 0 12px currentColor; }
+        }
+
+
+        @media (max-width: 1200px) {
+            .control-deck-container {
+                grid-template-columns: 220px 1fr 220px; grid-template-rows: 50px 1fr 40px; padding: 10px;
+            }
+            .deck-header .logo { font-size: 1.5rem; }
+            .main-content { grid-template-columns: 1fr; } 
+            .panel-full-width { grid-column: 1 / -1; } 
+        }
+        @media (max-width: 768px) {
+            body { padding: 5px; }
+            .control-deck-container {
+                grid-template-columns: 1fr; grid-template-rows: 50px auto auto auto auto 40px; 
+                grid-template-areas: "header" "sidebar-left" "main-content" "sidebar-right" "footer";
+                height: auto; max-height: none; overflow-y: auto; 
+            }
+            .sidebar-left, .sidebar-right { min-height: 200px; overflow-y: visible; height: auto;} 
+            .main-content { overflow-y: visible; }
+            .panel-content { font-size: 0.75rem; }
+            .led-display { font-size: 1.5rem; }
+            .critical-warning-text { font-size: 1.8rem; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="screen-distortion" id="screenDistortionEffect"></div>
+
+    <div class="control-deck-container sparks-effect" id="controlDeckContainer">
+        <header class="deck-header" id="deckHeader">
+            <div class="logo" id="auroraLogo">AURORA_OS // C&C</div>
+            <div class="system-status">
+                SYSTEM STATUS: <span class="status-indicator danger" id="mainStatusIndicator"></span> <span id="mainStatusText">SYSTEM CRITICAL <span class="danger-text" style="animation-duration: 0.6s;">| HULL BREACH IMMINENT</span></span>
+            </div>
+        </header>
+
+        <aside class="sidebar-left">
+            <div class="critical-warning-text-container" id="criticalWarningContainer">
+                <div class="critical-warning-text" id="criticalWarningTextElem">WARNING</div>
+            </div>
+            <div class="panel sparks-effect" id="navControlsPanel">
+                <div class="panel-header">Navigation Controls</div>
+                <div class="panel-content control-buttons">
+                    <button id="btnHyperdrive">ENGAGE HYPERDRIVE</button>
+                    <button id="btnScanSector">SCAN SECTOR</button>
+                    <button id="btnOrbitalManeuver">ORBITAL MANEUVER</button>
+                    <button class="danger" id="btnEmergencyStop">EMERGENCY STOP</button>
+                </div>
+            </div>
+            <div class="panel" id="activeModulesPanel">
+                <div class="panel-header">Active Modules</div>
+                <div class="panel-content"> <ul class="data-list" id="activeModulesList"></ul> </div>
+            </div>
+             <div class="panel critical-panel sparks-effect" id="criticalAlertsPanel">
+                <div class="panel-header critical" id="criticalAlertsHeader">Critical Alerts</div>
+                <div class="panel-content"> <ul class="log-list" id="criticalAlertsLog"></ul> </div>
+            </div>
+            <div class="panel" id="securityLogPanel">
+                <div class="panel-header">Security Log</div>
+                <div class="panel-content"><ul class="log-list" id="securityLog"></ul></div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="panel" id="bioMonitorPanel">
+                <div class="panel-header">Bio-Monitor [ECG-SIM]</div>
+                <div class="panel-content panel-content-canvas">
+                    <canvas id="ecgCanvas"></canvas>
+                </div>
+            </div>
+            <div class="panel" id="signalAnalysisPanel">
+                <div class="panel-header">Signal Analysis [Waveform]</div>
+                <div class="panel-content panel-content-canvas">
+                    <canvas id="sineCanvas"></canvas>
+                </div>
+            </div>
+            <div class="panel panel-full-width critical-panel" id="encryptedDataPanel">
+                <div class="panel-header critical" id="encryptedDataHeader">Encrypted Data Feed</div>
+                <div class="panel-content data-blur-container">
+                    <span id="blurredData" class="blurred-text">AWAITING TRANSMISSION...</span>
+                </div>
+            </div>
+            <div class="panel panel-full-width" id="telemetryPanel">
+                <div class="panel-header">System Telemetry [Counters]</div>
+                <div class="panel-content led-counters-grid">
+                    <div class="led-counter-group">
+                        <span class="led-label">CORE TEMP (C)</span>
+                        <div class="led-display critical" id="ledCounter1">0095</div>
+                    </div>
+                    <div class="led-counter-group">
+                        <span class="led-label">FLUX (Th/s)</span>
+                        <div class="led-display critical" id="ledCounter2">0283</div>
+                    </div>
+                    <div class="led-counter-group">
+                        <span class="led-label">PRESSURE (kPa)</span>
+                        <div class="led-display critical" id="ledCounter3">0601</div>
+                    </div>
+                     <div class="led-counter-group">
+                        <span class="led-label">SHIELD FREQ (THz)</span>
+                        <div class="led-display" id="ledCounter4">3500</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <aside class="sidebar-right">
+            <div class="panel" id="commsLogPanel">
+                <div class="panel-header">Comms Log</div>
+                <div class="panel-content"> <ul class="log-list" id="commsLog"></ul> </div>
+            </div>
+            <div class="panel critical-panel" id="powerDistPanel">
+                <div class="panel-header critical" id="powerDistHeader">Power Distribution</div>
+                <div class="panel-content">
+                    <ul class="data-list" id="powerLevelsList"></ul>
+                    <div class="text-center mt-1">
+                        <span class="danger-text" id="auxPowerStatus">AUXILIARY POWER CRITICAL</span>
+                    </div>
+                </div>
+            </div>
+            <div class="panel" id="integrityPulsePanel">
+                <div class="panel-header">Integrity Pulse</div>
+                <div class="panel-content integrity-pulse-container" id="integrityPulseDisplay">
+                    <div class="pulse-bar"></div>
+                    <div class="pulse-bar"></div>
+                    <div class="pulse-bar"></div>
+                    <div class="pulse-bar"></div>
+                </div>
+            </div>
+             <div class="panel" id="targetingMatrixPanel">
+                <div class="panel-header">Targeting Matrix</div>
+                <div class="panel-content">
+                     <p style="font-family: var(--font-mono); font-size:0.7rem; color: var(--text-color-dim)">LOCKING_SEQUENCE:<br/>&gt; Status: <span id="targetingStatus" class="danger-text">SYSTEM OVERLOAD</span><br/>&gt; Coords: <span id="targetingCoords">N/A</span><br/>&gt; Threat Level: <span id="threatLevel" class="danger-text">CRITICAL</span></p>
+                     <div class="data-list mt-1" id="targetingData"></div>
+                </div>
+            </div>
+            <div class="panel" id="diagnosticLogPanel">
+                <div class="panel-header">Diagnostic Log</div>
+                <div class="panel-content"><ul class="log-list" id="diagnosticLog"></ul></div>
+            </div>
+        </aside>
+
+        <footer class="deck-footer sparks-effect" id="deckFooterElem">
+            <span class="console-prompt" id="consolePromptText">System&gt; </span>
+            <input type="text" id="consoleInput" class="console-input" autofocus placeholder="Type 'initiate_recovery' or press Enter to begin...">
+            <div id="stabilizationMessageFooter" class="stabilization-message-footer"></div>
+            <div id="clock" style="position:absolute; top: 50%; transform: translateY(-50%); right:15px; font-family:var(--font-mono); font-size:0.8em;"></div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element Cache ---
+            const dom = {
+                docTitle: document.title,
+                body: document.body,
+                controlDeckContainer: document.getElementById('controlDeckContainer'),
+                screenDistortionEffect: document.getElementById('screenDistortionEffect'),
+                // Header
+                auroraLogo: document.getElementById('auroraLogo'),
+                mainStatusIndicator: document.getElementById('mainStatusIndicator'),
+                mainStatusText: document.getElementById('mainStatusText'),
+                deckHeader: document.getElementById('deckHeader'),
+                // Footer
+                deckFooterElem: document.getElementById('deckFooterElem'),
+                consoleInput: document.getElementById('consoleInput'),
+                consolePromptText: document.getElementById('consolePromptText'),
+                stabilizationMessageFooter: document.getElementById('stabilizationMessageFooter'),
+                clockDisplay: document.getElementById('clock'),
+                // Sidebar Left
+                criticalWarningContainer: document.getElementById('criticalWarningContainer'),
+                criticalWarningTextElem: document.getElementById('criticalWarningTextElem'),
+                navControlsPanel: document.getElementById('navControlsPanel'),
+                btnEmergencyStop: document.getElementById('btnEmergencyStop'),
+                activeModulesPanel: document.getElementById('activeModulesPanel'),
+                activeModulesList: document.getElementById('activeModulesList'),
+                criticalAlertsPanel: document.getElementById('criticalAlertsPanel'),
+                criticalAlertsHeader: document.getElementById('criticalAlertsHeader'),
+                criticalAlertsLog: document.getElementById('criticalAlertsLog'),
+                securityLogPanel: document.getElementById('securityLogPanel'),
+                securityLog: document.getElementById('securityLog'),
+                // Main Content
+                bioMonitorPanel: document.getElementById('bioMonitorPanel'),
+                ecgCanvas: document.getElementById('ecgCanvas'),
+                signalAnalysisPanel: document.getElementById('signalAnalysisPanel'),
+                sineCanvas: document.getElementById('sineCanvas'),
+                encryptedDataPanel: document.getElementById('encryptedDataPanel'),
+                encryptedDataHeader: document.getElementById('encryptedDataHeader'),
+                blurredData: document.getElementById('blurredData'),
+                telemetryPanel: document.getElementById('telemetryPanel'),
+                ledCounters: [
+                    document.getElementById('ledCounter1'), document.getElementById('ledCounter2'),
+                    document.getElementById('ledCounter3'), document.getElementById('ledCounter4')
+                ],
+                // Sidebar Right
+                commsLogPanel: document.getElementById('commsLogPanel'),
+                commsLog: document.getElementById('commsLog'),
+                powerDistPanel: document.getElementById('powerDistPanel'),
+                powerDistHeader: document.getElementById('powerDistHeader'),
+                powerLevelsList: document.getElementById('powerLevelsList'),
+                auxPowerStatus: document.getElementById('auxPowerStatus'),
+                integrityPulsePanel: document.getElementById('integrityPulsePanel'),
+                integrityPulseDisplay: document.getElementById('integrityPulseDisplay'),
+                targetingMatrixPanel: document.getElementById('targetingMatrixPanel'),
+                targetingStatusEl: document.getElementById('targetingStatus'),
+                targetingCoordsEl: document.getElementById('targetingCoords'),
+                threatLevelEl: document.getElementById('threatLevel'),
+                targetingDataEl: document.getElementById('targetingData'),
+                diagnosticLogPanel: document.getElementById('diagnosticLogPanel'),
+                diagnosticLog: document.getElementById('diagnosticLog'),
+            };
+
+            // --- System State ---
+            let stabilizationStep = 0;
+            const TOTAL_STABILIZATION_STEPS = 15;
+            let systemIsStable = false;
+            let intervals = {}; // To store and clear intervals
+
+            // --- CSS Color Values (parsed once) ---
+            const rootStyles = getComputedStyle(document.documentElement);
+            const colors = {
+                danger: rootStyles.getPropertyValue('--danger-color').trim(),
+                warning: rootStyles.getPropertyValue('--warning-color').trim(),
+                success: rootStyles.getPropertyValue('--success-color').trim(),
+                accentSecondary: rootStyles.getPropertyValue('--accent-color-secondary').trim(),
+                textDim: rootStyles.getPropertyValue('--text-color-dim').trim(),
+                rgbDanger: rootStyles.getPropertyValue('--rgb-danger-color').trim(),
+                rgbWarning: rootStyles.getPropertyValue('--rgb-warning-color').trim(),
+                rgbSuccess: rootStyles.getPropertyValue('--rgb-success-color').trim(),
+                rgbAccentSecondary: rootStyles.getPropertyValue('--accent-color-secondary-rgb').trim(),
+            };
+            
+            // Ensure RGB vars are available for JS that might use them (like canvas)
+            document.documentElement.style.setProperty('--rgb-success-color', colors.rgbSuccess);
+            document.documentElement.style.setProperty('--rgb-danger-color', colors.rgbDanger);
+            document.documentElement.style.setProperty('--rgb-warning-color', colors.rgbWarning);
+            document.documentElement.style.setProperty('--accent-color-secondary-rgb', colors.rgbAccentSecondary);
+
+            // --- Utility Functions ---
+            const getRandom = (min, max) => Math.random() * (max - min) + min;
+            const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+            const choose = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+            function populateList(element, count, generatorFn) {
+                if (!element) return;
+                let content = '';
+                for (let i = 0; i < count; i++) {
+                    content += `<li>${generatorFn()}</li>`;
+                }
+                element.innerHTML = content;
+            }
+
+            function populateLog(element, count, generatorFn, maxEntries = 20) {
+                if (!element) return;
+                for (let i = 0; i < count; i++) {
+                    const logEntry = generatorFn();
+                    const li = document.createElement('li');
+                    li.innerHTML = logEntry.text; 
+                    if (logEntry.className) li.className = logEntry.className;
+                    element.prepend(li); 
+                     if (element.children.length > maxEntries) {
+                        element.removeChild(element.lastChild);
+                    }
+                }
+                element.scrollTop = 0; 
+            }
+            
+            // --- Data Generators (Dynamic based on stabilizationStep) ---
+            const generateActiveModule = () => {
+                const baseStatuses = ['ONLINE', 'STANDBY', 'OPTIMAL'];
+                const warningStatuses = ['DEGRADED', 'UNSTABLE', 'HIGH LOAD'];
+                const criticalStatuses = ['ERROR', 'FAILING', 'COMPROMISED', 'OFFLINE'];
+                
+                let statuses = criticalStatuses;
+                if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.75) statuses = baseStatuses;
+                else if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.4) statuses = [...baseStatuses, ...warningStatuses];
+                else statuses = [...warningStatuses, ...criticalStatuses];
+
+
+                let status = choose(statuses);
+                // Skew towards more critical in early steps, more optimal in later.
+                if (!systemIsStable) {
+                    if (stabilizationStep < 5 && Math.random() < 0.7) status = choose(criticalStatuses);
+                    else if (stabilizationStep < 10 && Math.random() < 0.4) status = choose(warningStatuses);
+                    else if (stabilizationStep >=10 && Math.random() < 0.7) status = choose(baseStatuses);
+                } else {
+                     status = choose(baseStatuses.concat(['OPTIMAL', 'OPTIMAL'])); // heavily lean to optimal
+                }
+
+
+                let valueClass = '';
+                if (criticalStatuses.includes(status)) valueClass = 'danger-text';
+                else if (warningStatuses.includes(status)) valueClass = 'warning-text';
+                else if (status === 'OPTIMAL' || status === 'ONLINE') valueClass = 'success-text';
+                
+                return `MOD-${getRandomInt(100,999)} <span class="value ${valueClass}">${status}</span>`;
+            };
+
+            const generatePowerLevel = () => {
+                const systems = ['Main Core', 'Aux Gen Alpha', 'Battery Cells', 'Fusion Array', 'Life Support Primary', 'Weapons Capacitor'];
+                let level;
+                if (systemIsStable) level = getRandom(85, 100).toFixed(0);
+                else if (stabilizationStep > 12) level = getRandom(70, 95).toFixed(0);
+                else if (stabilizationStep > 7) level = getRandom(40, 80).toFixed(0);
+                else level = getRandom(0, 60).toFixed(0); 
+
+                let valueClass = '';
+                if (level < 20) valueClass = 'danger-text';
+                else if (level < 50) valueClass = 'warning-text';
+                else valueClass = 'success-text';
+                return `${choose(systems)} <span class="value ${valueClass}">${level}%</span>`;
+            };
+            
+            const generateCommsLog = () => {
+                const infoTypes = [
+                    { prefix: '[INFO]', text: `Telemetry packet ${getRandomInt(1000,9999)} received from Outpost ${String.fromCharCode(65 + getRandomInt(0,5))}${getRandomInt(1,9)}`, class: 'log-info'},
+                    { prefix: '[SYS ]', text: `Automated system check: OK`, class: `log-success`},
+                ];
+                const warnTypes = [
+                     { prefix: '[WARN]', text: `Minor EM interference Sector ${getRandomInt(1,12)}`, class: 'log-warn'},
+                     { prefix: '[SYS ]', text: `Automated system check: WARNING`, class: `log-warn`},
+                ];
+                const errorTypes = [
+                    { prefix: '[ERR!]', text: `Data corruption in archive ${getRandomInt(100,999)}`, class: 'log-error danger-text'},
+                    { prefix: '[SEVR]', text: `Subspace comms link UNSTABLE. Low-band active...`, class: 'log-error danger-text'},
+                    { prefix: '[SOS ]', text: `Distress signal from ${choose(['Titan', 'Europa'])} - Response pending`, class: 'log-warn warning-text'},
+                ];
+                
+                let entry;
+                if(systemIsStable) entry = choose(infoTypes);
+                else if (stabilizationStep > 10) entry = choose([...infoTypes, ...warnTypes]);
+                else if (stabilizationStep > 5) entry = choose([...warnTypes, ...errorTypes, ...infoTypes]);
+                else entry = choose(errorTypes.concat(warnTypes));
+
+
+                if (Math.random() < (systemIsStable ? 0.1 : (0.6 - stabilizationStep * 0.03))) { // less errors as system stabilizes
+                    const currentErrors = errorTypes.filter(t => t.class.includes('log-error'));
+                    if (currentErrors.length > 0) entry = choose(currentErrors);
+                }
+                return { text: `${entry.prefix} ${entry.text}`, className: entry.class };
+            };
+
+            const generateCriticalAlert = () => { 
+                 const criticalAlerts = [
+                    { text: `REACTOR OVERLOAD IMMINENT - EVACUATE`, class: 'log-error danger-text'},
+                    { text: `HULL BREACH DETECTED - SECTOR ${getRandomInt(1,7)}-${String.fromCharCode(65 + getRandomInt(0,3))}`, class: 'log-error danger-text'},
+                    { text: `LIFE SUPPORT FAILURE - O2 LOW`, class: 'log-error danger-text'},
+                 ];
+                 const warningAlerts = [
+                    { text: `Reactor containment field fluctuating. Monitoring.`, class: 'log-warn warning-text'},
+                    { text: `Minor hull stress detected Sector ${getRandomInt(1,7)}-${String.fromCharCode(65 + getRandomInt(0,3))}. Sealing.`, class: 'log-warn warning-text'},
+                    { text: `O2 recycling below optimal. Adjusting.`, class: 'log-warn warning-text'},
+                 ];
+                 const infoAlerts = [
+                    { text: `Reactor core stable. Output nominal.`, class: 'log-info'},
+                    { text: `Hull integrity at 99.8%. All seals green.`, class: 'log-success'},
+                    { text: `Life support systems optimal. O2 at 100%.`, class: 'log-success'},
+                 ];
+
+                if (systemIsStable || stabilizationStep > 12) return choose(infoAlerts);
+                if (stabilizationStep > 7) return choose(warningAlerts);
+                return choose(criticalAlerts);
+            };
+
+            const generateSecurityLogEntry = () => {
+                const critical = [
+                    { text: `FIREWALL BREACHED: Node ${getRandomInt(1, 10)}. Isolation FAILED.`, class: 'log-error danger-text' },
+                    { text: `INTRUSION DETECTED: Origin UNKNOWN. Access level: ROOT.`, class: 'log-error danger-text' },
+                ];
+                const warning = [
+                    { text: `Suspicious activity on Node ${getRandomInt(1, 10)}. Investigating.`, class: 'log-warn warning-text' },
+                    { text: `Multiple failed login attempts for 'ADMIN'. IP logged.`, class: 'log-warn' },
+                ];
+                const info = [
+                    { text: `Firewall integrity check: PASSED.`, class: 'log-success' },
+                    { text: `Security scan complete. No threats detected.`, class: 'log-info' },
+                ];
+
+                if (systemIsStable || stabilizationStep > 12) return choose(info);
+                if (stabilizationStep > 6) return choose(warning);
+                return choose(critical);
+            };
+
+            const generateDiagnosticLogEntry = () => {
+                const systems = ['Propulsion', 'Life Support', 'Navigation', 'Sensors', 'Weapon Systems', 'Shield Generator', 'Main Computer'];
+                const critical = [
+                    { text: `${choose(systems)}: CRITICAL FAILURE. Code: ${getRandomInt(1000,9999)}.`, class: 'log-error danger-text' },
+                    { text: `${choose(systems)}: OFFLINE. No response.`, class: 'log-error danger-text' },
+                ];
+                 const warning = [
+                    { text: `${choose(systems)}: Performance at ${getRandomInt(25,60)}%. Diagnostics running.`, class: 'log-warn warning-text' },
+                    { text: `Error reading ${choose(systems)} diagnostics. Retrying.`, class: 'log-warn' }
+                ];
+                const info = [
+                    { text: `${choose(systems)}: Nominal. Status GREEN.`, class: 'log-success' },
+                    { text: `${choose(systems)}: Diagnostics PASSED.`, class: 'log-info' }
+                ];
+                
+                if (systemIsStable || stabilizationStep > 13) return choose(info);
+                if (stabilizationStep > 7) return choose(warning);
+                return choose(critical);
+            };
+
+
+            function updateDynamicData() {
+                if (systemIsStable && stabilizationStep < TOTAL_STABILIZATION_STEPS) return; // Pause updates during final message
+
+                populateList(dom.activeModulesList, getRandomInt(4,7), generateActiveModule);
+                populateList(dom.powerLevelsList, getRandomInt(3,5), generatePowerLevel);
+                populateLog(dom.commsLog, getRandomInt(1, systemIsStable ? 1 : 2), generateCommsLog);
+                
+                if (!systemIsStable || Math.random() < 0.1) { // Less frequent if stable
+                    populateLog(dom.securityLog, 1, generateSecurityLogEntry); 
+                    populateLog(dom.diagnosticLog, getRandomInt(0, systemIsStable ? 1 : 2), generateDiagnosticLogEntry);
+                }
+
+                // Critical alerts should become less frequent and eventually stop
+                if (stabilizationStep < TOTAL_STABILIZATION_STEPS * 0.8 || (!systemIsStable && Math.random() < 0.3)) {
+                    populateLog(dom.criticalAlertsLog, 1, generateCriticalAlert, 10); 
+                } else if (dom.criticalAlertsLog.children.length > 0 && stabilizationStep >= TOTAL_STABILIZATION_STEPS * 0.8){
+                    // Gradually clear old critical alerts if stabilizing
+                     if(dom.criticalAlertsLog.lastChild) dom.criticalAlertsLog.removeChild(dom.criticalAlertsLog.lastChild);
+                }
+                
+                // Main status text update based on general state not specific step
+                if (!systemIsStable) {
+                     if (stabilizationStep > 10 && Math.random() < 0.1) { 
+                        const statuses = ['RECOVERY IN PROGRESS', 'SYSTEM STABILIZING', 'FINAL CHECKS'];
+                        dom.mainStatusText.innerHTML = `${choose(statuses)} <span class="warning-text" style="animation-duration: ${getRandom(0.5,1).toFixed(1)}s;">| PLEASE WAIT</span>`;
+                     } else if (stabilizationStep > 5 && Math.random() < 0.15) {
+                        const statuses = ['ATTEMPTING RECOVERY', 'SYSTEM DIAGNOSTICS', 'WARNINGS PRESENT'];
+                        dom.mainStatusText.innerHTML = `${choose(statuses)} <span class="warning-text" style="animation-duration: ${getRandom(0.5,1).toFixed(1)}s;">| ERRORS PERSIST</span>`;
+                     } else if (Math.random() < 0.2) {
+                        const statuses = ['CRITICAL FAILURE', 'SYSTEM COMPROMISED', 'CASCADE ERROR', 'EMERGENCY LOCKDOWN'];
+                        dom.mainStatusText.innerHTML = `${choose(statuses)} <span class="danger-text" style="animation-duration: ${getRandom(0.3,0.8).toFixed(1)}s;">| CONTACT LOST</span>`;
+                        dom.mainStatusIndicator.className = 'status-indicator danger';
+                     }
+                }
+            }
+
+            // --- Canvas ECG ---
+            let ecgCtx, ecgData = [], ecgDataMaxLength = 200;
+            function initECG() {
+                if (!dom.ecgCanvas) return;
+                ecgCtx = dom.ecgCanvas.getContext('2d');
+                
+                const newWidth = dom.ecgCanvas.clientWidth;
+                const newHeight = dom.ecgCanvas.clientHeight;
+
+                if (newWidth === 0 || newHeight === 0) {
+                    requestAnimationFrame(initECG); 
+                    return;
+                }
+
+                dom.ecgCanvas.width = newWidth;
+                dom.ecgCanvas.height = newHeight;
+                ecgDataMaxLength = Math.max(50, Math.floor(dom.ecgCanvas.width / 2.5)); 
+
+                ecgData = []; 
+                for (let i = 0; i < ecgDataMaxLength; i++) {
+                    ecgData.push(dom.ecgCanvas.height / 2);
+                }
+            }
+
+            function drawECG() { 
+                if (!ecgCtx || !dom.ecgCanvas.width || !dom.ecgCanvas.height) return;
+                ecgCtx.clearRect(0, 0, dom.ecgCanvas.width, dom.ecgCanvas.height);
+                
+                let strokeColor = `rgba(${colors.rgbDanger}, 0.7)`;
+                if (systemIsStable) strokeColor = `rgba(${colors.rgbSuccess}, 0.7)`;
+                else if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.6) strokeColor = `rgba(${colors.rgbWarning}, 0.7)`;
+                
+                ecgCtx.strokeStyle = strokeColor;
+                ecgCtx.lineWidth = 1.5;
+                ecgCtx.beginPath();
+
+                let nextVal = dom.ecgCanvas.height / 2;
+                let spikeFactor = 0.45; // Critical
+                if(systemIsStable) spikeFactor = 0.1; // Stable, calm
+                else if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.7) spikeFactor = 0.15; // Mostly stable
+                else if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.4) spikeFactor = 0.25; // Stabilizing
+
+
+                if (Math.random() < (systemIsStable ? 0.02 : (0.08 - stabilizationStep*0.004))) nextVal += getRandom(-dom.ecgCanvas.height * spikeFactor, dom.ecgCanvas.height * spikeFactor); 
+                else if (Math.random() < (systemIsStable ? 0.1 : (0.25 - stabilizationStep*0.01))) nextVal += getRandom(-dom.ecgCanvas.height * (spikeFactor*0.33), dom.ecgCanvas.height * (spikeFactor*0.33)); 
+                
+                ecgData.push(nextVal);
+                if (ecgData.length > ecgDataMaxLength) ecgData.shift();
+                while (ecgData.length < ecgDataMaxLength) {
+                    ecgData.unshift(dom.ecgCanvas.height / 2);
+                }
+
+                for (let i = 0; i < ecgData.length; i++) {
+                    ecgCtx.lineTo(i * (dom.ecgCanvas.width / ecgDataMaxLength), ecgData[i]);
+                }
+                ecgCtx.stroke();
+            }
+
+            // --- Canvas Sine Waves ---
+            let sineCtx, sineTime = 0;
+            function initSine() {
+                if (!dom.sineCanvas) return;
+                sineCtx = dom.sineCanvas.getContext('2d');
+
+                const newWidth = dom.sineCanvas.clientWidth;
+                const newHeight = dom.sineCanvas.clientHeight;
+
+                if (newWidth === 0 || newHeight === 0) {
+                    requestAnimationFrame(initSine);
+                    return;
+                }
+                dom.sineCanvas.width = newWidth;
+                dom.sineCanvas.height = newHeight;
+            }
+            function drawSineWaves() { 
+                 if (!sineCtx || !dom.sineCanvas.width || !dom.sineCanvas.height) return;
+                sineCtx.clearRect(0, 0, dom.sineCanvas.width, dom.sineCanvas.height);
+                sineTime += 0.05; 
+
+                const drawWave = (amplitude, frequency, phase, colorRGB, baseOpacity, lineWidth = 1.5) => {
+                    sineCtx.beginPath();
+                    let opacity = baseOpacity;
+                    if (systemIsStable) opacity = Math.min(1, baseOpacity + 0.3); // Enhance stable waves
+                    else opacity = Math.max(0.1, baseOpacity - (stabilizationStep * 0.01)); // Fade chaotic waves slightly
+
+
+                    sineCtx.strokeStyle = `rgba(${colorRGB}, ${opacity})`;
+                    sineCtx.lineWidth = lineWidth;
+                    for (let x = 0; x < dom.sineCanvas.width; x++) {
+                        const noiseStrength = systemIsStable ? 0.02 : (0.1 - stabilizationStep * 0.005);
+                        const noise = (Math.random() - 0.5) * amplitude * noiseStrength;
+                        const y = dom.sineCanvas.height / 2 + amplitude * Math.sin((x * frequency / dom.sineCanvas.width) * 2 * Math.PI + sineTime + phase) + noise;
+                        if (x === 0) sineCtx.moveTo(x, y);
+                        else sineCtx.lineTo(x, y);
+                    }
+                    sineCtx.stroke();
+                };
+                
+                // Base waves
+                drawWave(dom.sineCanvas.height * 0.35, 5, 0, colors.rgbDanger, 0.7); 
+                drawWave(dom.sineCanvas.height * 0.25, 7, Math.PI / 2, colors.rgbWarning, 0.6);
+                
+                // This wave becomes more prominent as system stabilizes
+                let stableWaveOpacity = 0.3 + stabilizationStep * 0.04;
+                if(systemIsStable) stableWaveOpacity = 0.8;
+                drawWave(dom.sineCanvas.height * 0.20, 4, Math.PI, colors.rgbSuccess, stableWaveOpacity); 
+            }
+            
+            // --- Blurred Data ---
+            function updateBlurredData() {
+                if (!dom.blurredData) return;
+                if (systemIsStable) {
+                     dom.blurredData.textContent = "SECURE DATA CHANNEL ESTABLISHED. ALL SYSTEMS NOMINAL.";
+                     dom.blurredData.style.filter = 'blur(0px)';
+                     dom.blurredData.classList.remove('danger-text', 'warning-text');
+                     dom.blurredData.classList.add('success-text');
+                     dom.blurredData.style.animation = 'none';
+                     dom.blurredData.style.textShadow = `0 0 5px ${colors.success}`;
+                     return;
+                }
+
+                const phrases = [
+                    "!!!CORRUPTED DATA STREAM!!!", "SYSTEM INTEGRITY COMPROMISED", "CASCADE FAILURE DETECTED",
+                    "UNAUTHORIZED ACCESS ATTEMPT", "EMERGENCY PROTOCOL INITIATED", "CRITICAL ERROR 0xDEADBEEF",
+                    "WARNING: MEMORY OVERLOAD", "KERNEL PANIC - DUMPING CORE", "FATAL EXCEPTION"
+                ];
+                 const stabilizingPhrases = [
+                    "RECALIBRATING DATA LINK...", "SYNCHRONIZING STREAMS...", "DECRYPTION IN PROGRESS...",
+                    "DATA INTEGRITY CHECK...", "PURGING CORRUPTED PACKETS..."
+                ];
+
+                const numbers = Array.from({length: 20}, () => getRandomInt(0,9)).join('');
+                const hexString = Array.from({length: 16}, () => Math.floor(Math.random()*16).toString(16)).join('').toUpperCase();
+                
+                if (stabilizationStep > TOTAL_STABILIZATION_STEPS * 0.6) {
+                    dom.blurredData.textContent = choose(stabilizingPhrases);
+                } else if (Math.random() < 0.6) {
+                    dom.blurredData.textContent = choose(phrases);
+                } else if (Math.random() < 0.8) {
+                    dom.blurredData.textContent = `ERR:${numbers} // CHKSUM_FAIL:${hexString}`;
+                } else {
+                    dom.blurredData.textContent = `0x${hexString} 0x${Array.from({length: 16}, () => Math.floor(Math.random()*16).toString(16)).join('')} - CORRUPT`;
+                }
+                
+                const blurAmount = Math.max(0, 1.5 - (stabilizationStep * 0.1));
+                dom.blurredData.style.filter = `blur(${blurAmount.toFixed(1)}px)`; 
+                
+                if (blurAmount < 0.5) {
+                    dom.blurredData.classList.remove('danger-text');
+                    dom.blurredData.classList.add('warning-text');
+                    dom.blurredData.style.textShadow = `0 0 5px ${colors.warning}`;
+                } else {
+                    dom.blurredData.classList.add('danger-text');
+                    dom.blurredData.classList.remove('warning-text');
+                     dom.blurredData.style.textShadow = `0 0 5px ${colors.danger}`;
+                }
+            }
+
+            // --- LED Counters ---
+            const counterStates = [];
+            function initLedCounters() {
+                dom.ledCounters.forEach((counterEl, index) => {
+                    if (counterEl) {
+                        counterStates[index] = {
+                            value: getRandomInt(500, 4000),
+                            increment: choose([-1, 1]) * getRandomInt(10, 50), 
+                            min: getRandomInt(0, 200),
+                            max: getRandomInt(4000, 9999),
+                            targetValue: null, // For stabilization
+                            isCriticalFn: (val) => { // Default critical conditions
+                                if (index === 0 && val > 85) return true; 
+                                if (index === 1 && val < 500) return true; 
+                                if (index === 2 && (val > 500 || val < 50)) return true;
+                                return false;
+                            },
+                            isWarningFn: (val) => { // Default warning conditions
+                                if (index === 0 && val > 75 && val <= 85) return true;
+                                if (index === 1 && val >= 500 && val < 1000) return true;
+                                if (index === 2 && ((val > 400 && val <= 500) || (val >= 50 && val < 100))) return true;
+                                return false;
+                            }
+                        };
+                         // Initial critical values
+                         if (index === 0) counterStates[index].value = getRandomInt(90, 120); 
+                         if (index === 1) counterStates[index].value = getRandomInt(100, 400); 
+                         if (index === 2) counterStates[index].value = getRandomInt(550, 800); 
+                         if (index === 3) counterStates[index].value = getRandomInt(2000, 3500); // Shield starts ok
+                    }
+                });
+            }
+
+            function updateLedCounters() {
+                dom.ledCounters.forEach((counterEl, index) => {
+                    if (!counterEl || !counterStates[index]) return;
+                    let state = counterStates[index];
+                    
+                    if (state.targetValue !== null) { // Stabilizing towards target
+                        const diff = state.targetValue - state.value;
+                        if (Math.abs(diff) < Math.abs(state.increment) || Math.abs(diff) < 10) {
+                            state.value = state.targetValue;
+                            state.targetValue = null; // Reached target
+                            state.increment = choose([-1,1]) * getRandomInt(1,5); // Small fluctuations once stable
+                        } else {
+                            state.value += Math.sign(diff) * Math.abs(state.increment);
+                        }
+                    } else if (!systemIsStable) { // Random fluctuation if not stabilizing and not stable
+                        state.value += state.increment;
+                        if (state.value > state.max || state.value < state.min) {
+                            state.increment *= -1; 
+                            state.value = Math.max(state.min, Math.min(state.max, state.value)); 
+                             if (Math.random() < 0.3) state.increment = choose([-1, 1]) * getRandomInt(20, 70); 
+                        }
+                    } else { // Gentle fluctuation when stable
+                         state.value += state.increment;
+                         if (state.value > state.max || state.value < state.min) {
+                            state.increment *= -1;
+                            state.value = Math.max(state.min, Math.min(state.max, state.value));
+                         }
+                    }
+
+                    counterEl.textContent = String(Math.round(state.value)).padStart(4, '0');
+
+                    counterEl.classList.remove('critical', 'warning');
+                    if (systemIsStable) {
+                        // All green when stable
+                    } else if (state.isCriticalFn(state.value) && stabilizationStep < (TOTAL_STABILIZATION_STEPS * 0.8) ) {
+                        counterEl.classList.add('critical');
+                    } else if (state.isWarningFn(state.value) && stabilizationStep < (TOTAL_STABILIZATION_STEPS * 0.9) ) {
+                        counterEl.classList.add('warning');
+                    }
+                });
+            }
+            
+            function updateTargetingDisplay() {
+                if (!dom.targetingStatusEl) return;
+
+                if (systemIsStable) {
+                    dom.targetingStatusEl.textContent = "IDLE - ALL CLEAR";
+                    dom.targetingCoordsEl.textContent = "000:000:000";
+                    dom.threatLevelEl.textContent = "NONE";
+                    dom.targetingStatusEl.className = 'success-text';
+                    dom.threatLevelEl.className = 'success-text';
+                    dom.targetingDataEl.innerHTML = `<li>SIGNAL_STRENGTH: 99.8%</li><li>TARGET_VELOCITY: 0.00c</li><li>WEAPON_STATUS: <span class="success-text">STANDBY</span></li>`;
+                    return;
+                }
+
+                if (Math.random() < (0.3 + stabilizationStep * 0.02)) { // More updates as it tries to stabilize
+                    const statusesCrit = ["SCANNING FAIL", "LOCKED - TARGET CRITICAL", "TRACKING MULTIPLE THREATS", "ACQUIRING WEAPON LOCK (FAIL)", "SYSTEM OVERLOAD - TARGETING OFFLINE"];
+                    const statusesWarn = ["SCANNING FOR HOSTILES", "WEAK LOCK", "TRACKING UNKNOWN SIGNATURE", "TARGETING SOLUTION UNSTABLE"];
+                    const statusesInfo = ["IDLE - NO TARGETS", "AWAITING COMMANDS", "SCANNING SECTOR"];
+
+                    const threatsCrit = ["CRITICAL", "UNKNOWN - SENSOR MALFUNCTION", "MULTIPLE HOSTILES"];
+                    const threatsWarn = ["HIGH", "MODERATE", "POTENTIAL THREAT"];
+                    const threatsInfo = ["LOW", "NONE", "NEUTRAL"];
+                    
+                    let currentStatus, currentThreat, statusClass, threatClass;
+
+                    if (stabilizationStep < 5) {
+                        currentStatus = choose(statusesCrit);
+                        currentThreat = choose(threatsCrit);
+                        statusClass = 'danger-text';
+                        threatClass = 'danger-text';
+                    } else if (stabilizationStep < 10) {
+                        currentStatus = choose(statusesWarn.concat(statusesCrit));
+                        currentThreat = choose(threatsWarn.concat(threatsCrit));
+                        statusClass = currentStatus.includes("FAIL") || currentStatus.includes("CRITICAL") || currentStatus.includes("OFFLINE") ? 'danger-text' : 'warning-text';
+                        threatClass = currentThreat.includes("CRITICAL") || currentThreat.includes("MALFUNCTION") ? 'danger-text' : 'warning-text';
+                    } else {
+                        currentStatus = choose(statusesInfo.concat(statusesWarn));
+                        currentThreat = choose(threatsInfo.concat(threatsWarn));
+                         statusClass = currentStatus.includes("HOSTILES") ? 'warning-text' : 'log-info'; // Using log-info for neutral text
+                         threatClass = currentThreat.includes("HIGH") || currentThreat.includes("MODERATE") ? 'warning-text' : 'log-info';
+                    }
+
+
+                    dom.targetingStatusEl.textContent = currentStatus;
+                    dom.targetingCoordsEl.textContent = `${getRandomInt(100,999)}:${getRandomInt(100,999)}:${getRandomInt(100,999)} ${systemIsStable ? "" : "(UNCERTAIN)"}`;
+                    dom.threatLevelEl.textContent = currentThreat;
+                    
+                    dom.targetingStatusEl.className = statusClass; 
+                    dom.threatLevelEl.className = threatClass;
+
+                    let weaponStatus, weaponClass;
+                    if (systemIsStable || stabilizationStep > 12) { weaponStatus = "ONLINE"; weaponClass="success-text"; }
+                    else if (stabilizationStep > 7) { weaponStatus = choose(['LOW POWER', 'CALIBRATING']); weaponClass="warning-text"; }
+                    else { weaponStatus = choose(['OFFLINE', 'JAMMED', 'MALFUNCTION']); weaponClass="danger-text"; }
+
+                    dom.targetingDataEl.innerHTML = `<li>SIGNAL_STRENGTH: ${getRandom(5, systemIsStable ? 99 : (50 + stabilizationStep*3) ).toFixed(1)}% ${systemIsStable ? "" : (stabilizationStep > 7 ? "(STABILIZING)" : "(WEAK)")}</li><li>TARGET_VELOCITY: ${getRandom(0.1, systemIsStable? 0.1 : (5.5 - stabilizationStep*0.3)).toFixed(2)}c ${systemIsStable ? "" : "(ERRATIC)"}</li><li>WEAPON_STATUS: <span class="${weaponClass}">${weaponStatus}</span></li>`;
+                }
+            }
+
+            function updateClock() {
+                if (!dom.clockDisplay) return;
+                const now = new Date();
+                dom.clockDisplay.textContent = now.toLocaleTimeString('en-GB'); 
+            }
+
+            function triggerScreenGlitch() {
+                if (systemIsStable) { // Reduce or stop glitch when stable
+                    document.documentElement.style.setProperty('--glitch-x', `0px`);
+                    document.documentElement.style.setProperty('--glitch-y', `0px`);
+                    if (dom.screenDistortionEffect) {
+                        const before = dom.screenDistortionEffect.style;
+                        const after = dom.screenDistortionEffect.style; // These are pseudo-elements, harder to change directly.
+                                                                      // We can change opacity of the container or its pseudos via CSS classes or direct style if possible.
+                        dom.screenDistortionEffect.style.opacity = "0.1"; // Reduce overall effect
+                    }
+                    return;
+                }
+                const root = document.documentElement;
+                // Reduce glitch intensity as system stabilizes
+                const intensityFactor = 1 - (stabilizationStep / (TOTAL_STABILIZATION_STEPS * 1.5));
+                if (Math.random() < (0.1 * intensityFactor) ) { 
+                    root.style.setProperty('--glitch-x', `${getRandom(-10, 10) * intensityFactor}px`);
+                    root.style.setProperty('--glitch-y', `${getRandom(-10, 10) * intensityFactor}px`);
+                    root.style.setProperty('--p1', `${getRandomInt(0, 15 * intensityFactor)}%`);
+                    root.style.setProperty('--p2', `${getRandomInt(0, 15 * intensityFactor)}%`);
+                    root.style.setProperty('--p3', `${getRandomInt(100 - 15 * intensityFactor, 100)}%`);
+                    root.style.setProperty('--p4', `${getRandomInt(100 - 15 * intensityFactor, 100)}%`);
+                }
+                 if (dom.screenDistortionEffect) {
+                    dom.screenDistortionEffect.style.opacity = Math.max(0.1, 0.8 - stabilizationStep * 0.05).toString();
+                 }
+            }
+
+            // --- Stabilization Sequence ---
+            function applyStabilizationStep() {
+                if (systemIsStable) return;
+
+                const step = stabilizationStep; // Use local const for clarity in switch
+                let message = `Stabilization sequence: Step ${step}/${TOTAL_STABILIZATION_STEPS}.`;
+
+                switch (step) {
+                    case 1:
+                        message = "Recovery Protocol Initiated. Calibrating diagnostic sensors...";
+                        dom.criticalWarningTextElem.textContent = "RECOVERY START";
+                        dom.criticalWarningTextElem.style.animation = 'crt-stabilizing-flicker 1.5s infinite steps(2)';
+                        dom.criticalWarningTextElem.style.color = colors.warning;
+                        dom.criticalWarningContainer.style.borderColor = colors.warning;
+                        dom.criticalWarningContainer.style.backgroundColor = `rgba(${colors.rgbWarning}, 0.1)`;
+                        dom.criticalWarningContainer.style.boxShadow = `0 0 10px rgba(${colors.rgbWarning},0.4), inset 0 0 8px rgba(${colors.rgbWarning},0.2)`;
+                        
+                        dom.mainStatusText.innerHTML = 'INITIATING RECOVERY <span class="warning-text">| STAND BY</span>';
+                        dom.btnEmergencyStop.classList.remove('danger');
+                        dom.btnEmergencyStop.classList.add('warning');
+                        dom.btnEmergencyStop.textContent = "SYSTEM HOLD";
+                        break;
+                    case 2:
+                        message = "Primary systems check. Power core stabilizing...";
+                        dom.mainStatusIndicator.className = 'status-indicator warning';
+                        dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.danger}, ${colors.warning})`;
+                        
+                        // Power Distribution Panel
+                        dom.powerDistPanel.classList.remove('critical-panel');
+                        dom.powerDistPanel.classList.add('warning-panel');
+                        dom.powerDistHeader.classList.remove('critical');
+                        dom.powerDistHeader.classList.add('warning');
+                        dom.auxPowerStatus.textContent = "AUXILIARY POWER LOW";
+                        dom.auxPowerStatus.classList.remove('danger-text');
+                        dom.auxPowerStatus.classList.add('warning-text');
+                        if (counterStates[0]) counterStates[0].targetValue = 70; // Core Temp target
+                        break;
+                    case 3:
+                        message = "Containment fields responding. Flux capacitor recalibrating...";
+                        dom.criticalWarningTextElem.textContent = "SYSTEMS ONLINE";
+                         // LED Counter 1 (Core Temp) visual change
+                        if(dom.ledCounters[0]) {
+                            dom.ledCounters[0].classList.remove('critical');
+                            dom.ledCounters[0].classList.add('warning');
+                        }
+                        if (counterStates[1]) counterStates[1].targetValue = 1000; // Flux target
+                        break;
+                    case 4:
+                        message = "Atmospheric processors restarting. Life support at 25%...";
+                        // Critical Alerts Panel starts to calm down
+                        dom.criticalAlertsPanel.classList.remove('critical-panel');
+                        dom.criticalAlertsPanel.classList.add('warning-panel');
+                        dom.criticalAlertsHeader.classList.remove('critical');
+                        dom.criticalAlertsHeader.classList.add('warning');
+                        if (counterStates[2]) counterStates[2].targetValue = 300; // Pressure target
+                        break;
+                    case 5:
+                        message = "Navigational systems engaging. Route calculation in progress...";
+                        dom.blurredData.style.animationDuration = '0.5s'; // Less flicker
+                        if(dom.ledCounters[1]) { // Flux
+                            dom.ledCounters[1].classList.remove('critical');
+                            dom.ledCounters[1].classList.add('warning');
+                        }
+                        // Body background starts shifting
+                        dom.body.style.backgroundImage = `
+                            radial-gradient(ellipse at 5% 5%, var(--body-bg-stabilizing-1) 0%, transparent 40%),
+                            radial-gradient(ellipse at 95% 95%, var(--body-bg-stabilizing-2) 0%, transparent 40%),
+                            linear-gradient(160deg, #0c0808 0%, #181010 100%)`;
+                        break;
+                    case 6:
+                        message = "Security protocols re-established. Internal network secured.";
+                        dom.criticalWarningTextElem.textContent = "SECURITY SCAN";
+                        dom.securityLogPanel.classList.add('warning-panel'); // Show it's being addressed
+                        if(dom.ledCounters[2]) { // Pressure
+                            dom.ledCounters[2].classList.remove('critical');
+                            dom.ledCounters[2].classList.add('warning');
+                        }
+                        break;
+                    case 7:
+                        message = "Telemetry data normalizing. All channels stabilizing...";
+                        dom.mainStatusText.innerHTML = 'SYSTEM RECOVERY <span class="warning-text">| PROGRESS: 50%</span>';
+                        // Encrypted Data Panel
+                        dom.encryptedDataPanel.classList.remove('critical-panel');
+                        dom.encryptedDataPanel.classList.add('warning-panel');
+                        dom.encryptedDataHeader.classList.remove('critical');
+                        dom.encryptedDataHeader.classList.add('warning');
+                        
+                        // All LEDs to warning (if not already)
+                        dom.ledCounters.forEach(led => {
+                            if (led) {
+                                led.classList.remove('critical');
+                                led.classList.add('warning');
+                            }
+                        });
+                        if (counterStates[3]) counterStates[3].targetValue = 4500; // Shield Freq target
+                        break;
+                    case 8:
+                        message = "Shield generators online. Strength at 60% and rising.";
+                        dom.criticalWarningTextElem.textContent = "SHIELDS UP";
+                        dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.warning}, ${colors.accentSecondary})`;
+                        dom.controlDeckContainer.style.borderColor = `rgba(${colors.rgbWarning}, 0.5)`;
+                        dom.deckHeader.style.borderBottomColor = `rgba(${colors.rgbWarning}, 0.4)`;
+                        dom.deckFooterElem.style.borderTopColor = `rgba(${colors.rgbWarning}, 0.4)`;
+                        document.documentElement.style.setProperty('--glass-border-critical', `rgba(${colors.rgbWarning}, 0.4)`); // For new items
+
+                        // Change scrollbar color on body
+                        dom.body.style.scrollbarColor = `${colors.warning} #0a0a10`;
+                        // For Webkit
+                        const webkitScrollbarRule = Array.from(document.styleSheets)
+                            .flatMap(sheet => Array.from(sheet.cssRules || []))
+                            .find(rule => rule.selectorText === 'body::-webkit-scrollbar-thumb');
+                        if (webkitScrollbarRule) webkitScrollbarRule.style.backgroundColor = colors.warning;
+                        break;
+                    case 9:
+                        message = "Auxiliary power restored. Main reactor at 75% efficiency.";
+                        dom.powerDistHeader.classList.remove('warning'); // Back to normal/accent
+                        dom.powerDistHeader.classList.add('stable'); // Or just remove 'warning' for default accent
+                        dom.powerDistPanel.classList.remove('warning-panel');
+                        dom.powerDistPanel.classList.add('stable-panel');
+                        dom.auxPowerStatus.textContent = "AUXILIARY POWER NOMINAL";
+                        dom.auxPowerStatus.classList.remove('warning-text');
+                        dom.auxPowerStatus.classList.add('success-text'); // Green text
+                        
+                        if(counterStates[0]) counterStates[0].targetValue = 60; // Core temp good
+                        if(counterStates[1]) counterStates[1].targetValue = 2500; // Flux good
+                        break;
+                    case 10:
+                        message = "All critical alerts resolved. System entering final diagnostic phase.";
+                        dom.criticalWarningTextElem.textContent = "FINAL CHECKS";
+                        dom.criticalWarningTextElem.style.color = colors.accentSecondary;
+                        dom.criticalAlertsHeader.classList.remove('warning');
+                        dom.criticalAlertsHeader.classList.add('stable');
+                        dom.criticalAlertsPanel.classList.remove('warning-panel');
+                        dom.criticalAlertsPanel.classList.add('stable-panel');
+                        
+                        // Integrity pulse bars to success color
+                        dom.integrityPulseDisplay.querySelectorAll('.pulse-bar').forEach(bar => {
+                            bar.style.backgroundColor = colors.success;
+                            bar.style.animationName = 'pulse-bar-animation-stable';
+                        });
+                        break;
+                    case 11:
+                        message = "Communication systems fully operational. Long-range scanners active.";
+                        dom.mainStatusIndicator.className = 'status-indicator success'; // Solid Green
+                        dom.mainStatusIndicator.style.animation = 'pulse 1.5s infinite'; // Normal pulse
+                        
+                        // LED Counters become green
+                        dom.ledCounters.forEach((led, idx) => {
+                            if (led) {
+                                led.classList.remove('warning', 'critical');
+                                // Set final target values for LEDs to optimal ranges
+                                if(counterStates[idx]) {
+                                     if(idx === 0) counterStates[idx].targetValue = 55; // Core Temp optimal
+                                     if(idx === 1) counterStates[idx].targetValue = 3000; // Flux optimal
+                                     if(idx === 2) counterStates[idx].targetValue = 100; // Pressure optimal
+                                     if(idx === 3) counterStates[idx].targetValue = 5000; // Shield Freq optimal
+                                }
+                            }
+                        });
+                        break;
+                    case 12:
+                        message = "System integrity at 99.9%. All parameters nominal.";
+                        dom.mainStatusText.innerHTML = 'SYSTEM STABLE <span class="success-text">| ALL SYSTEMS GREEN</span>';
+                        dom.auroraLogo.style.background = `linear-gradient(90deg, ${colors.accentSecondary}, ${colors.success})`;
+                        dom.auroraLogo.style.animation = 'none'; // Stop flicker, could add a gentle glow
+                        dom.auroraLogo.style.textShadow = `0 0 8px ${colors.success}`;
+                        
+                        // Body background to stable
+                        dom.body.style.backgroundImage = `
+                            radial-gradient(ellipse at 5% 5%, var(--body-bg-stable-1) 0%, transparent 40%),
+                            radial-gradient(ellipse at 95% 95%, var(--body-bg-stable-2) 0%, transparent 40%),
+                            linear-gradient(160deg, #0A0F0A 0%, #101810 100%)`; // Darker green-ish base
+                        
+                        // Container borders to stable/accent
+                        dom.controlDeckContainer.style.borderColor = `var(--glass-border-accent)`;
+                        dom.deckHeader.style.borderBottomColor = `var(--glass-border-accent)`;
+                        dom.deckFooterElem.style.borderTopColor = `var(--glass-border-accent)`;
+                        document.documentElement.style.setProperty('--glass-border-critical', `var(--glass-border-accent)`);
+
+                        // Sparks effect calm down or change color
+                        dom.controlDeckContainer.classList.add('stable'); // Stops sparks via CSS
+                        Array.from(document.querySelectorAll('.panel.sparks-effect')).forEach(p => p.classList.add('stable'));
+                        break;
+                    case 13:
+                        message = "All systems nominal. AuroraOS stable and operational.";
+                        dom.criticalWarningTextElem.textContent = "STABLE";
+                        dom.criticalWarningTextElem.style.color = colors.success;
+                        dom.criticalWarningTextElem.style.animation = 'crt-stable-glow 2s infinite ease-in-out';
+                        dom.criticalWarningContainer.style.borderColor = colors.success;
+                        dom.criticalWarningContainer.style.backgroundColor = `rgba(${colors.rgbSuccess}, 0.1)`;
+                        dom.criticalWarningContainer.style.boxShadow = `0 0 10px rgba(${colors.rgbSuccess},0.4), inset 0 0 8px rgba(${colors.rgbSuccess},0.2)`;
+                        
+                        // Change emergency stop button to a system diagnostic or similar
+                        dom.btnEmergencyStop.classList.remove('warning');
+                        dom.btnEmergencyStop.classList.add('success');
+                        dom.btnEmergencyStop.textContent = "RUN DIAGNOSTICS";
+                        break;
+                    case 14:
+                        message = "System successfully stabilized. Monitoring all channels.";
+                        document.title = "AuroraOS - Advanced Control Deck v0.8 - SYSTEM STABLE";
+                        // Stop screen distortion
+                        if (dom.screenDistortionEffect) {
+                            dom.screenDistortionEffect.style.opacity = '0';
+                        }
+                        // Clear any remaining critical/warning styles from panels if missed
+                        document.querySelectorAll('.panel.critical-panel, .panel.warning-panel').forEach(p => {
+                            p.classList.remove('critical-panel', 'warning-panel');
+                            p.classList.add('stable-panel');
+                        });
+                        document.querySelectorAll('.panel-header.critical, .panel-header.warning').forEach(h => {
+                            h.classList.remove('critical', 'warning');
+                            // Optionally add 'stable' if you have styles for it, or let it revert to default
+                        });
+                        break;
+                    case TOTAL_STABILIZATION_STEPS: // Step 15
+                        systemIsStable = true;
+                        message = "SYSTEM STABILIZED. ALL OPERATIONS NOMINAL.";
+                        dom.stabilizationMessageFooter.style.color = colors.success;
+                        dom.consoleInput.placeholder = "System Stable. Awaiting command...";
+                        dom.consoleInput.disabled = true; // Or keep it enabled for new commands
+                        dom.consolePromptText.style.color = colors.success;
+
+                        // Stop frequent updates for some logs, or make them show positive messages
+                        clearInterval(intervals.blurredData);
+                        clearInterval(intervals.screenGlitch); // Stop glitch explicitly if not fully handled by opacity
+                        // Let other intervals like clock, data updates, canvases continue but with stable data/visuals
+                        
+                        // Final canvas colors
+                        drawECG(); // one last draw with stable colors
+                        drawSineWaves(); // one last draw with stable colors
+                        updateBlurredData(); // one last update for stable message
+                        updateLedCounters(); // one last update for stable values
+                        updateTargetingDisplay(); // one last update for stable targeting
+
+                        // Stop all pulsing animations on indicators/text if any are pure JS based
+                        // CSS animations with 'infinite' will continue unless class is removed or animation property changed.
+                        // For example, remove 'danger-text' if it has an infinite pulse and isn't needed.
+                        Array.from(document.querySelectorAll('.danger-text, .warning-text')).forEach(el => {
+                            el.classList.remove('danger-text', 'warning-text');
+                            if (!el.classList.contains('success-text')) el.style.animation = 'none'; // Stop animation if not success
+                        });
+
+                        break;
+                }
+                dom.stabilizationMessageFooter.textContent = message;
+            }
+
+
+            // --- Event Listener for Console Input ---
+            dom.consoleInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const command = dom.consoleInput.value.trim();
+                    dom.consoleInput.value = ''; // Clear input
+
+                    if (systemIsStable) {
+                        dom.stabilizationMessageFooter.textContent = `System> Command "${command}" acknowledged. System is stable.`;
+                        return;
+                    }
+                    
+                    if (stabilizationStep === 0 && command.toLowerCase() !== "initiate_recovery" && command !== "") {
+                         dom.stabilizationMessageFooter.textContent = "Error: Must type 'initiate_recovery' or press Enter on empty to start.";
+                         dom.stabilizationMessageFooter.style.color = colors.danger;
+                         setTimeout(() => {
+                            dom.stabilizationMessageFooter.textContent = "";
+                            dom.stabilizationMessageFooter.style.color = colors.warning;
+                         }, 3000);
+                         return;
+                    }
+
+
+                    if (stabilizationStep < TOTAL_STABILIZATION_STEPS) {
+                        stabilizationStep++;
+                        applyStabilizationStep();
+                         if (stabilizationStep === 1 && dom.stabilizationMessageFooter.style.color !== colors.warning){
+                            dom.stabilizationMessageFooter.style.color = colors.warning; // Ensure it's warning after first step
+                        }
+                    }
+                    
+                    if (stabilizationStep === 1) { // After first Enter, remove placeholder
+                        dom.consoleInput.placeholder = "Press Enter to continue stabilization...";
+                    }
+                }
+            });
+
+
+            // Animation loop for canvases
+            function animationLoop() {
+                if(dom.ecgCanvas && ecgCtx) drawECG();
+                if(dom.sineCanvas && sineCtx) drawSineWaves();
+                requestAnimationFrame(animationLoop);
+            }
+
+            // Initial setup
+            function initializeDashboard() {
+                initECG();
+                initSine();
+                initLedCounters();
+                updateDynamicData(); 
+                updateClock();
+                updateBlurredData();
+                updateLedCounters();
+                updateTargetingDisplay();
+
+                // Set intervals
+                intervals.dataUpdate = setInterval(updateDynamicData, 2000); 
+                intervals.clock = setInterval(updateClock, 1000); 
+                intervals.screenGlitch = setInterval(triggerScreenGlitch, 300); 
+                intervals.blurredData = setInterval(updateBlurredData, 300); 
+                intervals.ledCounters = setInterval(updateLedCounters, getRandomInt(150, 250)); // Slower update for LEDs
+                intervals.targeting = setInterval(updateTargetingDisplay, 1200); 
+
+                if(dom.ecgCanvas || dom.sineCanvas) {
+                    requestAnimationFrame(animationLoop);
+                }
+
+                // Initial message in footer
+                dom.stabilizationMessageFooter.textContent = ""; // Start empty or with a prompt
+                dom.stabilizationMessageFooter.style.color = colors.warning;
+            }
+            
+            initializeDashboard();
+
+
+            // Resize handler for canvases
+            window.addEventListener('resize', () => {
+                if(dom.ecgCanvas) initECG(); 
+                if(dom.sineCanvas) initSine(); 
+            });
+            
+            // Restart logo animation on iteration for continuous effect (if desired when not stable)
+            if (dom.auroraLogo) { 
+                dom.auroraLogo.addEventListener('animationiteration', () => {
+                    if (!systemIsStable) { // Only restart if not stable
+                        dom.auroraLogo.style.animation = 'none';
+                        void dom.auroraLogo.offsetWidth; 
+                        dom.auroraLogo.style.animation = ''; 
+                    }
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>
