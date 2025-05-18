@@ -109,7 +109,7 @@
 </head>
 <body>
     <button id="theme-toggle" class="btn position-fixed top-0 end-0 m-3" aria-label="Cambiar tema">
-        <i class="bi bi-moon-stars-fill"></i> <!-- Icono inicial (luna para tema claro) -->
+        <i class="bi bi-moon-stars-fill"></i>
     </button>
 
     <div class="container mt-5">
@@ -119,7 +119,8 @@
             <p class="lead">Arrastra archivos de texto (o directorios) aquí</p>
             <p>o</p>
             <label for="file-input" class="btn btn-primary">Selecciona Archivos</label>
-            <input type="file" id="file-input" multiple class="d-none" webkitdirectory directory>
+            <!-- CORRECCIÓN AQUÍ: Eliminados webkitdirectory y directory -->
+            <input type="file" id="file-input" multiple class="d-none">
             <small class="d-block mt-2 text-muted">Solo se aceptarán archivos tipo texto (.txt, .js, .css, .html, .py, etc.)</small>
         </div>
 
@@ -185,7 +186,7 @@
                 php: 'bi-filetype-php',
                 sql: 'bi-filetype-sql',
                 go: 'bi-filetype-go',
-                rs: 'bi-filetype-rust',
+                rs: 'bi-filetype-rust', // Placeholder para Rust, buscar uno más adecuado si es necesario
                 // Añade más extensiones y sus iconos aquí
                 default: 'bi-file-earmark-text' // Icono por defecto más específico para texto
             };
@@ -237,26 +238,30 @@
                 const items = event.dataTransfer.items;
                 if (items) {
                      for (let i = 0; i < items.length; i++) {
-                        if (typeof items[i].webkitGetAsEntry === 'function') {
-                            const item = items[i].webkitGetAsEntry();
-                            if (item) {
-                                scanFiles(item);
-                            }
-                        } else {
-                            const file = items[i].getAsFile();
-                            if(file) {
-                                processFile(file);
+                        // Solo procesar si es un archivo o un directorio
+                        if (items[i].kind === 'file') {
+                            if (typeof items[i].webkitGetAsEntry === 'function') {
+                                const item = items[i].webkitGetAsEntry();
+                                if (item) {
+                                    scanFiles(item);
+                                }
+                            } else { // Fallback para navegadores que no soportan webkitGetAsEntry
+                                const file = items[i].getAsFile();
+                                if(file) {
+                                    processFile(file);
+                                }
                             }
                         }
                     }
-                } else {
+                } else { // Fallback para navegadores más antiguos o diferentes APIs de drag & drop
                     const files = event.dataTransfer.files;
                     processFileList(files);
                 }
-                fileInput.value = '';
+                fileInput.value = ''; // Limpiar el input de archivos para permitir re-seleccionar los mismos
             });
 
             dropZone.addEventListener('click', (e) => {
+                // Solo activar el input si no se hizo clic directamente en el label o en el input mismo
                 if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') {
                      fileInput.click();
                 }
@@ -265,6 +270,7 @@
             // --- Manejo de Selección de Archivos (Input) ---
             fileInput.addEventListener('change', (event) => {
                 processFileList(event.target.files);
+                // Limpiar el valor del input para permitir seleccionar los mismos archivos nuevamente si se eliminan y se quieren volver a agregar
                 fileInput.value = '';
             });
 
@@ -288,22 +294,56 @@
             }
 
              function processFile(file) {
-                const allowedMimeTypes = ['text/plain', 'text/javascript', 'text/css', 'text/html', 'text/xml', 'text/csv', 'application/json', 'application/x-python-code', 'application/x-javascript'];
+                // Lista más robusta y flexible de tipos MIME permitidos
+                const allowedMimeTypes = [
+                    'text/plain', 'text/javascript', 'text/css', 'text/html', 'text/xml', 'text/csv',
+                    'application/json', 'application/ld+json', 'application/xml',
+                    'application/x-javascript', 'application/javascript',
+                    'application/x-python-code', 'text/x-python',
+                    'text/markdown', 'text/x-markdown',
+                    'application/x-sh', 'text/x-shellscript',
+                    'application/x-httpd-php', 'text/x-php',
+                    'application/sql', 'text/sql',
+                    'text/x-java-source', // Para .java
+                    'text/x-csrc', 'text/x-chdr', // Para .c, .h
+                    'text/x-c++src', 'text/x-c++hdr', // Para .cpp, .hpp
+                    'text/x-csharp', // Para .cs
+                    'application/x-ruby', 'text/x-ruby', // Para .rb
+                    'text/x-go', // Para .go
+                    'application/x-yaml', 'text/yaml', // Para .yaml, .yml
+                    // Añadir más tipos MIME si es necesario
+                ];
+                // Expresión regular para extensiones permitidas (sin distinción de mayúsculas/minúsculas)
                 const allowedExtensions = /\.(txt|js|jsx|ts|tsx|css|scss|sass|less|html|htm|py|json|xml|md|csv|log|yaml|yml|sh|bat|java|c|cpp|h|hpp|cs|rb|php|sql|go|rs)$/i;
 
-                if (file && file.size > 0 &&
-                    ( (file.type && (file.type.startsWith('text/') || allowedMimeTypes.includes(file.type))) ||
-                      (!file.type && allowedExtensions.test(file.name)) ||
-                      (file.type && !file.type.startsWith('text/') && !allowedMimeTypes.includes(file.type) && allowedExtensions.test(file.name))
-                    ))
-                {
-                     if (!selectedFiles.some(existingFile => existingFile.name === file.name && existingFile.size === file.size)) {
+                // Comprobación:
+                // 1. El archivo existe.
+                // 2. El archivo no está vacío (size > 0). (Se puede discutir si archivos vacíos deben ser permitidos)
+                // 3. El tipo MIME está en la lista de permitidos, O
+                // 4. El tipo MIME comienza con 'text/', O
+                // 5. Si el tipo MIME no es concluyente o falta (común en algunos sistemas/navegadores), se recurre a la extensión.
+                let isAllowed = false;
+                if (file && file.size > 0) { // Considerar si archivos de tamaño 0 deben ser procesados
+                    if (file.type) {
+                        if (allowedMimeTypes.includes(file.type) || file.type.startsWith('text/')) {
+                            isAllowed = true;
+                        } else if (allowedExtensions.test(file.name)) { // Fallback a extensión si el MIME no es 'text/' pero la extensión sí es conocida
+                            isAllowed = true;
+                        }
+                    } else if (allowedExtensions.test(file.name)) { // Si no hay tipo MIME, confiar en la extensión
+                        isAllowed = true;
+                    }
+                }
+
+
+                if (isAllowed) {
+                     if (!selectedFiles.some(existingFile => existingFile.name === file.name && existingFile.size === file.size && existingFile.lastModified === file.lastModified)) {
                          selectedFiles.push(file);
                      } else {
                          console.warn(`Archivo duplicado o ya añadido: ${file.name}`);
                      }
                 } else if (file) {
-                    console.warn(`Archivo omitido (no parece de texto o está vacío): ${file.name}, Tipo: ${file.type || 'desconocido'}, Tamaño: ${file.size}`);
+                    console.warn(`Archivo omitido (no parece de texto válido o está vacío): ${file.name}, Tipo: ${file.type || 'desconocido'}, Tamaño: ${file.size}`);
                 }
                 updateFileListUI();
             }
@@ -314,50 +354,43 @@
                 if (selectedFiles.length > 0) {
                     selectedFiles.forEach((file, index) => {
                         const listItem = document.createElement('li');
-                        // Se quita d-flex justify-content-between aquí, se maneja con flex-grow en el span
                         listItem.className = 'list-group-item d-flex align-items-center';
 
-                        // --- INICIO: Lógica del Icono ---
                         const iconElement = document.createElement('i');
-                        iconElement.setAttribute('aria-hidden', 'true'); // Icono decorativo
+                        iconElement.setAttribute('aria-hidden', 'true');
 
                         const fileName = file.name;
                         const lastDotIndex = fileName.lastIndexOf('.');
-                        // Obtener extensión en minúsculas, o string vacío si no hay punto o está al inicio/final
                         const extension = (lastDotIndex > 0 && lastDotIndex < fileName.length - 1)
                                           ? fileName.substring(lastDotIndex + 1).toLowerCase()
                                           : '';
 
-                        // Buscar icono en el mapa, usar default si no se encuentra
                         const iconClass = fileIconMap[extension] || fileIconMap.default;
-                        iconElement.className = `bi ${iconClass}`; // Aplica clase base 'bi' y la específica
+                        iconElement.className = `bi ${iconClass}`;
 
-                        listItem.appendChild(iconElement); // Añadir icono al LI
-                        // --- FIN: Lógica del Icono ---
+                        listItem.appendChild(iconElement);
 
-                        // Span para el nombre del archivo (con estilos CSS para overflow)
                         const fileNameSpan = document.createElement('span');
-                        fileNameSpan.className = 'file-name'; // Clase para aplicar estilos CSS
+                        fileNameSpan.className = 'file-name';
                         fileNameSpan.textContent = file.name;
-                        fileNameSpan.title = file.name; // Tooltip para nombres largos
+                        fileNameSpan.title = file.name;
                         listItem.appendChild(fileNameSpan);
 
-                        // Botón para eliminar archivo individual
                         const removeBtn = document.createElement('button');
-                        removeBtn.className = 'btn btn-sm btn-outline-danger'; // No necesita flex-shrink aquí porque el span tiene flex-grow
-                        removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+                        removeBtn.className = 'btn btn-sm btn-outline-danger';
+                        removeBtn.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>'; // Icono decorativo
                         removeBtn.setAttribute('aria-label', `Quitar ${file.name}`);
                         removeBtn.onclick = (e) => {
-                            e.stopPropagation();
+                            e.stopPropagation(); // Evitar que eventos en el botón se propaguen al LI
                             removeFile(index);
                         }
                         listItem.appendChild(removeBtn);
 
                         fileListElement.appendChild(listItem);
                     });
-                    fileListSection.style.display = 'block'; // Mostrar sección
+                    fileListSection.style.display = 'block';
                 } else {
-                    fileListSection.style.display = 'none'; // Ocultar si no hay archivos
+                    fileListSection.style.display = 'none';
                 }
             }
 
@@ -370,11 +403,12 @@
             clearButton.addEventListener('click', () => {
                 selectedFiles = [];
                 updateFileListUI();
-                fileInput.value = '';
+                fileInput.value = ''; // Importante para permitir re-seleccionar mismos archivos
             });
 
             downloadButton.addEventListener('click', () => {
                 if (selectedFiles.length === 0) {
+                    // Considera usar un modal de Bootstrap para alertas más estilizadas
                     alert('Por favor, selecciona o arrastra archivos primero.');
                     return;
                 }
@@ -384,33 +418,31 @@
             // --- Lógica de Concatenación y Descarga ---
             function generateAndDownloadConcatenatedFile() {
                 const fileReadPromises = [];
-                const fileContents = [];
-                selectedFiles.forEach(file => fileContents.push({ name: file.name, content: null, error: false }));
-
-                selectedFiles.forEach((file, index) => {
-                    const reader = new FileReader();
-                    const promise = new Promise((resolve) => {
+                // Usaremos un array de objetos para mantener el orden y el nombre asociado al contenido
+                const fileContentsOrdered = selectedFiles.map(file => ({
+                    name: file.name,
+                    contentPromise: new Promise((resolve, reject) => {
+                        const reader = new FileReader();
                         reader.onload = (event) => {
                             const header = `## Este es el archivo: ${file.name} ##\n`;
                             const footer = `\n## Fin ${file.name} ##\n\n`;
-                            fileContents[index].content = header + event.target.result + footer;
-                            resolve();
+                            resolve(header + event.target.result + footer);
                         };
                         reader.onerror = (event) => {
                             console.error(`Error al leer el archivo: ${file.name}`, event.target.error);
-                            fileContents[index].content = `## Error al leer archivo: ${file.name} ##\n\n`;
-                            fileContents[index].error = true;
-                            resolve();
+                            // Resuelve con un mensaje de error para incluir en el archivo final
+                            resolve(`## Error al leer archivo: ${file.name} (Error: ${event.target.error.name}) ##\n\n`);
                         };
-                        reader.readAsText(file);
-                    });
-                    fileReadPromises.push(promise);
-                });
+                        reader.readAsText(file); // Asume UTF-8 por defecto, se podría añadir selector de encoding
+                    })
+                }));
 
-                Promise.all(fileReadPromises)
-                    .then(() => {
-                        const finalContent = fileContents.map(item => item.content).join('');
-                        const filesWithErrors = fileContents.filter(item => item.error).map(item => item.name);
+                Promise.all(fileContentsOrdered.map(item => item.contentPromise))
+                    .then((results) => {
+                        const finalContent = results.join('');
+                        const filesWithErrors = fileContentsOrdered
+                            .filter((item, index) => results[index].startsWith("## Error al leer archivo:"))
+                            .map(item => item.name);
 
                         if (filesWithErrors.length > 0) {
                             alert(`Advertencia: No se pudieron leer completamente los siguientes archivos:\n${filesWithErrors.join('\n')}\n\nEl archivo descargado contendrá marcadores de error para estos archivos.`);
@@ -421,11 +453,16 @@
                         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                         link.href = URL.createObjectURL(blob);
                         link.download = `concatenado-${timestamp}.txt`;
-                        link.style.display = 'none';
-                        document.body.appendChild(link);
+                        link.style.display = 'none'; // No es necesario añadirlo al DOM para que funcione el click programático
+                        document.body.appendChild(link); // Necesario en Firefox para que funcione el click
                         link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(link.href);
+                        document.body.removeChild(link); // Limpiar
+                        URL.revokeObjectURL(link.href); // Liberar memoria
+                    })
+                    .catch(error => {
+                        // Este catch es por si Promise.all falla por una razón inesperada (no errores de FileReader individuales)
+                        console.error("Error al procesar los archivos para concatenación:", error);
+                        alert("Ocurrió un error inesperado al intentar concatenar los archivos.");
                     });
             }
         });
