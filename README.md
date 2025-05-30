@@ -48,6 +48,10 @@ Una colección de diversas herramientas y visualizadores web, cada uno implement
     [`Cifrado_Simetrico_Asimetrico_Hibrido_firma.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/Cifrado_Simetrico_Asimetrico_Hibrido_firma.html)
     Explica visualmente los conceptos de cifrado simétrico (clave compartida), cifrado asimétrico (clave pública/privada), cifrado híbrido (combinación de ambos) y firma digital para autenticación y no repudio.
 
+12. **Visualizador señales digitales:**
+    [`modulaciones.html`](https://soyunomas.github.io/pequenos-proyectos/REDES/modulaciones.html)
+   📊 Explora señales digitales: Visualizador interactivo para codificación de línea (NRZ, Manchester, AMI, MLT-3, PAM-5) y modulación digital (ASK, FSK, PSK, QAMs, OFDM conceptual). Controla la animación y observa la transformación de bits. Ideal para aprender telecomunicaciones. (JS, Bootstrap, Chart.js)
+
 ## Categoría: BASES DE DATOS
 
 1.  **Visualizador Interactivo de SQL JOINs:**
