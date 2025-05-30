@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codificaciones de Línea y Modulación Digital Avanzado</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        .container-main {
+            margin-bottom: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        h2 { 
+            margin-top: 3rem;
+            border-bottom: 2px solid #0d6efd;
+            padding-bottom: 0.75rem;
+        }
+        h3 { 
+            margin-top: 2rem;
+            color: #1a5276; 
+        }
+        .technique-display {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            margin-bottom: 2rem;
+        }
+        .technique-description p {
+            margin-bottom: 0.5rem;
+            font-size: 0.95em;
+        }
+        .technique-description strong {
+            color: #34495e;
+        }
+        canvas {
+            border: 1px solid #dee2e6;
+            background-color: #fff;
+            width: 100%; 
+            display: block;
+        }
+        .reference-data-canvas { 
+            height: 60px; 
+            margin-bottom: 5px; 
+        }
+        .line-coding-canvas { 
+            height: 100px; 
+        }
+        .pam5-canvas {
+             height: 120px;
+        }
+        .data-signal-canvas { 
+            height: 80px; 
+            margin-bottom: 10px;
+        }
+        .modulated-signal-canvas { 
+            height: 100px;
+        }
+        .qam-constellation-canvas {
+            max-width: 230px; 
+            max-height: 230px;
+            margin: 10px auto; 
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+        }
+        .ofdm-bank-canvas {
+            height: 280px; 
+            background-color: #f0f0f0;
+            margin-bottom: 10px;
+        }
+        .signal-info-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding-top: 10px;
+        }
+        .signal-label {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #343a40;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .signal-label .description {
+            font-weight: normal;
+            font-size: 0.9em;
+            display: block;
+            color: #6c757d;
+        }
+        .current-bits-display {
+            font-size: 0.9em;
+            color: #495057;
+            margin-top: 8px;   
+            margin-bottom: 8px; 
+            text-align: center;
+            font-family: monospace;
+            word-break: break-all;
+            min-height: 1.3em; 
+            font-weight: 500;
+        }
+        .controls-container .btn, .controls-container .form-select {
+             min-width: 110px; 
+        }
+        .controls-container .form-select {
+            margin-top: 0.5rem;
+        }
+        footer {
+            border-top: 1px solid #dee2e6;
+        }
+        @media (max-width: 767.98px) {
+            .signal-info-container {
+                margin-top: 1rem;
+            }
+            .controls-container .btn, .controls-container .form-select {
+                width: auto !important; 
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .qam-constellation-canvas {
+                max-width: 180px;
+                max-height: 180px;
+            }
+             .ofdm-bank-canvas {
+                height: 220px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container container-main">
+        <header class="text-center py-3">
+            <h1>Visualizador Interactivo de Señales Digitales</h1>
+        </header>
+
+        <p class="lead text-center mb-5">
+            Explora diferentes técnicas de codificación de línea y modulación digital. Ajusta la velocidad de animación y pausa para observar en detalle cómo se transforman los datos binarios en señales transmisibles.
+        </p>
+
+        <!-- SECCIÓN DE CODIFICACIONES DE LÍNEA -->
+        <section id="line-coding-section">
+            <h2>Codificaciones de Línea</h2>
+            <p class="mb-4">La codificación de línea es el proceso de convertir datos binarios (secuencias de 0s y 1s) en una señal digital adecuada para su transmisión a través de un canal físico. El objetivo es asegurar una transmisión fiable, optimizar el uso del ancho de banda, facilitar la sincronización entre emisor y receptor, y minimizar errores. Cada esquema tiene propiedades únicas que lo hacen más o menos idóneo para diferentes aplicaciones. La señal de datos original, representada aquí como NRZ-L, se muestra como referencia para comparar.</p>
+
+            <!-- NRZ-L -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>NRZ-L (Non-Return-to-Zero Level)</h3>
+                        <p><strong>Funcionamiento:</strong> Un nivel de voltaje constante representa un '1' y otro nivel constante representa un '0' durante toda la duración del bit. Por ejemplo, +V para '1' y -V para '0' (o 0V para '0' y +V para '1'). No hay retorno a un nivel cero entre bits.</p>
+                        <p><strong>Ventajas:</strong> Es la forma más simple de codificación. Hace un uso eficiente del ancho de banda ya que la tasa de baudios es igual a la tasa de bits.</p>
+                        <p><strong>Desventajas:</strong> Presenta un componente de corriente continua (DC) si hay secuencias largas de '0's o '1's, lo cual es problemático para transformadores. La falta de transiciones en secuencias largas dificulta la sincronización del reloj en el receptor.</p>
+                        <p><strong>Usos:</strong> Aunque no es común en sistemas de transmisión modernos por sus desventajas, es la base para entender otras codificaciones y se usa en interfaces de muy corta distancia o donde la sincronización se maneja por otros medios.</p>
+                        <div class="current-bits-display" id="nrzlBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="nrzlRefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada NRZ-L:</p>
+                        <canvas id="nrzlCanvas" class="line-coding-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="nrzl">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="nrzl">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NRZ-I -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>NRZ-I (Non-Return-to-Zero Inverted)</h3>
+                        <p><strong>Funcionamiento:</strong> Un '1' binario se representa mediante una transición de nivel de voltaje al inicio del intervalo del bit. Un '0' binario se representa sin transición de nivel. La información reside en el cambio o no cambio de nivel, no en el nivel absoluto.</p>
+                        <p><strong>Ventajas:</strong> Las transiciones para los '1's ayudan con la sincronización. Es insensible a la polaridad de la conexión (si se invierten los cables, la señal sigue siendo interpretable). Puede tener menos componente DC que NRZ-L si los datos son aleatorios.</p>
+                        <p><strong>Desventajas:</strong> Secuencias largas de '0's no producen transiciones, lo que puede llevar a la pérdida de sincronización. Para solucionar esto, se suele usar en combinación con técnicas de "bit stuffing" o codificación de bloque.</p>
+                        <p><strong>Usos:</strong> USB (con bit stuffing), FDDI (Fiber Distributed Data Interface), algunos sistemas de grabación magnética como CD-ROMs.</p>
+                        <div class="current-bits-display" id="nrziBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="nrziRefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada NRZ-I:</p>
+                        <canvas id="nrziCanvas" class="line-coding-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="nrzi">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="nrzi">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RZ -->
+            <div class="technique-display">
+                 <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>RZ (Return-to-Zero)</h3>
+                        <p><strong>Funcionamiento:</strong> Un '1' se representa con un pulso (ej. de +V a 0 o viceversa) durante la primera mitad del intervalo del bit, volviendo a cero (o a un nivel de referencia) en la segunda mitad. Un '0' puede ser la ausencia de pulso o un pulso de polaridad opuesta que también retorna a cero.</p>
+                        <p><strong>Ventajas:</strong> Contiene inherentemente información de temporización (sincronización) debido al retorno a cero en cada bit o en la mitad del bit, facilitando la recuperación del reloj en el receptor. No hay componente DC si los pulsos son simétricos y alternan.</p>
+                        <p><strong>Desventajas:</strong> Requiere más ancho de banda que NRZ (teóricamente el doble) porque la señal cambia de estado dos veces por bit para los '1's. Utiliza más potencia.</p>
+                        <p><strong>Usos:</strong> Comunicación óptica de alta velocidad, sistemas de radar donde la sincronización precisa es crítica, algunos sistemas de almacenamiento magnético antiguos.</p>
+                         <div class="current-bits-display" id="rzBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="rzRefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada RZ:</p>
+                        <canvas id="rzCanvas" class="line-coding-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="rz">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="rz">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manchester -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>Codificación Manchester (Biphase-L)</h3>
+                        <p><strong>Funcionamiento:</strong> Cada bit tiene una transición de nivel de voltaje en su punto medio. Un '0' se representa por una transición de bajo a alto en el medio del bit, y un '1' por una transición de alto a bajo (o viceversa, la convención puede variar pero debe ser consistente).</p>
+                        <p><strong>Ventajas:</strong> Sincronización garantizada ya que hay al menos una transición por bit. No tiene componente DC, lo que permite el uso de acoplamiento por transformador. Buena detección de errores.</p>
+                        <p><strong>Desventajas:</strong> Requiere el doble de ancho de banda que las codificaciones NRZ, ya que la tasa de baudios es el doble de la tasa de bits. Menor eficiencia de ancho de banda.</p>
+                        <p><strong>Usos:</strong> Ethernet 10BASE-T, RFID (Identificación por Radiofrecuencia), NFC (Near Field Communication), sistemas de control industrial.</p>
+                        <div class="current-bits-display" id="manchesterBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="manchesterRefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada Manchester:</p>
+                        <canvas id="manchesterCanvas" class="line-coding-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="manchester">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="manchester">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manchester Diferencial -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>Codificación Manchester Diferencial</h3>
+                        <p><strong>Funcionamiento:</strong> Siempre hay una transición a mitad del intervalo del bit (para sincronización). Un '0' binario se indica mediante una transición adicional al inicio del intervalo del bit, mientras que un '1' binario no tiene transición al inicio del intervalo.</p>
+                        <p><strong>Ventajas:</strong> Combina las ventajas de Manchester (sincronización, sin componente DC) con la insensibilidad a la inversión de polaridad de la línea (como NRZ-I), ya que la información está en la presencia o ausencia de la transición inicial, no en los niveles absolutos.</p>
+                        <p><strong>Desventajas:</strong> Mismas desventajas de ancho de banda que Manchester (requiere el doble que NRZ).</p>
+                        <p><strong>Usos:</strong> Token Ring (IEEE 802.5), algunas aplicaciones industriales donde la robustez a la polaridad es importante.</p>
+                        <div class="current-bits-display" id="diffManchesterBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="diffManchesterRefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada Manchester Diferencial:</p>
+                        <canvas id="diffManchesterCanvas" class="line-coding-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="diffManchester">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="diffManchester">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AMI -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>AMI (Alternate Mark Inversion)</h3>
+                        <p><strong>Funcionamiento:</strong> Un '0' binario se representa con un nivel de voltaje cero. Un '1' binario (conocido como "mark") se representa alternando entre un voltaje positivo (+V) y un voltaje negativo (-V).</p>
+                        <p><strong>Ventajas:</strong> No tiene componente DC, lo que permite el uso de transformadores. La alternancia de polaridad para los '1's facilita la detección de errores (una violación de la alternancia, como dos pulsos positivos consecutivos, indica un error). Permite la transmisión a largas distancias sobre pares trenzados.</p>
+                        <p><strong>Desventajas:</strong> Largas secuencias de '0's no producen transiciones, lo que puede llevar a la pérdida de sincronización. Este problema se soluciona con esquemas de sustitución como B8ZS o HDB3.</p>
+                        <p><strong>Usos:</strong> Ampliamente utilizado en telefonía digital para líneas T1/E1 (aunque T1 en Norteamérica usa B8ZS, E1 a menudo usa HDB3, una variante de AMI), ISDN (Red Digital de Servicios Integrados).</p>
+                        <div class="current-bits-display" id="amiBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="amiRefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada AMI:</p>
+                        <canvas id="amiCanvas" class="line-coding-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="ami">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="ami">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- B8ZS (Simplificado) -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>B8ZS (Bipolar with 8-Zeros Substitution) - <em>Conceptual</em></h3>
+                        <p><strong>Funcionamiento:</strong> Es una modificación de AMI diseñada para superar el problema de las largas secuencias de ceros. Cuando ocurren ocho ceros consecutivos, se sustituyen por un patrón especial que incluye violaciones intencionadas de la regla bipolar de AMI (ej: 000VB0VB, donde V es una violación y B es un pulso bipolar normal). El receptor reconoce este patrón y lo vuelve a convertir en ocho ceros.</p>
+                        <p><strong>Ventajas:</strong> Asegura la sincronización al garantizar transiciones incluso con largas secuencias de ceros, manteniendo las ventajas de AMI (sin componente DC, detección de errores).</p>
+                        <p><strong>Desventajas:</strong> Más complejo de implementar que AMI puro. La lógica de sustitución y reconocimiento del patrón añade sobrecarga.</p>
+                        <p><strong>Usos:</strong> Estándar para líneas T1 (1.544 Mbps) en Norteamérica para transmisión de voz y datos digitales.</p>
+                        <div class="current-bits-display" id="b8zsBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="b8zsRefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada (Base AMI con sustitución B8ZS):</p>
+                        <canvas id="b8zsCanvas" class="line-coding-canvas"></canvas> 
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="b8zs">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="b8zs">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MLT-3 -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>MLT-3 (Multi-Level Transmit, 3 levels)</h3>
+                        <p><strong>Funcionamiento:</strong> Utiliza tres niveles de voltaje (generalmente +V, 0, -V). Para transmitir un '1', la señal transita al siguiente nivel en la secuencia (+V → 0 → -V → 0 → +V...). Para transmitir un '0', la señal permanece en el nivel actual.</p>
+                        <p><strong>Ventajas:</strong> Concentra la mayor parte de la energía de la señal en frecuencias más bajas (aproximadamente 1/4 de la tasa de bits) en comparación con NRZ, lo que reduce significativamente el ancho de banda requerido y la EMI (Interferencia Electromagnética).</p>
+                        <p><strong>Desventajas:</strong> Más complejo de implementar que NRZ. Una larga secuencia de '0's no produce transiciones, lo que puede causar problemas de sincronización. Este problema se suele resolver mediante una codificación de bloque previa (como 4B/5B) que limita la longitud de las secuencias de ceros.</p>
+                        <p><strong>Usos:</strong> Principalmente conocido por su uso en 100BASE-TX Fast Ethernet, donde se aplica después de la codificación 4B/5B y el scrambling para transmitir datos a 100 Mbps sobre cables de par trenzado de categoría 5.</p>
+                        <div class="current-bits-display" id="mlt3Bits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="mlt3RefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada MLT-3:</p>
+                        <canvas id="mlt3Canvas" class="line-coding-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="mlt3">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="mlt3">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAM-5 (Simplificado) -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3>PAM-5 (Pulse Amplitude Modulation, 5 levels) - <em>Conceptual</em></h3>
+                        <p><strong>Funcionamiento:</strong> Utiliza cinco niveles de voltaje distintos para representar los datos (ej. -2V, -1V, 0V, +1V, +2V). En 1000BASE-T Gigabit Ethernet, cuatro de estos niveles se utilizan para codificar 2 bits de datos por símbolo en cada uno de los cuatro pares de cables, y el quinto nivel se usa para propósitos de Forward Error Correction (FEC) y sincronización. Esta visualización simplifica el mapeo, mostrando cómo múltiples bits pueden ser representados por un solo símbolo con múltiples niveles.</p>
+                        <p><strong>Ventajas:</strong> Alta eficiencia espectral, ya que permite transmitir múltiples bits por símbolo (en 1000BASE-T, se transmiten 2 bits por símbolo por par, resultando en 8 bits por ciclo de reloj en los 4 pares). Esto permite alcanzar mayores velocidades de datos en un ancho de banda limitado.</p>
+                        <p><strong>Desventajas:</strong> Más susceptible al ruido y a la atenuación que los esquemas con menos niveles, ya que la "distancia" entre niveles es menor. Requiere una mayor Relación Señal a Ruido (SNR) en el canal. La implementación real en Gigabit Ethernet es muy compleja, involucrando codificación Trellis, transmisión simultánea en los 4 pares de cables, y sofisticadas técnicas de cancelación de eco y diafonía (crosstalk).</p>
+                        <p><strong>Usos:</strong> Fundamental en 1000BASE-T Gigabit Ethernet para transmisión sobre cables de par trenzado de Categoría 5e y superiores. Variantes de PAM (como PAM-4) son cruciales en comunicaciones de muy alta velocidad, como Ethernet de 25G, 50G, 100G y superiores, y en interconexiones de backplane.</p>
+                        <div class="current-bits-display" id="pam5Bits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L, 2 bits por símbolo PAM-5):</p>
+                        <canvas id="pam5RefDataCanvas" class="reference-data-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Codificada PAM-5 (Simplificada):</p>
+                        <canvas id="pam5Canvas" class="line-coding-canvas pam5-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <button class="btn btn-sm btn-outline-success" data-target-group="pam5">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="pam5">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- SECCIÓN DE MODULACIÓN DIGITAL -->
+        <section id="modulation-section">
+            <h2>Técnicas de Modulación Digital</h2>
+            <p class="mb-4">La modulación digital es el proceso de modificar una o más características de una señal portadora analógica (generalmente una onda senoidal de alta frecuencia) de acuerdo con la información de una señal digital de banda base (como la obtenida de una codificación de línea). Esto permite que la señal digital sea transmitida eficientemente a través de canales analógicos de paso de banda, como el espectro radioeléctrico o cables coaxiales, que no son adecuados para señales digitales directas. Las principales características modificadas son la amplitud, la frecuencia y la fase.</p>
+            
+            <!-- ASK -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3 class="mb-3">ASK (Amplitude Shift Keying)</h3>
+                        <p><strong>Funcionamiento:</strong> La amplitud de la señal portadora se varía para representar los datos binarios. Típicamente, una amplitud alta representa un '1' y una amplitud baja (o cero, en cuyo caso se llama On-Off Keying - OOK) representa un '0'.</p>
+                        <p><strong>Ventajas:</strong> Es la técnica de modulación digital más simple de implementar y demodular, resultando en bajo costo de los transceptores.</p>
+                        <p><strong>Desventajas:</strong> Es muy susceptible al ruido y a las interferencias, ya que estos fenómenos afectan directamente la amplitud de la señal, pudiendo causar errores en la detección. No es eficiente en términos de potencia.</p>
+                        <p><strong>Usos:</strong> Común en sistemas de fibra óptica (donde OOK es prevalente debido a la naturaleza on/off de las fuentes de luz como LEDs y láseres), sistemas de control remoto de baja velocidad (ej. llaveros de coche, abrepuertas de garaje), y algunas aplicaciones de RFID de corto alcance.</p>
+                        <div class="current-bits-display" id="askBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="askDataSignalCanvas" class="data-signal-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Modulada ASK:</p>
+                        <canvas id="askModulatedSignalCanvas" class="modulated-signal-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <div class="signal-label">ASK <span class="description">Amplitude Shift Keying</span></div>
+                        <button class="btn btn-sm btn-outline-success" data-target-group="ask">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="ask">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FSK -->
+            <div class="technique-display">
+                 <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3 class="mb-3">FSK (Frequency Shift Keying)</h3>
+                        <p><strong>Funcionamiento:</strong> La frecuencia de la señal portadora se cambia entre dos (para FSK binario) o más valores discretos para representar los bits o símbolos. Por ejemplo, una frecuencia f1 representa un '1' y otra frecuencia f2 representa un '0'.</p>
+                        <p><strong>Ventajas:</strong> Es más robusta al ruido y a las variaciones de amplitud del canal que ASK, ya que la información reside en la frecuencia. La demodulación puede ser relativamente simple (ej. usando filtros pasabanda y detectores de envolvente, o PLLs).</p>
+                        <p><strong>Desventajas:</strong> Generalmente requiere más ancho de banda que ASK o PSK para la misma tasa de bits, especialmente si la separación entre frecuencias es grande para mejorar la inmunidad al ruido.</p>
+                        <p><strong>Usos:</strong> Módems telefónicos de baja velocidad (ej. estándares Bell 103/202), sistemas de identificación de llamadas (Caller ID), algunas aplicaciones de radioaficionados (como RTTY - Radio Teletype), y en tecnologías inalámbricas como Bluetooth (que utiliza una variante llamada GFSK - Gaussian FSK, para reducir el ancho de banda espectral).</p>
+                        <div class="current-bits-display" id="fskBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="fskDataSignalCanvas" class="data-signal-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Modulada FSK:</p>
+                        <canvas id="fskModulatedSignalCanvas" class="modulated-signal-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <div class="signal-label">FSK <span class="description">Frequency Shift Keying</span></div>
+                         <button class="btn btn-sm btn-outline-success" data-target-group="fsk">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="fsk">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PSK -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                     <div class="col-md-9 technique-description">
+                        <h3 class="mb-3">PSK (Phase Shift Keying) - BPSK</h3>
+                        <p><strong>Funcionamiento:</strong> La fase de la señal portadora se varía para representar los datos binarios. En BPSK (Binary Phase Shift Keying), se utilizan dos fases distintas, separadas 180 grados (por ejemplo, 0° para representar un '1' y 180° para representar un '0').</p>
+                        <p><strong>Ventajas:</strong> Es más eficiente en el uso de la potencia y más robusta al ruido en comparación con ASK y FSK para una misma tasa de error de bit (BER). Su ancho de banda es comparable al de ASK. BPSK es la forma más robusta de PSK.</p>
+                        <p><strong>Desventajas:</strong> La demodulación coherente (la más común para PSK) requiere un circuito de recuperación de portadora en el receptor para obtener una referencia de fase precisa, lo que puede añadir complejidad. Existen variantes como DPSK (Differential PSK) que evitan esto a costa de un pequeño decremento en el rendimiento.</p>
+                        <p><strong>Usos:</strong> Ampliamente utilizado en Wi-Fi (especialmente para transmitir tramas de control o en modos de baja velocidad y largo alcance), comunicaciones por satélite (donde la eficiencia energética es crucial), RFID, y como componente básico en modulaciones más complejas como QPSK y QAM.</p>
+                        <div class="current-bits-display" id="pskBits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="pskDataSignalCanvas" class="data-signal-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Modulada BPSK:</p>
+                        <canvas id="pskModulatedSignalCanvas" class="modulated-signal-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                       <div class="signal-label">BPSK <span class="description">Binary Phase Shift Keying</span></div>
+                       <button class="btn btn-sm btn-outline-success" data-target-group="psk">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="psk">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4-QAM -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3 class="mb-3">QAM (Quadrature Amplitude Modulation) - 4-QAM</h3>
+                        <p><strong>Funcionamiento:</strong> 4-QAM utiliza cuatro puntos distintos en el diagrama de constelación para representar 2 bits por símbolo. Típicamente, estos puntos se eligen con igual amplitud y fases separadas por 90 grados (0°, 90°, 180°, 270°), en cuyo caso es idéntica a QPSK (Quadrature Phase Shift Keying). Combina la modulación de amplitud y fase de dos portadoras en cuadratura (I y Q).</p>
+                        <p><strong>Ventajas:</strong> Duplica la eficiencia espectral de BPSK, transmitiendo el doble de bits en el mismo ancho de banda. Ofrece una buena inmunidad al ruido, similar a BPSK y QPSK.</p>
+                        <p><strong>Desventajas:</strong> Es más complejo de implementar que BPSK. Requiere una mayor linealidad en los amplificadores de potencia en comparación con modulaciones de envolvente constante como FSK o PSK puro (si se varían las amplitudes).</p>
+                        <p><strong>Usos:</strong> Es una modulación fundamental en muchas comunicaciones digitales. Se utiliza en sistemas de comunicaciones por satélite, televisión digital (por ejemplo, DVB-S), módems de cable, ADSL, algunas versiones de Wi-Fi, y como bloque de construcción para modulaciones QAM de orden superior y OFDM.</p>
+                        <div class="current-bits-display" id="qam4Bits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="qam4DataSignalCanvas" class="data-signal-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Modulada 4-QAM (Dominio del Tiempo):</p>
+                        <canvas id="qam4ModulatedSignalCanvas" class="modulated-signal-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <div class="signal-label">4-QAM <span class="description">Diagrama de Constelación</span></div>
+                        <canvas id="qam4ConstellationCanvas" class="qam-constellation-canvas"></canvas>
+                        <button class="btn btn-sm btn-outline-success mt-2" data-target-group="qam4">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="qam4">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 16-QAM -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3 class="mb-3">QAM (Quadrature Amplitude Modulation) - 16-QAM</h3>
+                        <p><strong>Funcionamiento:</strong> 16-QAM utiliza 16 puntos distintos en el diagrama de constelación, permitiendo transmitir 4 bits por cada símbolo. Estos puntos representan diferentes combinaciones de amplitud y fase de las portadoras I y Q.</p>
+                        <p><strong>Ventajas:</strong> Ofrece una mayor eficiencia espectral que 4-QAM (o QPSK), permitiendo transmitir el doble de datos (4 bits por símbolo frente a 2) en el mismo ancho de banda. Esto es crucial para alcanzar altas tasas de transferencia.</p>
+                        <p><strong>Desventajas:</strong> Es más susceptible al ruido y a las distorsiones del canal que modulaciones de orden inferior como 4-QAM. Requiere una mayor Relación Señal a Ruido (SNR) para lograr la misma tasa de error de bit (BER). Los circuitos de transmisión y recepción son más complejos.</p>
+                        <p><strong>Usos:</strong> Muy común en sistemas de comunicación modernos: módems de cable (DOCSIS), ADSL2+, Wi-Fi (estándares como 802.11a/g/n/ac), televisión digital (DVB-C, ATSC), y en redes móviles como LTE y algunas implementaciones de 5G.</p>
+                        <div class="current-bits-display" id="qam16Bits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="qam16DataSignalCanvas" class="data-signal-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Modulada 16-QAM (Dominio del Tiempo):</p>
+                        <canvas id="qam16ModulatedSignalCanvas" class="modulated-signal-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <div class="signal-label">16-QAM <span class="description">Diagrama de Constelación</span></div>
+                        <canvas id="qam16ConstellationCanvas" class="qam-constellation-canvas"></canvas>
+                        <button class="btn btn-sm btn-outline-success mt-2" data-target-group="qam16">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="qam16">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 64-QAM -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3 class="mb-3">QAM (Quadrature Amplitude Modulation) - 64-QAM</h3>
+                        <p><strong>Funcionamiento:</strong> 64-QAM extiende el concepto de QAM utilizando 64 puntos únicos en el diagrama de constelación, lo que permite codificar 6 bits por cada símbolo transmitido.</p>
+                        <p><strong>Ventajas:</strong> Proporciona una eficiencia espectral aún mayor que 16-QAM (6 bits/símbolo frente a 4 bits/símbolo), lo que se traduce en tasas de datos significativamente más altas dentro de un ancho de banda determinado. Esencial para aplicaciones que demandan un alto rendimiento.</p>
+                        <p><strong>Desventajas:</strong> Es considerablemente más sensible al ruido, interferencias y no linealidades del canal que QAM de orden inferior. Requiere una SNR mucho mayor para mantener una tasa de error de bit aceptable. Los circuitos de transmisión y recepción deben ser de alta precisión y linealidad.</p>
+                        <p><strong>Usos:</strong> Se utiliza en sistemas de comunicación de alto rendimiento donde las condiciones del canal son favorables: Wi-Fi (estándares como 802.11ac y 802.11ax/Wi-Fi 6 bajo buenas condiciones de señal), televisión digital de alta definición (DVB-C2, DVB-S2X), redes móviles LTE Advanced y 5G, y enlaces de microondas punto a punto.</p>
+                        <div class="current-bits-display" id="qam64Bits"></div>
+                        <p class="small mb-1 text-muted">Señal de Datos (NRZ-L):</p>
+                        <canvas id="qam64DataSignalCanvas" class="data-signal-canvas"></canvas>
+                        <p class="small mb-1 mt-2 text-muted">Señal Modulada 64-QAM (Dominio del Tiempo):</p>
+                        <canvas id="qam64ModulatedSignalCanvas" class="modulated-signal-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <div class="signal-label">64-QAM <span class="description">Diagrama de Constelación</span></div>
+                        <canvas id="qam64ConstellationCanvas" class="qam-constellation-canvas"></canvas>
+                        <button class="btn btn-sm btn-outline-success mt-2" data-target-group="qam64">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="qam64">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OFDM (Conceptual) -->
+            <div class="technique-display">
+                <div class="row align-items-center">
+                    <div class="col-md-9 technique-description">
+                        <h3 class="mb-3">OFDM (Orthogonal Frequency Division Multiplexing) - <em>Conceptual</em></h3>
+                        <p><strong>Funcionamiento:</strong> Es una técnica de modulación multiportadora que divide un flujo de datos de alta velocidad en múltiples flujos de datos de baja velocidad. Cada uno de estos flujos modula una subportadora diferente. Las subportadoras están espaciadas de tal manera que son ortogonales entre sí, lo que significa que no se interfieren mutuamente a pesar de que sus espectros se solapan. Cada subportadora individual puede usar una modulación digital convencional como QPSK o QAM (ej. 16-QAM, 64-QAM).</p>
+                        <p><strong>Ventajas:</strong> Muy robusto contra el desvanecimiento selectivo en frecuencia (causado por la propagación multitrayecto) y la interferencia intersimbólica (ISI), gracias al uso de un prefijo cíclico y a que cada subportadora experimenta un canal "plano" (no selectivo). Alta eficiencia espectral. Permite una fácil adaptación de la modulación y codificación (AMC) por subportadora según las condiciones del canal.</p>
+                        <p><strong>Desventajas:</strong> Sensible al desplazamiento de frecuencia y al ruido de fase del oscilador. Presenta una alta Relación de Potencia de Pico a Promedio (PAPR), lo que puede requerir amplificadores de potencia más lineales y, por lo tanto, menos eficientes o más costosos. La implementación es más compleja que las modulaciones de portadora única, requiriendo el uso de Transformadas Rápidas de Fourier (FFT/IFFT).</p>
+                        <p><strong>Usos:</strong> Es la base de la mayoría de los sistemas de comunicación inalámbrica y algunos alámbricos de banda ancha modernos. Se utiliza en: Wi-Fi (802.11a/g/n/ac/ax), LTE (4G) y 5G NR, DVB-T/T2 (Televisión Digital Terrestre), DAB (Radio Digital), ADSL y VDSL (banda ancha por línea telefónica), y comunicaciones por línea eléctrica (PLC).</p>
+                        <div class="current-bits-display" id="ofdmBits"></div>
+                        <p class="small mb-1 mt-2 text-muted">Banco de Subportadoras OFDM (Conceptual, ej. 8 subportadoras con QPSK):</p>
+                        <canvas id="ofdmBankCanvas" class="ofdm-bank-canvas"></canvas>
+                    </div>
+                    <div class="col-md-3 signal-info-container controls-container">
+                        <div class="signal-label">OFDM <span class="description">Banco de Subportadoras</span></div>
+                         <button class="btn btn-sm btn-outline-success mt-2" data-target-group="ofdm">Pausar</button>
+                        <select class="form-select form-select-sm" data-target-group="ofdm">
+                            <option value="1" selected>Velocidad 1x</option>
+                            <option value="0.5">Velocidad 0.5x</option>
+                            <option value="0.25">Velocidad 0.25x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+
+        </section>
+
+        <footer class="text-center mt-5 py-4">
+            <p class="text-muted small">Visualizador Señales Interactivo</p>
+        </footer>
+    </div>
+
+    <!-- Bootstrap JS (Bundle incluye Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script>
+        class SignalVisualizer {
+            constructor(canvasId, options = {}) {
+                this.canvas = document.getElementById(canvasId);
+                if (!this.canvas) {
+                    console.error(`Canvas con ID '${canvasId}' no encontrado.`);
+                    this.isValid = false;
+                    return;
+                }
+                this.isValid = true;
+                this.ctx = this.canvas.getContext('2d');
+                
+                const dpr = window.devicePixelRatio || 1;
+                const rect = this.canvas.getBoundingClientRect();
+                
+                this.canvas.width = rect.width * dpr;
+                this.canvas.height = rect.height * dpr;
+                this.ctx.scale(dpr, dpr);
+
+                this.width = rect.width; 
+                this.height = rect.height;
+
+
+                this.lineColor = options.lineColor || 'black';
+                this.lineWidth = options.lineWidth || 1.8; 
+                this.yScale = options.yScale || (this.height * 0.4); 
+                this.yOffset = options.yOffset !== undefined ? options.yOffset : (this.height / 2);
+                this.axisColor = options.axisColor || '#e0e0e0'; 
+                this.numYLevels = options.numYLevels; 
+            }
+
+            clear() {
+                if (!this.isValid) return;
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); 
+            }
+            
+            drawAxis() {
+                if (!this.isValid) return;
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = this.axisColor;
+                this.ctx.lineWidth = 1; 
+                this.ctx.moveTo(0, this.yOffset);
+                this.ctx.lineTo(this.width, this.yOffset); 
+                this.ctx.stroke();
+
+                if (this.numYLevels && this.numYLevels > 0) {
+                    const stepY = (this.height * 0.8) / (this.numYLevels -1) ; 
+                    const topY = this.yOffset - (this.height * 0.4); 
+
+                    for (let i = 0; i < this.numYLevels; i++) {
+                        const yLvl = topY + i * stepY;
+                        this.ctx.beginPath();
+                        this.ctx.strokeStyle = this.axisColor;
+                        this.ctx.lineWidth = 0.5;
+                        this.ctx.setLineDash([2, 2]); 
+                        this.ctx.moveTo(0, yLvl);
+                        this.ctx.lineTo(this.width, yLvl); 
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]); 
+                    }
+                }
+            }
+
+            plot(dataPointsY) {
+                if (!this.isValid || !dataPointsY || dataPointsY.length === 0) return;
+                this.clear(); 
+                this.drawAxis(); 
+
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = this.lineColor;
+                this.ctx.lineWidth = this.lineWidth; 
+                
+                const stepX = this.width / (dataPointsY.length > 1 ? dataPointsY.length -1 : 1); 
+                dataPointsY.forEach((y, index) => {
+                    const xPos = index * stepX;
+                    let yValue = y;
+                    if (this.numYLevels && this.numYLevels === 5) { 
+                        yValue = y / 2.5; 
+                    }
+                    const yPos = this.yOffset - (yValue * this.yScale); 
+                    if (index === 0) this.ctx.moveTo(xPos, yPos);
+                    else this.ctx.lineTo(xPos, yPos);
+                });
+                this.ctx.stroke();
+            }
+
+            plotConceptualOFDM(bitsWindow, numSubcarriers, bitsPerSymbolSubcarrier) {
+                if (!this.isValid) return;
+                this.clear();
+        
+                const subcarrierHeight = this.height / numSubcarriers;
+                const barWidth = this.width * 0.55; 
+                const constellationAreaWidth = this.width * 0.38;
+                const padding = Math.max(2, Math.min(5, subcarrierHeight * 0.05)); 
+                const textPadding = Math.max(3, subcarrierHeight * 0.1);
+        
+                let bitCursor = 0;
+        
+                for (let i = 0; i < numSubcarriers; i++) {
+                    const yPos = i * subcarrierHeight;
+        
+                    this.ctx.fillStyle = `hsl(${i * (360 / numSubcarriers)}, 65%, 70%)`;
+                    this.ctx.fillRect(padding, yPos + padding, barWidth, subcarrierHeight - 2 * padding);
+                    this.ctx.strokeStyle = '#555';
+                    this.ctx.lineWidth = 0.5;
+                    this.ctx.strokeRect(padding, yPos + padding, barWidth, subcarrierHeight - 2 * padding);
+        
+                    const constellationX = barWidth + 2 * padding;
+                    const constellationCenterY = yPos + subcarrierHeight / 2;
+                    const constellationSymbolRadius = Math.min(constellationAreaWidth / 2, (subcarrierHeight / 2) - padding) * 0.6;
+                    const pointRadius = Math.max(1.5, constellationSymbolRadius * 0.1);
+                    const activePointRadius = Math.max(2.5, constellationSymbolRadius * 0.18);
+
+                    const qpskPoints = [{x:1,y:1}, {x:-1,y:1}, {x:-1,y:-1}, {x:1,y:-1}]; 
+                    
+                    this.ctx.fillStyle = 'rgba(80, 80, 80, 0.7)';
+                    qpskPoints.forEach(p => {
+                        this.ctx.beginPath();
+                        this.ctx.arc(
+                            constellationX + constellationAreaWidth / 2 + p.x * constellationSymbolRadius, 
+                            constellationCenterY - p.y * constellationSymbolRadius, 
+                            pointRadius, 0, 2 * Math.PI
+                        );
+                        this.ctx.fill();
+                    });
+        
+                    if (bitCursor + bitsPerSymbolSubcarrier <= bitsWindow.length) {
+                        const subcarrierBits = bitsWindow.slice(bitCursor, bitCursor + bitsPerSymbolSubcarrier);
+                        bitCursor += bitsPerSymbolSubcarrier;
+        
+                        let currentPoint = {x:0, y:0}; 
+                        if (bitsPerSymbolSubcarrier === 2) { 
+                            const b0 = subcarrierBits[0]; 
+                            const b1 = subcarrierBits[1]; 
+                            if(b0 === 0 && b1 === 0) currentPoint = qpskPoints[0]; 
+                            else if(b0 === 0 && b1 === 1) currentPoint = qpskPoints[1]; 
+                            else if(b0 === 1 && b1 === 0) currentPoint = qpskPoints[3]; 
+                            else if(b0 === 1 && b1 === 1) currentPoint = qpskPoints[2]; 
+                        }
+        
+                        this.ctx.fillStyle = 'rgba(220, 53, 69, 1)'; 
+                        this.ctx.beginPath();
+                        this.ctx.arc(
+                            constellationX + constellationAreaWidth/2 + currentPoint.x * constellationSymbolRadius,
+                            constellationCenterY - currentPoint.y * constellationSymbolRadius,
+                            activePointRadius, 0, 2 * Math.PI
+                        );
+                        this.ctx.fill();
+                        this.ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                        this.ctx.lineWidth = 1;
+                        this.ctx.stroke();
+        
+                        this.ctx.fillStyle = '#000';
+                        const fontSize = Math.max(8, Math.min(11, subcarrierHeight * 0.25));
+                        this.ctx.font = `${fontSize}px Segoe UI`;
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText(subcarrierBits.join(''), constellationX + constellationAreaWidth/2, yPos + subcarrierHeight - textPadding);
+                    }
+                }
+            }
+        }
+
+        const SAMPLES_PER_BIT = 50; 
+        const NUM_BITS_DISPLAYED = 16; 
+        const baseBitSequence = [1,0,1,1,0,0,0,1,0,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,1,1,0,1,0,1,0,1,1,1,0,0,0,0,0,0,0,0,1,0,1,1,0,0,1,0,1,1,1,0,1,0,0,1,1,0,1,0]; 
+        let fullDataBits = [];
+        for (let i = 0; i < NUM_BITS_DISPLAYED * 40; i++) { 
+            fullDataBits.push(baseBitSequence[i % baseBitSequence.length]);
+        }
+
+        const carrierFrequency = 2.8; 
+        const carrierAmplitude = 1.0;
+        const askLowAmplitude = 0.15;
+        const fskFreq1Multiplier = 2.2; 
+        const fskFreq0Multiplier = 1.1; 
+
+        const signalGroups = {
+            nrzl: { type: 'nrzl', refDataVizId: 'nrzlRefDataCanvas', vizId: 'nrzlCanvas', bitsId: 'nrzlBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger' },
+            nrzi: { type: 'nrzi', refDataVizId: 'nrziRefDataCanvas', vizId: 'nrziCanvas', bitsId: 'nrziBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', initialLastLevel: 1 },
+            rz:   { type: 'rz', refDataVizId: 'rzRefDataCanvas',  vizId: 'rzCanvas',   bitsId: 'rzBits',   activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger' },
+            manchester: { type: 'manchester', refDataVizId: 'manchesterRefDataCanvas', vizId: 'manchesterCanvas', bitsId: 'manchesterBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger' },
+            diffManchester: { type: 'diffManchester', refDataVizId: 'diffManchesterRefDataCanvas', vizId: 'diffManchesterCanvas', bitsId: 'diffManchesterBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', initialLastLevel: 1 },
+            ami:  { type: 'ami', refDataVizId: 'amiRefDataCanvas', vizId: 'amiCanvas',  bitsId: 'amiBits',  activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', initialLastMarkPolarity: -1 },
+            b8zs: { type: 'ami', refDataVizId: 'b8zsRefDataCanvas', vizId: 'b8zsCanvas', bitsId: 'b8zsBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', initialLastMarkPolarity: -1, isB8ZS: true },
+            mlt3: { type: 'mlt3', refDataVizId: 'mlt3RefDataCanvas', vizId: 'mlt3Canvas', bitsId: 'mlt3Bits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', initialLastLevelMLT3: 0, initialLastNonZeroLevelMLT3: 1 },
+            pam5: { type: 'pam5', refDataVizId: 'pam5RefDataCanvas', vizId: 'pam5Canvas', bitsId: 'pam5Bits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', vizNumYLevels: 5 },
+            
+            ask:  { type: 'ask',  dataVizId: 'askDataSignalCanvas', modVizId: 'askModulatedSignalCanvas', bitsId: 'askBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger' },
+            fsk:  { type: 'fsk',  dataVizId: 'fskDataSignalCanvas', modVizId: 'fskModulatedSignalCanvas', bitsId: 'fskBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger' },
+            psk:  { type: 'psk',  dataVizId: 'pskDataSignalCanvas', modVizId: 'pskModulatedSignalCanvas', bitsId: 'pskBits', activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger' },
+            
+            qam4: { type: 'qam', bitsPerSymbol: 2, dataVizId: 'qam4DataSignalCanvas', modVizId: 'qam4ModulatedSignalCanvas', constellationCanvasId: 'qam4ConstellationCanvas', bitsId: 'qam4Bits', chart: null, currentSymbolBits: [], activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', modSignalColor: '#ffc107' }, 
+            qam16: { type: 'qam', bitsPerSymbol: 4, dataVizId: 'qam16DataSignalCanvas', modVizId: 'qam16ModulatedSignalCanvas', constellationCanvasId: 'qam16ConstellationCanvas', bitsId: 'qam16Bits', chart: null, currentSymbolBits: [], activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', modSignalColor: '#fd7e14' }, 
+            qam64: { type: 'qam', bitsPerSymbol: 6, dataVizId: 'qam64DataSignalCanvas', modVizId: 'qam64ModulatedSignalCanvas', constellationCanvasId: 'qam64ConstellationCanvas', bitsId: 'qam64Bits', chart: null, currentSymbolBits: [], activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger', modSignalColor: '#6610f2' }, 
+            
+            ofdm: { type: 'ofdm', bankVizId: 'ofdmBankCanvas', bitsId: 'ofdmBits', numSubcarriers: 8, bitsPerSymbolSubcarrier: 2, activeBtnClass: 'btn-outline-success', pausedBtnClass: 'btn-danger' }
+        };
+        
+        function getPreviousState(bitsToProcess, encodingType, initialStates = {}) {
+            let { lastLevel, lastMarkPolarity, lastLevelMLT3, lastNonZeroLevelMLT3 } = { 
+                lastLevel: initialStates.initialLastLevel !== undefined ? initialStates.initialLastLevel : 1, 
+                lastMarkPolarity: initialStates.initialLastMarkPolarity !== undefined ? initialStates.initialLastMarkPolarity : -1,
+                lastLevelMLT3: initialStates.initialLastLevelMLT3 !== undefined ? initialStates.initialLastLevelMLT3 : 0,
+                lastNonZeroLevelMLT3: initialStates.initialLastNonZeroLevelMLT3 !== undefined ? initialStates.initialLastNonZeroLevelMLT3 : 1
+            };
+
+            for (const bit of bitsToProcess) {
+                if (encodingType === 'ami' && initialStates.isB8ZS) {
+                    if (bit === 1) { lastMarkPolarity *= -1; }
+                } else { 
+                    switch (encodingType) {
+                        case 'nrzi': if (bit === 1) lastLevel *= -1; break;
+                        case 'diffManchester': 
+                            let startLevelDM = lastLevel; 
+                            if (bit === 0) startLevelDM *= -1; 
+                            lastLevel = startLevelDM * -1;   
+                            break;
+                        case 'ami': if (bit === 1) lastMarkPolarity *= -1; break;
+                        case 'mlt3':
+                            if (bit === 1) {
+                                if (lastLevelMLT3 === 0) lastLevelMLT3 = lastNonZeroLevelMLT3;
+                                else { lastNonZeroLevelMLT3 = -lastLevelMLT3; lastLevelMLT3 = 0; }
+                            }
+                            break;
+                    }
+                }
+            }
+            return { lastLevel, lastMarkPolarity, lastLevelMLT3, lastNonZeroLevelMLT3 };
+        }
+
+        function mapBitsToQamAxisLevel(bitsArray) {
+            if (bitsArray.length === 1) { 
+                return bitsArray[0] === 0 ? -1 : 1;
+            } else if (bitsArray.length === 2) { 
+                const b1 = bitsArray[0]; const b0 = bitsArray[1];
+                if (b1 === 0 && b0 === 0) return -3; 
+                if (b1 === 0 && b0 === 1) return -1; 
+                if (b1 === 1 && b0 === 1) return 1;  
+                if (b1 === 1 && b0 === 0) return 3;  
+            } else if (bitsArray.length === 3) { 
+                const b2 = bitsArray[0]; const b1 = bitsArray[1]; const b0 = bitsArray[2];
+                if (b2===0 && b1===0 && b0===0) return -7; 
+                if (b2===0 && b1===0 && b0===1) return -5; 
+                if (b2===0 && b1===1 && b0===1) return -3; 
+                if (b2===0 && b1===1 && b0===0) return -1; 
+                if (b2===1 && b1===1 && b0===0) return  1; 
+                if (b2===1 && b1===1 && b0===1) return  3; 
+                if (b2===1 && b1===0 && b0===1) return  5; 
+                if (b2===1 && b1===0 && b0===0) return  7; 
+            }
+            return 0; 
+        }
+
+        function createQamChart(canvasId, groupConfig) {
+            const qamCanvasEl = document.getElementById(canvasId);
+            if (!qamCanvasEl) {
+                console.error(`Canvas de constelación QAM con ID '${canvasId}' no encontrado.`);
+                return null;
+            }
+            const qamCtx = qamCanvasEl.getContext('2d');
+            
+            const bitsPerDim = groupConfig.bitsPerSymbol / 2;
+            const qamLevels = [];
+            if (bitsPerDim === 1) qamLevels.push(-1, 1);
+            else if (bitsPerDim === 2) qamLevels.push(-3, -1, 1, 3);
+            else if (bitsPerDim === 3) qamLevels.push(-7, -5, -3, -1, 1, 3, 5, 7);
+
+            const qamConstellationPoints = [];
+            for (let iLevel of qamLevels) {
+                for (let qLevel of qamLevels) {
+                    qamConstellationPoints.push({x: iLevel, y: qLevel});
+                }
+            }
+            const scaleMax = qamLevels.length > 0 ? Math.abs(qamLevels[qamLevels.length - 1]) + 1 : 4;
+
+            return new Chart(qamCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: `Constelación ${2**groupConfig.bitsPerSymbol}-QAM`,
+                        data: qamConstellationPoints,
+                        pointBackgroundColor: 'rgba(108, 117, 125, 0.6)',
+                        pointRadius: 4, pointHoverRadius: 6, 
+                    }, {
+                        label: 'Símbolo Actual', data: [{x:0, y:0}], 
+                        pointBackgroundColor: 'rgba(220, 53, 69, 1)',
+                        pointRadius: 6, pointBorderColor: 'rgba(255, 255, 255, 0.8)', pointBorderWidth: 1.5,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: true, aspectRatio: 1,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'I', font: {size: 10}},
+                             min: -scaleMax, max: scaleMax, ticks: { font: {size: 9}, stepSize: bitsPerDim === 3 ? 2 : 1 }, grid: { color: '#efefef' } },
+                        y: { title: { display: true, text: 'Q', font: {size: 10}},
+                             min: -scaleMax, max: scaleMax, ticks: { font: {size: 9}, stepSize: bitsPerDim === 3 ? 2 : 1 }, grid: { color: '#efefef' } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: true, callbacks: {
+                            label: function(context) {
+                                let label = `(${context.parsed.x}, ${context.parsed.y})`;
+                                if (context.datasetIndex === 1 && groupConfig.currentSymbolBits.length === groupConfig.bitsPerSymbol) {
+                                   label += ` [${groupConfig.currentSymbolBits.join('')}]`;
+                                }
+                                return label;
+                            }}}
+                    }
+                }
+            });
+        }
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            Object.keys(signalGroups).forEach(key => {
+                const group = signalGroups[key];
+                group.time = 0;
+                group.isPaused = false;
+                group.speedMultiplier = 1; 
+
+                if (group.type === 'nrzi' || group.type === 'diffManchester') group.currentProcessingLastLevel = group.initialLastLevel;
+                if (group.type === 'ami') group.currentProcessingLastMarkPolarity = group.initialLastMarkPolarity;
+                if (group.type === 'mlt3') {
+                    group.currentProcessingLastLevelMLT3 = group.initialLastLevelMLT3;
+                    group.currentProcessingLastNonZeroLevelMLT3 = group.initialLastNonZeroLevelMLT3;
+                }
+
+                if (group.refDataVizId) group.refDataViz = new SignalVisualizer(group.refDataVizId, { lineColor: '#adb5bd' });
+                if (group.vizId) { 
+                    let vizOptions = { lineColor: '#0d6efd' };
+                    if (group.type === 'pam5') { vizOptions.lineColor = '#6f42c1'; vizOptions.numYLevels = group.vizNumYLevels; }
+                    else if (group.type === 'mlt3') vizOptions.lineColor = '#20c997';
+                    group.viz = new SignalVisualizer(group.vizId, vizOptions);
+                }
+                if (group.dataVizId) group.dataViz = new SignalVisualizer(group.dataVizId, { lineColor: '#6c757d' });
+                if (group.modVizId) { 
+                    let modSignalColor = group.modSignalColor || '#0d6efd'; 
+                    let yScaleMod = undefined; 
+                    if (key === 'ask') modSignalColor = '#dc3545'; 
+                    else if (key === 'fsk') modSignalColor = '#198754'; 
+                    else if (key === 'psk') modSignalColor = '#0dcaf0'; 
+                    else if (group.type === 'qam') {
+                         yScaleMod = (new SignalVisualizer(group.modVizId, {}).height * 0.25 / (group.bitsPerSymbol / 2)); 
+                    }
+                    group.modulatedViz = new SignalVisualizer(group.modVizId, { lineColor: modSignalColor, yScale: yScaleMod }); 
+                }
+                if (group.bankVizId && group.type === 'ofdm') { 
+                    group.bankViz = new SignalVisualizer(group.bankVizId);
+                }
+
+
+                if (group.type === 'qam' && group.constellationCanvasId) {
+                    group.chart = createQamChart(group.constellationCanvasId, group);
+                }
+            });
+
+            let allVisualizersValid = true;
+            Object.values(signalGroups).forEach(g => {
+                if (!allVisualizersValid) return; 
+                if (g.refDataVizId && (!g.refDataViz || !g.refDataViz.isValid)) allVisualizersValid = false;
+                if (g.vizId && (!g.viz || !g.viz.isValid)) allVisualizersValid = false;
+                if (g.dataVizId && (!g.dataViz || !g.dataViz.isValid)) allVisualizersValid = false;
+                if (g.modVizId && (!g.modulatedViz || !g.modulatedViz.isValid)) allVisualizersValid = false;
+                if (g.constellationCanvasId && !g.chart) allVisualizersValid = false;
+                if (g.bankVizId && (!g.bankViz || !g.bankViz.isValid)) allVisualizersValid = false;
+            });
+            
+            if (allVisualizersValid) {
+                requestAnimationFrame(animate);
+            } else {
+                console.error("Error crítico: Uno o más canvas/gráficos no se pudieron inicializar.");
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert alert-danger';
+                errorDiv.textContent = 'Error al inicializar uno o más componentes visuales. Por favor, recarga la página o revisa la consola para más detalles.';
+                document.querySelector('.container-main').prepend(errorDiv);
+            }
+
+            document.querySelectorAll('.controls-container button[data-target-group]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const groupKey = button.dataset.targetGroup;
+                    const group = signalGroups[groupKey];
+                    if (group) {
+                        group.isPaused = !group.isPaused;
+                        button.textContent = group.isPaused ? 'Reanudar' : 'Pausar';
+                        button.classList.toggle(group.activeBtnClass, !group.isPaused);
+                        button.classList.toggle(group.pausedBtnClass, group.isPaused);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.controls-container .form-select[data-target-group]').forEach(select => {
+                select.addEventListener('change', (event) => {
+                    const groupKey = select.dataset.targetGroup;
+                    const group = signalGroups[select.dataset.targetGroup];
+                    if (group) group.speedMultiplier = parseFloat(event.target.value);
+                });
+            });
+        });
+        
+        function generateSignalPoints(currentBits, groupConfig, stateForCurrentWindow) {
+            const points = [];
+            let currentLevel = stateForCurrentWindow?.lastLevel !== undefined ? stateForCurrentWindow.lastLevel : groupConfig.currentProcessingLastLevel;
+            let lastMarkPol = stateForCurrentWindow?.lastMarkPolarity !== undefined ? stateForCurrentWindow.lastMarkPolarity : groupConfig.currentProcessingLastMarkPolarity;
+            let bitStartLevelDM = currentLevel; 
+            
+            let lastLvlMLT3 = stateForCurrentWindow?.lastLevelMLT3 !== undefined ? stateForCurrentWindow.lastLevelMLT3 : groupConfig.currentProcessingLastLevelMLT3;
+            let lastNonZeroLvlMLT3 = stateForCurrentWindow?.lastNonZeroLevelMLT3 !== undefined ? stateForCurrentWindow.lastNonZeroLevelMLT3 : groupConfig.currentProcessingLastNonZeroLevelMLT3;
+
+            let amiLastMarkPolForB8ZS = lastMarkPol; 
+
+            for (let i = 0; i < currentBits.length; i++) {
+                const bit = currentBits[i];
+                let bitSamples = [];
+                switch (groupConfig.type) {
+                    case 'nrzl_data': 
+                    case 'nrzl':
+                        currentLevel = bit === 1 ? 1 : -1;
+                        bitSamples = Array(SAMPLES_PER_BIT).fill(currentLevel);
+                        break;
+                    case 'nrzi':
+                        if (bit === 1) currentLevel *= -1; 
+                        bitSamples = Array(SAMPLES_PER_BIT).fill(currentLevel);
+                        break;
+                    case 'rz':
+                        const rzLevel = bit === 1 ? 1 : (bit === 0 ? 0 : -1); 
+                        for (let j = 0; j < SAMPLES_PER_BIT; j++) { bitSamples.push(j < SAMPLES_PER_BIT / 2 ? rzLevel : 0); }
+                        currentLevel = 0; 
+                        break;
+                    case 'manchester': 
+                        const firstHalfM = (bit === 1 ? 1 : -1); const secondHalfM = (bit === 1 ? -1 : 1);
+                        for (let j = 0; j < SAMPLES_PER_BIT; j++) { bitSamples.push(j < SAMPLES_PER_BIT / 2 ? firstHalfM : secondHalfM); }
+                        currentLevel = secondHalfM; 
+                        break;
+                    case 'diffManchester':
+                        if (bit === 0) bitStartLevelDM *= -1; 
+                        for (let j = 0; j < SAMPLES_PER_BIT; j++) { bitSamples.push(j < SAMPLES_PER_BIT / 2 ? bitStartLevelDM : bitStartLevelDM * -1); }
+                        currentLevel = bitStartLevelDM * -1; 
+                        bitStartLevelDM = currentLevel; 
+                        break;
+                    case 'ami':
+                        if (groupConfig.isB8ZS) {
+                            let isB8ZSPattern = false;
+                            if (bit === 0) {
+                                let consecutiveZeros = 0;
+                                for (let k = i; k < Math.min(i + 8, currentBits.length); k++) { if (currentBits[k] === 0) consecutiveZeros++; else break; }
+                                if (consecutiveZeros === 8) {
+                                    isB8ZSPattern = true;
+                                    const V = amiLastMarkPolForB8ZS * -1; const B = V * -1;          
+                                    points.push(...Array(SAMPLES_PER_BIT * 3).fill(0)); points.push(...Array(SAMPLES_PER_BIT).fill(V)); points.push(...Array(SAMPLES_PER_BIT).fill(B));
+                                    points.push(...Array(SAMPLES_PER_BIT).fill(0)); points.push(...Array(SAMPLES_PER_BIT).fill(B)); points.push(...Array(SAMPLES_PER_BIT).fill(V * -1)); 
+                                    amiLastMarkPolForB8ZS = V * -1; 
+                                    i += 7; continue;
+                                }
+                            }
+                            if (bit === 0) bitSamples = Array(SAMPLES_PER_BIT).fill(0);
+                            else { amiLastMarkPolForB8ZS *= -1; bitSamples = Array(SAMPLES_PER_BIT).fill(amiLastMarkPolForB8ZS); }
+                        } else { 
+                            if (bit === 0) bitSamples = Array(SAMPLES_PER_BIT).fill(0);
+                            else { lastMarkPol *= -1; bitSamples = Array(SAMPLES_PER_BIT).fill(lastMarkPol); }
+                        }
+                        break;
+                    case 'mlt3':
+                        if (bit === 0) bitSamples = Array(SAMPLES_PER_BIT).fill(lastLvlMLT3);
+                        else { 
+                            if (lastLvlMLT3 === 0) lastLvlMLT3 = lastNonZeroLvlMLT3;
+                            else { lastNonZeroLvlMLT3 = -lastLvlMLT3; lastLvlMLT3 = 0; }
+                            bitSamples = Array(SAMPLES_PER_BIT).fill(lastLvlMLT3);
+                        }
+                        break;
+                    case 'pam5':
+                        if (i + 1 < currentBits.length) {
+                            const b1 = currentBits[i]; const b0 = currentBits[i+1];
+                            let pamLevel = (b1 === 0 && b0 === 0) ? -2 : (b1 === 0 && b0 === 1) ? -1 : (b1 === 1 && b0 === 0) ? 1 : (b1 === 1 && b0 === 1) ? 2 : 0;
+                            bitSamples = Array(SAMPLES_PER_BIT * 2).fill(pamLevel);
+                            i++; 
+                        } else bitSamples = Array(SAMPLES_PER_BIT * 2).fill(0); 
+                        break;
+                    case 'ask':
+                        for (let j = 0; j < SAMPLES_PER_BIT; j++) {
+                            points.push((bit === 1 ? carrierAmplitude : askLowAmplitude) * Math.sin(2 * Math.PI * carrierFrequency * (j / SAMPLES_PER_BIT)));
+                        }
+                        continue; 
+                    case 'fsk':
+                        for (let j = 0; j < SAMPLES_PER_BIT; j++) {
+                            points.push(carrierAmplitude * Math.sin(2 * Math.PI * carrierFrequency * (bit === 1 ? fskFreq1Multiplier : fskFreq0Multiplier) * (j / SAMPLES_PER_BIT)));
+                        }
+                        continue; 
+                    case 'psk': 
+                        for (let j = 0; j < SAMPLES_PER_BIT; j++) {
+                            points.push(carrierAmplitude * Math.sin(2 * Math.PI * carrierFrequency * (j / SAMPLES_PER_BIT) + (bit === 1 ? 0 : Math.PI)));
+                        }
+                        continue;
+                    case 'qam':
+                        const bitsPerDim = groupConfig.bitsPerSymbol / 2;
+                        if (i + groupConfig.bitsPerSymbol -1 < currentBits.length) { 
+                            const symbolBits = currentBits.slice(i, i + groupConfig.bitsPerSymbol);
+                            
+                            const I_bits = symbolBits.slice(0, bitsPerDim);
+                            const Q_bits = symbolBits.slice(bitsPerDim, groupConfig.bitsPerSymbol);
+                            const I_val = mapBitsToQamAxisLevel(I_bits);
+                            const Q_val = mapBitsToQamAxisLevel(Q_bits);
+                            
+                            const SAMPLES_PER_SYMBOL_QAM = SAMPLES_PER_BIT * groupConfig.bitsPerSymbol;
+                            let amplitudeNormalizer = 1.0; 
+                            if (groupConfig.bitsPerSymbol === 2) amplitudeNormalizer = 1.5; 
+                            else if (groupConfig.bitsPerSymbol === 4) amplitudeNormalizer = 4.3; 
+                            else if (groupConfig.bitsPerSymbol === 6) amplitudeNormalizer = 10.0; 
+
+                            for (let j = 0; j < SAMPLES_PER_SYMBOL_QAM; j++) {
+                                const tRel = j / SAMPLES_PER_SYMBOL_QAM; 
+                                const carrierRad = 2 * Math.PI * carrierFrequency * tRel;
+                                const signalPoint = (I_val * Math.cos(carrierRad) - Q_val * Math.sin(carrierRad)) / amplitudeNormalizer; 
+                                points.push(signalPoint);
+                            }
+                            i += (groupConfig.bitsPerSymbol - 1); 
+                        } else { 
+                             i = currentBits.length; 
+                        }
+                        continue; 
+                }
+                points.push(...bitSamples);
+            }
+
+            if (groupConfig.type === 'nrzi' || groupConfig.type === 'diffManchester') groupConfig.currentProcessingLastLevel = currentLevel;
+            if (groupConfig.type === 'ami' && !groupConfig.isB8ZS) groupConfig.currentProcessingLastMarkPolarity = lastMarkPol;
+            if (groupConfig.type === 'ami' && groupConfig.isB8ZS) groupConfig.currentProcessingLastMarkPolarity = amiLastMarkPolForB8ZS;
+            if (groupConfig.type === 'mlt3') {
+                groupConfig.currentProcessingLastLevelMLT3 = lastLvlMLT3;
+                groupConfig.currentProcessingLastNonZeroLevelMLT3 = lastNonZeroLvlMLT3;
+            }
+            return points;
+        }
+
+        let lastTimestamp = 0;
+        const baseAnimationScrollSpeed = 0.07; 
+
+        function animate(timestamp) {
+            const deltaTime = (timestamp - lastTimestamp) || (1000 / 60); 
+            lastTimestamp = timestamp;
+
+            Object.keys(signalGroups).forEach(groupKey => {
+                const group = signalGroups[groupKey];
+                
+                let canProceed = true;
+                if ((group.refDataVizId && (!group.refDataViz || !group.refDataViz.isValid)) ||
+                    (group.vizId && (!group.viz || !group.viz.isValid)) ||
+                    (group.dataVizId && (!group.dataViz || !group.dataViz.isValid)) ||
+                    (group.modVizId && (!group.modulatedViz || !group.modulatedViz.isValid)) ||
+                    (group.constellationCanvasId && !group.chart) ||
+                    (group.bankVizId && (!group.bankViz || !group.bankViz.isValid))) {
+                    canProceed = false;
+                }
+                if (!canProceed) return; 
+
+                if (!group.isPaused) {
+                    let bitsAdvancingFactor = 1; 
+                    if (group.type === 'pam5') bitsAdvancingFactor = 2;
+                    else if (group.type === 'qam') bitsAdvancingFactor = group.bitsPerSymbol;
+                    else if (group.type === 'ofdm') bitsAdvancingFactor = group.numSubcarriers * group.bitsPerSymbolSubcarrier;
+                    
+                    group.time += (baseAnimationScrollSpeed * group.speedMultiplier * (deltaTime / (1000/60))) * bitsAdvancingFactor;
+                    if (group.time >= fullDataBits.length) group.time = group.time % fullDataBits.length;
+                }
+
+                const bitStartIndex = Math.floor(group.time % (fullDataBits.length - NUM_BITS_DISPLAYED + 1));
+                
+                let currentBitsWindow = [];
+                if (bitStartIndex + NUM_BITS_DISPLAYED <= fullDataBits.length) {
+                    currentBitsWindow = fullDataBits.slice(bitStartIndex, bitStartIndex + NUM_BITS_DISPLAYED);
+                } else { 
+                    const remaining = fullDataBits.length - bitStartIndex;
+                    currentBitsWindow = fullDataBits.slice(bitStartIndex, fullDataBits.length).concat(fullDataBits.slice(0, NUM_BITS_DISPLAYED - remaining));
+                }
+                
+                const bitsDisplayElem = document.getElementById(group.bitsId);
+                if (bitsDisplayElem) {
+                    let boldLength = 0;
+                    if (group.type === 'qam') boldLength = group.bitsPerSymbol;
+                    else if (group.type === 'pam5') boldLength = 2;
+                    else if (group.type === 'ofdm') boldLength = group.numSubcarriers * group.bitsPerSymbolSubcarrier;
+                    
+                    let textContent = group.type === 'ofdm' ? `Datos p/ ${group.numSubcarriers} subp. (${group.bitsPerSymbolSubcarrier}b c/u): ` : "Datos: ";
+
+                    if (boldLength > 0 && currentBitsWindow.length >= boldLength) {
+                        const activeSymbolBits = currentBitsWindow.slice(0, boldLength).join('');
+                        const remainingDisplayBits = currentBitsWindow.slice(boldLength).join('');
+                        textContent += `<strong>${activeSymbolBits}</strong>${remainingDisplayBits}`;
+                    } else {
+                        textContent += currentBitsWindow.join('');
+                    }
+                    bitsDisplayElem.innerHTML = textContent;
+                }
+
+                let stateForCurrentWindowDrawing = {};
+                const initialStatesForGetPrevious = { initialLastLevel: group.initialLastLevel, initialLastMarkPolarity: group.initialLastMarkPolarity, initialLastLevelMLT3: group.initialLastLevelMLT3, initialLastNonZeroLevelMLT3: group.initialLastNonZeroLevelMLT3, isB8ZS: group.isB8ZS };
+                if (bitStartIndex > 0 && (group.type === 'nrzi' || group.type === 'diffManchester' || group.type === 'ami' || group.type === 'mlt3')) {
+                    stateForCurrentWindowDrawing = getPreviousState(fullDataBits.slice(0, bitStartIndex), group.type, initialStatesForGetPrevious);
+                } else { 
+                    stateForCurrentWindowDrawing.lastLevel = group.initialLastLevel; stateForCurrentWindowDrawing.lastMarkPolarity = group.initialLastMarkPolarity;
+                    stateForCurrentWindowDrawing.lastLevelMLT3 = group.initialLastLevelMLT3; stateForCurrentWindowDrawing.lastNonZeroLevelMLT3 = group.initialLastNonZeroLevelMLT3;
+                }
+
+                if (group.refDataViz?.isValid) {
+                    group.refDataViz.plot(generateSignalPoints(currentBitsWindow, { type: 'nrzl_data' }, {})); 
+                }
+
+                if (group.type === 'ask' || group.type === 'fsk' || group.type === 'psk') { 
+                    const dataPoints = generateSignalPoints(currentBitsWindow, { ...group, type: 'nrzl_data' }, {}); 
+                    const modulatedPoints = generateSignalPoints(currentBitsWindow, group, {}); 
+                    if (group.dataViz?.isValid) group.dataViz.plot(dataPoints);
+                    if (group.modulatedViz?.isValid) group.modulatedViz.plot(modulatedPoints);
+                } else if (group.type === 'qam') {
+                    const dataPoints = generateSignalPoints(currentBitsWindow, { ...group, type: 'nrzl_data'}, {});
+                    const modulatedPoints = generateSignalPoints(currentBitsWindow, group, {}); 
+                    if (group.dataViz?.isValid) group.dataViz.plot(dataPoints);
+                    if (group.modulatedViz?.isValid) group.modulatedViz.plot(modulatedPoints);
+
+                    if (group.chart && currentBitsWindow.length >= group.bitsPerSymbol) {
+                        group.currentSymbolBits = currentBitsWindow.slice(0, group.bitsPerSymbol);
+                        const bitsPerDim = group.bitsPerSymbol / 2;
+                        const I_val = mapBitsToQamAxisLevel(group.currentSymbolBits.slice(0, bitsPerDim));
+                        const Q_val = mapBitsToQamAxisLevel(group.currentSymbolBits.slice(bitsPerDim, group.bitsPerSymbol));
+                        
+                        group.chart.data.datasets[1].data = [{x: I_val, y: Q_val}];
+                        group.chart.update('none'); 
+                    }
+                } else if (group.type === 'ofdm') {
+                    if (group.bankViz?.isValid && currentBitsWindow.length >= group.numSubcarriers * group.bitsPerSymbolSubcarrier) {
+                        const bitsForOFDMSymbol = currentBitsWindow.slice(0, group.numSubcarriers * group.bitsPerSymbolSubcarrier);
+                        group.bankViz.plotConceptualOFDM(bitsForOFDMSymbol, group.numSubcarriers, group.bitsPerSymbolSubcarrier);
+                    }
+                } else { 
+                    const points = generateSignalPoints(currentBitsWindow, group, stateForCurrentWindowDrawing);
+                    if (group.viz?.isValid) group.viz.plot(points);
+                }
+            });
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
