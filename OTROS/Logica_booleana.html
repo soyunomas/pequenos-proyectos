@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorador de Propiedades de Lógica Booleana</title>
+    <!-- Enlace al CSS de Bootstrap 5 a través de CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        /* Estilos personalizados opcionales si fueran necesarios */
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+        /* Estilo para ajustar el tamaño de fuente dentro de <code> si es necesario en móviles */
+        .table code {
+            font-size: 0.9em; /* Ajusta este valor si lo ves muy grande/pequeño */
+            word-break: break-word; /* Ayuda a romper palabras largas en celdas estrechas */
+        }
+         @media (max-width: 768px) {
+            .table code {
+                font-size: 0.8em; /* Reduce el tamaño en pantallas pequeñas */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 class="mb-4 text-center">Explorador de Propiedades de Lógica Booleana</h1>
+
+        <p class="lead mb-5">
+            Esta tabla presenta las propiedades fundamentales de la lógica booleana, esenciales en campos como la electrónica digital y la informática. Se muestran sus formas lógicas comunes utilizando las palabras clave `AND`, `OR`, `NOT`.
+        </p>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover">
+                <thead>
+                    <tr class="table-primary">
+                        <th scope="col">Nombre de la Ley</th>
+                        <th scope="col">Forma Original (Lógica)</th>
+                        <th scope="col">Forma Equivalente (Lógica)</th>
+                        <!-- Se eliminó la columna de Analogía Matemática -->
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Leyes de Identidad</td>
+                        <td><code>A OR 0 = A</code><br><code>A AND 1 = A</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                    <tr>
+                        <td>Leyes de Dominación</td>
+                        <td><code>A OR 1 = 1</code><br><code>A AND 0 = 0</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                    <tr>
+                        <td>Leyes de Idempotencia</td>
+                        <td><code>A OR A = A</code><br><code>A AND A = A</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                    <tr>
+                        <td>Leyes de Conmutatividad</td>
+                        <td><code>A OR B = B OR A</code><br><code>A AND B = B AND A</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                    <tr>
+                        <td>Leyes de Asociatividad</td>
+                        <td><code>A OR (B OR C) = (A OR B) OR C</code><br><code>A AND (B AND C) = (A AND B) AND C</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                    <tr>
+                        <td>Leyes de Distributividad</td>
+                        <td><code>A AND (B OR C) = (A AND B) OR (A AND C)</code><br><code>A OR (B AND C) = (A OR B) OR (A OR C)</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                    <tr>
+                        <td>Leyes de Absorción</td>
+                        <td><code>A OR (A AND B) = A</code><br><code>A AND (A OR B) = A</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                     <tr>
+                        <td>Leyes de De Morgan</td>
+                        <td>
+                            <code>NOT (A OR B)</code><br>
+                            <code>NOT (A AND B)</code>
+                        </td>
+                        <td>
+                            <code>(NOT A) AND (NOT B)</code><br>
+                            <code>(NOT A) OR (NOT B)</code>
+                        </td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                    <tr>
+                        <td>Ley de Doble Negación</td>
+                        <td><code>NOT (NOT A)</code></td>
+                        <td><code>A</code></td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                     <tr>
+                        <td>Leyes Complementarias</td>
+                        <td><code>A OR (NOT A) = 1</code><br><code>A AND (NOT A) = 0</code></td>
+                        <td>-</td>
+                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="mt-5 text-center text-muted">
+            <p>&copy; 2025 Explorador de Propiedades de Lógica Booleana (Ejemplo Educativo)</p>
+        </footer>
+
+    </div>
+
+    <!-- Enlace al JS de Bootstrap 5 a través de CDN (con Popper.js incluido) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+</body>
+</html>
