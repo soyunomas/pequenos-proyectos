@@ -4,24 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Explorador de Propiedades de Lógica Booleana</title>
-    <!-- Enlace al CSS de Bootstrap 5 a través de CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <style>
-        /* Estilos personalizados opcionales si fueran necesarios */
         body {
             padding-top: 20px;
             padding-bottom: 20px;
         }
-        /* Estilo para ajustar el tamaño de fuente dentro de <code> si es necesario en móviles */
         .table code {
-            font-size: 0.9em; /* Ajusta este valor si lo ves muy grande/pequeño */
-            word-break: break-word; /* Ayuda a romper palabras largas en celdas estrechas */
+            font-size: 0.9em;
+            word-break: break-word;
         }
          @media (max-width: 768px) {
             .table code {
-                font-size: 0.8em; /* Reduce el tamaño en pantallas pequeñas */
+                font-size: 0.8em;
             }
         }
+        .table code .equivalence-separator {
+            display: block;
+            margin: 5px 0;
+        }
+        .table td {
+             vertical-align: middle;
+        }
+        .table td.law-name {
+            vertical-align: middle;
+            text-align: left;
+        }
+
+        .law-group.even-group td,
+        .law-group.even-group + .law-group-continuation td {
+            background-color: var(--bs-table-striped-bg);
+        }
+        .law-group-continuation.even-group td { /* Asegurar que la continuación también tenga el fondo si su grupo es even */
+             background-color: var(--bs-table-striped-bg);
+        }
+
+
+        .table tbody tr:not(.law-group-last-in-set) td {
+            border-bottom-width: 0;
+        }
+        .law-group-last-in-set td {
+             border-bottom: 1px solid var(--bs-border-color) !important;
+        }
+
+        /* Estilo para cuando cualquier fila de un grupo de ley está "hovered" */
+        tr.law-group-hovered td {
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
@@ -30,85 +60,297 @@
         <h1 class="mb-4 text-center">Explorador de Propiedades de Lógica Booleana</h1>
 
         <p class="lead mb-5">
-            Esta tabla presenta las propiedades fundamentales de la lógica booleana, esenciales en campos como la electrónica digital y la informática. Se muestran sus formas lógicas comunes utilizando las palabras clave `AND`, `OR`, `NOT`.
+            Esta tabla presenta las propiedades fundamentales de la lógica booleana, esenciales en campos como la electrónica digital y la informática.
+            Comprender estas leyes permite simplificar expresiones lógicas complejas, optimizar consultas de bases de datos y escribir código más eficiente y legible.
+            Se muestran sus formas lógicas comunes utilizando los operadores lógicos <code>AND</code>, <code>OR</code>, <code>NOT</code>, junto con analogías prácticas en sintaxis de consultas SQL (<code>WHERE</code>) y condiciones de programación Java (<code>if</code>).
         </p>
 
         <div class="table-responsive">
-            <table class="table table-bordered table-striped table-hover">
+            <table class="table table-bordered table-hover">
                 <thead>
                     <tr class="table-primary">
                         <th scope="col">Nombre de la Ley</th>
-                        <th scope="col">Forma Original (Lógica)</th>
-                        <th scope="col">Forma Equivalente (Lógica)</th>
-                        <!-- Se eliminó la columna de Analogía Matemática -->
+                        <th scope="col">Forma Lógica</th>
+                        <th scope="col">Analogía SQL <code>WHERE</code></th>
+                         <th scope="col">Analogía Java <code>if</code></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>Leyes de Identidad</td>
-                        <td><code>A OR 0 = A</code><br><code>A AND 1 = A</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
-                    </tr>
-                    <tr>
-                        <td>Leyes de Dominación</td>
-                        <td><code>A OR 1 = 1</code><br><code>A AND 0 = 0</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
-                    </tr>
-                    <tr>
-                        <td>Leyes de Idempotencia</td>
-                        <td><code>A OR A = A</code><br><code>A AND A = A</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
-                    </tr>
-                    <tr>
-                        <td>Leyes de Conmutatividad</td>
-                        <td><code>A OR B = B OR A</code><br><code>A AND B = B AND A</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
-                    </tr>
-                    <tr>
-                        <td>Leyes de Asociatividad</td>
-                        <td><code>A OR (B OR C) = (A OR B) OR C</code><br><code>A AND (B AND C) = (A AND B) AND C</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
-                    </tr>
-                    <tr>
-                        <td>Leyes de Distributividad</td>
-                        <td><code>A AND (B OR C) = (A AND B) OR (A AND C)</code><br><code>A OR (B AND C) = (A OR B) OR (A OR C)</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
-                    </tr>
-                    <tr>
-                        <td>Leyes de Absorción</td>
-                        <td><code>A OR (A AND B) = A</code><br><code>A AND (A OR B) = A</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
-                    </tr>
-                     <tr>
-                        <td>Leyes de De Morgan</td>
+                    <!-- Leyes de Identidad -->
+                    <tr class="law-group odd-group">
+                        <td rowspan="2" class="law-name">Leyes de Identidad</td>
+                        <td><code>A OR 0 = A</code></td>
                         <td>
-                            <code>NOT (A OR B)</code><br>
-                            <code>NOT (A AND B)</code>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR (1=0);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion1;</code>
                         </td>
+                         <td>
+                            <code>if (condicion1 || false) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion1) { ... }</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation odd-group law-group-last-in-set">
+                        <td><code>A AND 1 = A</code></td>
                         <td>
-                            <code>(NOT A) AND (NOT B)</code><br>
-                            <code>(NOT A) OR (NOT B)</code>
+                             <code>SELECT * FROM tabla WHERE condicion1 AND (1=1);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion1;</code>
                         </td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
+                         <td>
+                            <code>if (condicion1 && true) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion1) { ... }</code>
+                        </td>
                     </tr>
-                    <tr>
-                        <td>Ley de Doble Negación</td>
-                        <td><code>NOT (NOT A)</code></td>
-                        <td><code>A</code></td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
+
+                    <!-- Leyes de Dominación -->
+                    <tr class="law-group even-group">
+                        <td rowspan="2" class="law-name">Leyes de Dominación</td>
+                        <td><code>A OR 1 = 1</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR (1=1);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (1=1); /* Siempre verdadero */</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 || true) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (true) { ... } /* Siempre se ejecuta */</code>
+                        </td>
                     </tr>
-                     <tr>
-                        <td>Leyes Complementarias</td>
-                        <td><code>A OR (NOT A) = 1</code><br><code>A AND (NOT A) = 0</code></td>
-                        <td>-</td>
-                        <!-- Se eliminó la celda de Analogía Matemática -->
+                    <tr class="law-group-continuation even-group law-group-last-in-set">
+                        <td><code>A AND 0 = 0</code></td>
+                         <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 AND (1=0);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (1=0); /* Siempre falso */</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 && false) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (false) { ... } /* Nunca se ejecuta */</code>
+                        </td>
+                    </tr>
+
+                    <!-- Leyes de Idempotencia -->
+                    <tr class="law-group odd-group">
+                        <td rowspan="2" class="law-name">Leyes de Idempotencia</td>
+                        <td><code>A OR A = A</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR condicion1;</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion1;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 || condicion1) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion1) { ... }</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation odd-group law-group-last-in-set">
+                        <td><code>A AND A = A</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 AND condicion1;</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion1;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 && condicion1) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion1) { ... }</code>
+                        </td>
+                    </tr>
+
+                    <!-- Leyes de Conmutatividad -->
+                    <tr class="law-group even-group">
+                        <td rowspan="2" class="law-name">Leyes de Conmutatividad</td>
+                        <td><code>A OR B = B OR A</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR condicion2;</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion2 OR condicion1;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 || condicion2) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion2 || condicion1) { ... }</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation even-group law-group-last-in-set">
+                        <td><code>A AND B = B AND A</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 AND condicion2;</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion2 AND condicion1;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 && condicion2) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion2 && condicion1) { ... }</code>
+                        </td>
+                    </tr>
+
+                    <!-- Leyes de Asociatividad -->
+                    <tr class="law-group odd-group">
+                        <td rowspan="2" class="law-name">Leyes de Asociatividad</td>
+                        <td><code>A OR (B OR C) = (A OR B) OR C</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR (condicion2 OR condicion3);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (condicion1 OR condicion2) OR condicion3;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 || (condicion2 || condicion3)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if ((condicion1 || condicion2) || condicion3) { ... }</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation odd-group law-group-last-in-set">
+                        <td><code>A AND (B AND C) = (A AND B) AND C</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 AND (condicion2 AND condicion3);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (condicion1 AND condicion2) AND condicion3;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 && (condicion2 && condicion3)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if ((condicion1 && condicion2) && condicion3) { ... }</code>
+                        </td>
+                    </tr>
+
+                    <!-- Leyes de Distributividad -->
+                    <tr class="law-group even-group">
+                        <td rowspan="2" class="law-name">Leyes de Distributividad</td>
+                        <td><code>A AND (B OR C) = (A AND B) OR (A AND C)</code></td>
+                         <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 AND (condicion2 OR condicion3);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (condicion1 AND condicion2) OR (condicion1 AND condicion3);</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 && (condicion2 || condicion3)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if ((condicion1 && condicion2) || (condicion1 && condicion3)) { ... }</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation even-group law-group-last-in-set">
+                        <td><code>A OR (B AND C) = (A OR B) AND (A OR C)</code></td>
+                         <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR (condicion2 AND condicion3);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (condicion1 OR condicion2) AND (condicion1 OR condicion3);</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 || (condicion2 && condicion3)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if ((condicion1 || condicion2) && (condicion1 || condicion3)) { ... }</code>
+                        </td>
+                    </tr>
+
+                    <!-- Leyes de Absorción -->
+                    <tr class="law-group odd-group">
+                        <td rowspan="2" class="law-name">Leyes de Absorción</td>
+                        <td><code>A OR (A AND B) = A</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR (condicion1 AND condicion2);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion1;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 || (condicion1 && condicion2)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion1) { ... }</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation odd-group law-group-last-in-set">
+                        <td><code>A AND (A OR B) = A</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 AND (condicion1 OR condicion2);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion1;</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 && (condicion1 || condicion2)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion1) { ... }</code>
+                        </td>
+                    </tr>
+
+                     <!-- Leyes de De Morgan -->
+                    <tr class="law-group even-group">
+                        <td rowspan="2" class="law-name">Leyes de De Morgan</td>
+                        <td><code>NOT (A OR B) = (NOT A) AND (NOT B)</code></td>
+                         <td>
+                            <code>SELECT * FROM tabla WHERE NOT (condicion1 OR condicion2);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (NOT condicion1 AND NOT condicion2);</code>
+                        </td>
+                         <td>
+                            <code>if (!(condicion1 || condicion2)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (!condicion1 && !condicion2) { ... }</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation even-group law-group-last-in-set">
+                        <td><code>NOT (A AND B) = (NOT A) OR (NOT B)</code></td>
+                         <td>
+                            <code>SELECT * FROM tabla WHERE NOT (condicion1 AND condicion2);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (NOT condicion1 OR NOT condicion2);</code>
+                        </td>
+                         <td>
+                            <code>if (!(condicion1 && condicion2)) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (!condicion1 || !condicion2) { ... }</code>
+                        </td>
+                    </tr>
+
+                    <!-- Ley de Doble Negación (UNA SOLA FILA) -->
+                    <tr class="law-group odd-group law-group-last-in-set">
+                        <td class="law-name">Ley de Doble Negación</td>
+                        <td><code>NOT (NOT A) = A</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE NOT (NOT condicion1);</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE condicion1;</code>
+                        </td>
+                         <td>
+                            <code>if (!!condicion1) { ... } /* o !(!condicion1) */</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (condicion1) { ... }</code>
+                        </td>
+                    </tr>
+
+                     <!-- Leyes Complementarias -->
+                    <tr class="law-group even-group">
+                        <td rowspan="2" class="law-name">Leyes Complementarias</td>
+                        <td><code>A OR (NOT A) = 1</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 OR NOT condicion1;</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (1=1); /* Siempre verdadero */</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 || !condicion1) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (true) { ... } /* Siempre se ejecuta */</code>
+                        </td>
+                    </tr>
+                    <tr class="law-group-continuation even-group law-group-last-in-set">
+                        <td><code>A AND (NOT A) = 0</code></td>
+                        <td>
+                            <code>SELECT * FROM tabla WHERE condicion1 AND NOT condicion1;</code><br>
+                             <span class="equivalence-separator">=</span>
+                            <code>SELECT * FROM tabla WHERE (1=0); /* Siempre falso */</code>
+                        </td>
+                         <td>
+                            <code>if (condicion1 && !condicion1) { ... }</code><br>
+                             <span class="equivalence-separator">equivale a</span>
+                            <code>if (false) { ... } /* Nunca se ejecuta */</code>
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -120,8 +362,59 @@
 
     </div>
 
-    <!-- Enlace al JS de Bootstrap 5 a través de CDN (con Popper.js incluido) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tableRows = document.querySelectorAll('.table tbody tr');
 
+            tableRows.forEach(row => {
+                row.addEventListener('mouseenter', function () {
+                    let mainRowForHover = this;
+                    let continuationRowForHover = null;
+
+                    if (this.classList.contains('law-group-continuation')) {
+                        // Si el mouse entra en una fila de continuación, la fila principal es la anterior
+                        mainRowForHover = this.previousElementSibling;
+                        continuationRowForHover = this;
+                    } else if (this.classList.contains('law-group')) {
+                        // Si el mouse entra en una fila de grupo principal, chequear si tiene continuación
+                        const nextRow = this.nextElementSibling;
+                        if (nextRow && nextRow.classList.contains('law-group-continuation')) {
+                            continuationRowForHover = nextRow;
+                        }
+                    }
+
+                    if (mainRowForHover && mainRowForHover.classList.contains('law-group')) {
+                        mainRowForHover.classList.add('law-group-hovered');
+                    }
+                    if (continuationRowForHover) {
+                        continuationRowForHover.classList.add('law-group-hovered');
+                    }
+                });
+
+                row.addEventListener('mouseleave', function () {
+                    let mainRowToUnhover = this;
+                    let continuationRowToUnhover = null;
+
+                     if (this.classList.contains('law-group-continuation')) {
+                        mainRowToUnhover = this.previousElementSibling;
+                        continuationRowToUnhover = this;
+                    } else if (this.classList.contains('law-group')) {
+                        const nextRow = this.nextElementSibling;
+                        if (nextRow && nextRow.classList.contains('law-group-continuation')) {
+                            continuationRowToUnhover = nextRow;
+                        }
+                    }
+
+                    if (mainRowToUnhover && mainRowToUnhover.classList.contains('law-group')) {
+                        mainRowToUnhover.classList.remove('law-group-hovered');
+                    }
+                    if (continuationRowToUnhover) {
+                        continuationRowToUnhover.classList.remove('law-group-hovered');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
