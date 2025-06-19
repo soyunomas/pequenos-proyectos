@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedactoMatic</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1000px;
+        }
+        .section-title {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 0.5rem;
+        }
+        #imageGallery .thumbnail {
+            width: 150px;
+            height: 150px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            margin: 5px;
+            cursor: pointer;
+            background-color: #fff;
+        }
+        #imageGallery .thumbnail:hover {
+            border-color: #007bff;
+        }
+        #ocrStatus, #processingStatus, #ocrLanguageStatus {
+            font-style: italic;
+            color: #6c757d;
+        }
+        .modal-lg {
+            max-width: 80%;
+        }
+        #previewImageModal .modal-body img {
+            max-width: 100%;
+            max-height: 70vh;
+            display: block;
+            margin: 0 auto;
+            object-fit: contain;
+        }
+        #modalOcrText {
+            font-family: monospace;
+            font-size: 0.85rem;
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 250px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden {
+            display: none !important;
+        }
+        .lang-flags img {
+            width: 30px;
+            height: 20px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 3px;
+        }
+        .lang-flags img.active {
+            border-color: #007bff;
+            box-shadow: 0 0 5px #007bff;
+        }
+        #ocrLanguageSelectorContainer {
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="text-center mb-4">
+            <div class="d-flex justify-content-end align-items-center mb-2 lang-flags">
+                <img src="https://flagcdn.com/w40/gb.png" alt="English" data-lang="en" title="English UI">
+                <img src="https://flagcdn.com/w40/es.png" alt="Español" data-lang="es" title="Interfaz en Español">
+                <img src="https://flagcdn.com/w40/de.png" alt="Deutsch" data-lang="de" title="Benutzeroberfläche auf Deutsch">
+                <img src="https://flagcdn.com/w40/fr.png" alt="Français" data-lang="fr" title="Interface en Français">
+            </div>
+            <h1 data-translate-key="appTitle">RedactoMatic</h1>
+            <p class="lead" data-translate-key="appSubtitle">Censor sensitive information in images, directly in your browser.</p>
+        </header>
+
+        <main>
+            <div id="ocrStatus" class="alert alert-info">
+                <div class="d-flex align-items-center">
+                    <strong data-translate-key="ocrInitializing">Initializing OCR engine...</strong>
+                    <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                </div>
+            </div>
+            <div id="ocrLanguageStatus" class="alert alert-info hidden"></div>
+
+
+            <section id="settingsSection" class="hidden">
+                 <div class="row">
+                    <div class="col-md-6" id="ocrLanguageSelectorContainer">
+                        <label for="ocrLanguage" class="form-label" data-translate-key="ocrLanguageLabel">OCR Language:</label>
+                        <select id="ocrLanguage" class="form-select">
+                            <option value="eng" data-translate-key="ocrLangEnglish">English</option>
+                            <option value="spa" data-translate-key="ocrLangSpanish">Spanish</option>
+                            <option value="deu" data-translate-key="ocrLangGerman">German</option>
+                            <option value="fra" data-translate-key="ocrLangFrench">French</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section id="rulesSection" class="hidden">
+                <h2 class="section-title" data-translate-key="defineRulesTitle">1. Define Censorship Rules</h2>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="keywordRules" class="form-label" data-translate-key="keywordsLabel">Keywords (one per line, e.g., "Email:")</label>
+                        <textarea id="keywordRules" class="form-control" rows="5" data-translate-key-placeholder="keywordsPlaceholder" placeholder="Name:&#10;Address:&#10;Phone:"></textarea>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="regexRules" class="form-label" data-translate-key="regexLabel">Regular Expressions (one per line, JavaScript format)</label>
+                        <textarea id="regexRules" class="form-control" rows="5" data-translate-key-placeholder="regexPlaceholder" placeholder="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\n\b\d{8}[A-Z]\b"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <section id="uploadSection" class="hidden">
+                <h2 class="section-title" data-translate-key="uploadTitle">2. Upload Images</h2>
+                <div class="mb-3">
+                    <label for="imageFiles" class="form-label" data-translate-key="selectImagesLabel">Select image files (PNG, JPG)</label>
+                    <input class="form-control" type="file" id="imageFiles" multiple accept="image/png, image/jpeg">
+                </div>
+                <button id="processButton" class="btn btn-primary btn-lg" disabled>
+                    <span id="processButtonText" data-translate-key="processButtonTextDefault">Process Images</span>
+                    <span id="processButtonSpinner" class="loader hidden"></span>
+                </button>
+                <div id="processingStatus" class="mt-2"></div>
+            </section>
+
+            <section id="resultsSection" class="hidden">
+                <h2 class="section-title" data-translate-key="resultsTitle">3. Results</h2>
+                <div id="imageGallery" class="d-flex flex-wrap justify-content-center border p-3 rounded bg-light min-vh-25">
+                    <p class="text-muted p-3" data-translate-key="resultsPlaceholder">Results will appear here.</p>
+                </div>
+                <div class="text-center mt-3">
+                    <button id="downloadAllButton" class="btn btn-success btn-lg" disabled data-translate-key="downloadAllButton">Download All (.zip)</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal fade" id="previewImageModal" tabindex="-1" aria-labelledby="previewImageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="previewImageModalLabelKey" data-translate-key="previewModalTitle">Preview Censored Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" data-translate-key-aria-label="closeButtonLabel" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="#" alt="Processed image">
+                    
+                    <div class="mt-3 text-start">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#ocrDebugTextCollapse" aria-expanded="false" aria-controls="ocrDebugTextCollapse" data-translate-key="toggleOcrDebugButton">
+                            Show/Hide Detected OCR Text (Debug)
+                        </button>
+                    </div>
+                    <div class="collapse" id="ocrDebugTextCollapse">
+                        <div class="card card-body mt-2 text-start">
+                            <pre id="modalOcrText"></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-translate-key="closeButtonLabel">Close</button>
+                    <button type="button" id="downloadSingleButton" class="btn btn-primary" data-translate-key="downloadSingleButton">Download Image</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <script>
+        // --- Translations ---
+        const translations = {
+            en: {
+                appTitle: "RedactoMatic",
+                appSubtitle: "Censor sensitive information in images, directly in your browser.",
+                ocrInitializing: "Initializing OCR engine...",
+                ocrLanguageLabel: "OCR Language:",
+                ocrLangEnglish: "English",
+                ocrLangSpanish: "Spanish",
+                ocrLangGerman: "German",
+                ocrLangFrench: "French",
+                defineRulesTitle: "1. Define Censorship Rules",
+                keywordsLabel: "Keywords (one per line, e.g., \"Email:\")",
+                keywordsPlaceholder: "Name:\nAddress:\nPhone:",
+                regexLabel: "Regular Expressions (one per line, JavaScript format)",
+                regexPlaceholder: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\n\\b\\d{8}[A-Z]\\b",
+                uploadTitle: "2. Upload Images",
+                selectImagesLabel: "Select image files (PNG, JPG)",
+                processButtonTextDefault: "Process Images",
+                processButtonTextProcessing: "Processing...",
+                resultsTitle: "3. Results",
+                resultsPlaceholder: "Results will appear here.",
+                noResultsFound: "No processed images to display. Check your rules or image quality.",
+                downloadAllButton: "Download All (.zip)",
+                previewModalTitle: "Preview Censored Image",
+                closeButtonLabel: "Close",
+                toggleOcrDebugButton: "Show/Hide Detected OCR Text (Debug)",
+                downloadSingleButton: "Download Image",
+                ocrTextLabel: "Text:",
+                ocrConfidenceLabel: "Confidence:",
+                ocrBboxLabel: "Bbox:",
+                ocrLineLabel: "Line:",
+                ocrParagraphLabel: "Paragraph:",
+                ocrNoWordsDetected: "OCR did not detect any words in this image.",
+                ocrDataUnavailable: "OCR data not available for this image.",
+                ocrLangLoading: "Loading OCR language: ",
+                ocrLangLoaded: "OCR language loaded: ",
+                ocrErrorInit: "Error initializing OCR engine. Please reload or check console.",
+                ocrErrorProcessing: "Error processing ",
+                fileSelectionMessage: (count) => `${count} file(s) selected. Ready to process.`,
+                noFileOrInvalidTypeMessage: "No file selected or invalid types (PNG, JPG only).",
+                processingProgressMessage: (current, total, name) => `Processing image ${current} of ${total}: ${name}...`,
+                processingCompleteMessage: (processedCount, totalCount) => `Processing completed. ${processedCount} of ${totalCount} images processed.`,
+                zipError: "Error generating ZIP file. Check console.",
+                downloadingZip: "Creating ZIP...",
+                ocrReady: "OCR engine ready with language: "
+            },
+            es: {
+                appTitle: "RedactoMatic",
+                appSubtitle: "Censura información sensible en imágenes, directamente en tu navegador.",
+                ocrInitializing: "Inicializando motor OCR...",
+                ocrLanguageLabel: "Idioma del OCR:",
+                ocrLangEnglish: "Inglés",
+                ocrLangSpanish: "Español",
+                ocrLangGerman: "Alemán",
+                ocrLangFrench: "Francés",
+                defineRulesTitle: "1. Definir Reglas de Censura",
+                keywordsLabel: "Palabras Clave (una por línea, ej: \"Email:\")",
+                keywordsPlaceholder: "Nombre:\nDirección:\nTeléfono:",
+                regexLabel: "Expresiones Regulares (una por línea, formato JavaScript)",
+                regexPlaceholder: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\n\\b\\d{8}[A-Z]\\b",
+                uploadTitle: "2. Cargar Imágenes",
+                selectImagesLabel: "Selecciona archivos de imagen (PNG, JPG)",
+                processButtonTextDefault: "Procesar Imágenes",
+                processButtonTextProcessing: "Procesando...",
+                resultsTitle: "3. Resultados",
+                resultsPlaceholder: "Los resultados aparecerán aquí.",
+                noResultsFound: "No hay imágenes procesadas para mostrar. Verifica tus reglas o la calidad de las imágenes.",
+                downloadAllButton: "Descargar Todo (.zip)",
+                previewModalTitle: "Vista Previa de Imagen Censurada",
+                closeButtonLabel: "Cerrar",
+                toggleOcrDebugButton: "Mostrar/Ocultar Texto OCR Detectado (Depuración)",
+                downloadSingleButton: "Descargar Imagen",
+                ocrTextLabel: "Texto:",
+                ocrConfidenceLabel: "Confianza:",
+                ocrBboxLabel: "Coordenadas:",
+                ocrLineLabel: "Línea:",
+                ocrParagraphLabel: "Párrafo:",
+                ocrNoWordsDetected: "El OCR no detectó ninguna palabra en esta imagen.",
+                ocrDataUnavailable: "Datos de OCR no disponibles para esta imagen.",
+                ocrLangLoading: "Cargando idioma OCR: ",
+                ocrLangLoaded: "Idioma OCR cargado: ",
+                ocrErrorInit: "Error al inicializar el motor OCR. Por favor, recarga la página o revisa la consola.",
+                ocrErrorProcessing: "Error procesando ",
+                fileSelectionMessage: (count) => `${count} archivo(s) seleccionado(s). Listo para procesar.`,
+                noFileOrInvalidTypeMessage: "Ningún archivo seleccionado o tipos no válidos (solo PNG, JPG).",
+                processingProgressMessage: (current, total, name) => `Procesando imagen ${current} de ${total}: ${name}...`,
+                processingCompleteMessage: (processedCount, totalCount) => `Procesamiento completado. ${processedCount} de ${totalCount} imágenes procesadas.`,
+                zipError: "Error al generar el archivo ZIP. Revise la consola.",
+                downloadingZip: "Creando ZIP...",
+                ocrReady: "Motor OCR listo con el idioma: "
+            },
+            de: {
+                appTitle: "RedactoMatic",
+                appSubtitle: "Zensieren Sie sensible Informationen in Bildern direkt in Ihrem Browser.",
+                ocrInitializing: "OCR-Engine wird initialisiert...",
+                ocrLanguageLabel: "OCR-Sprache:",
+                ocrLangEnglish: "Englisch",
+                ocrLangSpanish: "Spanisch",
+                ocrLangGerman: "Deutsch",
+                ocrLangFrench: "Französisch",
+                defineRulesTitle: "1. Zensurregeln definieren",
+                keywordsLabel: "Schlüsselwörter (eines pro Zeile, z.B. \"E-Mail:\")",
+                keywordsPlaceholder: "Name:\nAdresse:\nTelefon:",
+                regexLabel: "Reguläre Ausdrücke (einer pro Zeile, JavaScript-Format)",
+                regexPlaceholder: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\n\\b\\d{8}[A-Z]\\b",
+                uploadTitle: "2. Bilder hochladen",
+                selectImagesLabel: "Bilddateien auswählen (PNG, JPG)",
+                processButtonTextDefault: "Bilder verarbeiten",
+                processButtonTextProcessing: "Verarbeite...",
+                resultsTitle: "3. Ergebnisse",
+                resultsPlaceholder: "Ergebnisse werden hier angezeigt.",
+                noResultsFound: "Keine verarbeiteten Bilder zum Anzeigen. Überprüfen Sie Ihre Regeln oder die Bildqualität.",
+                downloadAllButton: "Alle herunterladen (.zip)",
+                previewModalTitle: "Vorschau des zensierten Bildes",
+                closeButtonLabel: "Schließen",
+                toggleOcrDebugButton: "Erkannten OCR-Text ein-/ausblenden (Debug)",
+                downloadSingleButton: "Bild herunterladen",
+                ocrTextLabel: "Text:",
+                ocrConfidenceLabel: "Konfidenz:",
+                ocrBboxLabel: "Begrenzungsrahmen:",
+                ocrLineLabel: "Zeile:",
+                ocrParagraphLabel: "Absatz:",
+                ocrNoWordsDetected: "OCR hat keine Wörter in diesem Bild erkannt.",
+                ocrDataUnavailable: "OCR-Daten für dieses Bild nicht verfügbar.",
+                ocrLangLoading: "Lade OCR-Sprache: ",
+                ocrLangLoaded: "OCR-Sprache geladen: ",
+                ocrErrorInit: "Fehler beim Initialisieren der OCR-Engine. Bitte neu laden oder Konsole prüfen.",
+                ocrErrorProcessing: "Fehler bei der Verarbeitung von ",
+                fileSelectionMessage: (count) => `${count} Datei(en) ausgewählt. Bereit zur Verarbeitung.`,
+                noFileOrInvalidTypeMessage: "Keine Datei ausgewählt oder ungültige Typen (nur PNG, JPG).",
+                processingProgressMessage: (current, total, name) => `Verarbeite Bild ${current} von ${total}: ${name}...`,
+                processingCompleteMessage: (processedCount, totalCount) => `Verarbeitung abgeschlossen. ${processedCount} von ${totalCount} Bildern verarbeitet.`,
+                zipError: "Fehler beim Erstellen der ZIP-Datei. Konsole prüfen.",
+                downloadingZip: "Erstelle ZIP...",
+                ocrReady: "OCR-Engine bereit mit Sprache: "
+            },
+            fr: {
+                appTitle: "RedactoMatic",
+                appSubtitle: "Censurez les informations sensibles dans les images, directement dans votre navigateur.",
+                ocrInitializing: "Initialisation du moteur OCR...",
+                ocrLanguageLabel: "Langue OCR:",
+                ocrLangEnglish: "Anglais",
+                ocrLangSpanish: "Espagnol",
+                ocrLangGerman: "Allemand",
+                ocrLangFrench: "Français",
+                defineRulesTitle: "1. Définir les Règles de Censure",
+                keywordsLabel: "Mots-clés (un par ligne, ex: \"Email:\")",
+                keywordsPlaceholder: "Nom:\nAdresse:\nTéléphone:",
+                regexLabel: "Expressions Régulières (une par ligne, format JavaScript)",
+                regexPlaceholder: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\n\\b\\d{8}[A-Z]\\b",
+                uploadTitle: "2. Télécharger des Images",
+                selectImagesLabel: "Sélectionner des fichiers image (PNG, JPG)",
+                processButtonTextDefault: "Traiter les Images",
+                processButtonTextProcessing: "Traitement en cours...",
+                resultsTitle: "3. Résultats",
+                resultsPlaceholder: "Les résultats apparaîtront ici.",
+                noResultsFound: "Aucune image traitée à afficher. Vérifiez vos règles ou la qualité de l'image.",
+                downloadAllButton: "Tout Télécharger (.zip)",
+                previewModalTitle: "Aperçu de l'Image Censurée",
+                closeButtonLabel: "Fermer",
+                toggleOcrDebugButton: "Afficher/Masquer le Texte OCR Détecté (Débogage)",
+                downloadSingleButton: "Télécharger l'Image",
+                ocrTextLabel: "Texte:",
+                ocrConfidenceLabel: "Confiance:",
+                ocrBboxLabel: "Boîte delimit.:",
+                ocrLineLabel: "Ligne:",
+                ocrParagraphLabel: "Paragraphe:",
+                ocrNoWordsDetected: "L'OCR n'a détecté aucun mot dans cette image.",
+                ocrDataUnavailable: "Données OCR non disponibles pour cette image.",
+                ocrLangLoading: "Chargement de la langue OCR: ",
+                ocrLangLoaded: "Langue OCR chargée: ",
+                ocrErrorInit: "Erreur lors de l'initialisation du moteur OCR. Veuillez recharger ou vérifier la console.",
+                ocrErrorProcessing: "Erreur lors du traitement de ",
+                fileSelectionMessage: (count) => `${count} fichier(s) sélectionné(s). Prêt à traiter.`,
+                noFileOrInvalidTypeMessage: "Aucun fichier sélectionné ou types non valides (PNG, JPG uniquement).",
+                processingProgressMessage: (current, total, name) => `Traitement de l'image ${current} sur ${total}: ${name}...`,
+                processingCompleteMessage: (processedCount, totalCount) => `Traitement terminé. ${processedCount} sur ${totalCount} images traitées.`,
+                zipError: "Erreur lors de la génération du fichier ZIP. Vérifiez la console.",
+                downloadingZip: "Création du ZIP...",
+                ocrReady: "Moteur OCR prêt avec la langue: "
+            }
+        };
+
+        // --- DOM Elements ---
+        const langFlagsContainer = document.querySelector('.lang-flags');
+        const ocrLanguageSelect = document.getElementById('ocrLanguage');
+        const ocrStatusEl = document.getElementById('ocrStatus');
+        const ocrLanguageStatusEl = document.getElementById('ocrLanguageStatus');
+        const settingsSectionEl = document.getElementById('settingsSection');
+        const rulesSectionEl = document.getElementById('rulesSection');
+        const uploadSectionEl = document.getElementById('uploadSection');
+        const resultsSectionEl = document.getElementById('resultsSection');
+        const keywordRulesTextarea = document.getElementById('keywordRules');
+        const regexRulesTextarea = document.getElementById('regexRules');
+        const imageFilesInput = document.getElementById('imageFiles');
+        const processButton = document.getElementById('processButton');
+        const processButtonTextEl = document.getElementById('processButtonText');
+        const processButtonSpinner = document.getElementById('processButtonSpinner');
+        const processingStatusEl = document.getElementById('processingStatus');
+        const imageGalleryEl = document.getElementById('imageGallery');
+        const downloadAllButton = document.getElementById('downloadAllButton');
+        const previewImageModalEl = document.getElementById('previewImageModal');
+        const previewImageBootstrapModal = new bootstrap.Modal(previewImageModalEl);
+        const modalImageEl = document.getElementById('modalImage');
+        const downloadSingleButton = document.getElementById('downloadSingleButton');
+        const modalOcrTextEl = document.getElementById('modalOcrText');
+        const ocrDebugCollapseEl = document.getElementById('ocrDebugTextCollapse');
+
+        // --- App State ---
+        let tesseractWorker = null;
+        let selectedFiles = [];
+        let processedImages = [];
+        let currentUILang = localStorage.getItem('redactomatic_ui_lang') || 'en';
+        let currentOCRLang = localStorage.getItem('redactomatic_ocr_lang') || 'eng';
+
+        // --- Internationalization (i18n) ---
+        function translateElement(element, key, lang) {
+            const translation = translations[lang][key];
+            if (typeof translation === 'function') {
+                // Handle dynamic translations if needed, though not used in current keys
+            } else if (translation) {
+                if (element.tagName === 'TEXTAREA' && element.hasAttribute('data-translate-key-placeholder')) {
+                    element.placeholder = translation;
+                } else if (element.hasAttribute('data-translate-key-aria-label')) {
+                     element.setAttribute('aria-label', translation);
+                }else {
+                    element.textContent = translation;
+                }
+            }
+        }
+
+        function setUILanguage(lang) {
+            currentUILang = lang;
+            localStorage.setItem('redactomatic_ui_lang', lang);
+            document.documentElement.lang = lang;
+
+            document.querySelectorAll('[data-translate-key]').forEach(el => {
+                translateElement(el, el.dataset.translateKey, lang);
+            });
+            document.querySelectorAll('[data-translate-key-placeholder]').forEach(el => {
+                translateElement(el, el.dataset.translateKeyPlaceholder, lang);
+            });
+             document.querySelectorAll('[data-translate-key-aria-label]').forEach(el => {
+                translateElement(el, el.dataset.translateKeyAriaLabel, lang);
+            });
+
+
+            // Update active flag
+            langFlagsContainer.querySelectorAll('img').forEach(img => {
+                img.classList.toggle('active', img.dataset.lang === lang);
+            });
+
+            // Update dynamic messages if they are visible
+            if (selectedFiles.length > 0) {
+                 processingStatusEl.textContent = translations[currentUILang].fileSelectionMessage(selectedFiles.length);
+            } else if (imageFilesInput.files.length === 0 && !processButton.disabled) { // Check if it was disabled due to no files
+                 processingStatusEl.textContent = translations[currentUILang].noFileOrInvalidTypeMessage;
+            }
+            if (resultsSectionEl.classList.contains('hidden') === false && imageGalleryEl.querySelector('p')) { // If results placeholder is shown
+                imageGalleryEl.querySelector('p').textContent = translations[currentUILang].resultsPlaceholder;
+            }
+
+        }
+        
+        // --- OCR Language Handling ---
+        async function updateOCRWorker(newLangCode) {
+            if (!tesseractWorker || currentOCRLang === newLangCode) {
+                 if (tesseractWorker && currentOCRLang === newLangCode) { // Already initialized with this lang
+                    ocrLanguageStatusEl.textContent = `${translations[currentUILang].ocrReady}${newLangCode.toUpperCase()}`;
+                    ocrLanguageStatusEl.classList.remove('hidden');
+                    ocrLanguageStatusEl.classList.remove('alert-danger');
+                    ocrLanguageStatusEl.classList.add('alert-success');
+                 }
+                return; // No worker or no change
+            }
+
+            currentOCRLang = newLangCode;
+            localStorage.setItem('redactomatic_ocr_lang', newLangCode);
+            
+            ocrLanguageStatusEl.textContent = `${translations[currentUILang].ocrLangLoading}${newLangCode.toUpperCase()}...`;
+            ocrLanguageStatusEl.classList.remove('hidden');
+            ocrLanguageStatusEl.classList.remove('alert-success');
+            ocrLanguageStatusEl.classList.add('alert-info');
+            processButton.disabled = true; // Disable processing while changing lang
+
+            try {
+                // Tesseract.js v5 can load multiple languages into a worker
+                // and then specify which one to use during recognize.
+                // For simplicity here, we'll re-initialize.
+                // A more advanced approach might involve createWorker with multiple initial languages
+                // or just loadLanguage + initialize for the new one if the worker supports it.
+                
+                // Terminate existing worker before creating a new one to free resources
+                await tesseractWorker.terminate();
+                console.log('Previous Tesseract worker terminated.');
+
+                tesseractWorker = await Tesseract.createWorker(newLangCode, 1, {
+                    // logger: m => console.log(m),
+                });
+                console.log(`Tesseract.js worker re-initialized for ${newLangCode}.`);
+                
+                ocrLanguageStatusEl.textContent = `${translations[currentUILang].ocrLangLoaded}${newLangCode.toUpperCase()}`;
+                ocrLanguageStatusEl.classList.remove('alert-info');
+                ocrLanguageStatusEl.classList.add('alert-success');
+                if (selectedFiles.length > 0) processButton.disabled = false;
+
+
+            } catch (error) {
+                console.error(`Error updating Tesseract.js language to ${newLangCode}:`, error);
+                ocrLanguageStatusEl.textContent = `Error loading OCR language ${newLangCode}. ${error.message}`;
+                ocrLanguageStatusEl.classList.remove('alert-info');
+                ocrLanguageStatusEl.classList.add('alert-danger');
+            }
+        }
+
+
+        // --- Initialization ---
+        async function initializeApp() {
+            setUILanguage(currentUILang);
+            ocrLanguageSelect.value = currentOCRLang;
+
+            try {
+                tesseractWorker = await Tesseract.createWorker(currentOCRLang, 1, {
+                    // logger: m => console.log(m),
+                });
+                
+                ocrStatusEl.classList.add('hidden');
+                settingsSectionEl.classList.remove('hidden');
+                rulesSectionEl.classList.remove('hidden');
+                uploadSectionEl.classList.remove('hidden');
+                console.log(`Tesseract.js worker initialized for ${currentOCRLang}.`);
+                ocrLanguageStatusEl.textContent = `${translations[currentUILang].ocrReady}${currentOCRLang.toUpperCase()}`;
+                ocrLanguageStatusEl.classList.remove('hidden');
+                ocrLanguageStatusEl.classList.add('alert-success');
+
+
+            } catch (error) {
+                console.error('Error initializing Tesseract.js:', error);
+                ocrStatusEl.innerHTML = `<div class="alert alert-danger">${translations[currentUILang].ocrErrorInit}</div>`;
+            }
+        }
+
+        // --- Event Listeners ---
+        langFlagsContainer.addEventListener('click', (event) => {
+            if (event.target.tagName === 'IMG' && event.target.dataset.lang) {
+                setUILanguage(event.target.dataset.lang);
+            }
+        });
+
+        ocrLanguageSelect.addEventListener('change', (event) => {
+            updateOCRWorker(event.target.value);
+        });
+
+        imageFilesInput.addEventListener('change', (event) => {
+            selectedFiles = Array.from(event.target.files).filter(file => ['image/png', 'image/jpeg'].includes(file.type));
+            if (selectedFiles.length > 0) {
+                processButton.disabled = false;
+                processingStatusEl.textContent = translations[currentUILang].fileSelectionMessage(selectedFiles.length);
+                resultsSectionEl.classList.add('hidden');
+                imageGalleryEl.innerHTML = `<p class="text-muted p-3">${translations[currentUILang].resultsPlaceholder}</p>`;
+                processedImages = [];
+                downloadAllButton.disabled = true;
+            } else {
+                processButton.disabled = true;
+                processingStatusEl.textContent = translations[currentUILang].noFileOrInvalidTypeMessage;
+            }
+        });
+
+        processButton.addEventListener('click', handleProcessImages);
+        downloadAllButton.addEventListener('click', handleDownloadAll);
+        downloadSingleButton.addEventListener('click', handleDownloadSingle);
+
+        // --- Core Logic ---
+        function getCensorRules() {
+            const keywords = keywordRulesTextarea.value.split('\n')
+                .map(k => k.trim().toLowerCase().replace(/:$/, ''))
+                .filter(k => k.length > 0);
+
+            const regexes = regexRulesTextarea.value.split('\n')
+                .map(r => r.trim())
+                .filter(r => r.length > 0)
+                .map(rStr => {
+                    try {
+                        return new RegExp(rStr, 'gi');
+                    } catch (e) {
+                        console.warn(`Invalid regex skipped: ${rStr}`, e);
+                        processingStatusEl.textContent += ` Warning: Invalid regex '${rStr}' skipped.`;
+                        return null;
+                    }
+                })
+                .filter(r => r !== null);
+            return { keywords, regexes };
+        }
+
+        async function handleProcessImages() {
+            if (selectedFiles.length === 0 || !tesseractWorker) {
+                processingStatusEl.textContent = 'Please select images and wait for OCR to be ready.'; // Fallback, should be translated
+                return;
+            }
+
+            processButton.disabled = true;
+            processButtonTextEl.textContent = translations[currentUILang].processButtonTextProcessing;
+            processButtonSpinner.classList.remove('hidden');
+            resultsSectionEl.classList.remove('hidden');
+            imageGalleryEl.innerHTML = `<div class="w-100 text-center p-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">${translations[currentUILang].processButtonTextProcessing}</span></div> <p>${translations[currentUILang].processButtonTextProcessing}</p></div>`;
+            downloadAllButton.disabled = true;
+            processedImages = [];
+
+            const rules = getCensorRules();
+            
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                processingStatusEl.textContent = translations[currentUILang].processingProgressMessage(i + 1, selectedFiles.length, file.name);
+                
+                try {
+                    const originalDataUrl = await readFileAsDataURL(file);
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const img = await loadImage(originalDataUrl);
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    // For Tesseract.js v5, you can specify the language per recognition job
+                    // if multiple languages are loaded. Here, we assume the worker is set to currentOCRLang.
+                    const { data } = await tesseractWorker.recognize(canvas, {}, { lang: currentOCRLang });
+                    const words = data.words; 
+                    
+                    const rectsToDraw = [];
+
+                    words.forEach(word => {
+                        rules.regexes.forEach(regex => {
+                            regex.lastIndex = 0; 
+                            if (regex.test(word.text)) {
+                                rectsToDraw.push(word.bbox);
+                            }
+                        });
+                    });
+
+                    for (let j = 0; j < words.length; j++) {
+                        const currentWord = words[j];
+                        const wordTextLower = currentWord.text.toLowerCase().replace(/:$/, '').trim();
+
+                        if (rules.keywords.includes(wordTextLower)) {
+                            const keywordBbox = currentWord.bbox;
+                            for (let k = j + 1; k < words.length; k++) {
+                                const nextWord = words[k];
+                                const verticalMidKeyword = keywordBbox.y0 + (keywordBbox.y1 - keywordBbox.y0) / 2;
+                                const verticalMidNextWord = nextWord.bbox.y0 + (nextWord.bbox.y1 - nextWord.bbox.y0) / 2;
+                                const lineThreshold = Math.max((keywordBbox.y1 - keywordBbox.y0), (nextWord.bbox.y1 - nextWord.bbox.y0)) * 0.75;
+                                if (Math.abs(verticalMidKeyword - verticalMidNextWord) < lineThreshold) { 
+                                   if (nextWord.bbox.x0 > keywordBbox.x0 - 5) {
+                                     rectsToDraw.push(nextWord.bbox);
+                                   }
+                                } else { break; }
+                            }
+                        }
+                    }
+                    
+                    ctx.fillStyle = 'black';
+                    rectsToDraw.forEach(bbox => {
+                        ctx.fillRect(bbox.x0, bbox.y0, bbox.x1 - bbox.x0, bbox.y1 - bbox.y0);
+                    });
+
+                    const processedDataUrl = canvas.toDataURL('image/png');
+                    const blob = await dataURLtoBlob(processedDataUrl);
+
+                    processedImages.push({
+                        name: file.name,
+                        originalDataUrl: originalDataUrl,
+                        processedDataUrl: processedDataUrl,
+                        blob: blob,
+                        ocrWords: words
+                    });
+                    updateGallery();
+                } catch (error) {
+                    console.error(`Error processing ${file.name}:`, error);
+                    processingStatusEl.textContent = `${translations[currentUILang].ocrErrorProcessing}${file.name}. Check console.`;
+                }
+            }
+
+            processingStatusEl.textContent = translations[currentUILang].processingCompleteMessage(processedImages.length, selectedFiles.length);
+            processButton.disabled = false;
+            processButtonTextEl.textContent = translations[currentUILang].processButtonTextDefault;
+            processButtonSpinner.classList.add('hidden');
+            if (processedImages.length > 0) {
+                downloadAllButton.disabled = false;
+            }
+        }
+
+        // --- UI Update Functions ---
+        function updateGallery() {
+            if (processedImages.length === 0 && selectedFiles.length > 0 && !processButton.disabled) {
+                 imageGalleryEl.innerHTML = `<p class="text-muted p-3">${translations[currentUILang].resultsPlaceholder}</p>`;
+                 return;
+            }
+            if (processedImages.length === 0 && processButton.disabled && !imageGalleryEl.querySelector('.spinner-border')) { // Still processing
+                return; 
+            }
+
+            imageGalleryEl.innerHTML = ''; 
+            if (processedImages.length === 0) {
+                imageGalleryEl.innerHTML = `<p class="text-muted p-3">${translations[currentUILang].noResultsFound}</p>`;
+                return;
+            }
+
+            processedImages.forEach((imgData, index) => {
+                const imgEl = document.createElement('img');
+                imgEl.src = imgData.processedDataUrl;
+                imgEl.alt = `Processed: ${imgData.name}`;
+                imgEl.classList.add('thumbnail');
+                imgEl.dataset.index = index;
+                imgEl.addEventListener('click', () => showPreviewModal(index));
+                imageGalleryEl.appendChild(imgEl);
+            });
+        }
+
+        function showPreviewModal(index) {
+            const imgData = processedImages[index];
+            if (imgData) {
+                modalImageEl.src = imgData.processedDataUrl;
+                modalImageEl.alt = `Preview of ${imgData.name}`;
+                // Modal title is now set by data-translate-key, but we can add the filename
+                const modalTitleEl = document.getElementById('previewImageModalLabelKey');
+                modalTitleEl.textContent = `${translations[currentUILang].previewModalTitle}: ${imgData.name}`;
+
+                downloadSingleButton.dataset.index = index;
+
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(ocrDebugCollapseEl, { toggle: false });
+                bsCollapse.hide(); 
+
+                if (imgData.ocrWords && Array.isArray(imgData.ocrWords)) {
+                    if (imgData.ocrWords.length > 0) {
+                        modalOcrTextEl.textContent = imgData.ocrWords.map(
+                            word => `${translations[currentUILang].ocrTextLabel} "${word.text}"\n${translations[currentUILang].ocrConfidenceLabel} ${word.confidence.toFixed(1)}%\n${translations[currentUILang].ocrBboxLabel} x0:${word.bbox.x0}, y0:${word.bbox.y0}, x1:${word.bbox.x1}, y1:${word.bbox.y1}\n${translations[currentUILang].ocrLineLabel} ${word.line.line}, ${translations[currentUILang].ocrParagraphLabel} ${word.paragraph.paragraph_id}\n---`
+                        ).join('\n');
+                    } else {
+                        modalOcrTextEl.textContent = translations[currentUILang].ocrNoWordsDetected;
+                    }
+                } else {
+                    modalOcrTextEl.textContent = translations[currentUILang].ocrDataUnavailable;
+                }
+                previewImageBootstrapModal.show();
+            }
+        }
+
+        // --- Download Functions ---
+        function handleDownloadSingle() {
+            const index = downloadSingleButton.dataset.index;
+            const imgData = processedImages[index];
+            if (imgData) {
+                saveAs(imgData.blob, `censored_${imgData.name}`);
+            }
+        }
+
+        async function handleDownloadAll() {
+            if (processedImages.length === 0) return;
+
+            downloadAllButton.disabled = true;
+            const originalButtonText = downloadAllButton.textContent;
+            downloadAllButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${translations[currentUILang].downloadingZip}`;
+
+            const zip = new JSZip();
+            processedImages.forEach(imgData => {
+                zip.file(`censored_${imgData.name}`, imgData.blob, { binary: true });
+            });
+
+            try {
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                saveAs(zipBlob, "RedactoMatic_Results.zip");
+            } catch (error) {
+                console.error("Error generating ZIP:", error);
+                processingStatusEl.textContent = translations[currentUILang].zipError;
+            } finally {
+                downloadAllButton.disabled = false;
+                downloadAllButton.textContent = originalButtonText; // Or re-translate downloadAllButton
+                translateElement(downloadAllButton, 'downloadAllButton', currentUILang);
+
+            }
+        }
+
+        // --- Helper Functions ---
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+
+        async function dataURLtoBlob(dataurl) {
+            const response = await fetch(dataurl);
+            if (!response.ok) throw new Error(`Error fetching data URL: ${response.statusText}`);
+            return await response.blob();
+        }
+
+        // --- Start the app ---
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
