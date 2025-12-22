@@ -1,118 +1,111 @@
-# 📦 Colección de Proyectos y Herramientas
+# 📦 Colección de Herramientas y Proyectos Web
 
-Este repositorio contiene una colección diversa de herramientas, utilidades y simuladores. Desde aplicaciones de sistema en **Go** hasta herramientas web autocontenidas en un solo archivo **HTML/JS** que utilizan tecnologías avanzadas como TensorFlow.js, Mediapipe y Tesseract.
+Este repositorio aloja una colección de herramientas, simuladores educativos y utilidades. La mayoría son aplicaciones web autocontenidas que puedes **ejecutar directamente desde el navegador** sin instalar nada.
 
-## ⭐ Proyecto Destacado: InputFlow
+## ⭐ Proyecto de Sistema (Go)
 
-Una herramienta de sistema avanzada escrita en **Go** para Linux.
+Herramienta avanzada de sistema que requiere compilación e instalación local.
 
 ### [🌊 InputFlow](./InputFlow/)
 **Hardware Event Mapper de Latencia Cero.**
-Un demonio diseñado para interceptar eventos de hardware de bajo nivel (Joysticks, Ratones, Teclados) directamente desde el Kernel de Linux y mapearlos a comandos del sistema.
-*   **Tecnología:** Go (Golang).
-*   **Características:** Cero latencia, soporte hot-plug, scanner de hardware integrado, motor lógico para filtrar ruido analógico.
-*   **Uso:** Ideal para crear macros complejas, controlar el volumen con ruedas de ratón secundarias o mapear mandos de juego a acciones del sistema.
-*   [Ver Documentación Completa](./InputFlow/README.md)
+Un demonio para Linux escrito en **Go** que intercepta eventos de hardware (mandos, teclados) y los mapea a acciones del sistema.
+*   **Código Fuente:** [Ver carpeta del proyecto](./InputFlow/)
+*   **Documentación:** [Leer README](./InputFlow/README.md)
 
 ---
 
 ## 🧠 IA y Visión Artificial (Web)
 
-Herramientas experimentales que se ejecutan 100% en el navegador utilizando librerías de Inteligencia Artificial.
+Herramientas que se ejecutan en el navegador usando TensorFlow.js, Mediapipe o Tesseract.
 
-*   **[📸 RedactoMatic (CensureText)](censuretext.html)**
-    *   **Qué es:** Una herramienta para censurar información sensible en imágenes automáticamente.
-    *   **Tecnología:** OCR con *Tesseract.js*.
-    *   **Funcionalidad:** Detecta texto en imágenes y permite redactar (tachar) automáticamente basándose en palabras clave o expresiones regulares (Emails, Teléfonos, etc.).
-*   **[🎨 Bodypaint AR](bodypaint.html)**
-    *   **Qué es:** Realidad aumentada para pintar sobre el cuerpo humano en tiempo real a través de la webcam.
-    *   **Tecnología:** *TensorFlow.js* y *Body Segmentation*.
-    *   **Funcionalidad:** Segmenta la silueta humana y permite dibujar sobre ella manteniendo el fondo intacto o viceversa.
-*   **[🏀 Cesta Rebote (Motion Control)](OTROS/CESTA-PELOTAS.html)**
-    *   **Qué es:** Juego interactivo controlado por movimiento.
-    *   **Tecnología:** *Mediapipe*.
-    *   **Funcionalidad:** Detecta las muñecas del usuario mediante la webcam para controlar una cesta y rebotar pelotas virtuales.
+*   **[📸 RedactoMatic (CensureText)](https://soyunomas.github.io/pequenos-proyectos/censuretext.html)**
+    *   Detecta texto en imágenes automáticamente y permite censurar/tachar información sensible (emails, teléfonos) usando OCR.
+*   **[🎨 Bodypaint AR](https://soyunomas.github.io/pequenos-proyectos/bodypaint.html)**
+    *   Realidad aumentada mediante webcam que segmenta la silueta humana para pintar sobre el cuerpo o el fondo en tiempo real.
+*   **[🏀 Cesta Rebote (Motion Control)](https://soyunomas.github.io/pequenos-proyectos/OTROS/CESTA-PELOTAS.html)**
+    *   Juego interactivo donde controlas una cesta con el movimiento de tus manos (detectadas por webcam) para rebotar pelotas.
 
 ---
 
-## 🌐 Redes y Ciberseguridad (Simuladores)
+## 🌐 Simuladores de Redes y Ciberseguridad
 
-Visualizadores interactivos para entender protocolos y conceptos de redes. Ideales para estudiantes y docentes.
+Visualizadores educativos interactivos para entender el flujo de datos y protocolos.
 
-*   **[📡 Visualizador de Modulaciones Digitales](REDES/modulaciones.html)**
-    *   Explora cómo los bits se convierten en ondas. Cubre codificación de línea (NRZ, AMI, Manchester) y modulación (ASK, FSK, PSK, QAM, OFDM).
-*   **[🔒 Cifrado y Firma Digital](REDES/Cifrado_Simetrico_Asimetrico_Hibrido_firma.html)**
-    *   Simulación paso a paso de cifrado Simétrico, Asimétrico, Híbrido y Firma Digital entre dos actores.
-*   **[🤝 Handshake TLS/SSL](REDES/Handshake-TLS-SSL-HTTPS.html)**
-    *   Desglose visual del proceso de conexión segura HTTPS, incluyendo intercambio de certificados y claves.
-*   **[📦 Encapsulamiento de Datos](REDES/Encapsulamiento.html)**
-    *   Visualiza cómo los datos viajan a través de las capas del modelo OSI/TCP-IP.
-    *   **Variantes:** [Con Switch L2](REDES/Encapsulamiento_Switch.html) y [Con Router L3](REDES/Encapsulamiento_Router.html).
-*   **[🖧 Enrutamiento IP y Ping](REDES/Ping_static_route.html)**
-    *   Simula el flujo de un `ping` (ICMP) a través de routers, resolución ARP y tablas de enrutamiento.
-    *   **Ver también:** [Visualizador de Enrutamiento Genérico](REDES/Enrutamiento.html).
-*   **[⚡ Cabeceras TCP vs UDP](REDES/TCPvsUDP.html)**
-    *   Comparativa interactiva de los campos de cabecera y el comportamiento de conexión.
-*   **[🔄 Funcionamiento Switch y VLANs](REDES/Switch_aprendizaje.html)**
-    *   Simula el aprendizaje de direcciones MAC y la tabla CAM.
-    *   **Ver también:** [Visualizador de VLANs (802.1Q)](REDES/Vlans.html).
-*   **[🔢 Calculadora IP Avanzada](REDES/Calculadora_IP.html)**
-    *   Subnetting, CIDR, wildcard y conversión binaria.
+**Fundamentos y Protocolos:**
+*   **[📡 Visualizador de Modulaciones Digitales](https://soyunomas.github.io/pequenos-proyectos/REDES/modulaciones.html)**: Codificación de línea (NRZ, AMI, Manchester) y modulación (ASK, FSK, PSK, QAM, OFDM).
+*   **[📦 Encapsulamiento de Datos (OSI)](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento.html)**: Viaje de los datos por las capas.
+*   **[⚡ Cabeceras TCP vs UDP](https://soyunomas.github.io/pequenos-proyectos/REDES/TCPvsUDP.html)**: Comparativa interactiva de estructuras y flags.
+*   **[📖 Visor de Cabeceras IPv4 y RFCs](https://soyunomas.github.io/pequenos-proyectos/REDES/CabeceraIPv4-RFCs.html)**: Explicación campo a campo de la cabecera IP.
+*   **[📑 Visor de Cabeceras de Protocolos](https://soyunomas.github.io/pequenos-proyectos/REDES/Cabeceras_Protocolos.html)**: Ethernet, ARP, Wi-Fi, PPP, etc.
+
+**Enrutamiento y Switching:**
+*   **[🖧 Enrutamiento IP y Ping](https://soyunomas.github.io/pequenos-proyectos/REDES/Ping_static_route.html)**: Simulación de ICMP, ARP y tablas de rutas.
+*   **[🗺️ Visualizador de Enrutamiento Genérico](https://soyunomas.github.io/pequenos-proyectos/REDES/Enrutamiento.html)**: Lógica de salto entre routers.
+*   **[🔄 Funcionamiento Switch (Tabla MAC)](https://soyunomas.github.io/pequenos-proyectos/REDES/Switch_aprendizaje.html)**: Aprendizaje de direcciones y reenvío.
+*   **[🏷️ Visualizador de VLANs (802.1Q)](https://soyunomas.github.io/pequenos-proyectos/REDES/Vlans.html)**: Simulación de trunking y etiquetado.
+*   **[📦 Encapsulamiento con Switch L2](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Switch.html)**: Flujo de trama a través de un switch.
+*   **[📦 Encapsulamiento con Router L3](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento_Router.html)**: Flujo de paquete a través de un router.
+*   **[💥 Simulador CSMA/CD (Ethernet)](https://soyunomas.github.io/pequenos-proyectos/REDES/CSMA-CD.html)**: Detección de colisiones y backoff.
+*   **[📶 Simulador CSMA/CA (Wi-Fi)](https://soyunomas.github.io/pequenos-proyectos/REDES/CSMA-CA.html)**: Mecanismo RTS/CTS y prevención de colisiones.
+
+**Ciberseguridad y Cifrado:**
+*   **[🔒 Cifrado y Firma Digital](https://soyunomas.github.io/pequenos-proyectos/REDES/Cifrado_Simetrico_Asimetrico_Hibrido_firma.html)**: Simulación de criptografía Simétrica, Asimétrica e Híbrida.
+*   **[🤝 Handshake TLS/SSL (HTTPS)](https://soyunomas.github.io/pequenos-proyectos/REDES/Handshake-TLS-SSL-HTTPS.html)**: Paso a paso de la negociación segura.
+*   **[🔢 Calculadora IP Avanzada](https://soyunomas.github.io/pequenos-proyectos/REDES/Calculadora_IP.html)**: Subnetting, CIDR, wildcard y binario.
 
 ---
 
 ## 💾 Bases de Datos y Desarrollo
 
-Herramientas para desarrolladores y administradores de bases de datos.
+Herramientas para entender lógica de datos y programación.
 
-*   **[🔗 Visualizador de SQL JOINs](BASES%20DE%20DATOS/Explicacion_Visual_JOIN.html)**
-    *   Herramienta visual para entender `INNER`, `LEFT`, `RIGHT` JOINs con conjuntos de datos interactivos.
-    *   **Versión alternativa:** [Funcionamiento Visual](BASES%20DE%20DATOS/Funcionamiento_JOIN-Visual.html).
-*   **[💉 Generador de Payloads SQLi](BASES%20DE%20DATOS/SQL-Inyectado-Payloads.html)**
-    *   Generador educativo de payloads para pruebas de inyección SQL (Error-based/Union-based) para varios motores (MySQL, PostgreSQL, MSSQL).
-*   **[📄 PresentaFácil Ultra (Markdown Slides)](Presentaciones.html)**
-    *   Editor web para crear diapositivas tipo *Reveal.js* escribiendo simplemente Markdown. Soporta exportación a HTML.
-*   **[📜 Generador de Índices Markdown](Markdown_a_Indices.html)**
-    *   Convierte texto Markdown en HTML con un índice de contenidos (TOC) navegable automáticamente generado.
-
----
-
-## 🛠️ Productividad y Utilidades Varias
-
-Herramientas web para tareas cotidianas de manipulación de archivos y medios.
-
-*   **[🏷️ Diseñador de Etiquetas Pro](OTROS/Etiquetas.html)**
-    *   Diseña e imprime hojas de etiquetas con textos, contadores secuenciales, códigos de barras e imágenes.
-*   **[📂 Concatenador de Archivos](OTROS/concatenador.html)**
-    *   Arrastra múltiples archivos de texto o código para unificarlos en uno solo (útil para pasar contextos a LLMs).
-    *   **Versión alternativa:** [UniTexto](unirtexto.html).
-*   **[✂️ Recortador de Imágenes](recortador-imagenes.html)**
-    *   Extrae múltiples elementos de una imagen y genera *Sprite Sheets* ordenados.
-*   **[🎞️ Convertidor MP4 a GIF](test.html)**
-    *   Convierte clips de video a GIF directamente en el navegador usando *FFmpeg.wasm*.
-*   **[📍 Mi Ritmo GPS](recorrido.html)**
-    *   Graba rutas GPS, guárdalas y compáralas en tiempo real para ver si vas más rápido o lento que tu récord anterior.
+*   **[🔗 Visualizador de SQL JOINs](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Explicacion_Visual_JOIN.html)**
+    *   Diagramas interactivos de `INNER`, `LEFT`, `RIGHT` JOIN.
+    *   **Versión alternativa:** [Funcionamiento Visual](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/Funcionamiento_JOIN-Visual.html).
+*   **[💉 Generador de Payloads SQLi](https://soyunomas.github.io/pequenos-proyectos/BASES%20DE%20DATOS/SQL-Inyectado-Payloads.html)**
+    *   Generador educativo de inyecciones SQL para pruebas de seguridad (MySQL, PostgreSQL, MSSQL).
+*   **[⚖️ Lógica Booleana](https://soyunomas.github.io/pequenos-proyectos/OTROS/Logica_booleana.html)**
+    *   Tabla interactiva de leyes lógicas y su equivalencia en SQL y programación.
+*   **[📄 PresentaFácil Ultra](https://soyunomas.github.io/pequenos-proyectos/Presentaciones.html)**
+    *   Crea presentaciones estilo *Reveal.js* escribiendo Markdown. Exportable a HTML.
+*   **[📜 Generador de Índices Markdown](https://soyunomas.github.io/pequenos-proyectos/Markdown_a_Indices.html)**
+    *   Convierte texto Markdown en HTML con un índice de contenidos (TOC) automático.
 
 ---
 
-## 🎮 Juegos Clásicos y Visuales
+## 🛠️ Productividad y Archivos
 
-Implementaciones web de juegos y efectos visuales.
+Utilidades para manipulación de archivos directamente en el navegador.
 
-*   **[🕹️ Juegos de Lógica y Mesa:]**
-    *   [Mastermind](JUEGOS_CLASICOS/Mastermind.html)
-    *   [Damas](JUEGOS_CLASICOS/damas.html)
-    *   [Buscaminas (ExploraMinas)](JUEGOS_CLASICOS/exploraminas.html)
-    *   [Poker Texas Hold'em](JUEGOS_CLASICOS/poker.html)
-    *   [MemoReto (Memoria)](JUEGOS_CLASICOS/memoreto.html)
-    *   [TerraTank Duel](JUEGOS_CLASICOS/terratankDuel.html) - Juego de artillería por turnos.
-    *   [Interceptor Urbano](JUEGOS_CLASICOS/interceptor_humano.html) - Defensa de misiles.
+*   **[✂️ Recortador de Imágenes](https://soyunomas.github.io/pequenos-proyectos/recortador-imagenes.html)**
+    *   Extrae múltiples elementos de una imagen y genera *Sprite Sheets* ordenados automáticamente.
+*   **[📂 Concatenador de Archivos](https://soyunomas.github.io/pequenos-proyectos/OTROS/concatenador.html)**
+    *   Arrastra archivos de código o texto para unificarlos en uno solo (útil para contextos de LLMs).
+    *   **Versión alternativa:** [UniTexto](https://soyunomas.github.io/pequenos-proyectos/unirtexto.html).
+*   **[🏷️ Diseñador de Etiquetas Pro](https://soyunomas.github.io/pequenos-proyectos/OTROS/Etiquetas.html)**
+    *   Generador de hojas de etiquetas imprimibles con códigos de barras y contadores.
+*   **[🎞️ Convertidor MP4 a GIF](https://soyunomas.github.io/pequenos-proyectos/test.html)**
+    *   Convierte vídeo a GIF usando *FFmpeg.wasm*.
+*   **[📍 Mi Ritmo GPS](https://soyunomas.github.io/pequenos-proyectos/recorrido.html)**
+    *   Graba rutas GPS y compáralas en tiempo real contra tus propios récords.
+*   **[📋 Listado de Repositorios](https://soyunomas.github.io/pequenos-proyectos/listado.html)**
+    *   Utilidad simple para listar repositorios públicos de GitHub.
 
-*   **[🎲 Sorteos y Azar:]**
-    *   [Sorteo de Números](OTROS/sorteo.html) - Con animaciones y modo oscuro.
-    *   [Sorteo de Nombres (Alumnos)](OTROS/sorteo_por_nombre.html) - Incluye opciones de "Comodín" y "Pase Libre".
+---
 
-*   **[👁️ Efectos Visuales:]**
-    *   [Matrix Webcam](OTROS/matrix.html) - Efecto de lluvia de código ASCII sobre la imagen de tu webcam.
-    *   [Visualizador de Audio ASCII](OTROS/ascii-micro.html) - Visualizador de espectro de audio en la terminal/navegador.
-    *   [Simulador de Error Crítico](OTROS/Error_critico.html) - Interfaz de ciencia ficción de fallo de sistema.
+## 🎮 Juegos y Efectos Visuales
+
+*   **[👁️ Matrix Webcam](https://soyunomas.github.io/pequenos-proyectos/OTROS/matrix.html)**: Efecto de lluvia de código sobre tu cámara.
+*   **[🎤 Visualizador Audio ASCII](https://soyunomas.github.io/pequenos-proyectos/OTROS/ascii-micro.html)**: Espectro de audio del micrófono en caracteres.
+*   **[⚠️ Simulador Error Crítico](https://soyunomas.github.io/pequenos-proyectos/OTROS/Error_critico.html)**: Interfaz de fallo de sistema estilo Sci-Fi.
+*   **[🎲 Sorteo de Números](https://soyunomas.github.io/pequenos-proyectos/OTROS/sorteo.html)**: Bombo virtual con animaciones.
+*   **[🎟️ Sorteo de Nombres](https://soyunomas.github.io/pequenos-proyectos/OTROS/sorteo_por_nombre.html)**: Sorteo de alumnos con opciones de comodín.
+
+**Juegos Clásicos:**
+*   [🧠 Mastermind](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/Mastermind.html)
+*   [⚫ Damas](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/damas.html)
+*   [💣 Buscaminas (ExploraMinas)](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/exploraminas.html)
+*   [♠️ Poker Texas Hold'em](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/poker.html)
+*   [🧩 MemoReto (Memoria)](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/memoreto.html)
+*   [🚜 TerraTank Duel](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/terratankDuel.html)
+*   [🚀 Interceptor Urbano](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/interceptor_humano.html)
