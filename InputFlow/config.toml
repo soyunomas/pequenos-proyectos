@@ -1,0 +1,26 @@
+[[device]]
+name = "Raton Sunplus"
+# Este es el ID que confirmamos antes
+match_id = "usb-1bcf_08a0-event-mouse"
+
+    # --- BOTÓN LATERAL (Code 275) ---
+    # Lo hemos detectado en tu log.
+    # Acción: Simular tecla "Atrás" (Navegadores, Carpetas)
+    # Requiere: sudo apt install xdotool
+    [device.buttons.275]
+    mode = "press"
+    exec = "xdotool key Alt+Left"
+
+    # --- CLICK CENTRAL (Code 274) ---
+    # Lo detectaste al pulsar la rueda hacia abajo.
+    # Acción: Mutear/Desmutear audio
+    [device.buttons.274]
+    mode = "press"
+    exec = "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+
+    # --- RUEDA DE VOLUMEN (Code 8) ---
+    # Usamos Code 8 en lugar del 11 porque es más estándar.
+    [device.rel_axes.8]
+    threshold = 1
+    on_pos = "exec: pactl set-sink-volume @DEFAULT_SINK@ +5%" # Subir
+    on_neg = "exec: pactl set-sink-volume @DEFAULT_SINK@ -5%" # Bajar

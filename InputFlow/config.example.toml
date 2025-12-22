@@ -1,0 +1,27 @@
+# InputFlow Configuration
+
+[[device]]
+name = "DragonRise Gamepad"
+match_id = "usb-DragonRise_Inc._Generic_USB_Joystick-event-joystick"
+
+    # Mapeo de Botones
+    # Key = Código detectado con el scanner
+    [device.buttons.288]
+    exec = "firefox"
+    mode = "press"
+
+    [device.buttons.289]
+    exec = "gnome-terminal"
+    mode = "press"
+
+    # El botón del joystick (Click) - Suele ser 298 o 299, comprúebalo con -scan
+    [device.buttons.298]
+    exec = "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+    mode = "press"
+
+    # Mapeo de Ejes (Crucetas)
+    # DragonRise Cruceta Vertical (Eje 1)
+    [device.axes.1]
+    deadzone = 0.1
+    on_low = "exec: echo 'Arriba'"  # Valor 0 (en rango 0-255) o Negativo
+    on_high = "exec: echo 'Abajo'"  # Valor 255 (en rango 0-255) o Positivo
