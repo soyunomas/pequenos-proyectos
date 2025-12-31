@@ -1,13 +1,21 @@
 # 📦 Colección de Herramientas y Proyectos Web
 
-Este repositorio aloja una colección de herramientas, simuladores educativos y utilidades. La mayoría son aplicaciones web autocontenidas que puedes **ejecutar directamente desde el navegador** sin instalar nada.
+Este repositorio aloja una colección de herramientas, simuladores educativos y utilidades. La mayoría son aplicaciones web autocontenidas que puedes **ejecutar directamente desde el navegador**, aunque también incluye proyectos de sistema y hardware.
 
-## ⭐ Proyecto de Sistema (Go)
+---
 
-Herramienta avanzada de sistema que requiere compilación e instalación local.
+## 🔌 Proyectos de Hardware y Sistemas
+
+Herramientas que requieren instalación local o hardware específico (no son web).
+
+### [⚡ L2 Network Storm Monitor](./L2-Storm-Monitor/)
+**Detector de Tormentas de Red y Bucles (C++ / Arduino).**
+Firmware para microcontroladores **RTL8720DN (BW16)** que monitorea la red en modo promiscuo. Detecta y alerta visualmente sobre tormentas de ARP y saturación de tráfico broadcast en tiempo real.
+*   **Ideal para:** Administradores de red y diagnóstico físico.
+*   **Configurable:** Umbrales ajustables para entornos Hogar, Oficina o Industrial.
 
 ### [🌊 InputFlow](./InputFlow/)
-**Hardware Event Mapper de Latencia Cero.**
+**Hardware Event Mapper de Latencia Cero (Go).**
 Un demonio para Linux escrito en **Go** que intercepta eventos de hardware (mandos, teclados) y los mapea a acciones del sistema.
 *   **Código Fuente:** [Ver carpeta del proyecto](./InputFlow/)
 *   **Documentación:** [Leer README](./InputFlow/README.md)
@@ -31,14 +39,14 @@ Herramientas que se ejecutan en el navegador usando TensorFlow.js, Mediapipe o T
 
 Visualizadores educativos interactivos para entender el flujo de datos y protocolos.
 
-**Fundamentos y Protocolos:**
+### Fundamentos y Protocolos
 *   **[📡 Visualizador de Modulaciones Digitales](https://soyunomas.github.io/pequenos-proyectos/REDES/modulaciones.html)**: Codificación de línea (NRZ, AMI, Manchester) y modulación (ASK, FSK, PSK, QAM, OFDM).
 *   **[📦 Encapsulamiento de Datos (OSI)](https://soyunomas.github.io/pequenos-proyectos/REDES/Encapsulamiento.html)**: Viaje de los datos por las capas.
 *   **[⚡ Cabeceras TCP vs UDP](https://soyunomas.github.io/pequenos-proyectos/REDES/TCPvsUDP.html)**: Comparativa interactiva de estructuras y flags.
 *   **[📖 Visor de Cabeceras IPv4 y RFCs](https://soyunomas.github.io/pequenos-proyectos/REDES/CabeceraIPv4-RFCs.html)**: Explicación campo a campo de la cabecera IP.
 *   **[📑 Visor de Cabeceras de Protocolos](https://soyunomas.github.io/pequenos-proyectos/REDES/Cabeceras_Protocolos.html)**: Ethernet, ARP, Wi-Fi, PPP, etc.
 
-**Enrutamiento y Switching:**
+### Enrutamiento y Switching
 *   **[🖧 Enrutamiento IP y Ping](https://soyunomas.github.io/pequenos-proyectos/REDES/Ping_static_route.html)**: Simulación de ICMP, ARP y tablas de rutas.
 *   **[🗺️ Visualizador de Enrutamiento Genérico](https://soyunomas.github.io/pequenos-proyectos/REDES/Enrutamiento.html)**: Lógica de salto entre routers.
 *   **[🔄 Funcionamiento Switch (Tabla MAC)](https://soyunomas.github.io/pequenos-proyectos/REDES/Switch_aprendizaje.html)**: Aprendizaje de direcciones y reenvío.
@@ -48,7 +56,7 @@ Visualizadores educativos interactivos para entender el flujo de datos y protoco
 *   **[💥 Simulador CSMA/CD (Ethernet)](https://soyunomas.github.io/pequenos-proyectos/REDES/CSMA-CD.html)**: Detección de colisiones y backoff.
 *   **[📶 Simulador CSMA/CA (Wi-Fi)](https://soyunomas.github.io/pequenos-proyectos/REDES/CSMA-CA.html)**: Mecanismo RTS/CTS y prevención de colisiones.
 
-**Ciberseguridad y Cifrado:**
+### Ciberseguridad y Cifrado
 *   **[🔒 Cifrado y Firma Digital](https://soyunomas.github.io/pequenos-proyectos/REDES/Cifrado_Simetrico_Asimetrico_Hibrido_firma.html)**: Simulación de criptografía Simétrica, Asimétrica e Híbrida.
 *   **[🤝 Handshake TLS/SSL (HTTPS)](https://soyunomas.github.io/pequenos-proyectos/REDES/Handshake-TLS-SSL-HTTPS.html)**: Paso a paso de la negociación segura.
 *   **[🔢 Calculadora IP Avanzada](https://soyunomas.github.io/pequenos-proyectos/REDES/Calculadora_IP.html)**: Subnetting, CIDR, wildcard y binario.
@@ -101,7 +109,7 @@ Utilidades para manipulación de archivos directamente en el navegador.
 *   **[🎲 Sorteo de Números](https://soyunomas.github.io/pequenos-proyectos/OTROS/sorteo.html)**: Bombo virtual con animaciones.
 *   **[🎟️ Sorteo de Nombres](https://soyunomas.github.io/pequenos-proyectos/OTROS/sorteo_por_nombre.html)**: Sorteo de alumnos con opciones de comodín.
 
-**Juegos Clásicos:**
+### Juegos Clásicos
 *   [🧠 Mastermind](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/Mastermind.html)
 *   [⚫ Damas](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/damas.html)
 *   [💣 Buscaminas (ExploraMinas)](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/exploraminas.html)
