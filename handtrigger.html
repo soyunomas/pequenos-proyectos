@@ -116,8 +116,6 @@
   let targetUrl = '';
   let isOnCooldown = false;
   let currentHandColor = '#FF0000'; 
-  
-  // Ahora el cooldown arranca en 1 segundo por defecto, pero es modificable
   let cooldownTimeMs = 1000; 
 
   const videoElement = document.getElementById('webcam');
@@ -130,7 +128,7 @@
 
   document.getElementById('btnOpenSettings').addEventListener('click', () => {
     targetUrlInput.value = targetUrl;
-    cooldownInput.value = (cooldownTimeMs / 1000).toString(); // Mostrar en segundos
+    cooldownInput.value = (cooldownTimeMs / 1000).toString(); 
     settingsModal.show();
   });
 
@@ -152,7 +150,7 @@
 
     if (!hasError) {
       targetUrl = inputUrl;
-      cooldownTimeMs = inputCooldown * 1000; // Convertir segundos a milisegundos
+      cooldownTimeMs = inputCooldown * 1000; 
       warningBanner.style.display = 'none'; 
       settingsModal.hide();
     } else {
@@ -174,7 +172,6 @@
 
   function isPalmOpen(landmarks) {
     const wrist = landmarks[0];
-
     const isPointingUp = [4, 8, 12, 16, 20].every(tipIdx => landmarks[tipIdx].y < wrist.y);
 
     const checkFinger = (tipIdx, pipIdx, mcpIdx) => {
@@ -198,7 +195,6 @@
 
   function drawCustomHand(ctx, landmarks, color) {
     ctx.strokeStyle = color;
-    
     ctx.lineWidth = 1.5; 
     HAND_CONNECTIONS.forEach(conn => {
       const p1 = landmarks[conn[0]];
@@ -220,34 +216,50 @@
   }
 
   async function triggerHttpCall() {
-    if (!targetUrl) {
-      return;
-    }
+    if (!targetUrl) return;
 
-    // Bloqueamos el estado inmediatamente para evitar rebotes
     isOnCooldown = true;
+    
+    // Controlador para cancelar la petición si tarda demasiado (evita bloqueos)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 segundos máx para conectar
 
     try {
-      const response = await fetch(targetUrl, {
+      // TRUCO: Añadimos un timestamp (?t=...) para obligar al servidor a ver una URL "nueva"
+      // y evitar que el navegador use la caché (304). Así siempre saldrá log (200).
+      const separator = targetUrl.includes('?') ? '&' : '?';
+      const uniqueUrl = `${targetUrl}${separator}t=${Date.now()}`;
+
+      const response = await fetch(uniqueUrl, {
         method: 'GET',
-        mode: 'no-cors'
+        mode: 'no-cors',
+        cache: 'no-store', // Orden explícita de no usar caché
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
+      // Si llegamos aquí, la red funcionó (aunque sea 404 o 200, no hubo error de conexión)
       if (response.type === 'opaque' || response.ok) {
         currentHandColor = '#00FF00'; 
       } else {
         currentHandColor = '#FF0000'; 
       }
-    } catch (error) {
-      console.error("Error crítico de red:", error);
-      currentHandColor = '#FF0000'; 
-    }
 
-    // Usamos el tiempo dinámico configurado por el usuario
-    setTimeout(() => {
-      currentHandColor = '#FF0000';
-      isOnCooldown = false;
-    }, cooldownTimeMs);
+    } catch (error) {
+      if (error.name === 'AbortError') {
+         console.warn("La petición tardó demasiado y fue cancelada para no bloquear la app.");
+      } else {
+         console.error("Error de red:", error);
+      }
+      currentHandColor = '#FF0000'; 
+    } finally {
+      // El bloque finally asegura que el cooldown SIEMPRE se resetee, pase lo que pase
+      setTimeout(() => {
+        currentHandColor = '#FF0000';
+        isOnCooldown = false;
+      }, cooldownTimeMs);
+    }
   }
 
   function onResults(results) {
@@ -270,7 +282,6 @@
 
         drawCustomHand(canvasCtx, landmarks, currentHandColor);
 
-        // La condición !isOnCooldown garantiza que no se llame múltiples veces
         if (!isOnCooldown) {
           if (isPalmOpen(landmarks)) {
             triggerHttpCall();
