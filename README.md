@@ -32,7 +32,8 @@ Herramientas que se ejecutan en el navegador usando TensorFlow.js, Mediapipe o T
     *   Realidad aumentada mediante webcam que segmenta la silueta humana para pintar sobre el cuerpo o el fondo en tiempo real.
 *   **[🏀 Cesta Rebote (Motion Control)](https://soyunomas.github.io/pequenos-proyectos/OTROS/CESTA-PELOTAS.html)**
     *   Juego interactivo donde controlas una cesta con el movimiento de tus manos (detectadas por webcam) para rebotar pelotas.
-
+*   **[🖐 HandTrigger (Gestures to Webhook)](https://soyunomas.github.io/pequenos-proyectos/handtrigger.html)**
+    *   Disparador de eventos HTTP controlado por gestos. Detecta la mano derecha abierta (usando MediaPipe) para lanzar peticiones web a servidores locales o remotos (IoT/Domótica). Incluye configuración de *cooldown*, visualización del esqueleto en tiempo real y validación estricta para evitar falsos positivos.
 ---
 
 ## 🌐 Simuladores de Redes y Ciberseguridad
