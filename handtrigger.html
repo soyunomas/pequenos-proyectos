@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HandTrigger Web</title>
+<title>HandTrigger Web - Eternal Energy</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
   body {
@@ -82,22 +82,25 @@
   </div>
 </div>
 
-<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true" data-bs-theme="dark">
+<div class="modal fade" id="settingsModal" tabindex="-1" data-bs-theme="dark">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="settingsModalLabel">Configuración de HandTrigger</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        <h5 class="modal-title">Configuración HandTrigger</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
-          <label for="targetUrlInput" class="form-label">URL Objetivo (Webhook / API)</label>
+          <label for="targetUrlInput" class="form-label">URL Objetivo</label>
           <input type="url" class="form-control" id="targetUrlInput" placeholder="http://192.168.1.X/" required>
         </div>
         <div class="mb-3">
           <label for="cooldownInput" class="form-label">Tiempo sin rebote (segundos)</label>
           <input type="number" class="form-control" id="cooldownInput" value="1.0" min="0.5" step="0.5" required>
-          <div class="form-text">Tiempo que la app ignorará tu mano tras un disparo exitoso.</div>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="showSkeletonCheck" checked>
+          <label class="form-check-label" for="showSkeletonCheck">Mostrar esqueleto de la mano</label>
         </div>
       </div>
       <div class="modal-footer">
@@ -117,40 +120,116 @@
   let isOnCooldown = false;
   let currentHandColor = '#FF0000'; 
   let cooldownTimeMs = 1000; 
+  let showSkeleton = true;
+
+  const particles = [];
+
+  class Particle {
+    constructor(x, y, type) {
+      this.type = type; 
+      this.life = 1.0;  
+      
+      if (type === 'fire') {
+        // Dispersión amplia para cubrir toda la mano
+        this.x = x + (Math.random() - 0.5) * 80; 
+        this.y = y + (Math.random() - 0.5) * 80;
+        
+        // Movimiento caótico hacia arriba
+        this.vx = (Math.random() - 0.5) * 4; 
+        this.vy = -Math.random() * 5 - 1;
+        this.decay = Math.random() * 0.05 + 0.02;
+        this.size = Math.random() * 30 + 10;
+        
+        // Fuego Naranja/Rojo intenso
+        this.r = 255;
+        this.g = Math.floor(Math.random() * 160);
+        this.b = 0;
+      } else if (type === 'flash') {
+        this.x = x;
+        this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 25 + 10;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.decay = Math.random() * 0.08 + 0.02; 
+        this.size = Math.random() * 50 + 20;
+        // Luz pura
+        this.r = 255;
+        this.g = 255;
+        this.b = 200;
+      }
+    }
+
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.life -= this.decay;
+      if (this.type === 'fire') this.size *= 0.92;
+    }
+
+    draw(ctx) {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${this.r}, ${this.g}, ${this.b}, ${this.life})`;
+      ctx.fill();
+    }
+  }
+
+  function spawnFire(x, y) {
+    // Generamos muchas partículas por frame para que se vea potente
+    for (let i = 0; i < 10; i++) {
+      particles.push(new Particle(x, y, 'fire'));
+    }
+  }
+
+  function spawnFlash(x, y) {
+    for (let i = 0; i < 100; i++) {
+      particles.push(new Particle(x, y, 'flash'));
+    }
+  }
+
+  function updateAndDrawParticles(ctx) {
+    ctx.globalCompositeOperation = 'lighter'; 
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.update();
+      p.draw(ctx);
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   const videoElement = document.getElementById('webcam');
   const canvasElement = document.getElementById('output_canvas');
   const canvasCtx = canvasElement.getContext('2d');
   const targetUrlInput = document.getElementById('targetUrlInput');
   const cooldownInput = document.getElementById('cooldownInput');
+  const showSkeletonCheck = document.getElementById('showSkeletonCheck');
   const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
   const warningBanner = document.getElementById('urlWarningBanner');
 
   document.getElementById('btnOpenSettings').addEventListener('click', () => {
     targetUrlInput.value = targetUrl;
     cooldownInput.value = (cooldownTimeMs / 1000).toString(); 
+    showSkeletonCheck.checked = showSkeleton;
     settingsModal.show();
   });
 
   document.getElementById('btnSaveSettings').addEventListener('click', () => {
     const inputUrl = targetUrlInput.value.trim();
     const inputCooldown = parseFloat(cooldownInput.value);
-
+    
     let hasError = false;
 
-    if (!inputUrl) {
-      targetUrlInput.classList.add('is-invalid');
-      hasError = true;
-    }
-
-    if (isNaN(inputCooldown) || inputCooldown < 0.1) {
-      cooldownInput.classList.add('is-invalid');
-      hasError = true;
-    }
+    if (!inputUrl) { targetUrlInput.classList.add('is-invalid'); hasError = true; }
+    if (isNaN(inputCooldown) || inputCooldown < 0.1) { cooldownInput.classList.add('is-invalid'); hasError = true; }
 
     if (!hasError) {
       targetUrl = inputUrl;
       cooldownTimeMs = inputCooldown * 1000; 
+      showSkeleton = showSkeletonCheck.checked;
       warningBanner.style.display = 'none'; 
       settingsModal.hide();
     } else {
@@ -158,22 +237,23 @@
     }
   });
 
-  document.getElementById('targetUrlInput').addEventListener('input', function() {
-    this.classList.remove('is-invalid');
-  });
-
-  document.getElementById('cooldownInput').addEventListener('input', function() {
-    this.classList.remove('is-invalid');
+  ['targetUrlInput', 'cooldownInput'].forEach(id => {
+    document.getElementById(id).addEventListener('input', function() { this.classList.remove('is-invalid'); });
   });
 
   function getDistance(p1, p2) {
     return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
   }
 
-  function isPalmOpen(landmarks) {
+  // Comprobación estricta SOLO para el disparo
+  function isPalmOpenAndUp(landmarks) {
     const wrist = landmarks[0];
+    
+    // 1. Orientación: ¿Están todas las puntas por encima de la muñeca?
     const isPointingUp = [4, 8, 12, 16, 20].every(tipIdx => landmarks[tipIdx].y < wrist.y);
+    if (!isPointingUp) return false;
 
+    // 2. Extensión: ¿Están los dedos estirados (radial)?
     const checkFinger = (tipIdx, pipIdx, mcpIdx) => {
       const dTip = getDistance(wrist, landmarks[tipIdx]);
       const dPip = getDistance(wrist, landmarks[pipIdx]);
@@ -181,16 +261,12 @@
       return (dTip > dPip) && (dPip > dMcp);
     };
 
-    const indexOpen = checkFinger(8, 6, 5);
-    const middleOpen = checkFinger(12, 10, 9);
-    const ringOpen = checkFinger(16, 14, 13);
-    const pinkyOpen = checkFinger(20, 18, 17);
-
-    const thumbExtended = getDistance(wrist, landmarks[4]) > getDistance(wrist, landmarks[3]);
-    const thumbSpread = getDistance(landmarks[4], landmarks[17]) > getDistance(landmarks[2], landmarks[17]);
-    const thumbOpen = thumbExtended && thumbSpread;
-
-    return isPointingUp && indexOpen && middleOpen && ringOpen && pinkyOpen && thumbOpen;
+    return checkFinger(8, 6, 5) && 
+           checkFinger(12, 10, 9) && 
+           checkFinger(16, 14, 13) && 
+           checkFinger(20, 18, 17) &&
+           (getDistance(wrist, landmarks[4]) > getDistance(wrist, landmarks[3]) && 
+            getDistance(landmarks[4], landmarks[17]) > getDistance(landmarks[2], landmarks[17]));
   }
 
   function drawCustomHand(ctx, landmarks, color) {
@@ -215,31 +291,28 @@
     });
   }
 
-  async function triggerHttpCall() {
+  async function triggerHttpCall(x, y) {
     if (!targetUrl) return;
 
     isOnCooldown = true;
-    
-    // Controlador para cancelar la petición si tarda demasiado (evita bloqueos)
+    spawnFlash(x, y);
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 segundos máx para conectar
+    const timeoutId = setTimeout(() => controller.abort(), 2000); 
 
     try {
-      // TRUCO: Añadimos un timestamp (?t=...) para obligar al servidor a ver una URL "nueva"
-      // y evitar que el navegador use la caché (304). Así siempre saldrá log (200).
       const separator = targetUrl.includes('?') ? '&' : '?';
       const uniqueUrl = `${targetUrl}${separator}t=${Date.now()}`;
 
       const response = await fetch(uniqueUrl, {
         method: 'GET',
         mode: 'no-cors',
-        cache: 'no-store', // Orden explícita de no usar caché
+        cache: 'no-store', 
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
-      // Si llegamos aquí, la red funcionó (aunque sea 404 o 200, no hubo error de conexión)
       if (response.type === 'opaque' || response.ok) {
         currentHandColor = '#00FF00'; 
       } else {
@@ -247,14 +320,9 @@
       }
 
     } catch (error) {
-      if (error.name === 'AbortError') {
-         console.warn("La petición tardó demasiado y fue cancelada para no bloquear la app.");
-      } else {
-         console.error("Error de red:", error);
-      }
+      if (error.name !== 'AbortError') console.error("Error de red:", error);
       currentHandColor = '#FF0000'; 
     } finally {
-      // El bloque finally asegura que el cooldown SIEMPRE se resetee, pase lo que pase
       setTimeout(() => {
         currentHandColor = '#FF0000';
         isOnCooldown = false;
@@ -271,20 +339,31 @@
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+    updateAndDrawParticles(canvasCtx);
+
     if (results.multiHandLandmarks && results.multiHandedness) {
       for (let i = 0; i < results.multiHandLandmarks.length; i++) {
         const landmarks = results.multiHandLandmarks[i];
         const handedness = results.multiHandedness[i].label; 
-
         const isRightHand = handedness === 'Left';
 
         if (!isRightHand) continue;
 
-        drawCustomHand(canvasCtx, landmarks, currentHandColor);
+        // Centro de la mano para emanar energía
+        const centerX = (landmarks[0].x + landmarks[9].x) / 2 * canvasElement.width;
+        const centerY = (landmarks[0].y + landmarks[9].y) / 2 * canvasElement.height;
+
+        // PREMISA: SIEMPRE QUE SE DETECTE LA MANO -> ENERGÍA
+        spawnFire(centerX, centerY);
+
+        if (showSkeleton) {
+          drawCustomHand(canvasCtx, landmarks, currentHandColor);
+        }
 
         if (!isOnCooldown) {
-          if (isPalmOpen(landmarks)) {
-            triggerHttpCall();
+          // Lógica de disparo estricta: Mano Abierta y Arriba
+          if (isPalmOpenAndUp(landmarks)) {
+            triggerHttpCall(centerX, centerY);
           }
         }
       }
@@ -299,8 +378,8 @@
   hands.setOptions({
     maxNumHands: 2, 
     modelComplexity: 1,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.7
+    minDetectionConfidence: 0.6, // Bajado ligeramente para mejorar seguimiento rápido
+    minTrackingConfidence: 0.6
   });
   hands.onResults(onResults);
 
@@ -312,10 +391,7 @@
     height: 720
   });
 
-  camera.start().catch(err => {
-    alert("No se pudo acceder a la cámara. Asegúrate de dar los permisos necesarios.");
-    console.error(err);
-  });
+  camera.start().catch(err => console.error(err));
 </script>
 </body>
 </html>
