@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrono Precision | Detén el Reloj</title>
+    
+    <!-- Evitar FOUC (parpadeo de tema) -->
+    <script>
+        const savedTheme = localStorage.getItem('chronoTheme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
+
+    <!-- Fuente Digital -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- Librería MQTT por CDN -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+    <style>
+        /* =========================================
+           VARIABLES Y TEMAS
+           ========================================= */
+        :root {
+            --bg-color: #f4f4f5;
+            --text-color: #18181b;
+            --secondary-text: #71717a;
+            --clock-color: #ef4444; 
+            --clock-glow: rgba(239, 68, 68, 0.3);
+            --panel-bg: rgba(255, 255, 255, 0.85);
+            --panel-border: rgba(0, 0, 0, 0.1);
+            --input-bg: #ffffff;
+            --btn-bg: #18181b;
+            --btn-text: #ffffff;
+            --gold: #eab308;
+            --table-hover: #e4e4e7;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #09090b;
+            --text-color: #f4f4f5;
+            --secondary-text: #a1a1aa;
+            --clock-color: #22c55e; 
+            --clock-glow: rgba(34, 197, 94, 0.4);
+            --panel-bg: rgba(24, 24, 27, 0.85);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --input-bg: #18181b;
+            --btn-bg: #f4f4f5;
+            --btn-text: #09090b;
+            --table-hover: #27272a;
+        }
+
+        .theme-gold {
+            --clock-color: var(--gold) !important;
+            --clock-glow: rgba(234, 179, 8, 0.6) !important;
+        }
+
+        /* =========================================
+           RESET Y LAYOUT BASE
+           ========================================= */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh; 
+            overflow-x: hidden;
+            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+
+        /* =========================================
+           HEADER (Controles Superiores)
+           ========================================= */
+        header {
+            width: 100%;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: absolute;
+            top: 0;
+            z-index: 10;
+        }
+
+        .mqtt-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 500; color: var(--secondary-text); }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #ef4444; box-shadow: 0 0 8px #ef4444; transition: all 0.3s ease; }
+        .status-dot.connected { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .status-dot.connecting { background-color: var(--gold); box-shadow: 0 0 8px var(--gold); animation: pulse 1s infinite alternate; }
+
+        .controls { display: flex; gap: 1rem; }
+        button.icon-btn { background: none; border: none; color: var(--text-color); font-size: 1.5rem; cursor: pointer; transition: transform 0.2s ease, opacity 0.2s ease; opacity: 0.7; }
+        button.icon-btn:hover { opacity: 1; transform: scale(1.1); }
+
+        /* =========================================
+           ÁREA DE JUEGO PRINCIPAL
+           ========================================= */
+        main {
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 5rem 2rem 2rem 2rem; 
+            width: 100%;
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .clock-container { text-align: center; }
+
+        .clock {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: clamp(4rem, 15vmin, 12rem); 
+            line-height: 1;
+            color: var(--clock-color);
+            text-shadow: 0 0 20px var(--clock-glow), 0 0 40px var(--clock-glow);
+            transition: color 0.3s ease, text-shadow 0.3s ease, transform 0.1s ease;
+            user-select: none; font-variant-numeric: tabular-nums;
+        }
+
+        .perfect-animation { animation: celebrate 1s ease-in-out infinite alternate; }
+
+        .target-display { font-size: clamp(1rem, 3vmin, 1.2rem); color: var(--secondary-text); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 2px; }
+        .feedback { height: 2rem; font-size: clamp(1rem, 4vmin, 1.5rem); font-weight: 600; margin-top: 1rem; opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; }
+        .feedback.show { opacity: 1; transform: translateY(0); }
+
+        /* Botones de acción principales (Start / Stop) */
+        .action-buttons {
+            display: flex; justify-content: center; gap: 1.5rem; margin-top: 1.5rem;
+        }
+        .btn-action {
+            padding: 0.8rem 2rem; font-size: 1.2rem; font-family: 'Share Tech Mono', monospace; font-weight: bold;
+            border: none; border-radius: 8px; cursor: pointer; transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-action.start { background-color: var(--clock-color); color: var(--bg-color); }
+        .btn-action.stop { background-color: var(--text-color); color: var(--bg-color); }
+        .btn-action:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .btn-action:active { transform: scale(0.95); }
+
+        /* =========================================
+           TOP 5 LEADERBOARD
+           ========================================= */
+        .leaderboard {
+            width: 100%; max-width: 320px;
+            background: rgba(0,0,0,0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px; padding: 1.5rem;
+        }
+        [data-theme="dark"] .leaderboard { background: rgba(255,255,255,0.02); }
+
+        .leaderboard h3 { font-size: 0.85rem; color: var(--secondary-text); text-align: center; margin-bottom: 1rem; letter-spacing: 2px; }
+        .leaderboard-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        .lb-item { display: flex; justify-content: space-between; font-family: 'Share Tech Mono', monospace; font-size: 1.1rem; color: var(--text-color); padding-bottom: 0.3rem; border-bottom: 1px dashed var(--panel-border); }
+        .lb-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .lb-rank { color: var(--clock-color); width: 1.5rem; }
+        .lb-name { flex: 1; text-transform: uppercase; }
+        .lb-score { color: var(--secondary-text); }
+
+        /* =========================================
+           MODALES Y FORMULARIOS
+           ========================================= */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 50;
+            padding: 1rem; 
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        .modal {
+            background: var(--panel-bg); border: 1px solid var(--panel-border);
+            padding: 2.5rem; border-radius: 16px; width: 100%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.95) translateY(20px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+        .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+        .modal h2 { margin-bottom: 1.5rem; font-size: 1.5rem; }
+        
+        #nameModal .modal { max-width: 350px; text-align: center; }
+        #nameModal input { text-align: center; font-size: 1.5rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+
+        .grid-layout { display: grid; gap: 1rem; }
+        .grid-col-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
+        .grid-col-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+        .form-group { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+        .form-group label { font-size: 0.85rem; color: var(--secondary-text); font-weight: 500; display: flex; align-items: center;}
+        .form-group input:not(#inpBroker), .form-group select {
+            width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--panel-border);
+            background: var(--input-bg); color: var(--text-color); font-family: inherit;
+            outline: none; transition: border-color 0.2s ease; box-sizing: border-box;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--clock-color); }
+
+        .btn-save { width: 100%; padding: 1rem; margin-top: 1.5rem; background: var(--btn-bg); color: var(--btn-text); border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: opacity 0.2s ease; }
+        .btn-save:hover { opacity: 0.8; }
+        .close-modal { position: absolute; top: 1.5rem; right: 1.5rem; background: none; border: none; color: var(--secondary-text); font-size: 1.5rem; cursor: pointer; }
+
+        /* Controles custom de Brokers (Combo Dropdown y Ayuda) */
+        .help-btn {
+            background: var(--clock-color); color: var(--bg-color); border: none;
+            border-radius: 50%; width: 1.2rem; height: 1.2rem; font-size: 0.8rem;
+            cursor: pointer; margin-left: 0.5rem; font-weight: bold;
+            display: inline-flex; justify-content: center; align-items: center;
+        }
+
+        .broker-combo-container { display: flex; gap: 0.5rem; width: 100%; position: relative; }
+        .custom-combo { display: flex; flex: 1; position: relative; min-width: 0; }
+        
+        .custom-combo input { 
+            width: 100%; padding: 0.8rem; border-radius: 8px 0 0 8px; border: 1px solid var(--panel-border); 
+            border-right: none; background: var(--input-bg); color: var(--text-color); outline: none; 
+            transition: border-color 0.2s ease; box-sizing: border-box;
+        }
+        .btn-combo-toggle { 
+            background: var(--input-bg); border: 1px solid var(--panel-border); border-left: none; 
+            border-radius: 0 8px 8px 0; padding: 0 0.8rem; cursor: pointer; color: var(--secondary-text); transition: color 0.2s; 
+        }
+        .custom-combo input:focus, .custom-combo input:focus + .btn-combo-toggle { border-color: var(--clock-color); }
+        .btn-combo-toggle:hover { color: var(--text-color); }
+
+        .combo-dropdown { 
+            position: absolute; top: 100%; left: 0; width: 100%; 
+            background: var(--input-bg); border: 1px solid var(--panel-border); 
+            border-radius: 8px; margin-top: 4px; max-height: 180px; overflow-y: auto; 
+            z-index: 100; list-style: none; display: none; 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); 
+        }
+        .combo-dropdown.show { display: block; }
+        .combo-dropdown li { padding: 0.8rem; border-bottom: 1px solid var(--panel-border); cursor: pointer; font-size: 0.9rem; color: var(--text-color); }
+        .combo-dropdown li:last-child { border-bottom: none; }
+        .combo-dropdown li:hover { background: rgba(0,0,0,0.05); color: var(--clock-color); font-weight: bold; }
+        [data-theme="dark"] .combo-dropdown li:hover { background: rgba(255,255,255,0.05); }
+
+        .btn-add {
+            padding: 0 0.8rem; background: var(--btn-bg); color: var(--btn-text);
+            border: none; border-radius: 8px; cursor: pointer; font-size: 1.2rem; font-weight: bold; transition: opacity 0.2s ease;
+        }
+        .btn-add:hover { opacity: 0.8; }
+
+        /* Modal Tabla de Brokers */
+        .table-modal { max-width: 650px; }
+        .table-responsive { overflow-x: auto; margin-top: 1rem; border-radius: 8px; border: 1px solid var(--panel-border); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+        th, td { padding: 0.8rem; border-bottom: 1px solid var(--panel-border); }
+        th { background: rgba(0,0,0,0.05); color: var(--secondary-text); font-weight: 600; }
+        [data-theme="dark"] th { background: rgba(255,255,255,0.05); }
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--table-hover); }
+        
+        .choose-btn { background: var(--clock-color); color: var(--bg-color); border: none; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: filter 0.2s; }
+        .choose-btn:hover { filter: brightness(1.2); }
+        .delete-btn { background: #ef4444; color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: background 0.2s; }
+        .delete-btn:hover { background: #dc2626; }
+
+        @media (min-width: 600px) and (orientation: landscape) {
+            .game-area { flex-direction: row; justify-content: space-around; align-items: center; gap: 3rem; }
+            .clock-container { margin-bottom: 0; }
+        }
+
+        /* Animaciones */
+        @keyframes pulse { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.2); opacity: 1; } }
+        @keyframes celebrate { 0% { transform: scale(1); text-shadow: 0 0 20px var(--clock-glow); } 100% { transform: scale(1.05); text-shadow: 0 0 50px var(--clock-glow), 0 0 80px var(--clock-glow); } }
+    </style>
+</head>
+<body>
+
+    <!-- Header y Controles -->
+    <header>
+        <div class="mqtt-status">
+            <div class="status-dot" id="mqttIndicator"></div>
+            <span id="mqttStatusText">Desconectado</span>
+        </div>
+        <div class="controls">
+            <button class="icon-btn" id="themeToggle" title="Cambiar Tema">
+                <svg id="themeIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+            </button>
+            <button class="icon-btn" id="settingsToggle" title="Configuración">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Área Principal -->
+    <main>
+        <div class="game-area">
+            <div class="clock-container">
+                <div class="target-display">Objetivo: <span id="targetLabel">10.000</span>s</div>
+                <div class="clock" id="display">00.000</div>
+                <div class="feedback" id="feedbackMsg"></div>
+                <!-- Controles Locales -->
+                <div class="action-buttons">
+                    <button id="btnMainStart" class="btn-action start">START</button>
+                    <button id="btnMainStop" class="btn-action stop">STOP</button>
+                </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="leaderboard">
+                <h3>TOP 5 RÉCORDS</h3>
+                <ul class="leaderboard-list" id="leaderboardList">
+                    <!-- Dinámico -->
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Configuración -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <button class="close-modal" id="closeSettingsModal">×</button>
+            <h2>Configuración</h2>
+            <div class="grid-layout">
+                <div class="form-group">
+                    <label>Tiempo Objetivo (segundos)</label>
+                    <input type="number" id="inpTarget" step="0.001" value="10.000">
+                </div>
+                <div class="grid-col-1-2">
+                    <div class="form-group">
+                        <label>Protocolo</label>
+                        <select id="inpProtocol">
+                            <option value="ws">ws://</option>
+                            <option value="wss">wss://</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            Broker MQTT
+                            <button type="button" class="help-btn" id="btnHelpBrokers" title="Ver lista de Brokers guardados">?</button>
+                        </label>
+                        
+                        <!-- CUSTOM COMBO BOX -->
+                        <div class="broker-combo-container">
+                            <div class="custom-combo">
+                                <input type="text" id="inpBroker" placeholder="Ej: broker.mqttdashboard.com" autocomplete="off">
+                                <button type="button" id="btnComboToggle" class="btn-combo-toggle">▼</button>
+                                <ul id="comboDropdown" class="combo-dropdown"></ul>
+                            </div>
+                            <button type="button" id="btnAddBroker" class="btn-add" title="Añadir a guardados">+</button>
+                        </div>
+                        
+                    </div>
+                </div>
+                <div class="grid-col-3">
+                    <div class="form-group">
+                        <label>Puerto</label>
+                        <input type="text" id="inpPort" value="8000">
+                    </div>
+                    <div class="form-group">
+                        <label>Path</label>
+                        <input type="text" id="inpPath" value="mqtt">
+                    </div>
+                    <div class="form-group">
+                        <label>Topic</label>
+                        <input type="text" id="inpTopic" value="reloj">
+                    </div>
+                </div>
+            </div>
+            <button class="btn-save" id="saveSettingsBtn">Guardar y Reconectar</button>
+        </div>
+    </div>
+
+    <!-- Modal Tabla Brokers -->
+    <div class="modal-overlay" id="brokersModal">
+        <div class="modal table-modal">
+            <button class="close-modal" id="closeBrokersModal">×</button>
+            <h2>Brokers Guardados</h2>
+            <p style="color: var(--secondary-text); font-size: 0.9rem;">Lista de servidores MQTT públicos. Haz clic en "Usar" para cargar su configuración.</p>
+            <div class="table-responsive">
+                <table id="brokersTable">
+                    <thead>
+                        <tr>
+                            <th>Broker</th>
+                            <th>Proto</th>
+                            <th>Puerto</th>
+                            <th>Path</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nuevo Récord -->
+    <div class="modal-overlay" id="nameModal">
+        <div class="modal">
+            <h2 style="color: var(--clock-color);">¡NUEVO RÉCORD!</h2>
+            <p style="margin-bottom: 1rem; color: var(--secondary-text); font-size: 0.9rem;">Has entrado en el Top 5. Ingresa tu nombre:</p>
+            <div class="form-group">
+                <input type="text" id="inpPlayerName" maxlength="10" placeholder="ANÓNIMO" autocomplete="off">
+            </div>
+            <button class="btn-save" id="saveNameBtn">Guardar Puntuación</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * =========================================
+         * DATOS POR DEFECTO: 6 BROKERS PÚBLICOS
+         * =========================================
+         */
+        const defaultBrokers =[
+            { broker: 'broker.mqttdashboard.com', protocol: 'ws', port: '8000', path: 'mqtt' },
+            { broker: 'broker.hivemq.com', protocol: 'ws', port: '8000', path: 'mqtt' },
+            { broker: 'test.mosquitto.org', protocol: 'ws', port: '8080', path: 'mqtt' },
+            { broker: 'broker.emqx.io', protocol: 'ws', port: '8083', path: 'mqtt' },
+            { broker: 'mqtt.eclipseprojects.io', protocol: 'ws', port: '80', path: 'mqtt' },
+            { broker: 'public.mqtthq.com', protocol: 'ws', port: '8083', path: 'mqtt' }
+        ];
+
+        let savedBrokers =[];
+
+        /**
+         * =========================================
+         * ESTADO GLOBAL
+         * =========================================
+         */
+        const state = {
+            running: false,
+            startTime: 0,
+            animationId: null,
+            targetMs: 10000, 
+            topRecords:[],
+            pendingRecordMs: null,
+            mqttClient: null,
+            clientId: 'tyckr_' + Math.random().toString(16).substring(2, 10),
+            config: { protocol: 'ws', broker: 'broker.mqttdashboard.com', port: '8000', path: 'mqtt', topic: 'reloj' }
+        };
+
+        const display = document.getElementById('display');
+        const targetLabel = document.getElementById('targetLabel');
+        const feedbackMsg = document.getElementById('feedbackMsg');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const mqttIndicator = document.getElementById('mqttIndicator');
+        const mqttStatusText = document.getElementById('mqttStatusText');
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        // Modales y botones principales
+        const settingsModal = document.getElementById('settingsModal');
+        const btnSettings = document.getElementById('settingsToggle');
+        const btnCloseSettings = document.getElementById('closeSettingsModal');
+        const btnSaveSettings = document.getElementById('saveSettingsBtn');
+        const btnMainStart = document.getElementById('btnMainStart');
+        const btnMainStop = document.getElementById('btnMainStop');
+
+        const nameModal = document.getElementById('nameModal');
+        const inpPlayerName = document.getElementById('inpPlayerName');
+        const saveNameBtn = document.getElementById('saveNameBtn');
+
+        // Referencias del Custom Combo Box y Tabla de Brokers
+        const inpBroker = document.getElementById('inpBroker');
+        const btnComboToggle = document.getElementById('btnComboToggle');
+        const comboDropdown = document.getElementById('comboDropdown');
+        const btnAddBroker = document.getElementById('btnAddBroker');
+        const inpProtocol = document.getElementById('inpProtocol');
+        const inpPort = document.getElementById('inpPort');
+        const inpPath = document.getElementById('inpPath');
+        
+        const btnHelpBrokers = document.getElementById('btnHelpBrokers');
+        const brokersModal = document.getElementById('brokersModal');
+        const closeBrokersModal = document.getElementById('closeBrokersModal');
+
+        function initApp() {
+            updateThemeIcon(document.documentElement.getAttribute('data-theme'));
+            
+            // Cargar Configuración General
+            const savedConfig = localStorage.getItem('chronoConfig');
+            if (savedConfig) state.config = { ...state.config, ...JSON.parse(savedConfig) };
+            const savedTarget = localStorage.getItem('chronoTarget');
+            if (savedTarget) state.targetMs = parseFloat(savedTarget) * 1000;
+
+            // Cargar Lista de Brokers Guardados
+            const storedBrokers = localStorage.getItem('chronoBrokers');
+            if (storedBrokers) {
+                savedBrokers = JSON.parse(storedBrokers);
+            } else {
+                savedBrokers =[...defaultBrokers];
+            }
+            renderCombo();
+
+            // Cargar Récords
+            const savedRecords = localStorage.getItem('chronoTopRecords');
+            if (savedRecords) {
+                state.topRecords = JSON.parse(savedRecords);
+            }
+
+            targetLabel.innerText = (state.targetMs / 1000).toFixed(3);
+            populateSettingsModal();
+            updateLeaderboardUI();
+            connectMQTT();
+        }
+
+        /* =========================================
+           LÓGICA DEL JUEGO
+           ========================================= */
+        function formatTimeFromMs(ms) {
+            if (ms < 0) ms = 0;
+            const totalMs = Math.floor(ms);
+            const s = Math.floor(totalMs / 1000).toString().padStart(2, '0');
+            const rMs = (totalMs % 1000).toString().padStart(3, '0');
+            return `${s}.${rMs}`;
+        }
+
+        function loop(currentTime) {
+            if (!state.running) return;
+            const elapsedMs = Math.floor(currentTime - state.startTime);
+            display.innerText = formatTimeFromMs(elapsedMs);
+            state.animationId = requestAnimationFrame(loop);
+        }
+
+        function startClock() {
+            if (state.running) return;
+            state.running = true;
+            document.body.classList.remove('theme-gold');
+            display.classList.remove('perfect-animation');
+            feedbackMsg.classList.remove('show');
+            display.innerText = "00.000";
+            state.startTime = performance.now();
+            state.animationId = requestAnimationFrame(loop);
+        }
+
+        function stopClock() {
+            if (!state.running) return;
+            state.running = false;
+            cancelAnimationFrame(state.animationId);
+            const elapsedMs = Math.floor(performance.now() - state.startTime);
+            display.innerText = formatTimeFromMs(elapsedMs);
+            evaluateResult(elapsedMs);
+        }
+
+        function evaluateResult(elapsedMs) {
+            const diffMs = elapsedMs - state.targetMs;
+            const absDiffMs = Math.abs(diffMs);
+            
+            if (absDiffMs === 0) {
+                feedbackMsg.innerText = "¡PERFECTO!";
+                feedbackMsg.style.color = "var(--gold)";
+                document.body.classList.add('theme-gold');
+                display.classList.add('perfect-animation');
+            } else {
+                const sign = diffMs > 0 ? "+" : "";
+                feedbackMsg.innerText = diffMs > 0 ? `Te pasaste por ${sign}${(diffMs/1000).toFixed(3)}s` : `Te faltaron ${(diffMs/1000).toFixed(3)}s`;
+                feedbackMsg.style.color = "var(--text-color)";
+            }
+            feedbackMsg.classList.add('show');
+            checkHighScore(absDiffMs);
+        }
+
+        function checkHighScore(absDiffMs) {
+            const isTop = state.topRecords.length < 5 || absDiffMs < state.topRecords[state.topRecords.length - 1].diffMs;
+            if (isTop) {
+                state.pendingRecordMs = absDiffMs;
+                setTimeout(() => {
+                    inpPlayerName.value = '';
+                    nameModal.classList.add('active');
+                    inpPlayerName.focus();
+                }, 800);
+            }
+        }
+
+        function updateLeaderboardUI() {
+            leaderboardList.innerHTML = '';
+            if (state.topRecords.length === 0) {
+                leaderboardList.innerHTML = '<li class="lb-item" style="justify-content: center; color: var(--secondary-text)">Sin récords aún</li>';
+                return;
+            }
+            state.topRecords.forEach((record, index) => {
+                const li = document.createElement('li');
+                li.className = 'lb-item';
+                li.innerHTML = `<span class="lb-rank">${index + 1}.</span><span class="lb-name">${record.name}</span><span class="lb-score">±${(record.diffMs / 1000).toFixed(3)}s</span>`;
+                leaderboardList.appendChild(li);
+            });
+        }
+
+        function savePlayerName() {
+            let name = inpPlayerName.value.trim().toUpperCase().substring(0, 10);
+            if (!name) name = 'ANÓNIMO';
+            state.topRecords.push({ name, diffMs: state.pendingRecordMs });
+            state.topRecords.sort((a, b) => a.diffMs - b.diffMs);
+            state.topRecords = state.topRecords.slice(0, 5); 
+            localStorage.setItem('chronoTopRecords', JSON.stringify(state.topRecords));
+            updateLeaderboardUI();
+            nameModal.classList.remove('active');
+            state.pendingRecordMs = null;
+        }
+
+        /* =========================================
+           LÓGICA DEL CUSTOM COMBO Y BROKERS
+           ========================================= */
+        
+        // Pinta las opciones de la lista desplegable personalizada
+        function renderCombo() {
+            comboDropdown.innerHTML = '';
+            savedBrokers.forEach(b => {
+                const li = document.createElement('li');
+                li.textContent = b.broker;
+                li.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    inpBroker.value = b.broker;
+                    inpProtocol.value = b.protocol;
+                    inpPort.value = b.port;
+                    inpPath.value = b.path;
+                    comboDropdown.classList.remove('show');
+                });
+                comboDropdown.appendChild(li);
+            });
+        }
+
+        // Mostrar/ocultar dropdown
+        btnComboToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            comboDropdown.classList.toggle('show');
+        });
+
+        // Desplegar también al hacer click sobre el propio input
+        inpBroker.addEventListener('click', (e) => {
+            e.stopPropagation();
+            comboDropdown.classList.add('show');
+        });
+
+        // Ocultar dropdown si se hace click fuera del combo
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-combo')) {
+                comboDropdown.classList.remove('show');
+            }
+        });
+
+        // Botón "+" para añadir/actualizar configuración que el usuario ha escrito
+        btnAddBroker.addEventListener('click', () => {
+            const brokerName = inpBroker.value.trim();
+            if (!brokerName) return;
+            
+            const newConfig = {
+                broker: brokerName,
+                protocol: inpProtocol.value,
+                port: inpPort.value.trim(),
+                path: inpPath.value.trim()
+            };
+            
+            const existingIndex = savedBrokers.findIndex(b => b.broker === brokerName);
+            if (existingIndex >= 0) {
+                savedBrokers[existingIndex] = newConfig; // Actualiza existente
+            } else {
+                savedBrokers.push(newConfig); // Añade nuevo
+            }
+            
+            localStorage.setItem('chronoBrokers', JSON.stringify(savedBrokers));
+            renderCombo();
+            renderBrokersTable(); // Si la tabla estaba pintada, que se actualice
+            
+            // Efecto visual rápido de confirmación (checkmark)
+            const originalText = btnAddBroker.innerText;
+            btnAddBroker.innerText = '✓';
+            setTimeout(() => btnAddBroker.innerText = originalText, 1000);
+        });
+
+        // Mostrar Tabla de Ayuda
+        function renderBrokersTable() {
+            const tbody = document.querySelector('#brokersTable tbody');
+            tbody.innerHTML = '';
+            savedBrokers.forEach((b, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 500;">${b.broker}</td>
+                    <td>${b.protocol}</td>
+                    <td>${b.port}</td>
+                    <td>/${b.path}</td>
+                    <td style="text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <button class="choose-btn" onclick="chooseBroker(${index})" title="Cargar este Broker">Usar</button>
+                        <button class="delete-btn" onclick="deleteBroker(${index})" title="Eliminar de la lista">X</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Funciones llamadas desde el HTML (botones generados dinámicamente)
+        window.chooseBroker = function(index) {
+            const b = savedBrokers[index];
+            inpBroker.value = b.broker;
+            inpProtocol.value = b.protocol;
+            inpPort.value = b.port;
+            inpPath.value = b.path;
+            brokersModal.classList.remove('active'); // Cerrar modal de ayuda
+        };
+
+        window.deleteBroker = function(index) {
+            savedBrokers.splice(index, 1);
+            localStorage.setItem('chronoBrokers', JSON.stringify(savedBrokers));
+            renderCombo();
+            renderBrokersTable();
+        };
+
+        // Eventos del modal de ayuda
+        btnHelpBrokers.addEventListener('click', () => {
+            renderBrokersTable();
+            brokersModal.classList.add('active');
+        });
+        closeBrokersModal.addEventListener('click', () => brokersModal.classList.remove('active'));
+
+        /* =========================================
+           MQTT Y CONEXIÓN
+           ========================================= */
+        function connectMQTT() {
+            if (state.mqttClient) state.mqttClient.end(true);
+            let pathStr = state.config.path.trim();
+            if (pathStr && !pathStr.startsWith('/')) pathStr = '/' + pathStr;
+            const url = `${state.config.protocol}://${state.config.broker}:${state.config.port}${pathStr}`;
+            
+            updateMQTTUI('connecting');
+            try {
+                state.mqttClient = mqtt.connect(url, { clientId: state.clientId, clean: true, connectTimeout: 5000, reconnectPeriod: 5000 });
+                state.mqttClient.on('connect', () => {
+                    updateMQTTUI('connected');
+                    state.mqttClient.subscribe(state.config.topic, (err) => { if (err) console.error(err); });
+                });
+                state.mqttClient.on('message', (topic, message) => {
+                    if (topic === state.config.topic) {
+                        const payload = message.toString().toLowerCase().trim();
+                        if (payload === 'start') startClock();
+                        else if (payload === 'stop') stopClock();
+                    }
+                });
+                state.mqttClient.on('error', () => updateMQTTUI('error'));
+                state.mqttClient.on('offline', () => updateMQTTUI('error'));
+            } catch (err) { updateMQTTUI('error'); }
+        }
+
+        function updateMQTTUI(status) {
+            mqttIndicator.className = 'status-dot';
+            if (status === 'connecting') { mqttIndicator.classList.add('connecting'); mqttStatusText.innerText = "Conectando..."; } 
+            else if (status === 'connected') { mqttIndicator.classList.add('connected'); mqttStatusText.innerText = `Conectado: ${state.config.broker}`; } 
+            else { mqttStatusText.innerText = "Desconectado"; }
+        }
+
+        function populateSettingsModal() {
+            document.getElementById('inpTarget').value = (state.targetMs / 1000).toFixed(3);
+            inpProtocol.value = state.config.protocol;
+            inpBroker.value = state.config.broker;
+            inpPort.value = state.config.port;
+            inpPath.value = state.config.path;
+            document.getElementById('inpTopic').value = state.config.topic;
+        }
+
+        function saveSettings() {
+            const newTarget = parseFloat(document.getElementById('inpTarget').value);
+            state.config.protocol = inpProtocol.value;
+            state.config.broker = inpBroker.value.trim();
+            state.config.port = inpPort.value.trim();
+            state.config.path = inpPath.value.trim();
+            state.config.topic = document.getElementById('inpTopic').value.trim();
+            
+            if (!isNaN(newTarget) && newTarget > 0) {
+                state.targetMs = Math.round(newTarget * 1000);
+                targetLabel.innerText = (state.targetMs / 1000).toFixed(3);
+                localStorage.setItem('chronoTarget', (state.targetMs / 1000).toString());
+            }
+            localStorage.setItem('chronoConfig', JSON.stringify(state.config));
+            settingsModal.classList.remove('active');
+            connectMQTT();
+        }
+
+        /* =========================================
+           EVENTOS GLOBALES Y DE VENTANA
+           ========================================= */
+        saveNameBtn.addEventListener('click', savePlayerName);
+        inpPlayerName.addEventListener('keydown', (e) => { if (e.key === 'Enter') savePlayerName(); });
+
+        btnSettings.addEventListener('click', () => settingsModal.classList.add('active'));
+        btnCloseSettings.addEventListener('click', () => settingsModal.classList.remove('active'));
+        btnSaveSettings.addEventListener('click', saveSettings);
+        
+        // Cierre de modales haciendo click en el exterior oscurecido
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                // Prevenir que se cierre nameModal si el usuario toca fuera sin guardar
+                if (e.target === modal && modal.id !== 'nameModal') {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // Botones de juego en pantalla principal
+        btnMainStart.addEventListener('click', startClock);
+        btnMainStop.addEventListener('click', stopClock);
+
+        function updateThemeIcon(theme) {
+            if (theme === 'dark') {
+                themeIcon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+            } else {
+                themeIcon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+            }
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('chronoTheme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+
+        window.addEventListener('DOMContentLoaded', initApp);
+
+        // Control por teclado (barra espaciadora)
+        window.addEventListener('keydown', (e) => {
+            const anyModalActive = document.querySelector('.modal-overlay.active');
+            if(e.code === 'Space' && !anyModalActive) {
+                e.preventDefault(); // Evitar scroll de la barra espaciadora
+                if(!state.running) startClock();
+                else stopClock();
+            }
+        });
+    </script>
+</body>
+</html>
