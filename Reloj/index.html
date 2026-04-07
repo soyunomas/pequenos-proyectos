@@ -416,11 +416,11 @@
          * =========================================
          */
         const defaultBrokers =[
-            { broker: 'broker.mqttdashboard.com', protocol: 'wss', port: '8884', path: 'mqtt' },
             { broker: 'broker.hivemq.com', protocol: 'wss', port: '8884', path: 'mqtt' },
             { broker: 'test.mosquitto.org', protocol: 'wss', port: '8081', path: 'mqtt' },
             { broker: 'broker.emqx.io', protocol: 'wss', port: '8084', path: 'mqtt' },
             { broker: 'mqtt.eclipseprojects.io', protocol: 'wss', port: '443', path: 'mqtt' },
+            { broker: 'broker.mqttdashboard.com', protocol: 'wss', port: '8884', path: 'mqtt' },
             { broker: 'public.mqtthq.com', protocol: 'wss', port: '8084', path: 'mqtt' }
         ];
 
@@ -441,7 +441,7 @@
             mqttClient: null,
             clientId: 'tyckr_' + Math.random().toString(16).substring(2, 10),
             // Config por defecto: HiveMQ Dashboard (Puerto seguro 8884 y WSS)
-            config: { protocol: 'wss', broker: 'broker.mqttdashboard.com', port: '8884', path: 'mqtt', topic: 'reloj' }
+            config: { protocol: 'wss', broker: 'broker.hivemq.com', port: '8884', path: 'mqtt', topic: 'reloj' }
         };
 
         const display = document.getElementById('display');
