@@ -33,9 +33,7 @@
             --btn-text: #ffffff;
             --gold: #eab308;
             --table-hover: #e4e4e7;
-        }
-
-        [data-theme="dark"] {
+        }[data-theme="dark"] {
             --bg-color: #09090b;
             --text-color: #f4f4f5;
             --secondary-text: #a1a1aa;
@@ -243,8 +241,7 @@
         .combo-dropdown.show { display: block; }
         .combo-dropdown li { padding: 0.8rem; border-bottom: 1px solid var(--panel-border); cursor: pointer; font-size: 0.9rem; color: var(--text-color); }
         .combo-dropdown li:last-child { border-bottom: none; }
-        .combo-dropdown li:hover { background: rgba(0,0,0,0.05); color: var(--clock-color); font-weight: bold; }
-        [data-theme="dark"] .combo-dropdown li:hover { background: rgba(255,255,255,0.05); }
+        .combo-dropdown li:hover { background: rgba(0,0,0,0.05); color: var(--clock-color); font-weight: bold; }[data-theme="dark"] .combo-dropdown li:hover { background: rgba(255,255,255,0.05); }
 
         .btn-add {
             padding: 0 0.8rem; background: var(--btn-bg); color: var(--btn-text);
@@ -336,8 +333,8 @@
                     <div class="form-group">
                         <label>Protocolo</label>
                         <select id="inpProtocol">
+                            <option value="wss" selected>wss://</option>
                             <option value="ws">ws://</option>
-                            <option value="wss">wss://</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -361,7 +358,7 @@
                 <div class="grid-col-3">
                     <div class="form-group">
                         <label>Puerto</label>
-                        <input type="text" id="inpPort" value="8000">
+                        <input type="text" id="inpPort" value="8884">
                     </div>
                     <div class="form-group">
                         <label>Path</label>
@@ -382,7 +379,7 @@
         <div class="modal table-modal">
             <button class="close-modal" id="closeBrokersModal">×</button>
             <h2>Brokers Guardados</h2>
-            <p style="color: var(--secondary-text); font-size: 0.9rem;">Lista de servidores MQTT públicos. Haz clic en "Usar" para cargar su configuración.</p>
+            <p style="color: var(--secondary-text); font-size: 0.9rem;">Lista de servidores MQTT públicos. Haz clic en "Usar" para cargar su configuración segura.</p>
             <div class="table-responsive">
                 <table id="brokersTable">
                     <thead>
@@ -415,16 +412,16 @@
     <script>
         /**
          * =========================================
-         * DATOS POR DEFECTO: 6 BROKERS PÚBLICOS
+         * DATOS POR DEFECTO: 6 BROKERS PÚBLICOS (CORREGIDOS A WSS Y PUERTOS SEGUROS)
          * =========================================
          */
         const defaultBrokers =[
-            { broker: 'broker.mqttdashboard.com', protocol: 'ws', port: '8000', path: 'mqtt' },
-            { broker: 'broker.hivemq.com', protocol: 'ws', port: '8000', path: 'mqtt' },
-            { broker: 'test.mosquitto.org', protocol: 'ws', port: '8080', path: 'mqtt' },
-            { broker: 'broker.emqx.io', protocol: 'ws', port: '8083', path: 'mqtt' },
-            { broker: 'mqtt.eclipseprojects.io', protocol: 'ws', port: '80', path: 'mqtt' },
-            { broker: 'public.mqtthq.com', protocol: 'ws', port: '8083', path: 'mqtt' }
+            { broker: 'broker.mqttdashboard.com', protocol: 'wss', port: '8884', path: 'mqtt' },
+            { broker: 'broker.hivemq.com', protocol: 'wss', port: '8884', path: 'mqtt' },
+            { broker: 'test.mosquitto.org', protocol: 'wss', port: '8081', path: 'mqtt' },
+            { broker: 'broker.emqx.io', protocol: 'wss', port: '8084', path: 'mqtt' },
+            { broker: 'mqtt.eclipseprojects.io', protocol: 'wss', port: '443', path: 'mqtt' },
+            { broker: 'public.mqtthq.com', protocol: 'wss', port: '8084', path: 'mqtt' }
         ];
 
         let savedBrokers =[];
@@ -443,7 +440,8 @@
             pendingRecordMs: null,
             mqttClient: null,
             clientId: 'tyckr_' + Math.random().toString(16).substring(2, 10),
-            config: { protocol: 'ws', broker: 'broker.mqttdashboard.com', port: '8000', path: 'mqtt', topic: 'reloj' }
+            // Config por defecto: HiveMQ Dashboard (Puerto seguro 8884 y WSS)
+            config: { protocol: 'wss', broker: 'broker.mqttdashboard.com', port: '8884', path: 'mqtt', topic: 'reloj' }
         };
 
         const display = document.getElementById('display');
@@ -485,7 +483,17 @@
             
             // Cargar Configuración General
             const savedConfig = localStorage.getItem('chronoConfig');
-            if (savedConfig) state.config = { ...state.config, ...JSON.parse(savedConfig) };
+            if (savedConfig) {
+                state.config = { ...state.config, ...JSON.parse(savedConfig) };
+                
+                // Forzar corrección automática si se guardó 'ws' estando en 'https' (Github Pages)
+                if (window.location.protocol === 'https:' && state.config.protocol === 'ws') {
+                    console.warn("Forzando actualización a WSS por seguridad de HTTPS.");
+                    state.config.protocol = 'wss';
+                    if (state.config.port === '8000') state.config.port = '8884'; // Autocorregir el puerto de hivemq si era 8000
+                }
+            }
+
             const savedTarget = localStorage.getItem('chronoTarget');
             if (savedTarget) state.targetMs = parseFloat(savedTarget) * 1000;
 
@@ -493,8 +501,10 @@
             const storedBrokers = localStorage.getItem('chronoBrokers');
             if (storedBrokers) {
                 savedBrokers = JSON.parse(storedBrokers);
+                // Si la lista guardada no tiene ningún broker, restauramos los de defecto por si acaso
+                if(savedBrokers.length === 0) savedBrokers = [...defaultBrokers];
             } else {
-                savedBrokers =[...defaultBrokers];
+                savedBrokers = [...defaultBrokers];
             }
             renderCombo();
 
@@ -729,6 +739,7 @@
             
             updateMQTTUI('connecting');
             try {
+                // WSS requiere usar clean, y un buen timeout
                 state.mqttClient = mqtt.connect(url, { clientId: state.clientId, clean: true, connectTimeout: 5000, reconnectPeriod: 5000 });
                 state.mqttClient.on('connect', () => {
                     updateMQTTUI('connected');
@@ -741,16 +752,22 @@
                         else if (payload === 'stop') stopClock();
                     }
                 });
-                state.mqttClient.on('error', () => updateMQTTUI('error'));
+                state.mqttClient.on('error', (err) => {
+                    console.error("MQTT Error:", err);
+                    updateMQTTUI('error');
+                });
                 state.mqttClient.on('offline', () => updateMQTTUI('error'));
-            } catch (err) { updateMQTTUI('error'); }
+            } catch (err) { 
+                console.error("MQTT Fallo inicial:", err);
+                updateMQTTUI('error'); 
+            }
         }
 
         function updateMQTTUI(status) {
             mqttIndicator.className = 'status-dot';
             if (status === 'connecting') { mqttIndicator.classList.add('connecting'); mqttStatusText.innerText = "Conectando..."; } 
             else if (status === 'connected') { mqttIndicator.classList.add('connected'); mqttStatusText.innerText = `Conectado: ${state.config.broker}`; } 
-            else { mqttStatusText.innerText = "Desconectado"; }
+            else { mqttStatusText.innerText = "Error / Desconectado"; }
         }
 
         function populateSettingsModal() {
