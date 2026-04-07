@@ -17,7 +17,7 @@ Firmware para microcontroladores **RTL8720DN (BW16)** que monitorea la red en mo
 ### [🌊 InputFlow](./InputFlow/)
 **Hardware Event Mapper de Latencia Cero (Go).**
 Un demonio para Linux escrito en **Go** que intercepta eventos de hardware (mandos, teclados) y los mapea a acciones del sistema.
-*   **Código Fuente:** [Ver carpeta del proyecto](./InputFlow/)
+*   **Código Fuente:**[Ver carpeta del proyecto](./InputFlow/)
 *   **Documentación:** [Leer README](./InputFlow/README.md)
 
 ---
@@ -34,6 +34,7 @@ Herramientas que se ejecutan en el navegador usando TensorFlow.js, Mediapipe o T
     *   Juego interactivo donde controlas una cesta con el movimiento de tus manos (detectadas por webcam) para rebotar pelotas.
 *   **[🖐 HandTrigger (Gestures to Webhook)](https://soyunomas.github.io/pequenos-proyectos/handtrigger.html)**
     *   Disparador de eventos HTTP controlado por gestos. Detecta la mano derecha abierta (usando MediaPipe) para lanzar peticiones web a servidores locales o remotos (IoT/Domótica). Incluye configuración de *cooldown*, visualización del esqueleto en tiempo real y validación estricta para evitar falsos positivos.
+
 ---
 
 ## 🌐 Simuladores de Redes y Ciberseguridad
@@ -104,6 +105,7 @@ Utilidades para manipulación de archivos directamente en el navegador.
 
 ## 🎮 Juegos y Efectos Visuales
 
+*   **[⏱️ Chrono Precision (Detén el Reloj)](https://soyunomas.github.io/pequenos-proyectos/Reloj/index.html)**: Juego de precisión y reflejos. Intenta detener el cronómetro en el milisegundo exacto. Soporta control remoto mediante el protocolo MQTT (WebSockets), ideal para jugar usando botones físicos de hardware o IoT.
 *   **[👁️ Matrix Webcam](https://soyunomas.github.io/pequenos-proyectos/OTROS/matrix.html)**: Efecto de lluvia de código sobre tu cámara.
 *   **[🎤 Visualizador Audio ASCII](https://soyunomas.github.io/pequenos-proyectos/OTROS/ascii-micro.html)**: Espectro de audio del micrófono en caracteres.
 *   **[⚠️ Simulador Error Crítico](https://soyunomas.github.io/pequenos-proyectos/OTROS/Error_critico.html)**: Interfaz de fallo de sistema estilo Sci-Fi.
@@ -112,9 +114,9 @@ Utilidades para manipulación de archivos directamente en el navegador.
 
 ### Juegos Clásicos
 *   [🧠 Mastermind](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/Mastermind.html)
-*   [⚫ Damas](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/damas.html)
+*[⚫ Damas](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/damas.html)
 *   [💣 Buscaminas (ExploraMinas)](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/exploraminas.html)
 *   [♠️ Poker Texas Hold'em](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/poker.html)
 *   [🧩 MemoReto (Memoria)](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/memoreto.html)
-*   [🚜 TerraTank Duel](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/terratankDuel.html)
+*[🚜 TerraTank Duel](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/terratankDuel.html)
 *   [🚀 Interceptor Urbano](https://soyunomas.github.io/pequenos-proyectos/JUEGOS_CLASICOS/interceptor_humano.html)
