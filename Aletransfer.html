@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080b12">
+<title>Aletransfer · archivos por luz</title>
+<style>:root{color-scheme:dark;--bg:#080b12;--panel:#111722;--panel2:#171f2d;--line:#273246;--text:#edf3ff;--muted:#9eabc2;--cyan:#56e0ff;--violet:#9b7cff;--green:#63e6a7;--amber:#ffc768;--red:#ff6f86;--radius:18px;--shadow:0 24px 80px rgba(0,0,0,.38)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 15% -10%,#172a46 0,transparent 36%),radial-gradient(circle at 90% 10%,#241b4b 0,transparent 31%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}.app{width:min(1180px,calc(100% - 28px));margin:0 auto;padding:24px 0 60px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}.brand{display:flex;align-items:center;gap:13px}.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--cyan),var(--violet));box-shadow:0 10px 32px rgba(86,224,255,.22);position:relative}.logo:before,.logo:after{content:"";position:absolute;border:3px solid #07101d;border-radius:4px}.logo:before{inset:9px 22px 22px 9px}.logo:after{inset:22px 9px 9px 22px}.brand h1{font-size:20px;line-height:1;margin:0;letter-spacing:.01em}.brand p{margin:5px 0 0;color:var(--muted);font-size:12px}.badge{border:1px solid #35506e;background:#132337;color:#bceeff;padding:7px 10px;border-radius:999px;font-size:12px;white-space:nowrap}.hero{display:grid;grid-template-columns:1.25fr .75fr;gap:18px;margin-bottom:18px}.card{background:linear-gradient(180deg,rgba(24,32,46,.96),rgba(14,19,29,.96));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.intro{padding:30px}.eyebrow{color:var(--cyan);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.12em}.intro h2{font-size:clamp(28px,5vw,52px);line-height:1.05;letter-spacing:-.04em;margin:12px 0 16px;max-width:800px}.intro p{color:#c4cee0;font-size:16px;max-width:720px;margin:0}.metric-card{padding:24px;display:flex;flex-direction:column;justify-content:center}.metric-card strong{font-size:42px;letter-spacing:-.04em}.metric-card span{color:var(--muted)}.tabs{display:flex;gap:8px;padding:7px;background:#0d121c;border:1px solid var(--line);border-radius:15px;margin-bottom:18px;position:sticky;top:8px;z-index:20;backdrop-filter:blur(14px)}.tab{flex:1;border:0;border-radius:10px;padding:11px;background:transparent;color:var(--muted);font-weight:700}.tab.active{background:linear-gradient(135deg,#203148,#292448);color:#fff;box-shadow:inset 0 0 0 1px #40506b}.view{display:none}.view.active{display:block}.grid2{display:grid;grid-template-columns:380px 1fr;gap:18px}.controls{padding:22px}.controls h3,.stage-card h3{margin:0 0 4px;font-size:18px}.sub{color:var(--muted);font-size:13px;margin:0 0 20px}.field{display:block;margin:15px 0}.field>span{display:block;margin-bottom:7px;color:#cbd5e6;font-size:13px;font-weight:650}.input,select{width:100%;border:1px solid #334159;background:#0d131e;color:#fff;border-radius:11px;padding:11px 12px;outline:none}.input:focus,select:focus{border-color:#5d8cc6;box-shadow:0 0 0 3px rgba(86,224,255,.09)}input[type=file]{padding:9px}.buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.btn{border:1px solid #40506b;border-radius:11px;padding:11px 15px;background:#192334;color:#fff;font-weight:750}.btn.primary{border-color:transparent;background:linear-gradient(135deg,#2fbde0,#765df1);box-shadow:0 10px 28px rgba(82,125,255,.24)}.btn.danger{background:#351923;border-color:#6d3041}.btn:disabled{opacity:.42;cursor:not-allowed}.stage-card{padding:18px;min-width:0}.stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#59667b}.dot.live{background:var(--green);box-shadow:0 0 0 5px rgba(99,230,167,.1)}.optical-stage{background:#020307;border:1px solid #303b4f;border-radius:14px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;position:relative}.optical-stage canvas{display:block;width:100%;height:100%;object-fit:contain}.placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#77849a;padding:30px;background:radial-gradient(circle,#111927 0,#05070c 70%)}.placeholder strong{display:block;color:#c9d4e8;margin-bottom:6px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}.stat{background:#0c121c;border:1px solid #242f41;border-radius:11px;padding:10px}.stat b{display:block;font-size:16px}.stat span{font-size:11px;color:var(--muted)}.notice{border:1px solid #4b4528;background:#211e12;color:#eedc9b;border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:16px}.receiver-stage{position:relative;aspect-ratio:16/9;background:#020307;border-radius:14px;overflow:hidden;border:1px solid #303b4f}.receiver-stage video,.receiver-stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.receiver-stage canvas{pointer-events:none}.receiver-empty{position:absolute;inset:0;display:grid;place-items:center;color:#7d899e;text-align:center;padding:30px}.progress-wrap{margin-top:14px}.progress-line{height:9px;background:#0a0f17;border-radius:99px;overflow:hidden;border:1px solid #273044}.progress-line i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet));transition:width .2s}.progress-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:7px}.result{margin-top:14px;border:1px solid #2d5f4b;background:#10251d;border-radius:13px;padding:15px}.result[hidden]{display:none}.result h4{margin:0 0 6px;color:#9bf2c8}.diagnostic-list{display:grid;gap:9px;margin-top:16px}.test-row{display:flex;justify-content:space-between;gap:12px;padding:11px 13px;border:1px solid #29354a;background:#0e151f;border-radius:11px}.test-row b{font-size:13px}.test-row span{font-size:12px;color:var(--muted)}.test-row.pass{border-color:#2b6d52}.test-row.fail{border-color:#7b3545}.footer{margin-top:25px;color:#77849a;font-size:12px;text-align:center}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.hidden{display:none!important}.camera-guide{position:absolute;inset:8%;border:2px dashed rgba(255,255,255,.45);border-radius:13px;box-shadow:0 0 0 9999px rgba(0,0,0,.18)}.camera-guide:after{content:"Encaja toda la matriz dentro de este marco";position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.65);padding:5px 9px;border-radius:7px;color:#fff;font-size:11px;white-space:nowrap}
+@media(max-width:850px){.hero,.grid2{grid-template-columns:1fr}.metric-card{display:none}.app{width:min(100% - 18px,720px);padding-top:14px}.intro{padding:23px}.tabs{top:4px}.stats{grid-template-columns:1fr 1fr}.stage-head{flex-direction:column}.topbar{align-items:flex-start}.badge{display:none}}
+@media(max-width:480px){.tabs{gap:3px;padding:5px}.tab{padding:9px 4px;font-size:12px}.controls,.stage-card{padding:14px}.stats{grid-template-columns:1fr}.intro h2{font-size:32px}.buttons .btn{flex:1}}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div class="brand"><div class="logo" aria-hidden="true"></div><div><h1>Aletransfer</h1><p>Transferencia óptica autocontenida</p></div></div>
+    <div class="badge">Sin red · Sin servidor · Un solo HTML</div>
+  </header>
+
+  <section class="hero">
+    <article class="card intro"><div class="eyebrow">Canal óptico experimental</div><h2>Envía archivos de una pantalla a una cámara.</h2><p>Aletransfer usa una matriz cromática propia, corrección Reed–Solomon, bloques rateless y lectura consciente de transiciones. Todo el código está dentro de este archivo.</p></article>
+    <aside class="card metric-card"><span>Objetivo nominal en Turbo</span><strong id="hero-rate">295 KiB/s</strong><span>El rendimiento real depende de cámara, pantalla, enfoque y movimiento.</span></aside>
+  </section>
+
+  <nav class="tabs" aria-label="Secciones">
+    <button class="tab active" data-tab="send">Enviar</button>
+    <button class="tab" data-tab="receive">Recibir</button>
+    <button class="tab" data-tab="diagnostics">Pruebas</button>
+    <button class="tab" data-tab="about">Detalles</button>
+  </nav>
+
+  <section class="view active" id="view-send">
+    <div class="grid2">
+      <article class="card controls">
+        <h3>Preparar transmisión</h3><p class="sub">El archivo se encapsula y verifica con SHA-256 antes de emitir.</p>
+        <label class="field"><span>Archivo</span><input class="input" id="send-file" type="file"></label>
+        <label class="field"><span>Perfil óptico</span><select id="send-profile"></select></label>
+        <label class="field"><span>Frecuencia</span><select id="send-fps"></select></label>
+        <div id="send-profile-info" class="notice"></div>
+        <div class="buttons"><button class="btn primary" id="prepare-send">Preparar</button><button class="btn" id="start-send" disabled>Emitir</button><button class="btn danger" id="stop-send" disabled>Detener</button></div>
+      </article>
+      <article class="card stage-card">
+        <div class="stage-head"><div><h3>Pantalla emisora</h3><div class="status"><i class="dot" id="send-dot"></i><span id="send-status">Sin archivo preparado</span></div></div><button class="btn" id="fullscreen-send">Pantalla completa</button></div>
+        <div class="optical-stage" id="send-stage"><canvas id="send-canvas"></canvas><div class="placeholder" id="send-placeholder"><div><strong>La matriz aparecerá aquí</strong>Sube el brillo y evita reflejos directos.</div></div></div>
+        <div class="stats"><div class="stat"><b id="send-frame">—</b><span>Fotograma</span></div><div class="stat"><b id="send-blocks">—</b><span>Bloques fuente</span></div><div class="stat"><b id="send-rate">—</b><span>Caudal nominal</span></div></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="view" id="view-receive">
+    <div class="notice">La cámara requiere HTTPS o localhost en la mayoría de móviles. El HTML sigue siendo autocontenido: basta alojar este único archivo en cualquier servidor HTTPS estático.</div>
+    <div class="grid2">
+      <article class="card controls">
+        <h3>Receptor</h3><p class="sub">Apunta a toda la pantalla emisora. Mantén enfoque y exposición estables.</p>
+        <label class="field"><span>Perfil</span><select id="receive-profile"><option value="auto">Automático</option></select></label>
+        <label class="field"><span>Resolución de captura</span><select id="receive-width"><option value="960">960 px · ligera</option><option value="1280" selected>1280 px · recomendada</option><option value="1920">1920 px · Turbo</option></select></label>
+        <div class="buttons"><button class="btn primary" id="start-camera">Iniciar cámara</button><button class="btn danger" id="stop-camera" disabled>Detener</button></div>
+        <div class="diagnostic-list"><div class="test-row"><b>Estado</b><span id="receive-state">Inactivo</span></div><div class="test-row"><b>Tramas válidas</b><span id="receive-valid">0</span></div><div class="test-row"><b>Correcciones RS</b><span id="receive-rs">0</span></div><div class="test-row"><b>Modo de lectura</b><span id="receive-mode">—</span></div></div>
+      </article>
+      <article class="card stage-card">
+        <div class="stage-head"><div><h3>Vista de cámara</h3><div class="status"><i class="dot" id="receive-dot"></i><span id="receive-status">Cámara detenida</span></div></div></div>
+        <div class="receiver-stage"><video id="camera-video" playsinline muted></video><canvas id="camera-overlay"></canvas><div class="receiver-empty" id="camera-empty">Pulsa “Iniciar cámara” y encaja la matriz completa.</div><div class="camera-guide" id="camera-guide" hidden></div></div>
+        <div class="progress-wrap"><div class="progress-line"><i id="receive-bar"></i></div><div class="progress-meta"><span id="receive-progress">Esperando una sesión</span><span id="receive-eta">—</span></div></div>
+        <div class="result" id="receive-result" hidden><h4>Archivo verificado</h4><div id="receive-result-text"></div><div class="buttons"><button class="btn primary" id="download-result">Descargar</button><button class="btn" id="reset-result">Recibir otro</button></div></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="view" id="view-diagnostics">
+    <article class="card controls"><h3>Autodiagnóstico</h3><p class="sub">Comprueba protocolo, corrección de errores, fountain, render visual, perspectiva y mezcla de transiciones.</p><div class="buttons"><button class="btn primary" id="run-tests">Ejecutar todas las pruebas</button></div><div class="diagnostic-list" id="test-results"></div></article>
+  </section>
+
+  <section class="view" id="view-about">
+    <article class="card controls"><h3>Qué contiene esta versión</h3><p class="sub">Prototipo funcional y autocontenido. No es una implementación completa del módem de investigación descrito en el estudio.</p>
+      <div class="diagnostic-list">
+        <div class="test-row"><b>Modulación</b><span>8 colores de luminancia equilibrada · 3 bits/celda</span></div>
+        <div class="test-row"><b>Protección</b><span>RS corto por trama + CRC-32 + fountain + SHA-256</span></div>
+        <div class="test-row"><b>Transiciones</b><span>Dos paletas complementarias y pilotos por fila</span></div>
+        <div class="test-row"><b>Privacidad</b><span>Sin red; cualquier cámara que vea la pantalla puede leerla</span></div>
+        <div class="test-row"><b>Límite</b><span>128 MiB por archivo en esta compilación</span></div>
+      </div>
+    </article>
+  </section>
+  <footer class="footer">Aletransfer 0.1 · prototipo experimental · procesamiento local</footer>
+</main>
+<script>(() => {
+  'use strict';
+
+  const te = new TextEncoder();
+  const td = new TextDecoder();
+
+  function assert(condition, message = 'Assertion failed') {
+    if (!condition) throw new Error(message);
+  }
+
+  function concatBytes(...parts) {
+    const size = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(size);
+    let off = 0;
+    for (const p of parts) { out.set(p, off); off += p.length; }
+    return out;
+  }
+
+  function equalBytes(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    let v = 0;
+    for (let i = 0; i < a.length; i++) v |= a[i] ^ b[i];
+    return v === 0;
+  }
+
+  // CRC-32/ISO-HDLC
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(bytes, start = 0, end = bytes.length) {
+    let c = 0xffffffff;
+    for (let i = start; i < end; i++) c = CRC_TABLE[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+
+  function writeU16(dv, off, value) { dv.setUint16(off, value, true); }
+  function writeU32(dv, off, value) { dv.setUint32(off, value >>> 0, true); }
+
+  class XorShift32 {
+    constructor(seed) { this.x = (seed >>> 0) || 0x6d2b79f5; }
+    nextU32() {
+      let x = this.x;
+      x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+      this.x = x >>> 0;
+      return this.x;
+    }
+    nextFloat() { return this.nextU32() / 4294967296; }
+    int(max) { return Math.floor(this.nextFloat() * max); }
+  }
+
+  // GF(256), primitive polynomial 0x11d.
+  const GF_EXP = new Uint8Array(512);
+  const GF_LOG = new Uint8Array(256);
+  (() => {
+    let x = 1;
+    for (let i = 0; i < 255; i++) {
+      GF_EXP[i] = x;
+      GF_LOG[x] = i;
+      x <<= 1;
+      if (x & 0x100) x ^= 0x11d;
+    }
+    for (let i = 255; i < 512; i++) GF_EXP[i] = GF_EXP[i - 255];
+  })();
+
+  function gfMul(a, b) { return (!a || !b) ? 0 : GF_EXP[GF_LOG[a] + GF_LOG[b]]; }
+  function gfDiv(a, b) {
+    if (!a) return 0;
+    if (!b) throw new Error('GF division by zero');
+    let n = GF_LOG[a] - GF_LOG[b];
+    if (n < 0) n += 255;
+    return GF_EXP[n];
+  }
+  function gfPowAlpha(n) { n %= 255; if (n < 0) n += 255; return GF_EXP[n]; }
+
+  function gfMatrixInverse(matrix) {
+    const n = matrix.length;
+    const a = matrix.map((row, i) => {
+      const out = new Uint8Array(n * 2);
+      out.set(row, 0); out[n + i] = 1;
+      return out;
+    });
+    for (let col = 0; col < n; col++) {
+      let pivot = col;
+      while (pivot < n && a[pivot][col] === 0) pivot++;
+      if (pivot === n) throw new Error('Singular GF matrix');
+      if (pivot !== col) [a[pivot], a[col]] = [a[col], a[pivot]];
+      const inv = gfDiv(1, a[col][col]);
+      for (let j = 0; j < n * 2; j++) a[col][j] = gfMul(a[col][j], inv);
+      for (let r = 0; r < n; r++) {
+        if (r === col || a[r][col] === 0) continue;
+        const factor = a[r][col];
+        for (let j = 0; j < n * 2; j++) a[r][j] ^= gfMul(factor, a[col][j]);
+      }
+    }
+    return a.map(row => row.slice(n));
+  }
+
+  const RS_CACHE = new Map();
+  function rsParams(parity) {
+    assert(parity === 2 || parity === 4, 'Supported RS parity is 2 or 4');
+    if (RS_CACHE.has(parity)) return RS_CACHE.get(parity);
+    const n = 15, k = n - parity;
+    const m = [];
+    for (let s = 1; s <= parity; s++) {
+      const row = new Uint8Array(parity);
+      for (let j = 0; j < parity; j++) row[j] = gfPowAlpha(s * (k + j));
+      m.push(row);
+    }
+    const value = { n, k, parity, inv: gfMatrixInverse(m) };
+    RS_CACHE.set(parity, value);
+    return value;
+  }
+
+  function rsSyndromes(codeword, parity) {
+    const s = new Uint8Array(parity);
+    for (let j = 1; j <= parity; j++) {
+      let sum = 0;
+      for (let i = 0; i < 15; i++) sum ^= gfMul(codeword[i], gfPowAlpha(j * i));
+      s[j - 1] = sum;
+    }
+    return s;
+  }
+
+  function allZero(bytes) { for (const b of bytes) if (b) return false; return true; }
+
+  function rsEncodeWord(data, parity) {
+    const { k, inv } = rsParams(parity);
+    assert(data.length === k, 'Wrong RS data word size');
+    const out = new Uint8Array(15);
+    out.set(data, 0);
+    const rhs = new Uint8Array(parity);
+    for (let s = 1; s <= parity; s++) {
+      let sum = 0;
+      for (let i = 0; i < k; i++) sum ^= gfMul(data[i], gfPowAlpha(s * i));
+      rhs[s - 1] = sum;
+    }
+    for (let r = 0; r < parity; r++) {
+      let v = 0;
+      for (let c = 0; c < parity; c++) v ^= gfMul(inv[r][c], rhs[c]);
+      out[k + r] = v;
+    }
+    assert(allZero(rsSyndromes(out, parity)), 'RS encoder invariant failed');
+    return out;
+  }
+
+  function rsDecodeWord(input, parity) {
+    const out = Uint8Array.from(input);
+    let s = rsSyndromes(out, parity);
+    if (allZero(s)) return { ok: true, corrected: 0, data: out.slice(0, 15 - parity) };
+
+    // One-error locator.
+    if (s[0]) {
+      const ratio = gfDiv(s[1], s[0]);
+      const pos = ratio ? GF_LOG[ratio] : -1;
+      if (pos >= 0 && pos < 15) {
+        const mag = gfDiv(s[0], gfPowAlpha(pos));
+        out[pos] ^= mag;
+        if (allZero(rsSyndromes(out, parity))) {
+          return { ok: true, corrected: 1, data: out.slice(0, 15 - parity) };
+        }
+        out[pos] ^= mag;
+      }
+    }
+
+    if (parity >= 4) {
+      // Two errors. Brute-force the two short codeword positions, solve magnitudes,
+      // then validate all four syndromes. n=15 keeps this inexpensive and exact.
+      for (let p = 0; p < 14; p++) {
+        const a = gfPowAlpha(p), a2 = gfMul(a, a);
+        for (let q = p + 1; q < 15; q++) {
+          const b = gfPowAlpha(q), b2 = gfMul(b, b);
+          const det = gfMul(a, b2) ^ gfMul(b, a2);
+          if (!det) continue;
+          const e1 = gfDiv(gfMul(s[0], b2) ^ gfMul(b, s[1]), det);
+          const e2 = gfDiv(gfMul(a, s[1]) ^ gfMul(s[0], a2), det);
+          if (!e1 || !e2) continue;
+          out[p] ^= e1; out[q] ^= e2;
+          if (allZero(rsSyndromes(out, parity))) {
+            return { ok: true, corrected: 2, data: out.slice(0, 15 - parity) };
+          }
+          out[p] ^= e1; out[q] ^= e2;
+        }
+      }
+    }
+    return { ok: false, corrected: 0, data: null };
+  }
+
+  function rsEncodeStream(raw, parity) {
+    const { k } = rsParams(parity);
+    assert(raw.length % k === 0, 'RS raw stream must be group aligned');
+    const out = new Uint8Array((raw.length / k) * 15);
+    for (let i = 0, o = 0; i < raw.length; i += k, o += 15) {
+      out.set(rsEncodeWord(raw.subarray(i, i + k), parity), o);
+    }
+    return out;
+  }
+
+  function rsDecodeStream(encoded, parity) {
+    assert(encoded.length % 15 === 0, 'RS encoded stream must be group aligned');
+    const { k } = rsParams(parity);
+    const out = new Uint8Array((encoded.length / 15) * k);
+    let corrected = 0;
+    for (let i = 0, o = 0; i < encoded.length; i += 15, o += k) {
+      const d = rsDecodeWord(encoded.subarray(i, i + 15), parity);
+      if (!d.ok) return { ok: false, corrected, data: null };
+      corrected += d.corrected;
+      out.set(d.data, o);
+    }
+    return { ok: true, corrected, data: out };
+  }
+
+  const CONTAINER_MAGIC = 0x31454c41; // ALE1 little endian
+  const CONTAINER_HEADER = 45;
+
+  async function sha256(bytes) {
+    return new Uint8Array(await crypto.subtle.digest('SHA-256', Uint8Array.from(bytes)));
+  }
+
+  async function packContainer(name, mime, fileBytes) {
+    const nameB = te.encode((name || 'transfer.bin').split(/[\\/]/).pop());
+    const mimeB = te.encode(mime || 'application/octet-stream');
+    assert(nameB.length <= 65535 && mimeB.length <= 65535, 'Metadata too long');
+    const hash = await sha256(fileBytes);
+    const out = new Uint8Array(CONTAINER_HEADER + nameB.length + mimeB.length + fileBytes.length);
+    const dv = new DataView(out.buffer);
+    writeU32(dv, 0, CONTAINER_MAGIC);
+    out[4] = 1;
+    writeU16(dv, 5, nameB.length);
+    writeU16(dv, 7, mimeB.length);
+    writeU32(dv, 9, fileBytes.length);
+    out.set(hash, 13);
+    out.set(nameB, CONTAINER_HEADER);
+    out.set(mimeB, CONTAINER_HEADER + nameB.length);
+    out.set(fileBytes, CONTAINER_HEADER + nameB.length + mimeB.length);
+    return out;
+  }
+
+  async function unpackContainer(bytes) {
+    if (bytes.length < CONTAINER_HEADER) throw new Error('Container truncated');
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (dv.getUint32(0, true) !== CONTAINER_MAGIC || bytes[4] !== 1) throw new Error('Invalid Aletransfer container');
+    const nl = dv.getUint16(5, true), ml = dv.getUint16(7, true), size = dv.getUint32(9, true);
+    const dataOff = CONTAINER_HEADER + nl + ml;
+    if (dataOff + size > bytes.length) throw new Error('Container length mismatch');
+    const name = td.decode(bytes.subarray(CONTAINER_HEADER, CONTAINER_HEADER + nl)) || 'transfer.bin';
+    const mime = td.decode(bytes.subarray(CONTAINER_HEADER + nl, dataOff)) || 'application/octet-stream';
+    const payload = bytes.slice(dataOff, dataOff + size);
+    const expected = bytes.slice(13, 45);
+    const actual = await sha256(payload);
+    if (!equalBytes(expected, actual)) throw new Error('SHA-256 verification failed');
+    return { name, mime, bytes: payload, sha256: actual };
+  }
+
+  const PACKET_MAGIC = 0xe7a1;
+  const PACKET_HEADER = 28;
+
+  const PROFILES = [
+    { id: 0, key: 'robust', label: 'Robusto', cols: 80, rows: 45, fps: 24, parity: 4 },
+    { id: 1, key: 'balanced', label: 'Equilibrado', cols: 120, rows: 68, fps: 30, parity: 2 },
+    { id: 2, key: 'fast', label: 'Rápido', cols: 160, rows: 90, fps: 45, parity: 2 },
+    { id: 3, key: 'turbo', label: 'Turbo experimental', cols: 192, rows: 108, fps: 60, parity: 2 },
+  ].map(p => {
+    const cells = p.cols * p.rows;
+    const encodedBytes = Math.floor((cells * 3) / 8 / 15) * 15;
+    const groups = encodedBytes / 15;
+    const rawCapacity = groups * (15 - p.parity);
+    return Object.freeze({ ...p, cells, encodedBytes, rawCapacity, blockLen: rawCapacity - PACKET_HEADER });
+  });
+
+  function profileById(id) { return PROFILES.find(p => p.id === id); }
+
+  function sourceBlockCount(totalLen, blockLen) { return Math.ceil(totalLen / blockLen); }
+
+  function frameIndices(seq, k, session) {
+    const repairs = Math.max(1, Math.ceil(k / 3));
+    const epochLen = k + repairs;
+    const pos = seq % epochLen;
+    if (pos < k) return [pos];
+    const rng = new XorShift32((session ^ Math.imul(seq + 1, 0x9e3779b1)) >>> 0);
+    const u = rng.nextFloat();
+    let degree = u < 0.36 ? 2 : u < 0.66 ? 3 : u < 0.82 ? 4 : u < 0.92 ? 5 : u < 0.98 ? 7 : 10;
+    degree = Math.min(degree, k);
+    const set = new Set();
+    while (set.size < degree) set.add(rng.int(k));
+    return [...set];
+  }
+
+  class FountainEncoder {
+    constructor(container, blockLen, session) {
+      this.container = container;
+      this.blockLen = blockLen;
+      this.session = session >>> 0;
+      this.k = sourceBlockCount(container.length, blockLen);
+      assert(this.k > 0 && this.k <= 65535, 'File is too large for this optical profile');
+    }
+    block(index) {
+      const out = new Uint8Array(this.blockLen);
+      const start = index * this.blockLen;
+      out.set(this.container.subarray(start, Math.min(start + this.blockLen, this.container.length)));
+      return out;
+    }
+    encode(seq) {
+      const indices = frameIndices(seq >>> 0, this.k, this.session);
+      const out = new Uint8Array(this.blockLen);
+      for (const idx of indices) {
+        const b = this.block(idx);
+        for (let i = 0; i < out.length; i++) out[i] ^= b[i];
+      }
+      return { indices, data: out };
+    }
+  }
+
+  class FountainDecoder {
+    constructor(k, blockLen, totalLen, session) {
+      this.k = k; this.blockLen = blockLen; this.totalLen = totalLen; this.session = session >>> 0;
+      this.known = new Array(k);
+      this.solved = 0;
+      this.equations = new Map();
+      this.adj = Array.from({ length: k }, () => new Set());
+      this.nextEq = 1;
+    }
+    get complete() { return this.solved === this.k; }
+    add(seq, data) {
+      const indices0 = frameIndices(seq >>> 0, this.k, this.session);
+      const dataCopy = Uint8Array.from(data);
+      const indices = [];
+      for (const idx of indices0) {
+        const known = this.known[idx];
+        if (known) for (let i = 0; i < dataCopy.length; i++) dataCopy[i] ^= known[i];
+        else indices.push(idx);
+      }
+      if (indices.length === 0) return false;
+      if (indices.length === 1) return this._solve(indices[0], dataCopy);
+      const id = this.nextEq++;
+      const eq = { id, indices: new Set(indices), data: dataCopy };
+      this.equations.set(id, eq);
+      for (const idx of indices) this.adj[idx].add(id);
+      return true;
+    }
+    _solve(index, block) {
+      if (this.known[index]) return false;
+      this.known[index] = Uint8Array.from(block);
+      this.solved++;
+      const queue = [index];
+      while (queue.length) {
+        const solvedIndex = queue.shift();
+        const solvedBlock = this.known[solvedIndex];
+        const ids = [...this.adj[solvedIndex]];
+        this.adj[solvedIndex].clear();
+        for (const id of ids) {
+          const eq = this.equations.get(id);
+          if (!eq || !eq.indices.has(solvedIndex)) continue;
+          eq.indices.delete(solvedIndex);
+          for (let i = 0; i < eq.data.length; i++) eq.data[i] ^= solvedBlock[i];
+          if (eq.indices.size === 0) {
+            this.equations.delete(id);
+          } else if (eq.indices.size === 1) {
+            const only = eq.indices.values().next().value;
+            this.equations.delete(id);
+            for (const idx of eq.indices) this.adj[idx].delete(id);
+            if (!this.known[only]) {
+              this.known[only] = Uint8Array.from(eq.data);
+              this.solved++;
+              queue.push(only);
+            }
+          }
+        }
+      }
+      return true;
+    }
+    assemble() {
+      if (!this.complete) return null;
+      const out = new Uint8Array(this.k * this.blockLen);
+      for (let i = 0; i < this.k; i++) out.set(this.known[i], i * this.blockLen);
+      return out.slice(0, this.totalLen);
+    }
+  }
+
+  function buildPacket(profile, session, seq, encoder, containerCrc) {
+    const raw = new Uint8Array(profile.rawCapacity);
+    const dv = new DataView(raw.buffer);
+    writeU16(dv, 0, PACKET_MAGIC);
+    raw[2] = 1;
+    raw[3] = profile.id;
+    writeU32(dv, 4, session);
+    writeU32(dv, 8, seq);
+    writeU16(dv, 12, encoder.k);
+    writeU16(dv, 14, encoder.blockLen);
+    writeU32(dv, 16, encoder.container.length);
+    writeU32(dv, 20, containerCrc);
+    const encoded = encoder.encode(seq);
+    raw.set(encoded.data, PACKET_HEADER);
+    writeU32(dv, 24, crc32(raw, 0, 24) ^ crc32(raw, PACKET_HEADER));
+    return raw;
+  }
+
+  function parsePacket(raw) {
+    if (raw.length < PACKET_HEADER) return null;
+    const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+    if (dv.getUint16(0, true) !== PACKET_MAGIC || raw[2] !== 1) return null;
+    const profile = profileById(raw[3]);
+    if (!profile || raw.length !== profile.rawCapacity) return null;
+    const packetCrc = dv.getUint32(24, true);
+    if (((crc32(raw, 0, 24) ^ crc32(raw, PACKET_HEADER)) >>> 0) !== packetCrc) return null;
+    const blockLen = dv.getUint16(14, true);
+    if (blockLen !== profile.blockLen) return null;
+    return {
+      profile,
+      session: dv.getUint32(4, true),
+      seq: dv.getUint32(8, true),
+      k: dv.getUint16(12, true),
+      blockLen,
+      totalLen: dv.getUint32(16, true),
+      containerCrc: dv.getUint32(20, true),
+      block: raw.slice(PACKET_HEADER, PACKET_HEADER + blockLen),
+    };
+  }
+
+  function bytesToSymbols(bytes, cellCount) {
+    const out = new Uint8Array(cellCount);
+    let acc = 0, bits = 0, o = 0;
+    for (const b of bytes) {
+      acc = (acc << 8) | b; bits += 8;
+      while (bits >= 3 && o < out.length) {
+        bits -= 3; out[o++] = (acc >>> bits) & 7;
+      }
+      acc &= (1 << bits) - 1;
+    }
+    if (bits && o < out.length) out[o++] = (acc << (3 - bits)) & 7;
+    while (o < out.length) out[o++] = 0;
+    return out;
+  }
+
+  function symbolsToBytes(symbols, byteLength) {
+    const out = new Uint8Array(byteLength);
+    let acc = 0, bits = 0, o = 0;
+    for (const s of symbols) {
+      acc = (acc << 3) | (s & 7); bits += 3;
+      while (bits >= 8 && o < byteLength) {
+        bits -= 8; out[o++] = (acc >>> bits) & 255;
+      }
+      acc &= (1 << bits) - 1;
+      if (o >= byteLength) break;
+    }
+    return out;
+  }
+
+  function encodeOpticalPacket(profile, rawPacket) {
+    const rs = rsEncodeStream(rawPacket, profile.parity);
+    assert(rs.length === profile.encodedBytes, 'Profile capacity mismatch');
+    return bytesToSymbols(rs, profile.cells);
+  }
+
+  function decodeOpticalSymbols(profile, symbols) {
+    const rsBytes = symbolsToBytes(symbols, profile.encodedBytes);
+    const rs = rsDecodeStream(rsBytes, profile.parity);
+    if (!rs.ok) return { ok: false, reason: 'rs', corrected: rs.corrected };
+    const packet = parsePacket(rs.data);
+    if (!packet) return { ok: false, reason: 'crc', corrected: rs.corrected };
+    return { ok: true, packet, corrected: rs.corrected, raw: rs.data };
+  }
+
+  window.ALE = Object.freeze({
+    assert, concatBytes, equalBytes, crc32, XorShift32,
+    gfMul, gfDiv, rsParams, rsEncodeWord, rsDecodeWord, rsEncodeStream, rsDecodeStream,
+    sha256, packContainer, unpackContainer,
+    PROFILES, profileById, PACKET_HEADER, sourceBlockCount,
+    frameIndices, FountainEncoder, FountainDecoder,
+    buildPacket, parsePacket, bytesToSymbols, symbolsToBytes,
+    encodeOpticalPacket, decodeOpticalSymbols,
+  });
+})();
+</script>
+<script>(() => {
+  'use strict';
+  const D = Object.freeze({ W:1600, H:900, dataX:120, dataY:120, dataW:1360, dataH:700, anchor:60 });
+  const ANCHORS = Object.freeze([
+    { key:'tl', design:[60,60], rgb:[255,32,32], quadrant:0 },
+    { key:'tr', design:[1540,60], rgb:[32,255,48], quadrant:1 },
+    { key:'br', design:[1540,840], rgb:[36,88,255], quadrant:2 },
+    { key:'bl', design:[60,840], rgb:[255,226,28], quadrant:3 },
+  ]);
+
+  const clamp=(x,a=0,b=255)=>Math.max(a,Math.min(b,x));
+  function ycbcrColor(angle) {
+    const Y=142, radius=52;
+    const cb=Math.cos(angle)*radius, cr=Math.sin(angle)*radius;
+    return [
+      Math.round(clamp(Y+1.402*cr)),
+      Math.round(clamp(Y-0.344136*cb-0.714136*cr)),
+      Math.round(clamp(Y+1.772*cb)),
+    ];
+  }
+  const PALETTES = [0,1].map(phase => Array.from({length:8},(_,s)=>ycbcrColor((s/8)*Math.PI*2+phase*Math.PI)));
+  const PHASE_GRAY=[36,220];
+
+  function gcd(a,b){while(b){[a,b]=[b,a%b]}return Math.abs(a)}
+  const PERM_CACHE=new Map();
+  function permutation(profile){
+    if(PERM_CACHE.has(profile.id))return PERM_CACHE.get(profile.id);
+    const n=profile.cells; let step=(Math.floor(n*0.61803398875)|1);
+    while(gcd(step,n)!==1)step+=2;
+    const offset=(profile.id*97+31)%n;
+    const p={step,offset,map:i=>(Math.imul(i,step)+offset)%n};
+    PERM_CACHE.set(profile.id,p); return p;
+  }
+  function logicalToVisual(profile, logical){
+    const p=permutation(profile), out=new Uint8Array(profile.cells);
+    for(let i=0;i<profile.cells;i++)out[p.map(i)]=logical[i];
+    return out;
+  }
+  function visualToLogical(profile, visual){
+    const p=permutation(profile), out=new Uint8Array(profile.cells);
+    for(let i=0;i<profile.cells;i++)out[i]=visual[p.map(i)];
+    return out;
+  }
+
+  function fillRect(ctx,x,y,w,h,rgb){ctx.fillStyle=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;ctx.fillRect(x,y,w,h)}
+  function drawAnchor(ctx,a){
+    ctx.fillStyle='#06070a';ctx.fillRect(a.design[0]-48,a.design[1]-48,96,96);
+    fillRect(ctx,a.design[0]-37,a.design[1]-37,74,74,a.rgb);
+    ctx.fillStyle='#fff';ctx.fillRect(a.design[0]-18,a.design[1]-18,36,36);
+    fillRect(ctx,a.design[0]-9,a.design[1]-9,18,18,a.rgb);
+  }
+
+  function renderFrame(canvas, profile, logicalSymbols, phase, opts={}){
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(canvas.width!==D.W||canvas.height!==D.H){canvas.width=D.W;canvas.height=D.H}
+    ctx.imageSmoothingEnabled=false;
+    ctx.fillStyle='#05060a';ctx.fillRect(0,0,D.W,D.H);
+    ctx.fillStyle='#f7f7f3';ctx.fillRect(8,8,D.W-16,D.H-16);
+    ctx.fillStyle='#11141c';ctx.fillRect(102,102,1396,736);
+    for(const a of ANCHORS)drawAnchor(ctx,a);
+    const palette=PALETTES[phase&1];
+    // Current-palette swatches and gray calibration.
+    for(let i=0;i<8;i++)fillRect(ctx,310+i*110,42,76,36,palette[i]);
+    fillRect(ctx,1210,42,76,36,[32,32,32]);fillRect(ctx,1320,42,76,36,[224,224,224]);
+    ctx.fillStyle='#111';ctx.font='bold 22px system-ui';ctx.textAlign='center';ctx.fillText('ALETRANSFER',800,103);
+    // Row-local transition pilots.
+    fillRect(ctx,90,D.dataY,18,D.dataH,[PHASE_GRAY[phase],PHASE_GRAY[phase],PHASE_GRAY[phase]]);
+    fillRect(ctx,1492,D.dataY,18,D.dataH,[PHASE_GRAY[phase],PHASE_GRAY[phase],PHASE_GRAY[phase]]);
+    const visual=logicalToVisual(profile,logicalSymbols);
+    const cw=D.dataW/profile.cols, ch=D.dataH/profile.rows;
+    let n=0;
+    for(let r=0;r<profile.rows;r++){
+      const y0=D.dataY+r*ch, y1=D.dataY+(r+1)*ch;
+      for(let c=0;c<profile.cols;c++,n++){
+        const x0=D.dataX+c*cw,x1=D.dataX+(c+1)*cw;
+        fillRect(ctx,Math.floor(x0),Math.floor(y0),Math.ceil(x1)-Math.floor(x0),Math.ceil(y1)-Math.floor(y0),palette[visual[n]]);
+      }
+    }
+    // Fine border helps manual alignment without consuming data cells.
+    ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.strokeRect(D.dataX-2,D.dataY-2,D.dataW+4,D.dataH+4);
+    if(opts.label){ctx.fillStyle='#05060a';ctx.font='18px system-ui';ctx.textAlign='left';ctx.fillText(opts.label,118,866)}
+    return {phase,visual};
+  }
+
+  function pixelAt(img,x,y){
+    x=Math.max(0,Math.min(img.width-1,Math.round(x)));y=Math.max(0,Math.min(img.height-1,Math.round(y)));
+    const i=(y*img.width+x)*4;return [img.data[i],img.data[i+1],img.data[i+2]];
+  }
+  function sampleMean(img,x,y,r=1){
+    let R=0,G=0,B=0,N=0;
+    for(let yy=Math.round(y-r);yy<=Math.round(y+r);yy++)for(let xx=Math.round(x-r);xx<=Math.round(x+r);xx++){
+      if(xx<0||yy<0||xx>=img.width||yy>=img.height)continue;
+      const i=(yy*img.width+xx)*4;R+=img.data[i];G+=img.data[i+1];B+=img.data[i+2];N++;
+    }
+    return N?[R/N,G/N,B/N]:[0,0,0];
+  }
+
+  function solveLinear(A,b){
+    const n=b.length,m=A.map((r,i)=>[...r,b[i]]);
+    for(let c=0;c<n;c++){
+      let p=c;for(let r=c+1;r<n;r++)if(Math.abs(m[r][c])>Math.abs(m[p][c]))p=r;
+      if(Math.abs(m[p][c])<1e-10)throw new Error('Singular transform');
+      [m[p],m[c]]=[m[c],m[p]];
+      const d=m[c][c];for(let j=c;j<=n;j++)m[c][j]/=d;
+      for(let r=0;r<n;r++)if(r!==c){const f=m[r][c];for(let j=c;j<=n;j++)m[r][j]-=f*m[c][j]}
+    }
+    return m.map(r=>r[n]);
+  }
+  function homography(src,dst){
+    const A=[],b=[];
+    for(let i=0;i<4;i++){
+      const [x,y]=src[i],[u,v]=dst[i];
+      A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);
+      A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v);
+    }
+    const h=solveLinear(A,b);return [...h,1];
+  }
+  function mapPoint(H,x,y){const z=H[6]*x+H[7]*y+1;return[(H[0]*x+H[1]*y+H[2])/z,(H[3]*x+H[4]*y+H[5])/z]}
+
+  function colorPredicate(rgb,kind){
+    const [r,g,b]=rgb, mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+    if(mx<85||mx-mn<45)return false;
+    if(kind==='tl')return r>g*1.35&&r>b*1.35;
+    if(kind==='tr')return g>r*1.28&&g>b*1.28;
+    if(kind==='br')return b>r*1.25&&b>g*1.18;
+    return r>b*1.25&&g>b*1.25&&Math.abs(r-g)<95;
+  }
+
+  function findAnchorComponent(img,a){
+    const step=Math.max(2,Math.floor(Math.max(img.width,img.height)/500));
+    const gw=Math.ceil(img.width/step),gh=Math.ceil(img.height/step);
+    const mask=new Uint8Array(gw*gh);
+    // Search broad quadrant; connected area, not proximity, distinguishes anchors from cells.
+    const q=a.quadrant, x0=(q===1||q===2)?Math.floor(gw*.42):0, x1=(q===1||q===2)?gw:Math.ceil(gw*.58);
+    const y0=(q>=2)?Math.floor(gh*.42):0, y1=(q>=2)?gh:Math.ceil(gh*.58);
+    for(let gy=y0;gy<y1;gy++)for(let gx=x0;gx<x1;gx++){
+      if(colorPredicate(pixelAt(img,gx*step,gy*step),a.key))mask[gy*gw+gx]=1;
+    }
+    const seen=new Uint8Array(mask.length);let best=null;
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+    for(let gy=y0;gy<y1;gy++)for(let gx=x0;gx<x1;gx++){
+      const start=gy*gw+gx;if(!mask[start]||seen[start])continue;
+      const queue=[[gx,gy]];seen[start]=1;let qi=0,count=0,sx=0,sy=0,minx=gx,maxx=gx,miny=gy,maxy=gy;
+      while(qi<queue.length){const [x,y]=queue[qi++];count++;sx+=x;sy+=y;minx=Math.min(minx,x);maxx=Math.max(maxx,x);miny=Math.min(miny,y);maxy=Math.max(maxy,y);
+        for(const[dX,dY]of dirs){const nx=x+dX,ny=y+dY;if(nx<x0||nx>=x1||ny<y0||ny>=y1)continue;const j=ny*gw+nx;if(mask[j]&&!seen[j]){seen[j]=1;queue.push([nx,ny])}}
+      }
+      const ww=maxx-minx+1,hh=maxy-miny+1,shape=Math.min(ww,hh)/Math.max(ww,hh);
+      const cx=sx/count,cy=sy/count;
+      const tx=(q===1||q===2)?gw:0,ty=(q>=2)?gh:0;
+      const distance=Math.hypot((cx-tx)/gw,(cy-ty)/gh);
+      const tooLarge=count>gw*gh*0.02;
+      const score=count*shape/Math.pow(0.03+distance,1.4);
+      if(!tooLarge&&count>=6&&shape>.35&&(!best||score>best.score))best={x:cx*step,y:cy*step,count,score,minx:minx*step,maxx:maxx*step,miny:miny*step,maxy:maxy*step};
+    }
+    if(!best)return null;
+    // Refine the coarse component at full pixel resolution. Sub-pixel anchor
+    // bias is harmless for large cells but becomes destructive in Turbo.
+    const rx0=Math.max(0,Math.floor(best.minx-step*2)),rx1=Math.min(img.width-1,Math.ceil(best.maxx+step*2));
+    const ry0=Math.max(0,Math.floor(best.miny-step*2)),ry1=Math.min(img.height-1,Math.ceil(best.maxy+step*2));
+    let sx=0,sy=0,n=0;
+    for(let y=ry0;y<=ry1;y++)for(let x=rx0;x<=rx1;x++)if(colorPredicate(pixelAt(img,x,y),a.key)){sx+=x;sy+=y;n++}
+    if(n){best.x=sx/n;best.y=sy/n;best.count=n}
+    delete best.minx;delete best.maxx;delete best.miny;delete best.maxy;
+    return best;
+  }
+
+  function detectPanel(img){
+    const found=ANCHORS.map(a=>findAnchorComponent(img,a));
+    if(found.some(x=>!x))return null;
+    const src=ANCHORS.map(a=>a.design),dst=found.map(x=>[x.x,x.y]);
+    let H;try{H=homography(src,dst)}catch{return null}
+    return {H,anchors:found,quality:Math.min(...found.map(x=>x.count))};
+  }
+
+  function decodeCalibration(img,H,phase){
+    const observed=[];
+    for(let i=0;i<8;i++){const p=mapPoint(H,348+i*110,60);observed.push(sampleMean(img,p[0],p[1],2))}
+    const darkP=mapPoint(H,1248,60), lightP=mapPoint(H,1358,60);
+    const dark=sampleMean(img,darkP[0],darkP[1],2),light=sampleMean(img,lightP[0],lightP[1],2);
+    // Per-channel affine camera model from current design palette + gray pilots.
+    const design=[...PALETTES[phase],[32,32,32],[224,224,224]], obs=[...observed,dark,light];
+    const affine=[];
+    for(let ch=0;ch<3;ch++){
+      let sx=0,sy=0,sxx=0,sxy=0,n=design.length;
+      for(let i=0;i<n;i++){const x=design[i][ch],y=obs[i][ch];sx+=x;sy+=y;sxx+=x*x;sxy+=x*y}
+      const den=n*sxx-sx*sx;const a=den?(n*sxy-sx*sy)/den:1,b=(sy-a*sx)/n;affine.push([a,b]);
+    }
+    const transform=rgb=>rgb.map((v,ch)=>affine[ch][0]*v+affine[ch][1]);
+    return {observed,dark,light,affine,phasePalettes:[PALETTES[0].map(transform),PALETTES[1].map(transform)]};
+  }
+
+  function dist3(a,b){const dr=a[0]-b[0],dg=a[1]-b[1],db=a[2]-b[2];return dr*dr+dg*dg+db*db}
+  function nearest(rgb,palette){let bi=0,bd=Infinity,second=Infinity;for(let i=0;i<8;i++){const d=dist3(rgb,palette[i]);if(d<bd){second=bd;bd=d;bi=i}else if(d<second)second=d}return{symbol:bi,distance:bd,margin:second-bd}}
+  function luminance(rgb){return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]}
+
+  function decodeImageData(img,profile,options={}){
+    const panel=options.panel||detectPanel(img);if(!panel)return{ok:false,reason:'anchors'};
+    const phaseHint=options.phaseHint;
+    // Try both phases unless a reliable sequence context exists.
+    const phases=phaseHint===0||phaseHint===1?[phaseHint,1-phaseHint]:[0,1];
+    let best=null;
+    for(const phase of phases){
+      const cal=decodeCalibration(img,panel.H,phase);
+      const visual=new Uint8Array(profile.cells);const confidence=new Float32Array(profile.cells);
+      const cw=D.dataW/profile.cols,ch=D.dataH/profile.rows;let n=0;
+      for(let r=0;r<profile.rows;r++)for(let c=0;c<profile.cols;c++,n++){
+        const [x,y]=mapPoint(panel.H,D.dataX+(c+.5)*cw,D.dataY+(r+.5)*ch);
+        const q=nearest(sampleMean(img,x,y,Math.max(0,Math.min(1,Math.floor(Math.min(img.width/D.W,img.height/D.H)*1.2)))),cal.phasePalettes[phase]);
+        visual[n]=q.symbol;confidence[n]=q.margin;
+      }
+      const logical=visualToLogical(profile,visual);const decoded=ALE.decodeOpticalSymbols(profile,logical);
+      const candidate={...decoded,phase,panel,visual,logical,confidence,cal,mode:'absolute'};
+      if(decoded.ok)return candidate;
+      if(!best||candidate.corrected>(best.corrected||0))best=candidate;
+    }
+
+    // MSTC-lite transition recovery. Previous optical symbols turn a mixed exposure
+    // into a row-wise interpolation problem. RS and the spatial interleaver absorb
+    // rows whose current-state fraction is too small.
+    const prev=options.previous;
+    if(prev&&prev.visual&&Number.isInteger(prev.phase)){
+      const phase=1-prev.phase,cal=decodeCalibration(img,panel.H,phase);
+      const visual=new Uint8Array(profile.cells);const confidence=new Float32Array(profile.cells);
+      const cw=D.dataW/profile.cols,ch=D.dataH/profile.rows;let n=0;
+      const oldY=PHASE_GRAY[prev.phase],newY=PHASE_GRAY[phase];
+      for(let r=0;r<profile.rows;r++){
+        const py=D.dataY+(r+.5)*ch;const lp=mapPoint(panel.H,99,py),rp=mapPoint(panel.H,1501,py);
+        const pilot=[0,1,2].map(k=>(sampleMean(img,lp[0],lp[1],1)[k]+sampleMean(img,rp[0],rp[1],1)[k])/2);
+        // Normalize observed pilot through fitted camera response using grayscale average.
+        const darkObs=luminance(cal.dark),lightObs=luminance(cal.light);const norm=32+(luminance(pilot)-darkObs)*192/Math.max(1,lightObs-darkObs);
+        const alpha=Math.max(0,Math.min(1,(norm-oldY)/(newY-oldY)));
+        for(let c=0;c<profile.cols;c++,n++){
+          const [x,y]=mapPoint(panel.H,D.dataX+(c+.5)*cw,py),rgb=sampleMean(img,x,y,1),old=cal.phasePalettes[prev.phase][prev.visual[n]];
+          let bi=0,bd=Infinity,second=Infinity;
+          for(let s=0;s<8;s++){
+            const cur=cal.phasePalettes[phase][s],pred=[old[0]*(1-alpha)+cur[0]*alpha,old[1]*(1-alpha)+cur[1]*alpha,old[2]*(1-alpha)+cur[2]*alpha];
+            const d=dist3(rgb,pred);if(d<bd){second=bd;bd=d;bi=s}else if(d<second)second=d;
+          }
+          visual[n]=bi;confidence[n]=second-bd;
+        }
+      }
+      const logical=visualToLogical(profile,visual),decoded=ALE.decodeOpticalSymbols(profile,logical);
+      if(decoded.ok)return{...decoded,phase,panel,visual,logical,confidence,cal,mode:'transition'};
+    }
+    return best||{ok:false,reason:'decode'};
+  }
+
+  function imageDataFromCanvas(canvas){return canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height)}
+
+  window.ALE_VIS=Object.freeze({D,ANCHORS,PALETTES,PHASE_GRAY,permutation,logicalToVisual,visualToLogical,renderFrame,homography,mapPoint,detectPanel,decodeCalibration,decodeImageData,imageDataFromCanvas});
+})();
+</script>
+<script>(() => {
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const fmtBytes=n=>{const u=['B','KiB','MiB','GiB'];let i=0,v=n;while(v>=1024&&i<u.length-1){v/=1024;i++}return `${v.toFixed(i?1:0)} ${u[i]}`};
+const fmtTime=s=>!isFinite(s)?'—':s<60?`${Math.ceil(s)} s`:`${Math.floor(s/60)} min ${Math.ceil(s%60)} s`;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const MAX_FILE=128*1024*1024;
+
+// Tabs
+$$('.tab').forEach(btn=>btn.addEventListener('click',()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===btn));$$('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${btn.dataset.tab}`))}));
+
+function profileRate(p,fps=p.fps){return p.blockLen*fps*.75}
+function profileText(p){return `${p.cols}×${p.rows} celdas · ${fmtBytes(p.blockLen)} por trama · RS(${15},${15-p.parity}) · ≈ ${fmtBytes(profileRate(p))}/s nominales`}
+for(const p of ALE.PROFILES){
+  const o=document.createElement('option');o.value=p.id;o.textContent=`${p.label} · ${p.cols}×${p.rows}`;$('#send-profile').append(o);
+  const r=o.cloneNode(true);$('#receive-profile').append(r);
+}
+$('#send-profile').value='1';
+function populateFps(){const p=ALE.profileById(Number($('#send-profile').value));const values=[12,18,24,30,45,60].filter(x=>x<=Math.max(60,p.fps));$('#send-fps').replaceChildren(...values.map(x=>{const o=document.createElement('option');o.value=x;o.textContent=`${x} fps${x===p.fps?' · recomendado':''}`;if(x===p.fps)o.selected=true;return o}));$('#send-profile-info').textContent=profileText(p);$('#hero-rate').textContent=`${Math.round(profileRate(ALE.PROFILES[3])/1024)} KiB/s`}
+$('#send-profile').addEventListener('change',()=>{populateFps();if(tx.prepared){stopSender();tx.prepared=false;$('#start-send').disabled=true;$('#send-status').textContent='Perfil cambiado · pulsa Preparar de nuevo'}});$('#send-fps').addEventListener('change',()=>{if(tx.running)stopSender();$('#send-profile-info').textContent=profileText(ALE.profileById(Number($('#send-profile').value))).replace(/≈ .* nominales/,`≈ ${fmtBytes(profileRate(ALE.profileById(Number($('#send-profile').value)),Number($('#send-fps').value)))}/s nominales`)});populateFps();
+
+let tx={prepared:false,running:false,generation:0,file:null,container:null,profile:null,encoder:null,session:0,crc:0,seq:0,lastAt:0,wake:null};
+async function prepareSender(fileOverride=null){
+  stopSender();tx.prepared=false;$('#start-send').disabled=true;const file=fileOverride||$('#send-file').files?.[0];if(!file)throw new Error('Selecciona un archivo.');if(file.size===0)throw new Error('El archivo está vacío.');if(file.size>MAX_FILE)throw new Error(`Supera el límite de ${fmtBytes(MAX_FILE)}.`);
+  $('#prepare-send').disabled=true;$('#send-status').textContent='Calculando SHA-256 y preparando bloques…';
+  try{
+    const bytes=new Uint8Array(await file.arrayBuffer()),container=await ALE.packContainer(file.name,file.type,bytes),profile=ALE.profileById(Number($('#send-profile').value));
+    const session=crypto.getRandomValues(new Uint32Array(1))[0]||1,encoder=new ALE.FountainEncoder(container,profile.blockLen,session);
+    tx={...tx,prepared:true,file,container,profile,encoder,session,crc:ALE.crc32(container),seq:0,generation:tx.generation+1};
+    $('#send-status').textContent=`Preparado · ${file.name} · ${fmtBytes(file.size)}`;$('#send-blocks').textContent=encoder.k.toLocaleString();$('#send-rate').textContent=`${fmtBytes(profileRate(profile,Number($('#send-fps').value)))}/s`;$('#send-frame').textContent='0';$('#start-send').disabled=false;$('#send-placeholder').classList.add('hidden');renderTxFrame(0);
+  }finally{$('#prepare-send').disabled=false}
+}
+function renderTxFrame(seq){const raw=ALE.buildPacket(tx.profile,tx.session,seq,tx.encoder,tx.crc),symbols=ALE.encodeOpticalPacket(tx.profile,raw);ALE_VIS.renderFrame($('#send-canvas'),tx.profile,symbols,seq&1,{label:`${tx.file.name} · trama ${seq}`});return symbols}
+async function startSender(){if(!tx.prepared||tx.running)return;tx.running=true;const gen=++tx.generation;tx.lastAt=performance.now();$('#send-dot').classList.add('live');$('#send-status').textContent='Emitiendo por luz';$('#start-send').disabled=true;$('#stop-send').disabled=false;try{tx.wake=await navigator.wakeLock?.request('screen')}catch{}
+  const fps=Number($('#send-fps').value),interval=1000/fps;let next=performance.now();
+  const tick=now=>{if(!tx.running||gen!==tx.generation)return;requestAnimationFrame(tick);if(now<next)return;next+=interval;if(now-next>interval*2)next=now+interval;renderTxFrame(tx.seq);$('#send-frame').textContent=tx.seq.toLocaleString();tx.seq=(tx.seq+1)>>>0};requestAnimationFrame(tick);
+}
+function stopSender(){if(!tx.running)return;tx.running=false;tx.generation++;tx.wake?.release?.();tx.wake=null;$('#send-dot').classList.remove('live');$('#send-status').textContent=tx.prepared?'Transmisión detenida':'Sin archivo preparado';$('#start-send').disabled=!tx.prepared;$('#stop-send').disabled=true}
+$('#prepare-send').addEventListener('click',()=>prepareSender().catch(e=>{$('#send-status').textContent=e.message;alert(e.message)}));$('#start-send').addEventListener('click',startSender);$('#stop-send').addEventListener('click',stopSender);$('#fullscreen-send').addEventListener('click',()=>$('#send-stage').requestFullscreen?.());
+
+// Receiver
+let rx={stream:null,running:false,busy:false,generation:0,panel:null,panelAge:0,previous:null,decoder:null,key:'',seqs:new Set(),valid:0,corrected:0,startAt:0,lastValidAt:0,result:null,profileLock:null,autoIndex:0,failStreak:0,wake:null};
+const video=$('#camera-video'),cap=document.createElement('canvas'),overlay=$('#camera-overlay');
+function setRxStatus(text,live=false){$('#receive-status').textContent=text;$('#receive-dot').classList.toggle('live',live);$('#receive-state').textContent=text}
+function resetRxSession(){rx.decoder=null;rx.key='';rx.seqs.clear();rx.valid=0;rx.corrected=0;rx.startAt=0;rx.previous=null;rx.profileLock=null;rx.failStreak=0;$('#receive-valid').textContent='0';$('#receive-rs').textContent='0';$('#receive-mode').textContent='—';$('#receive-bar').style.width='0';$('#receive-progress').textContent='Esperando una sesión';$('#receive-eta').textContent='—';$('#receive-result').hidden=true;rx.result=null}
+async function startCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){setRxStatus('La cámara necesita HTTPS o localhost');return}
+  stopCamera();resetRxSession();const width=Number($('#receive-width').value);$('#start-camera').disabled=true;setRxStatus('Solicitando cámara…');
+  try{rx.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:width},height:{ideal:Math.round(width*9/16)},frameRate:{ideal:60}}});video.srcObject=rx.stream;await video.play();rx.running=true;rx.generation++;$('#stop-camera').disabled=false;$('#camera-empty').hidden=true;$('#camera-guide').hidden=false;setRxStatus('Buscando matriz…',true);try{rx.wake=await navigator.wakeLock?.request('screen')}catch{};scheduleCapture(rx.generation)}catch(e){setRxStatus(`Cámara: ${e.message}`);$('#start-camera').disabled=false}
+}
+function stopCamera(){rx.running=false;rx.generation++;rx.stream?.getTracks().forEach(t=>t.stop());rx.stream=null;video.srcObject=null;rx.wake?.release?.();rx.wake=null;$('#start-camera').disabled=false;$('#stop-camera').disabled=true;$('#camera-guide').hidden=true;$('#camera-empty').hidden=false;setRxStatus('Cámara detenida')}
+function scheduleCapture(gen){if(!rx.running||gen!==rx.generation)return;const cb=()=>{processCameraFrame().finally(()=>scheduleCapture(gen))};if(video.requestVideoFrameCallback)video.requestVideoFrameCallback(cb);else setTimeout(cb,33)}
+function drawOverlay(panel,imgW,imgH){overlay.width=video.clientWidth||640;overlay.height=video.clientHeight||360;const ctx=overlay.getContext('2d');ctx.clearRect(0,0,overlay.width,overlay.height);if(!panel)return;ctx.strokeStyle='rgba(86,224,255,.9)';ctx.lineWidth=3;ctx.beginPath();panel.anchors.forEach((a,i)=>{const x=a.x/imgW*overlay.width,y=a.y/imgH*overlay.height;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.stroke()}
+function profileCandidates(){const v=$('#receive-profile').value;if(v!=='auto')return[ALE.profileById(Number(v))];if(rx.profileLock)return[rx.profileLock];const order=[1,2,0,3];const p=ALE.profileById(order[rx.autoIndex++%order.length]);return[p]}
+async function processCameraFrame(){
+  if(rx.busy||!rx.running||!video.videoWidth)return;rx.busy=true;
+  try{const target=Number($('#receive-width').value),scale=Math.min(1,target/video.videoWidth);cap.width=Math.round(video.videoWidth*scale);cap.height=Math.round(video.videoHeight*scale);const ctx=cap.getContext('2d',{willReadFrequently:true});ctx.drawImage(video,0,0,cap.width,cap.height);const img=ctx.getImageData(0,0,cap.width,cap.height);
+    const needPanel=!rx.panel||rx.panelAge++>6||rx.failStreak>2;if(needPanel){rx.panel=ALE_VIS.detectPanel(img);rx.panelAge=0}drawOverlay(rx.panel,cap.width,cap.height);if(!rx.panel){setRxStatus('No se ven las cuatro anclas',true);return}
+    let decoded=null;for(const p of profileCandidates()){decoded=ALE_VIS.decodeImageData(img,p,{panel:rx.panel,previous:rx.previous,phaseHint:rx.previous?1-rx.previous.phase:undefined});if(decoded.ok)break}
+    if(!decoded?.ok){rx.failStreak++;setRxStatus('Matriz detectada · ajustando lectura',true);return}rx.failStreak=0;rx.previous=decoded;rx.profileLock=decoded.packet.profile;handlePacket(decoded);
+  }catch(e){setRxStatus(`Decodificación: ${e.message}`,true)}finally{rx.busy=false}
+}
+function handlePacket(decoded){const p=decoded.packet,key=`${p.session}:${p.k}:${p.blockLen}:${p.totalLen}:${p.containerCrc}`;if(rx.key!==key){rx.key=key;rx.decoder=new ALE.FountainDecoder(p.k,p.blockLen,p.totalLen,p.session);rx.seqs.clear();rx.valid=0;rx.corrected=0;rx.startAt=performance.now();$('#receive-result').hidden=true}
+  if(rx.seqs.has(p.seq))return;rx.seqs.add(p.seq);rx.valid++;rx.corrected+=decoded.corrected||0;rx.decoder.add(p.seq,p.block);rx.lastValidAt=performance.now();$('#receive-valid').textContent=rx.valid.toLocaleString();$('#receive-rs').textContent=rx.corrected.toLocaleString();$('#receive-mode').textContent=decoded.mode==='transition'?'Transición MSTC-lite':'Absoluta';setRxStatus(`${p.profile.label} · sesión bloqueada`,true);
+  const progress=rx.decoder.solved/rx.decoder.k;$('#receive-bar').style.width=`${Math.min(100,progress*100).toFixed(1)}%`;$('#receive-progress').textContent=`${rx.decoder.solved.toLocaleString()} / ${rx.decoder.k.toLocaleString()} bloques`;
+  const elapsed=(performance.now()-rx.startAt)/1000,rate=rx.decoder.solved/Math.max(.1,elapsed),remain=(rx.decoder.k-rx.decoder.solved)/Math.max(.01,rate);$('#receive-eta').textContent=fmtTime(remain);
+  if(rx.decoder.complete)finishReceive(p).catch(e=>setRxStatus(`Verificación: ${e.message}`,true))
+}
+async function finishReceive(packet){const container=rx.decoder.assemble();if(ALE.crc32(container)!==packet.containerCrc)throw new Error('CRC del contenedor no coincide');const file=await ALE.unpackContainer(container);rx.result=file;$('#receive-result-text').textContent=`${file.name} · ${fmtBytes(file.bytes.length)} · SHA-256 correcto`;$('#receive-result').hidden=false;$('#receive-bar').style.width='100%';$('#receive-progress').textContent='Transferencia completa y verificada';$('#receive-eta').textContent=fmtTime((performance.now()-rx.startAt)/1000);stopCamera();setRxStatus('Archivo recuperado',true)}
+$('#start-camera').addEventListener('click',startCamera);$('#stop-camera').addEventListener('click',stopCamera);$('#reset-result').addEventListener('click',()=>{resetRxSession();startCamera()});$('#download-result').addEventListener('click',()=>{if(!rx.result)return;const url=URL.createObjectURL(new Blob([rx.result.bytes],{type:rx.result.mime}));const a=document.createElement('a');a.href=url;a.download=rx.result.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)});
+
+// Built-in tests. These run without camera and are also used by the packaged regression suite.
+async function runTests(){
+  const box=$('#test-results');box.replaceChildren();$('#run-tests').disabled=true;const rows=[];
+  async function test(name,fn){const row=document.createElement('div');row.className='test-row';row.innerHTML=`<b>${name}</b><span>Ejecutando…</span>`;box.append(row);try{const info=await fn();row.classList.add('pass');row.querySelector('span').textContent=`Correcto${info?' · '+info:''}`;rows.push({name,ok:true,info})}catch(e){row.classList.add('fail');row.querySelector('span').textContent=e.message;rows.push({name,ok:false,error:e.message})}}
+  await test('CRC-32',()=>ALE.assert(ALE.crc32(new TextEncoder().encode('123456789'))===0xcbf43926));
+  await test('Reed–Solomon 2 errores',()=>{const d=Uint8Array.from({length:11},(_,i)=>i*19+7),c=ALE.rsEncodeWord(d,4);c[2]^=91;c[13]^=37;const x=ALE.rsDecodeWord(c,4);ALE.assert(x.ok&&ALE.equalBytes(x.data,d));return`${x.corrected} correcciones`});
+  await test('Fountain con pérdidas',()=>{const p=ALE.PROFILES[0],data=new Uint8Array(12000);for(let i=0;i<data.length;i++)data[i]=(i*67+11)&255;const en=new ALE.FountainEncoder(data,p.blockLen,55),de=new ALE.FountainDecoder(en.k,en.blockLen,data.length,55);let seq=0;while(!de.complete&&seq<en.k*10){if(seq%5!==1){const f=en.encode(seq);de.add(seq,f.data)}seq++}ALE.assert(de.complete&&ALE.equalBytes(de.assemble(),data));return`${en.k} bloques, 20 % de pérdidas`});
+  await test('Canal visual exacto',()=>syntheticVisualTest(false));
+  await test('Perspectiva y escala',()=>syntheticVisualTest(true));
+  await test('Transición mezclada',()=>syntheticTransitionTest());
+  await test('Transferencia integral',()=>syntheticTransferTest());
+  $('#run-tests').disabled=false;return rows
+}
+async function syntheticVisualTest(warp){const p=ALE.PROFILES[0],data=new Uint8Array(4000),en=new ALE.FountainEncoder(data,p.blockLen,77),raw=ALE.buildPacket(p,77,0,en,ALE.crc32(data)),symbols=ALE.encodeOpticalPacket(p,raw),base=document.createElement('canvas');ALE_VIS.renderFrame(base,p,symbols,0);let target=base;if(warp){target=document.createElement('canvas');target.width=1000;target.height=620;const c=target.getContext('2d');c.fillStyle='#222';c.fillRect(0,0,target.width,target.height);c.setTransform(.55,.018,-.025,.57,86,31);c.drawImage(base,0,0)}const got=ALE_VIS.decodeImageData(ALE_VIS.imageDataFromCanvas(target),p,{phaseHint:0});ALE.assert(got.ok&&got.packet.seq===0,got.reason);return warp?'homografía recuperada':'trama válida'}
+async function syntheticTransitionTest(){const p=ALE.PROFILES[0],data=new Uint8Array(5000);for(let i=0;i<data.length;i++)data[i]=(i*31)&255;const en=new ALE.FountainEncoder(data,p.blockLen,88),crc=ALE.crc32(data),a=document.createElement('canvas'),b=document.createElement('canvas');const s0=ALE.encodeOpticalPacket(p,ALE.buildPacket(p,88,0,en,crc)),s1=ALE.encodeOpticalPacket(p,ALE.buildPacket(p,88,1,en,crc));ALE_VIS.renderFrame(a,p,s0,0);ALE_VIS.renderFrame(b,p,s1,1);const prev=ALE_VIS.decodeImageData(ALE_VIS.imageDataFromCanvas(a),p,{phaseHint:0});const mix=document.createElement('canvas');mix.width=1600;mix.height=900;const c=mix.getContext('2d');c.drawImage(a,0,0);c.globalAlpha=.7;c.drawImage(b,0,0);const got=ALE_VIS.decodeImageData(ALE_VIS.imageDataFromCanvas(mix),p,{previous:prev,phaseHint:1});ALE.assert(got.ok&&got.packet.seq===1,got.reason);return got.mode}
+async function syntheticTransferTest(){const file=new Uint8Array(6000);for(let i=0;i<file.length;i++)file[i]=(i*101+3)&255;const cont=await ALE.packContainer('sintetico.bin','application/octet-stream',file),p=ALE.PROFILES[0],session=99,en=new ALE.FountainEncoder(cont,p.blockLen,session),de=new ALE.FountainDecoder(en.k,en.blockLen,cont.length,session),crc=ALE.crc32(cont),canvas=document.createElement('canvas');let seq=0,seen=0;while(!de.complete&&seq<en.k*8){if(seq%4!==2){const sym=ALE.encodeOpticalPacket(p,ALE.buildPacket(p,session,seq,en,crc));ALE_VIS.renderFrame(canvas,p,sym,seq&1);const got=ALE_VIS.decodeImageData(ALE_VIS.imageDataFromCanvas(canvas),p,{phaseHint:seq&1});if(got.ok){de.add(seq,got.packet.block);seen++}}seq++}ALE.assert(de.complete&&ALE.crc32(de.assemble())===crc);const out=await ALE.unpackContainer(de.assemble());ALE.assert(ALE.equalBytes(out.bytes,file));return`${fmtBytes(file.length)} en ${seen} tramas válidas`}
+$('#run-tests').addEventListener('click',runTests);
+window.AletransferTests=Object.freeze({runAll:runTests,syntheticVisualTest,syntheticTransitionTest,syntheticTransferTest});
+})();
+</script>
+</body>
+</html>
