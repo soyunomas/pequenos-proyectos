@@ -27,7 +27,7 @@ jobs:
           gh api repos/${{ github.repository }}/actions/artifacts/9505177897/zip > flux-artifact.zip
           unzip flux-artifact.zip -d flux-artifact
           test -s flux-artifact/FluxFiles-v1.0.0.apk
-          sha256sum -c flux-artifact/FluxFiles-v1.0.0.sha256
+          (cd flux-artifact && sha256sum -c FluxFiles-v1.0.0.sha256)
 
       - name: Prepare exact patched source
         run: |
