@@ -4,6 +4,16 @@ Este repositorio aloja una colección de herramientas, simuladores educativos y 
 
 ---
 
+## 📱 Aplicaciones Android
+
+### [📁 Flux Files](./FluxFiles-Android/)
+**Gestor de archivos Android basado en Material Files 1.7.4.**
+Incluye APK instalable, código fuente reproducible y documentación de los cambios realizados.
+*   **APK:** [FluxFiles-v1.0.0.apk](./FluxFiles-Android/FluxFiles-v1.0.0.apk)
+*   **Fuente y documentación:** [FluxFiles-Android](./FluxFiles-Android/)
+
+---
+
 ## 🔌 Proyectos de Hardware y Sistemas
 
 Herramientas que requieren instalación local o hardware específico (no son web).
