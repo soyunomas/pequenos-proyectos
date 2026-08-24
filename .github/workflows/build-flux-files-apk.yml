@@ -1,6 +1,12 @@
 name: Build Flux Files APK
 
 on:
+  push:
+    branches:
+      - 'chatgpt/flux-files-apk-build'
+    paths:
+      - '.github/workflows/build-flux-files-apk.yml'
+      - 'flux-files-source.md'
   pull_request:
     paths:
       - '.github/workflows/build-flux-files-apk.yml'
