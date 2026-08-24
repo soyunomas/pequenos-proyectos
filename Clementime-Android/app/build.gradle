@@ -14,3 +14,5 @@ android {
         versionName '1.3'
     }
 }
+
+// APK is rebuilt automatically by .github/workflows/build-clementime.yml
