@@ -1,0 +1,64 @@
+name: Build Flux Files APK
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/build-flux-files-apk.yml'
+      - 'flux-files-source.md'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out build recipe
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Fetch pinned Material Files source
+        run: |
+          git clone --recurse-submodules https://github.com/zhanghai/MaterialFiles.git flux
+          cd flux
+          git checkout fc1250038496ebf4d4c139f62d16f0071f2c995a
+          git submodule update --init --recursive
+
+      - name: Rebrand without changing upstream namespace
+        run: |
+          cd flux
+          sed -i "s/applicationId 'me.zhanghai.android.files'/applicationId 'dev.local.fluxfiles'/" app/build.gradle
+          sed -i "s/versionName '1.7.4'/versionName '1.7.4-flux.1'/" app/build.gradle
+          find app/src/main/res -name strings.xml -print0 | xargs -0 sed -i -E 's#<string name="app_name">[^<]*</string>#<string name="app_name">Flux Files</string>#g'
+          grep -q "applicationId 'dev.local.fluxfiles'" app/build.gradle
+          grep -q '<string name="app_name">Flux Files</string>' app/src/main/res/values/strings.xml
+
+      - name: Build and run release lint
+        working-directory: flux
+        run: ./gradlew assembleDebug lintVitalRelease --stacktrace
+
+      - name: Verify APK signature
+        run: |
+          APK='flux/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK"
+          cp "$APK" FluxFiles-v1.0.0.apk
+          sha256sum FluxFiles-v1.0.0.apk | tee FluxFiles-v1.0.0.sha256
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FluxFiles-v1.0.0
+          path: |
+            FluxFiles-v1.0.0.apk
+            FluxFiles-v1.0.0.sha256
+          if-no-files-found: error
+          retention-days: 7
