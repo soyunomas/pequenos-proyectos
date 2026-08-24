@@ -1,21 +1,24 @@
-name: Build Flux Files APK
+name: Publish Flux Files source and APK
 
 on:
-  pull_request:
+  push:
+    branches: [main]
     paths:
       - '.github/workflows/build-flux-files-apk.yml'
-      - 'flux-files-source.md'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
-      - name: Check out build recipe
+      - name: Check out main
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -92,32 +95,157 @@ jobs:
           ! grep -R -q 'FirebaseCrashlytics\|google-services' app/src/main/java app/build.gradle
           grep -q '<string name="app_name">Flux Files</string>' app/src/main/res/values/strings.xml
 
-      - name: Build and run release lint
-        working-directory: flux
-        run: ./gradlew assembleDebug lintVitalRelease --stacktrace
-
-      - name: Verify APK signature and package identity
+      - name: Build and verify APK
         run: |
+          cd flux
+          ./gradlew assembleDebug lintVitalRelease --stacktrace
+          cd ..
           APK='flux/app/build/outputs/apk/debug/app-debug.apk'
           test -s "$APK"
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)
-          test -n "$APKSIGNER"
-          test -n "$AAPT"
           "$APKSIGNER" verify --verbose "$APK"
-          "$AAPT" dump badging "$APK" | tee apk-badging.txt
+          "$AAPT" dump badging "$APK" > apk-badging.txt
           grep -q "package: name='dev.local.fluxfiles'" apk-badging.txt
           grep -q "application-label:'Flux Files'" apk-badging.txt
-          cp "$APK" FluxFiles-v1.0.0.apk
-          sha256sum FluxFiles-v1.0.0.apk | tee FluxFiles-v1.0.0.sha256
 
-      - name: Upload installable APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: FluxFiles-v1.0.0
-          path: |
-            FluxFiles-v1.0.0.apk
-            FluxFiles-v1.0.0.sha256
-            apk-badging.txt
-          if-no-files-found: error
-          retention-days: 7
+      - name: Prepare repository folder and documentation
+        run: |
+          rm -rf FluxFiles-Android
+          mkdir -p FluxFiles-Android/source FluxFiles-Android/third_party/dav4jvm
+
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.gradle' \
+            --exclude='build' \
+            --exclude='local-maven' \
+            --exclude='*.apk' \
+            flux/ FluxFiles-Android/source/
+
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.gradle' \
+            --exclude='build' \
+            dav4jvm/ FluxFiles-Android/third_party/dav4jvm/
+
+          cp flux/app/build/outputs/apk/debug/app-debug.apk FluxFiles-Android/FluxFiles-v1.0.0.apk
+          sha256sum FluxFiles-Android/FluxFiles-v1.0.0.apk > FluxFiles-Android/FluxFiles-v1.0.0.sha256
+          SHA256=$(cut -d' ' -f1 FluxFiles-Android/FluxFiles-v1.0.0.sha256)
+
+          cat > FluxFiles-Android/build-from-source.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          DAV="$ROOT/third_party/dav4jvm"
+          APP="$ROOT/source"
+          (
+            cd "$DAV"
+            GIT_COMMIT=02fe1a95e6 ./gradlew publish --stacktrace
+          )
+          rm -rf "$APP/local-maven"
+          mkdir -p "$APP/local-maven"
+          cp -R "$DAV/build/repo/"* "$APP/local-maven/"
+          (
+            cd "$APP"
+            ./gradlew assembleDebug lintVitalRelease --stacktrace
+          )
+          echo "APK: $APP/app/build/outputs/apk/debug/app-debug.apk"
+          EOF
+          chmod +x FluxFiles-Android/build-from-source.sh
+
+          cat > FluxFiles-Android/README.md <<EOF
+          # Flux Files para Android
+
+          Gestor de archivos Android basado en **Material Files 1.7.4**, adaptado como **Flux Files** y publicado aquí con su APK y el código fuente correspondiente.
+
+          ## Instalación
+
+          - APK listo para instalación manual: [\`FluxFiles-v1.0.0.apk\`](./FluxFiles-v1.0.0.apk)
+          - SHA-256: \`$SHA256\`
+          - Paquete Android: \`dev.local.fluxfiles\`
+          - Nombre visible: \`Flux Files\`
+          - Versión: \`1.7.4-flux.1\`
+          - Android mínimo: API 23 / Android 6.0
+
+          El APK está firmado con una clave de depuración de CI. Es instalable por sideload, pero no usa una clave de publicación destinada a Google Play.
+
+          ## Estructura
+
+          - \`source/\`: código fuente de Material Files en el commit fijado, con los cambios de Flux Files ya aplicados.
+          - \`third_party/dav4jvm/\`: revisión exacta de dav4jvm usada por el build, incluida con el ajuste de nombre de módulo Kotlin necesario para conservar el ABI esperado.
+          - \`build-from-source.sh\`: recompila la dependencia local y después la aplicación.
+          - \`FluxFiles-v1.0.0.apk\`: APK verificado por CI.
+          - \`FluxFiles-v1.0.0.sha256\`: hash de integridad del APK.
+
+          ## Compilar desde el código fuente
+
+          Requisitos principales: Linux/macOS, JDK 21 y Android SDK con las versiones requeridas por el proyecto.
+
+          \`\`\`bash
+          cd FluxFiles-Android
+          ./build-from-source.sh
+          \`\`\`
+
+          El APK recompilado queda en:
+
+          \`source/app/build/outputs/apk/debug/app-debug.apk\`
+
+          ## Cambios respecto a Material Files
+
+          - \`applicationId\` cambiado de \`me.zhanghai.android.files\` a \`dev.local.fluxfiles\`.
+          - Nombre de aplicación cambiado a **Flux Files**.
+          - \`versionName\` cambiado a \`1.7.4-flux.1\`.
+          - Eliminados los bloques marcados como \`NONFREE\`, incluida la integración de Firebase/Crashlytics/Google Services.
+          - dav4jvm fijado a \`02fe1a95e6b86e323bec3784d7d2fe2d4081dde6\` y compilado localmente con nombre de módulo Kotlin \`build\` para mantener el ABI que espera Material Files.
+
+          ## Procedencia y licencia
+
+          El código de \`source/\` deriva de [Material Files](https://github.com/zhanghai/MaterialFiles), commit \`fc1250038496ebf4d4c139f62d16f0071f2c995a\`, proyecto publicado bajo **GPL-3.0**. Se conservan los archivos de licencia y avisos del proyecto original dentro del código fuente.
+
+          dav4jvm procede de [bitfireAT/dav4jvm](https://github.com/bitfireAT/dav4jvm), revisión indicada arriba, con sus propios términos de licencia conservados en \`third_party/dav4jvm/\`.
+
+          ## Verificaciones realizadas por CI
+
+          La publicación solo se realiza después de completar correctamente:
+
+          - \`assembleDebug\`
+          - \`lintVitalRelease\`
+          - verificación de firma con \`apksigner\`
+          - comprobación del paquete \`dev.local.fluxfiles\`
+          - comprobación de la etiqueta \`Flux Files\`
+          - generación del SHA-256
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('README.md')
+          text = p.read_text()
+          if './FluxFiles-Android/' not in text:
+              section = '''## 📱 Aplicaciones Android
+
+          ### [📁 Flux Files](./FluxFiles-Android/)
+          **Gestor de archivos Android basado en Material Files 1.7.4.**
+          Incluye el APK instalable, el código fuente exacto usado por CI, la dependencia dav4jvm fijada y un script de compilación reproducible.
+          *   **APK:** [FluxFiles-v1.0.0.apk](./FluxFiles-Android/FluxFiles-v1.0.0.apk)
+          *   **Código fuente y documentación:** [FluxFiles-Android](./FluxFiles-Android/)
+
+          ---
+
+          '''
+              marker = '## 🔌 Proyectos de Hardware y Sistemas'
+              if marker in text:
+                  text = text.replace(marker, section + marker, 1)
+              else:
+                  text += '\n\n---\n\n' + section
+              p.write_text(text)
+          PY
+
+      - name: Commit source, APK and README changes to main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md FluxFiles-Android
+          git rm .github/workflows/build-flux-files-apk.yml
+          git status --short
+          git commit -m 'feat: add Flux Files Android source and APK'
+          git push origin main
