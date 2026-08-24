@@ -36,13 +36,16 @@ jobs:
           git checkout fc1250038496ebf4d4c139f62d16f0071f2c995a
           git submodule update --init --recursive
 
-      - name: Rebrand without changing upstream namespace
+      - name: Apply reproducible compatibility and branding patch
         run: |
           cd flux
           sed -i "s/applicationId 'me.zhanghai.android.files'/applicationId 'dev.local.fluxfiles'/" app/build.gradle
           sed -i "s/versionName '1.7.4'/versionName '1.7.4-flux.1'/" app/build.gradle
+          sed -i "s/com.github.bitfireAT:dav4jvm:02fe1a95e6/com.github.bitfireAT:dav4jvm:2.1.3/" app/build.gradle
+          sed -i "/repositories {/a\    maven { url 'https://maven.scijava.org/content/repositories/public/' }" app/build.gradle
           find app/src/main/res -name strings.xml -print0 | xargs -0 sed -i -E 's#<string name="app_name">[^<]*</string>#<string name="app_name">Flux Files</string>#g'
           grep -q "applicationId 'dev.local.fluxfiles'" app/build.gradle
+          grep -q 'com.github.bitfireAT:dav4jvm:2.1.3' app/build.gradle
           grep -q '<string name="app_name">Flux Files</string>' app/src/main/res/values/strings.xml
 
       - name: Build and run release lint
