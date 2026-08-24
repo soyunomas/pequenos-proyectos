@@ -13,22 +13,4 @@ android {
         versionCode 4
         versionName '1.3'
     }
-
-    sourceSets {
-        main {
-            res.srcDir "$buildDir/generated/themeAssets"
-        }
-    }
-}
-
-tasks.register('extractThemeAssets', Copy) {
-    from zipTree(rootProject.file('Clementime_by_Clemente_v1.3.apk'))
-    include 'res/drawable/theme_*.png'
-    eachFile { details -> details.path = details.name }
-    includeEmptyDirs = false
-    into layout.buildDirectory.dir('generated/themeAssets/drawable-nodpi')
-}
-
-tasks.named('preBuild').configure {
-    dependsOn 'extractThemeAssets'
 }

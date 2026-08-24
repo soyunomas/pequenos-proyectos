@@ -1,0 +1,44 @@
+name: Build Clementime APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Clementime-Android/app/**'
+      - 'Clementime-Android/build.gradle'
+      - 'Clementime-Android/settings.gradle'
+      - 'Clementime-Android/gradle.properties'
+      - '.github/workflows/build-clementime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build APK
+        working-directory: Clementime-Android
+        run: gradle :app:assembleDebug
+      - name: Publish APK in repository
+        run: |
+          cp Clementime-Android/app/build/outputs/apk/debug/app-debug.apk Clementime-Android/Clementime_by_Clemente_v1.3.apk
+          sha256sum Clementime-Android/Clementime_by_Clemente_v1.3.apk | awk '{print $1}' > Clementime-Android/APK_SHA256.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Clementime-Android/Clementime_by_Clemente_v1.3.apk Clementime-Android/APK_SHA256.txt
+          git diff --cached --quiet && exit 0
+          git commit -m 'build: refresh Clementime APK [skip ci]'
+          git push
