@@ -12,18 +12,15 @@ Widget Android de reloj digital con fondo transparente, fecha en inglés y 11 es
 - También puedes abrir **Clementime by Clemente** desde el cajón de aplicaciones para elegir tema.
 - Sin permisos de red ni servicios en segundo plano.
 
-## APK
-
-- [Clementime_by_Clemente_v1.3.apk](./Clementime_by_Clemente_v1.3.apk)
-- Package: `com.clemente.clementime`
-- Version: `1.3` (`versionCode 4`)
-- El hash SHA-256 del APK compilado está en [`APK_SHA256.txt`](./APK_SHA256.txt).
-
-El APK del repositorio se compila automáticamente desde este código mediante GitHub Actions. Es un build de depuración instalable. Si tienes instalada una versión firmada con otra clave, Android puede pedirte desinstalarla antes.
-
 ## Código fuente
 
 Proyecto Android Studio/Gradle en Java y XML. Los diez marcos se implementan como drawables XML para que el proyecto sea autocontenido y reproducible.
+
+## APK
+
+El repositorio incluye el workflow `.github/workflows/build-clementime.yml`, preparado para compilar un APK debug instalable desde este código y publicarlo como `Clementime-Android/Clementime_by_Clemente_v1.3.apk` junto con su SHA-256.
+
+La primera transferencia binaria realizada mediante el conector de GitHub quedó truncada y se eliminó expresamente para no conservar un APK inválido en el repositorio.
 
 ## Compilar
 
