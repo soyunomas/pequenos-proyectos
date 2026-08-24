@@ -5,8 +5,10 @@ Flux Files is a rebranded build of Material Files, pinned to upstream commit `fc
 - Android application ID: `me.zhanghai.android.files` → `dev.local.fluxfiles`
 - App display name: `Material Files` → `Flux Files`
 - Version name: `1.7.4` → `1.7.4-flux.1`
+- NONFREE/Firebase/Crashlytics/Google Services blocks removed for this FOSS build.
+- dav4jvm pinned to `02fe1a95e6b86e323bec3784d7d2fe2d4081dde6` and compiled locally with Kotlin module name `build` to preserve the ABI expected by Material Files.
 
-The exact transformation and build recipe are in `.github/workflows/build-flux-files-apk.yml`.
+The exact transformation and publication recipe are in `.github/workflows/build-flux-files-apk.yml`.
 
 Upstream source: https://github.com/zhanghai/MaterialFiles
 
