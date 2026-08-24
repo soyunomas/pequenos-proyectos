@@ -28,8 +28,17 @@ jobs:
           git clone https://github.com/bitfireAT/dav4jvm.git dav4jvm
           cd dav4jvm
           git checkout 02fe1a95e6b86e323bec3784d7d2fe2d4081dde6
+          cat >> build.gradle.kts <<'EOF'
+
+          tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+              compilerOptions {
+                  moduleName.set("build")
+              }
+          }
+          EOF
           GIT_COMMIT=02fe1a95e6 ./gradlew publish --stacktrace
           test -f build/repo/com/github/bitfireAT/dav4jvm/02fe1a95e6/dav4jvm-02fe1a95e6.jar
+          javap -classpath build/repo/com/github/bitfireAT/dav4jvm/02fe1a95e6/dav4jvm-02fe1a95e6.jar at.bitfire.dav4jvm.DavResource | grep -q 'followRedirects\$build'
 
       - name: Fetch pinned Material Files source
         run: |
