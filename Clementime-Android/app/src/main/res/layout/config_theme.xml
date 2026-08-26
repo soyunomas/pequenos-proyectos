@@ -1,27 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#101014">
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="@string/choose_design" android:textColor="#FFFFFFFF" android:textSize="22sp"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Original transparent" android:tag="0" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Silver double line" android:tag="1" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Cyan HUD" android:tag="2" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Graphite gold" android:tag="3" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Glass" android:tag="4" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Industrial" android:tag="5" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Chrome capsule" android:tag="6" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Architectural" android:tag="7" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Monochrome pinstripe" android:tag="8" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Blue steel" android:tag="9" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Red sport" android:tag="10" android:onClick="selectTheme"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:gravity="center" android:text="AI backgrounds" android:textColor="#FFB4B4C0" android:textSize="14sp"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Mystical violet (AI)" android:tag="11" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Steampunk brass (AI)" android:tag="12" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Neon magenta (AI)" android:tag="13" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Sky daydream (AI)" android:tag="14" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Deep ocean (AI)" android:tag="15" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Enchanted forest (AI)" android:tag="16" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Cosmic portal (AI)" android:tag="17" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Retro sunset (AI)" android:tag="18" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Ice crystal (AI)" android:tag="19" android:onClick="selectTheme"/>
-<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Desert sun (AI)" android:tag="20" android:onClick="selectTheme"/>
-</LinearLayout></ScrollView>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#101014">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/choose_design"
+            android:textColor="#FFFFFFFF"
+            android:textSize="22sp"/>
+
+        <TextView
+            android:id="@+id/image_opacity_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="Transparencia de imagen: 100% de opacidad"
+            android:textColor="#FFFFFFFF"
+            android:textSize="15sp"/>
+
+        <SeekBar
+            android:id="@+id/image_opacity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:max="100"
+            android:progress="100"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:gravity="center"
+            android:text="Este control sólo afecta a los 10 fondos con imagen."
+            android:textColor="#FFB4B4C0"
+            android:textSize="12sp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="Marcos transparentes"
+            android:textColor="#FFB4B4C0"
+            android:textSize="14sp"/>
+
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Original transparent" android:tag="0" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Twin rail silver" android:tag="1" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Cyan HUD cut-corner" android:tag="2" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Art deco gold" android:tag="3" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Glass bubbles" android:tag="4" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Industrial bolts" android:tag="5" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Chrome capsule" android:tag="6" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Architectural ruler" android:tag="7" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Monochrome pinstripe" android:tag="8" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Blue steel bevel" android:tag="9" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Red sport chevrons" android:tag="10" android:onClick="selectTheme"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:text="AI backgrounds"
+            android:textColor="#FFB4B4C0"
+            android:textSize="14sp"/>
+
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Mystical violet (AI)" android:tag="11" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Steampunk brass (AI)" android:tag="12" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Neon magenta (AI)" android:tag="13" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Sky daydream (AI)" android:tag="14" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Deep ocean (AI)" android:tag="15" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Enchanted forest (AI)" android:tag="16" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Cosmic portal (AI)" android:tag="17" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Retro sunset (AI)" android:tag="18" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Ice crystal (AI)" android:tag="19" android:onClick="selectTheme"/>
+        <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Desert sun (AI)" android:tag="20" android:onClick="selectTheme"/>
+
+    </LinearLayout>
+</ScrollView>

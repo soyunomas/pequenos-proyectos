@@ -6,7 +6,9 @@ Widget Android de reloj digital con fondo transparente, fecha en inglés y 21 es
 
 - Hora 12/24 h según Android.
 - Fecha abreviada en inglés (`MON 24 AUG`).
-- 21 temas: original transparente + 10 marcos vectoriales + 10 fondos visuales generados con IA.
+- 21 temas: original transparente + 10 marcos transparentes con geometrías realmente distintas + 10 fondos visuales generados con IA.
+- Los 10 marcos clásicos no rellenan el fondo: mantienen visible el wallpaper y cambian forma, trazado y ornamentación, no sólo el color.
+- Los 10 fondos con imagen tienen control de opacidad de 0% a 100% desde el selector de temas.
 - Al tocar el reloj, el engranaje aparece durante 1 segundo y se oculta automáticamente.
 - Si vuelves a tocar antes de que pase el segundo, el temporizador se reinicia para evitar ocultaciones prematuras.
 - Toque en el engranaje: abre el selector de temas.
@@ -15,4 +17,4 @@ Widget Android de reloj digital con fondo transparente, fecha en inglés y 21 es
 
 ## APK
 
-El workflow `.github/workflows/build-clementime.yml` compila y publica `Clementime-Android/Clementime_by_Clemente_v1.4.apk` junto con su SHA-256.
+El workflow `.github/workflows/build-clementime.yml` compila y publica `Clementime-Android/Clementime_by_Clemente_v1.5.apk` junto con su SHA-256.

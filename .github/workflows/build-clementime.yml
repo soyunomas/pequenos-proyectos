@@ -34,11 +34,11 @@ jobs:
         run: gradle :app:assembleDebug
       - name: Publish APK in repository
         run: |
-          cp Clementime-Android/app/build/outputs/apk/debug/app-debug.apk Clementime-Android/Clementime_by_Clemente_v1.4.apk
-          sha256sum Clementime-Android/Clementime_by_Clemente_v1.4.apk | awk '{print $1}' > Clementime-Android/APK_SHA256.txt
+          cp Clementime-Android/app/build/outputs/apk/debug/app-debug.apk Clementime-Android/Clementime_by_Clemente_v1.5.apk
+          sha256sum Clementime-Android/Clementime_by_Clemente_v1.5.apk | awk '{print $1}' > Clementime-Android/APK_SHA256.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add Clementime-Android/Clementime_by_Clemente_v1.4.apk Clementime-Android/APK_SHA256.txt
+          git add Clementime-Android/Clementime_by_Clemente_v1.5.apk Clementime-Android/APK_SHA256.txt
           git diff --cached --quiet && exit 0
           git commit -m 'build: refresh Clementime APK [skip ci]'
           git push
