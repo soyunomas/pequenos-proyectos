@@ -13,4 +13,15 @@
 <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Monochrome pinstripe" android:tag="8" android:onClick="selectTheme"/>
 <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Blue steel" android:tag="9" android:onClick="selectTheme"/>
 <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Red sport" android:tag="10" android:onClick="selectTheme"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:gravity="center" android:text="AI backgrounds" android:textColor="#FFB4B4C0" android:textSize="14sp"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Mystical violet (AI)" android:tag="11" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Steampunk brass (AI)" android:tag="12" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Neon magenta (AI)" android:tag="13" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Sky daydream (AI)" android:tag="14" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Deep ocean (AI)" android:tag="15" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Enchanted forest (AI)" android:tag="16" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Cosmic portal (AI)" android:tag="17" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Retro sunset (AI)" android:tag="18" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Ice crystal (AI)" android:tag="19" android:onClick="selectTheme"/>
+<Button android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Desert sun (AI)" android:tag="20" android:onClick="selectTheme"/>
 </LinearLayout></ScrollView>
