@@ -9,9 +9,9 @@ Este repositorio aloja una colección de herramientas, simuladores educativos y 
 ### [🕒 Clementime by Clemente](./Clementime-Android/)
 **Widget Android de reloj digital y fecha con estilos visuales personalizables.**
 Muestra la hora en formato 12/24 h según la configuración de Android y permite cambiar el aspecto del widget desde un selector integrado.
-*   **21 estilos visuales:** transparente, 10 marcos vectoriales y 10 fondos generados con IA.
+*   **21 estilos visuales:** transparente, 10 marcos transparentes con geometrías distintas y 10 fondos generados con IA con opacidad ajustable.
 *   **Engranaje temporal:** al tocar el reloj aparece durante 1 segundo y después se oculta automáticamente; los toques consecutivos reinician el temporizador.
-*   **APK:** [Clementime_by_Clemente_v1.4.apk](./Clementime-Android/Clementime_by_Clemente_v1.4.apk)
+*   **APK:** [Clementime_by_Clemente_v1.5.apk](./Clementime-Android/Clementime_by_Clemente_v1.5.apk)
 *   **Fuente y documentación:** [Clementime-Android](./Clementime-Android/)
 
 ### [📁 Flux Files](./FluxFiles-Android/)
