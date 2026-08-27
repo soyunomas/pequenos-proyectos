@@ -23,21 +23,25 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ClementimeWidgetProvider extends AppWidgetProvider {
     private static final String PREFS = "clementime";
-    private static final String ACTION_REVEAL_GEAR =
-            "com.clemente.clementime.action.REVEAL_GEAR";
+    private static final String ACTION_REVEAL_GEAR = "com.clemente.clementime.action.REVEAL_GEAR";
     private static final long GEAR_VISIBLE_MS = 1000L;
     private static final int MAX_THEME = 20;
     private static final int DEFAULT_IMAGE_OPACITY = 100;
 
-    private static final ConcurrentHashMap<Integer, Integer> GEAR_GENERATIONS =
-            new ConcurrentHashMap<Integer, Integer>();
+    private static final ConcurrentHashMap<Integer, Integer> GEAR_GENERATIONS = new ConcurrentHashMap<Integer, Integer>();
 
-    private static final int[] AI_THEME_CHUNKS = {
-        R.raw.ai_theme_1, R.raw.ai_theme_2, R.raw.ai_theme_3,
-        R.raw.ai_theme_4, R.raw.ai_theme_5, R.raw.ai_theme_6
+    private static final int[] FRAMES = {
+            0, R.drawable.theme_01, R.drawable.theme_02, R.drawable.theme_03,
+            R.drawable.theme_04, R.drawable.theme_05, R.drawable.theme_06,
+            R.drawable.theme_07, R.drawable.theme_08, R.drawable.theme_09,
+            R.drawable.theme_10
     };
 
-    private static Bitmap classicFrameSheet;
+    private static final int[] AI_THEME_CHUNKS = {
+            R.raw.ai_theme_1, R.raw.ai_theme_2, R.raw.ai_theme_3,
+            R.raw.ai_theme_4, R.raw.ai_theme_5, R.raw.ai_theme_6
+    };
+
     private static Bitmap aiThemeSheet;
 
     @Override
@@ -45,10 +49,7 @@ public class ClementimeWidgetProvider extends AppWidgetProvider {
         super.onReceive(context, intent);
         if (!ACTION_REVEAL_GEAR.equals(intent.getAction())) return;
 
-        final int appWidgetId = intent.getIntExtra(
-                AppWidgetManager.EXTRA_APPWIDGET_ID,
-                AppWidgetManager.INVALID_APPWIDGET_ID
-        );
+        final int appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return;
 
         final Context appContext = context.getApplicationContext();
@@ -62,16 +63,14 @@ public class ClementimeWidgetProvider extends AppWidgetProvider {
         }
 
         render(appContext, manager, appWidgetId, true);
-
         final PendingResult pendingResult = goAsync();
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
+            @Override public void run() {
                 try {
                     boolean shouldHide = false;
                     synchronized (GEAR_GENERATIONS) {
-                        Integer latestGeneration = GEAR_GENERATIONS.get(appWidgetId);
-                        if (latestGeneration != null && latestGeneration == generation) {
+                        Integer latest = GEAR_GENERATIONS.get(appWidgetId);
+                        if (latest != null && latest == generation) {
                             GEAR_GENERATIONS.remove(appWidgetId);
                             shouldHide = true;
                         }
@@ -84,8 +83,7 @@ public class ClementimeWidgetProvider extends AppWidgetProvider {
         }, GEAR_VISIBLE_MS);
     }
 
-    @Override
-    public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
+    @Override public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
         for (int id : appWidgetIds) render(context, manager, id, false);
     }
 
@@ -96,24 +94,17 @@ public class ClementimeWidgetProvider extends AppWidgetProvider {
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_clock);
         if (theme == 0) {
-            views.setInt(R.id.theme_frame, "setImageAlpha", 255);
             views.setViewVisibility(R.id.theme_frame, View.GONE);
         } else if (theme <= 10) {
-            Bitmap classicFrame = getClassicFrame(context, theme - 1);
-            if (classicFrame != null) {
-                views.setImageViewBitmap(R.id.theme_frame, classicFrame);
-                views.setInt(R.id.theme_frame, "setImageAlpha", 255);
-                views.setViewVisibility(R.id.theme_frame, View.VISIBLE);
-            } else {
-                views.setViewVisibility(R.id.theme_frame, View.GONE);
-            }
+            views.setImageViewResource(R.id.theme_frame, FRAMES[theme]);
+            views.setInt(R.id.theme_frame, "setImageAlpha", 255);
+            views.setViewVisibility(R.id.theme_frame, View.VISIBLE);
         } else {
             Bitmap aiTheme = getAiTheme(context, theme - 11);
             if (aiTheme != null) {
                 int opacity = getImageOpacity(context, appWidgetId);
-                int alpha = Math.round(255f * opacity / 100f);
                 views.setImageViewBitmap(R.id.theme_frame, aiTheme);
-                views.setInt(R.id.theme_frame, "setImageAlpha", alpha);
+                views.setInt(R.id.theme_frame, "setImageAlpha", Math.round(255f * opacity / 100f));
                 views.setViewVisibility(R.id.theme_frame, View.VISIBLE);
             } else {
                 views.setViewVisibility(R.id.theme_frame, View.GONE);
@@ -125,36 +116,14 @@ public class ClementimeWidgetProvider extends AppWidgetProvider {
         Intent reveal = new Intent(context, ClementimeWidgetProvider.class);
         reveal.setAction(ACTION_REVEAL_GEAR);
         reveal.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
-        views.setOnClickPendingIntent(R.id.widget_root,
-                pendingBroadcast(context, 200000 + appWidgetId, reveal));
+        views.setOnClickPendingIntent(R.id.widget_root, pendingBroadcast(context, 200000 + appWidgetId, reveal));
 
         if (showGear) {
             Intent settings = new Intent(context, ThemeConfigActivity.class);
             settings.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
-            views.setOnClickPendingIntent(R.id.settings_gear,
-                    pendingActivity(context, 100000 + appWidgetId, settings));
+            views.setOnClickPendingIntent(R.id.settings_gear, pendingActivity(context, 100000 + appWidgetId, settings));
         }
-
         manager.updateAppWidget(appWidgetId, views);
-    }
-
-    private static Bitmap getClassicFrame(Context context, int index) {
-        Bitmap sheet = getClassicFrameSheet(context);
-        if (sheet == null || index < 0 || index > 9) return null;
-        int tileWidth = sheet.getWidth() / 2;
-        int tileHeight = sheet.getHeight() / 5;
-        int column = index % 2;
-        int row = index / 2;
-        return Bitmap.createBitmap(sheet, column * tileWidth, row * tileHeight,
-                tileWidth, tileHeight);
-    }
-
-    private static synchronized Bitmap getClassicFrameSheet(Context context) {
-        if (classicFrameSheet != null) return classicFrameSheet;
-        classicFrameSheet = BitmapFactory.decodeResource(
-                context.getResources(), R.drawable.classic_frame_sheet
-        );
-        return classicFrameSheet;
     }
 
     private static Bitmap getAiTheme(Context context, int index) {
@@ -162,23 +131,15 @@ public class ClementimeWidgetProvider extends AppWidgetProvider {
         if (sheet == null || index < 0 || index > 9) return null;
         int tileWidth = sheet.getWidth() / 2;
         int tileHeight = sheet.getHeight() / 5;
-        int column = index % 2;
-        int row = index / 2;
-        return Bitmap.createBitmap(sheet, column * tileWidth, row * tileHeight,
-                tileWidth, tileHeight);
+        return Bitmap.createBitmap(sheet, (index % 2) * tileWidth, (index / 2) * tileHeight, tileWidth, tileHeight);
     }
 
     private static synchronized Bitmap getAiThemeSheet(Context context) {
         if (aiThemeSheet != null) return aiThemeSheet;
-        aiThemeSheet = decodeBase64Bitmap(context, AI_THEME_CHUNKS);
-        return aiThemeSheet;
-    }
-
-    private static Bitmap decodeBase64Bitmap(Context context, int[] chunks) {
         StringBuilder encoded = new StringBuilder();
         byte[] buffer = new byte[4096];
         try {
-            for (int rawId : chunks) {
+            for (int rawId : AI_THEME_CHUNKS) {
                 InputStream input = context.getResources().openRawResource(rawId);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 int count;
@@ -187,53 +148,41 @@ public class ClementimeWidgetProvider extends AppWidgetProvider {
                 encoded.append(out.toString("UTF-8"));
             }
             byte[] image = Base64.decode(encoded.toString(), Base64.DEFAULT);
-            return BitmapFactory.decodeByteArray(image, 0, image.length);
+            aiThemeSheet = BitmapFactory.decodeByteArray(image, 0, image.length);
         } catch (IOException | IllegalArgumentException ignored) {
-            return null;
+            aiThemeSheet = null;
         }
+        return aiThemeSheet;
     }
 
     static int getImageOpacity(Context context, int appWidgetId) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        int defaultOpacity = clampOpacity(
-                prefs.getInt("default_image_opacity", DEFAULT_IMAGE_OPACITY)
-        );
+        int defaultOpacity = clampOpacity(prefs.getInt("default_image_opacity", DEFAULT_IMAGE_OPACITY));
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return defaultOpacity;
         return clampOpacity(prefs.getInt("opacity_" + appWidgetId, defaultOpacity));
     }
 
-    static void setImageOpacity(
-            Context context,
-            AppWidgetManager manager,
-            int appWidgetId,
-            int opacity
-    ) {
+    static void setImageOpacity(Context context, AppWidgetManager manager, int appWidgetId, int opacity) {
         opacity = clampOpacity(opacity);
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putInt("opacity_" + appWidgetId, opacity).apply();
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("opacity_" + appWidgetId, opacity).apply();
         render(context, manager, appWidgetId, false);
     }
 
     static void setDefaultImageOpacity(Context context, int opacity) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putInt("default_image_opacity", clampOpacity(opacity)).apply();
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("default_image_opacity", clampOpacity(opacity)).apply();
     }
 
-    private static int clampOpacity(int opacity) {
-        return Math.max(0, Math.min(100, opacity));
-    }
+    private static int clampOpacity(int opacity) { return Math.max(0, Math.min(100, opacity)); }
 
     static void setTheme(Context context, AppWidgetManager manager, int appWidgetId, int theme) {
         if (theme < 0 || theme > MAX_THEME) theme = 0;
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putInt("theme_" + appWidgetId, theme).apply();
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("theme_" + appWidgetId, theme).apply();
         render(context, manager, appWidgetId, false);
     }
 
     static void setDefaultTheme(Context context, int theme) {
         if (theme < 0 || theme > MAX_THEME) theme = 0;
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putInt("default_theme", theme).apply();
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("default_theme", theme).apply();
     }
 
     private static PendingIntent pendingActivity(Context context, int requestCode, Intent intent) {

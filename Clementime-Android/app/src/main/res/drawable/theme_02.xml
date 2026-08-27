@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape android:shape="rectangle"><corners android:radius="12dp"/><solid android:color="#4000E5FF"/><stroke android:width="2dp" android:color="#00E5FF"/></shape></item>
-    <item android:left="5dp" android:top="5dp" android:right="5dp" android:bottom="5dp"><shape android:shape="rectangle"><corners android:radius="7dp"/><solid android:color="#00000000"/><stroke android:width="1dp" android:color="#00E5FF"/></shape></item>
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="640dp" android:height="180dp" android:viewportWidth="640" android:viewportHeight="180">
+<path android:fillColor="@android:color/transparent" android:strokeColor="#5FE6FF" android:strokeWidth="4" android:pathData="M18,52 V18 H90 M550,18 H622 V52 M18,128 V162 H90 M550,162 H622 V128"/>
+<path android:fillColor="@android:color/transparent" android:strokeColor="#5FE6FF" android:strokeWidth="5" android:pathData="M18,36 H30 M42,18 V30 M610,18 V30 M622,36 H610 M18,144 H30 M42,162 V150 M610,162 V150 M622,144 H610"/>
+<path android:fillColor="#5FE6FF" android:pathData="M80,10 h6 v6 h-6 z M110,10 h4 v4 h-4 z M140,10 h6 v6 h-6 z M170,10 h4 v4 h-4 z M470,10 h6 v6 h-6 z M500,10 h4 v4 h-4 z M530,10 h6 v6 h-6 z M560,10 h4 v4 h-4 z M80,164 h6 v6 h-6 z M110,166 h4 v4 h-4 z M140,164 h6 v6 h-6 z M170,166 h4 v4 h-4 z M470,164 h6 v6 h-6 z M500,166 h4 v4 h-4 z M530,164 h6 v6 h-6 z M560,166 h4 v4 h-4 z"/>
+</vector>

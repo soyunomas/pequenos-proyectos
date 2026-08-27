@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape android:shape="rectangle"><corners android:radius="10dp"/><solid android:color="#12000000"/><stroke android:width="1dp" android:color="#FFFFFF"/></shape></item>
-    <item android:left="5dp" android:top="5dp" android:right="5dp" android:bottom="5dp"><shape android:shape="rectangle"><corners android:radius="5dp"/><solid android:color="#00000000"/><stroke android:width="1dp" android:color="#FFFFFF"/></shape></item>
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="640dp" android:height="180dp" android:viewportWidth="640" android:viewportHeight="180">
+<path android:fillColor="@android:color/transparent" android:strokeColor="#F2C875" android:strokeWidth="3" android:pathData="M12,12 H628 V168 H12 Z M18,18 L74,18 M18,18 L18,74 M18,18 L62,62 M622,18 L566,18 M622,18 L622,74 M622,18 L578,62 M18,162 L74,162 M18,162 L18,106 M18,162 L62,118 M622,162 L566,162 M622,162 L622,106 M622,162 L578,118 M40,18 L40,56 M58,18 L58,74 M600,18 L600,56 M582,18 L582,74 M40,162 L40,124 M58,162 L58,106 M600,162 L600,124 M582,162 L582,106 M298,12 L320,24 L342,12 M298,168 L320,156 L342,168"/>
+</vector>

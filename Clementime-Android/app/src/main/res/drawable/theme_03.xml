@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape android:shape="rectangle"><corners android:radius="16dp"/><solid android:color="#301A1400"/><stroke android:width="2dp" android:color="#D4AF37"/></shape></item>
-    <item android:left="5dp" android:top="5dp" android:right="5dp" android:bottom="5dp"><shape android:shape="rectangle"><corners android:radius="11dp"/><solid android:color="#00000000"/><stroke android:width="1dp" android:color="#D4AF37"/></shape></item>
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="640dp" android:height="180dp" android:viewportWidth="640" android:viewportHeight="180">
+<path android:fillColor="@android:color/transparent" android:strokeColor="#48FF9A" android:strokeWidth="4" android:pathData="M8,34 H78 V18 H168 V44 M8,76 H110 V56 H205 V28 M8,140 H62 V112 H156 V150 M632,38 H545 V18 H455 V50 M632,90 H520 V68 H418 V38 M632,142 H552 V118 H462 V152"/>
+<path android:fillColor="#48FF9A" android:pathData="M73,29 h10 v10 h-10 z M163,13 h10 v10 h-10 z M105,71 h10 v10 h-10 z M200,51 h10 v10 h-10 z M57,135 h10 v10 h-10 z M151,107 h10 v10 h-10 z M540,33 h10 v10 h-10 z M450,13 h10 v10 h-10 z M515,85 h10 v10 h-10 z M413,63 h10 v10 h-10 z M547,137 h10 v10 h-10 z M457,113 h10 v10 h-10 z"/>
+</vector>
