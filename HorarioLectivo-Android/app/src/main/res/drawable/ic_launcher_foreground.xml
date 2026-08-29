@@ -1,4 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/icon_calendar_foreground"
-    android:gravity="fill" />
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Calendar body -->
+    <path
+        android:fillColor="#FFF8FA"
+        android:pathData="M18,28 L79,28 L79,82 L18,82 Z" />
+    <path
+        android:fillColor="#16284E"
+        android:pathData="M18,28 L79,28 L79,40 L18,40 Z" />
+
+    <!-- Calendar binding dots -->
+    <path android:fillColor="#8EA6D9" android:pathData="M28,32 m-2.5,0 a2.5,2.5 0,1 0,5 0 a2.5,2.5 0,1 0,-5 0" />
+    <path android:fillColor="#8EA6D9" android:pathData="M40,32 m-2.5,0 a2.5,2.5 0,1 0,5 0 a2.5,2.5 0,1 0,-5 0" />
+    <path android:fillColor="#FF4B5C" android:pathData="M52,32 m-2.8,0 a2.8,2.8 0,1 0,5.6 0 a2.8,2.8 0,1 0,-5.6 0" />
+    <path android:fillColor="#8EA6D9" android:pathData="M64,32 m-2.5,0 a2.5,2.5 0,1 0,5 0 a2.5,2.5 0,1 0,-5 0" />
+
+    <!-- Timetable cells -->
+    <path android:fillColor="#6FA8F7" android:pathData="M28,46 L42,46 L42,54 L28,54 Z" />
+    <path android:fillColor="#6FD2C4" android:pathData="M47,46 L61,46 L61,54 L47,54 Z" />
+    <path android:fillColor="#DCE3EF" android:pathData="M66,46 L75,46 L75,54 L66,54 Z" />
+    <path android:fillColor="#F8BF5E" android:pathData="M28,58 L42,58 L42,66 L28,66 Z" />
+    <path android:fillColor="#FF4B5C" android:pathData="M47,58 L61,58 L61,66 L47,66 Z" />
+    <path android:fillColor="#79B1ED" android:pathData="M66,58 L75,58 L75,66 L66,66 Z" />
+    <path android:fillColor="#6FD2C4" android:pathData="M28,70 L42,70 L42,77 L28,77 Z" />
+    <path android:fillColor="#B38BE9" android:pathData="M47,70 L61,70 L61,77 L47,77 Z" />
+
+    <!-- Clock bezel -->
+    <path
+        android:fillColor="#16284E"
+        android:pathData="M70,57 m-20,0 a20,20 0,1 0,40 0 a20,20 0,1 0,-40 0" />
+    <path
+        android:fillColor="#F8FAFF"
+        android:pathData="M70,57 m-16,0 a16,16 0,1 0,32 0 a16,16 0,1 0,-32 0" />
+
+    <!-- Clock hands -->
+    <path android:strokeColor="#16284E" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M70,57 L62,50" />
+    <path android:strokeColor="#16284E" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M70,57 L78,48" />
+    <path android:strokeColor="#FF3B4D" android:strokeWidth="1.8" android:strokeLineCap="round" android:pathData="M70,57 L65,68" />
+    <path android:fillColor="#FF3B4D" android:pathData="M70,57 m-2.5,0 a2.5,2.5 0,1 0,5 0 a2.5,2.5 0,1 0,-5 0" />
+</vector>
