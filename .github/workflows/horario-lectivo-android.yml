@@ -1,0 +1,54 @@
+name: Build Horario Lectivo APK
+
+on:
+  pull_request:
+    paths:
+      - 'HorarioLectivo-Android/**'
+      - '.github/workflows/horario-lectivo-android.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'HorarioLectivo-Android/**'
+      - '.github/workflows/horario-lectivo-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Unit tests, lint and APK
+        working-directory: HorarioLectivo-Android
+        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - name: Verify APK manifest
+        run: $ANDROID_HOME/build-tools/36.0.0/aapt dump badging HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/apk-badging.txt
+      - name: Upload tested APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HorarioLectivo-v1.0-debug
+          path: HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK in repository
+        if: github.event_name == 'push'
+        run: |
+          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.0.apk
+          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.0.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add HorarioLectivo-Android/HorarioLectivo_v1.0.apk HorarioLectivo-Android/APK_SHA256.txt
+          git diff --cached --quiet && exit 0
+          git commit -m 'build: publish Horario Lectivo v1.0 APK [skip ci]'
+          git push
