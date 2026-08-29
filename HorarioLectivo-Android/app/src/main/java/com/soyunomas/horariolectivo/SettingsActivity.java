@@ -37,7 +37,7 @@ public final class SettingsActivity extends Activity {
   private LinearLayout row(){LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);return r;}
   private LinearLayout card(){LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(8),dp(6),dp(8),dp(6));c.setBackground(box(Color.WHITE,Color.rgb(203,213,225),1,10));return c;}
   private Button button(String s){Button b=new Button(this);b.setText(s);return b;}
-  private TextView text(String s,int sp,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(sp);t.setTextColor(Color.rgb(15,23,42));if(bold)t.setTypeface(t.getTypeface(),1);return t;}
+  private TextView text(String s,int sp,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(sp);t.setTextColor(Color.rgb(15,23,42));if(bold)t.setTypeface(t.getTypeface(),android.graphics.Typeface.BOLD);return t;}
   private TextView cell(String s,boolean bold){TextView t=text(s,12,bold);t.setGravity(Gravity.CENTER);t.setBackground(box(Color.WHITE,Color.rgb(203,213,225),1,0));return t;}
   private void add(GridLayout g,View v,int w,int h,int span){GridLayout.LayoutParams p=new GridLayout.LayoutParams();p.width=dp(w);p.height=dp(h);if(span>1)p.columnSpec=GridLayout.spec(1,span);p.setMargins(1,1,1,1);g.addView(v,p);}
   private GradientDrawable box(int fill,int stroke,int sw,int rad){GradientDrawable g=new GradientDrawable();g.setColor(fill);g.setStroke(dp(sw),stroke);g.setCornerRadius(dp(rad));return g;}
