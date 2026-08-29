@@ -39,16 +39,16 @@ jobs:
       - name: Upload tested APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HorarioLectivo-v1.2-debug
+          name: HorarioLectivo-v1.3-debug
           path: HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish APK in repository
         if: github.event_name == 'push'
         run: |
-          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.2.apk
-          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.2.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
+          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.3.apk
+          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.3.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add HorarioLectivo-Android/HorarioLectivo_v1.2.apk HorarioLectivo-Android/APK_SHA256.txt
+          git add HorarioLectivo-Android/HorarioLectivo_v1.3.apk HorarioLectivo-Android/APK_SHA256.txt
           git diff --cached --quiet && exit 0
-          git commit -m 'build: publish Horario Lectivo v1.2 APK [skip ci]'
+          git commit -m 'build: publish Horario Lectivo v1.3 APK [skip ci]'
           git push
