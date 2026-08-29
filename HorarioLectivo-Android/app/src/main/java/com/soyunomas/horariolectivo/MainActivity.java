@@ -31,7 +31,7 @@ public final class MainActivity extends Activity {
   private String inline(Slot s){return String.format(Locale.US,"%02d:%02d–%02d:%02d",s.start.getHour(),s.start.getMinute(),s.end.getHour(),s.end.getMinute());}
   private TextView cell(String v,boolean bold,boolean hi,boolean current){TextView x=t(v,12,bold);x.setGravity(Gravity.CENTER);x.setPadding(dp(2),dp(2),dp(2),dp(2));x.setBackground(box(hi?(current?Color.rgb(255,241,242):Color.rgb(255,247,247)):Color.WHITE,hi?RED:BORDER,hi?2:1,0));return x;}
   private void add(GridLayout g,View v,int w,int h,int span){GridLayout.LayoutParams p=new GridLayout.LayoutParams();p.width=dp(w);p.height=dp(h);if(span>1)p.columnSpec=GridLayout.spec(1,span);p.setMargins(1,1,1,1);g.addView(v,p);}
-  private TextView t(String v,int sp,boolean bold){TextView x=new TextView(this);x.setText(v);x.setTextSize(sp);x.setTextColor(Color.rgb(15,23,42));if(bold)x.setTypeface(x.getTypeface(),1);return x;}
+  private TextView t(String v,int sp,boolean bold){TextView x=new TextView(this);x.setText(v);x.setTextSize(sp);x.setTextColor(Color.rgb(15,23,42));if(bold)x.setTypeface(x.getTypeface(),android.graphics.Typeface.BOLD);return x;}
   private GradientDrawable box(int fill,int stroke,int sw,int rad){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setStroke(dp(sw),stroke);d.setCornerRadius(dp(rad));return d;}
   private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
 }
