@@ -15,7 +15,7 @@ Aplicación + widget de pantalla de inicio para consultar el horario lectivo de 
 - Primera columna con hora de inicio y fin.
 - Recuadro rojo para la franja actual y la siguiente del día actual.
 - Widget con **AHORA** y **SIGUIENTE**; al pulsarlo abre la semana completa.
-- Icono de aplicación basado en el diseño de calendario y reloj suministrado para Horario Lectivo.
+- Icono de aplicación y del proveedor del widget basado directamente en el diseño de calendario y reloj suministrado.
 
 ## Compatibilidad
 
@@ -31,4 +31,4 @@ GitHub Actions ejecuta, en este orden:
 3. `assembleDebug`
 4. Verificación del APK con `aapt dump badging`
 
-El APK generado en `main` se publica como `HorarioLectivo_v1.3.apk` junto a su SHA-256.
+El APK generado en `main` se publica como `HorarioLectivo_v1.4.apk` junto a su SHA-256.
