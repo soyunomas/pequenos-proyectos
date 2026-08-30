@@ -19,7 +19,7 @@ public final class SettingsActivity extends Activity {
 
   private void render(){
     th=new AppTheme(repo.isDarkMode());getWindow().setStatusBarColor(th.page);getWindow().getDecorView().setSystemUiVisibility(th.dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-    ScrollView sv=new ScrollView(this);sv.setBackgroundColor(th.page);root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(10),dp(14),dp(24));root.setBackgroundColor(th.page);sv.addView(root);setContentView(sv);
+    ScrollView sv=new ScrollView(this);sv.setBackgroundColor(th.page);root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(10),dp(14),dp(96));root.setBackgroundColor(th.page);sv.addView(root);setContentView(sv);
     LinearLayout top=row();TextView title=text("Configurar horario",24,true);top.addView(title,new LinearLayout.LayoutParams(0,-2,1));Button save=button("Guardar");save.setOnClickListener(v->save());top.addView(save);root.addView(top);
     section("Apariencia","Elige el fondo de la aplicación.");Switch dark=new Switch(this);dark.setText("Modo oscuro");dark.setTextColor(th.ink);dark.setChecked(repo.isDarkMode());dark.setOnCheckedChangeListener((b,on)->{repo.setDarkMode(on);render();});LinearLayout dc=card();dc.addView(dark);root.addView(dc);
     section("1 · Turnos","Las horas se calculan automáticamente.");value("Duración de sesión",d.sessionMinutes+" min",v->number("Duración",10,180,d.sessionMinutes,n->{d.sessionMinutes=n;render();}));shift(d.morning);shift(d.afternoon);
