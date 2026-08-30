@@ -1,32 +1,18 @@
 package com.soyunomas.horariolectivo;
 
 import android.graphics.Color;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import static com.soyunomas.horariolectivo.ScheduleModels.*;
 
 final class AppTheme {
     final boolean dark;
     final int page, surface, surfaceAlt, border, ink, muted, shift, breakBg, breakBorder, buttonBg, buttonText;
     final int primary, primaryText, primarySoft, primarySoftText, danger, dangerSoft;
 
-    private static final int[][] SUBJECT_LIGHT = {
-        {219,234,254},{207,250,254},{204,251,241},{220,252,231},
-        {236,252,203},{254,243,199},{255,237,213},{255,228,230},
-        {252,231,243},{243,232,255},{237,233,254},{224,231,255}
-    };
-    private static final int[][] SUBJECT_LIGHT_TEXT = {
-        {30,58,138},{21,94,117},{17,94,89},{22,101,52},
-        {63,98,18},{146,64,14},{154,52,18},{159,18,57},
-        {157,23,77},{107,33,168},{91,33,182},{55,48,163}
-    };
-    private static final int[][] SUBJECT_DARK = {
-        {30,58,95},{22,78,99},{19,78,74},{20,83,45},
-        {54,83,20},{120,72,15},{124,45,18},{136,19,55},
-        {131,24,67},{88,28,135},{76,29,149},{49,46,129}
-    };
-    private static final int[][] SUBJECT_DARK_TEXT = {
-        {219,234,254},{207,250,254},{204,251,241},{220,252,231},
-        {236,252,203},{254,243,199},{255,237,213},{255,228,230},
-        {252,231,243},{243,232,255},{237,233,254},{224,231,255}
-    };
+    private static final int SUBJECT_SLOTS = 48;
+    private final Map<String,Integer> subjectSlots = new HashMap<>();
 
     AppTheme(boolean dark) {
         this.dark = dark;
@@ -69,19 +55,57 @@ final class AppTheme {
         }
     }
 
+    void bindSubjects(List<Subject> subjects) {
+        subjectSlots.clear();
+        boolean[] used = new boolean[SUBJECT_SLOTS];
+        if (subjects == null) return;
+        for (Subject subject : subjects) {
+            if (subject == null || subject.code == null || subjectSlots.containsKey(subject.code)) continue;
+            int hash = subject.code.hashCode();
+            int start = Math.floorMod(hash, SUBJECT_SLOTS);
+            int step = Math.floorMod((hash >>> 8) | 1, SUBJECT_SLOTS);
+            if ((step & 1) == 0) step++;
+            int slot = start;
+            boolean found = false;
+            for (int i = 0; i < SUBJECT_SLOTS; i++) {
+                slot = Math.floorMod(start + i * step, SUBJECT_SLOTS);
+                if (!used[slot]) { found = true; break; }
+            }
+            if (!found) slot = Math.floorMod(subjectSlots.size(), SUBJECT_SLOTS);
+            used[slot] = true;
+            subjectSlots.put(subject.code, slot);
+        }
+    }
+
     int subjectColor(String code) {
-        int index = subjectIndex(code);
-        int[] c = dark ? SUBJECT_DARK[index] : SUBJECT_LIGHT[index];
-        return Color.rgb(c[0], c[1], c[2]);
+        int slot = subjectSlot(code);
+        float hue = (slot * 137.508f) % 360f;
+        float saturation = dark ? 0.64f : 0.42f;
+        float value = dark ? 0.43f : 0.96f;
+        return Color.HSVToColor(new float[]{hue, saturation, value});
     }
 
     int subjectTextColor(String code) {
-        int index = subjectIndex(code);
-        int[] c = dark ? SUBJECT_DARK_TEXT[index] : SUBJECT_LIGHT_TEXT[index];
-        return Color.rgb(c[0], c[1], c[2]);
+        int bg = subjectColor(code);
+        double luminance = relativeLuminance(bg);
+        return luminance > 0.46 ? Color.rgb(24,28,38) : Color.WHITE;
     }
 
-    private int subjectIndex(String code) {
-        return Math.floorMod((code == null ? "" : code).hashCode(), SUBJECT_LIGHT.length);
+    private int subjectSlot(String code) {
+        if (code == null) return 0;
+        Integer assigned = subjectSlots.get(code);
+        if (assigned != null) return assigned;
+        return Math.floorMod(code.hashCode(), SUBJECT_SLOTS);
+    }
+
+    private static double relativeLuminance(int color) {
+        double r = channel(Color.red(color) / 255.0);
+        double g = channel(Color.green(color) / 255.0);
+        double b = channel(Color.blue(color) / 255.0);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    private static double channel(double c) {
+        return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     }
 }
