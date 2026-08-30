@@ -13,6 +13,7 @@ final class AppTheme {
 
     private static final int SUBJECT_SLOTS = 48;
     private final Map<String,Integer> subjectSlots = new HashMap<>();
+    private final boolean[] usedSubjectSlots = new boolean[SUBJECT_SLOTS];
 
     AppTheme(boolean dark) {
         this.dark = dark;
@@ -57,23 +58,10 @@ final class AppTheme {
 
     void bindSubjects(List<Subject> subjects) {
         subjectSlots.clear();
-        boolean[] used = new boolean[SUBJECT_SLOTS];
+        for (int i = 0; i < usedSubjectSlots.length; i++) usedSubjectSlots[i] = false;
         if (subjects == null) return;
         for (Subject subject : subjects) {
-            if (subject == null || subject.code == null || subjectSlots.containsKey(subject.code)) continue;
-            int hash = subject.code.hashCode();
-            int start = Math.floorMod(hash, SUBJECT_SLOTS);
-            int step = Math.floorMod((hash >>> 8) | 1, SUBJECT_SLOTS);
-            if ((step & 1) == 0) step++;
-            int slot = start;
-            boolean found = false;
-            for (int i = 0; i < SUBJECT_SLOTS; i++) {
-                slot = Math.floorMod(start + i * step, SUBJECT_SLOTS);
-                if (!used[slot]) { found = true; break; }
-            }
-            if (!found) slot = Math.floorMod(subjectSlots.size(), SUBJECT_SLOTS);
-            used[slot] = true;
-            subjectSlots.put(subject.code, slot);
+            if (subject != null && subject.code != null) subjectSlot(subject.code);
         }
     }
 
@@ -92,10 +80,28 @@ final class AppTheme {
     }
 
     private int subjectSlot(String code) {
-        if (code == null) return 0;
-        Integer assigned = subjectSlots.get(code);
+        String key = code == null ? "" : code;
+        Integer assigned = subjectSlots.get(key);
         if (assigned != null) return assigned;
-        return Math.floorMod(code.hashCode(), SUBJECT_SLOTS);
+
+        int hash = key.hashCode();
+        int start = Math.floorMod(hash, SUBJECT_SLOTS);
+        int step = Math.floorMod((hash >>> 8) | 1, SUBJECT_SLOTS);
+        if ((step & 1) == 0) step++;
+        int slot = start;
+        for (int i = 0; i < SUBJECT_SLOTS; i++) {
+            slot = Math.floorMod(start + i * step, SUBJECT_SLOTS);
+            if (!usedSubjectSlots[slot]) {
+                usedSubjectSlots[slot] = true;
+                subjectSlots.put(key, slot);
+                return slot;
+            }
+        }
+
+        // Solo se alcanza con más de 48 asignaturas simultáneas.
+        slot = Math.floorMod(subjectSlots.size(), SUBJECT_SLOTS);
+        subjectSlots.put(key, slot);
+        return slot;
     }
 
     private static double relativeLuminance(int color) {
