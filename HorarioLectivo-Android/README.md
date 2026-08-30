@@ -18,7 +18,10 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 - Copiar un día completo a otro día o a todos los días.
 - Primera columna con hora de inicio y fin.
 - Recuadro rojo para la franja actual y la siguiente del día actual.
-- Widget con **AHORA** y **SIGUIENTE**; al pulsarlo abre la semana completa.
+- Widget predeterminado **4×2** con la clase **AHORA** y la **SIGUIENTE**.
+- La siguiente clase muestra su hora de comienzo y una cuenta atrás en tiempo real hasta que empieza.
+- Si se redimensiona a **4×1**, el widget cambia automáticamente a una vista compacta en dos columnas conservando la misma información.
+- Al pulsar el widget se abre la semana completa.
 - Icono personalizado de calendario y reloj para la aplicación y el proveedor del widget.
 - Espacio inferior adicional en la pantalla de configuración para evitar que la última fila del horario quede tapada por la barra de navegación de Android.
 
@@ -29,7 +32,7 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 
 ## Descargar
 
-- **APK actual:** [HorarioLectivo_v1.6.apk](./HorarioLectivo_v1.6.apk)
+- **APK actual:** [HorarioLectivo_v1.7.apk](./HorarioLectivo_v1.7.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
 
 ## Pruebas y build
@@ -39,6 +42,6 @@ GitHub Actions ejecuta, en este orden:
 1. `testDebugUnitTest`
 2. `lintDebug`
 3. `assembleDebug`
-4. Verificación de los recursos del launcher y del manifiesto del APK.
+4. Verificación del widget adaptable, recursos y manifiesto del APK.
 
-El APK generado en `main` se publica como `HorarioLectivo_v1.6.apk` junto a su SHA-256.
+El APK generado en `main` se publica como `HorarioLectivo_v1.7.apk` junto a su SHA-256.
