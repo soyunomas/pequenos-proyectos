@@ -20,6 +20,15 @@ Incluye APK instalable, código fuente reproducible y documentación de los camb
 *   **APK:** [FluxFiles-v1.0.0.apk](./FluxFiles-Android/FluxFiles-v1.0.0.apk)
 *   **Fuente y documentación:** [FluxFiles-Android](./FluxFiles-Android/)
 
+### [📅 Horario Lectivo](./HorarioLectivo-Android/)
+**Aplicación Android y widget de pantalla de inicio para consultar y editar un horario lectivo semanal.**
+Permite configurar turnos de mañana y tarde, duración de sesiones, recreos, asignaturas y la distribución semanal. El widget muestra la clase **AHORA** y la **SIGUIENTE**, y abre la vista completa al tocarlo.
+*   **Editor semanal:** asignación rápida por casillas, modo bloque y copia de días completos.
+*   **Diseño:** modo claro/oscuro, resaltado de la franja actual y del siguiente tramo, e icono personalizado de calendario y reloj.
+*   **Compatibilidad:** Android 8.0 (API 26) o superior.
+*   **APK:** [HorarioLectivo_v1.6.apk](./HorarioLectivo-Android/HorarioLectivo_v1.6.apk)
+*   **Fuente y documentación:** [HorarioLectivo-Android](./HorarioLectivo-Android/)
+
 ---
 
 ## 🔌 Proyectos de Hardware y Sistemas
