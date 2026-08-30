@@ -17,7 +17,9 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 - Modo **Bloque**: dos toques rellenan todas las sesiones intermedias del mismo día y turno.
 - Copiar un día completo a otro día o a todos los días.
 - Primera columna con hora de inicio y fin.
-- Recuadro rojo para la franja actual y la siguiente del día actual.
+- Resaltado de la franja actual y la siguiente del día actual.
+- Interfaz renovada con jerarquía visual, tarjetas con más aire, controles tonales y esquinas suaves inspiradas en Material Design 3.
+- Paleta de **12 colores de asignatura** con pares fondo/texto específicos para modo claro y oscuro y contraste alto.
 - Widget solicitado como **4×2** mediante `targetCellWidth=4` y `targetCellHeight=2`.
 - La siguiente clase muestra su hora de comienzo y una cuenta atrás hasta que empieza.
 - Al redimensionar a **4×1**, usa un layout compacto en dos columnas con la misma información.
@@ -33,9 +35,9 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 
 ## Descargar
 
-- **APK actual:** [HorarioLectivo_v1.8.apk](./HorarioLectivo_v1.8.apk)
+- **APK actual:** [HorarioLectivo_v1.9.apk](./HorarioLectivo_v1.9.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
 
 ## Pruebas y build
 
-GitHub Actions ejecuta tests, lint, compilación, validación explícita del tamaño 4×2, validación del layout 4×1 y comprobación del APK.
+GitHub Actions ejecuta tests, lint, compilación, validación del widget, comprobación del sistema de colores y verificación del APK.
