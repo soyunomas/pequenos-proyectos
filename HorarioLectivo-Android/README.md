@@ -18,9 +18,10 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 - Copiar un día completo a otro día o a todos los días.
 - Primera columna con hora de inicio y fin.
 - Recuadro rojo para la franja actual y la siguiente del día actual.
-- Widget predeterminado **4×2** con la clase **AHORA** y la **SIGUIENTE**.
-- La siguiente clase muestra su hora de comienzo y una cuenta atrás en tiempo real hasta que empieza.
-- Si se redimensiona a **4×1**, el widget cambia automáticamente a una vista compacta en dos columnas conservando la misma información.
+- Widget solicitado como **4×2** mediante `targetCellWidth=4` y `targetCellHeight=2`.
+- La siguiente clase muestra su hora de comienzo y una cuenta atrás hasta que empieza.
+- Al redimensionar a **4×1**, usa un layout compacto en dos columnas con la misma información.
+- El contador usa un `Chronometer` real compatible con `RemoteViews`.
 - Al pulsar el widget se abre la semana completa.
 - Icono personalizado de calendario y reloj para la aplicación y el proveedor del widget.
 - Espacio inferior adicional en la pantalla de configuración para evitar que la última fila del horario quede tapada por la barra de navegación de Android.
@@ -32,16 +33,9 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 
 ## Descargar
 
-- **APK actual:** [HorarioLectivo_v1.7.apk](./HorarioLectivo_v1.7.apk)
+- **APK actual:** [HorarioLectivo_v1.8.apk](./HorarioLectivo_v1.8.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
 
 ## Pruebas y build
 
-GitHub Actions ejecuta, en este orden:
-
-1. `testDebugUnitTest`
-2. `lintDebug`
-3. `assembleDebug`
-4. Verificación del widget adaptable, recursos y manifiesto del APK.
-
-El APK generado en `main` se publica como `HorarioLectivo_v1.7.apk` junto a su SHA-256.
+GitHub Actions ejecuta tests, lint, compilación, validación explícita del tamaño 4×2, validación del layout 4×1 y comprobación del APK.

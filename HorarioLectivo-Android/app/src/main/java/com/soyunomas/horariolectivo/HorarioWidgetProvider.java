@@ -37,7 +37,7 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
 
     static void refreshAll(Context c){
         AppWidgetManager m=AppWidgetManager.getInstance(c);
-        int[]ids=m.getAppWidgetIds(new ComponentName(c,HorarioWidgetProvider.class));
+        int[] ids=m.getAppWidgetIds(new ComponentName(c,HorarioWidgetProvider.class));
         for(int id:ids)updateWidget(c,m,id);
         if(ids.length>0)WidgetScheduler.schedule(c);
     }
@@ -46,8 +46,7 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
         Data d=new ScheduleRepository(c).load();
         ZonedDateTime now=ZonedDateTime.now();
         NowNext nn=ScheduleEngine.findNowNext(d,now);
-        Bundle options=m.getAppWidgetOptions(id);
-        boolean compact=isCompact(options);
+        boolean compact=isCompact(m.getAppWidgetOptions(id));
         RemoteViews v=new RemoteViews(c.getPackageName(),compact?R.layout.widget_horario_compact:R.layout.widget_horario);
         DateTimeFormatter f=DateTimeFormatter.ofPattern("EEE d",ES);
         v.setTextViewText(R.id.widget_day,now.format(f).toUpperCase(ES));
@@ -62,6 +61,7 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
         if(options==null)return false;
         int maxH=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT,0);
         int minH=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,0);
+        // En launchers con una fila el alto disponible suele quedar claramente por debajo de 100 dp.
         return (maxH>0&&maxH<100)||(maxH==0&&minH>0&&minH<80);
     }
 
@@ -80,7 +80,6 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(R.id.next_subject,"FIN DEL DÍA");
             v.setTextViewText(R.id.next_time,"");
             v.setViewVisibility(R.id.next_countdown,View.GONE);
-            v.setChronometer(R.id.next_countdown,SystemClock.elapsedRealtime(),null,false);
             return;
         }
         v.setTextViewText(R.id.next_subject,displayCode(r));
