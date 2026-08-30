@@ -13,7 +13,9 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 - Vista completa con resaltado de la franja actual y siguiente.
 - Interfaz con modo claro y oscuro, tarjetas y controles tonales.
 - **Selector de color por asignatura** con una paleta predefinida de 24 colores diseñada para mantener buen contraste en claro y oscuro.
-- La aplicación evita que dos asignaturas usen el mismo color elegido mientras haya colores disponibles.
+- El selector usa un flujo de **seleccionar → Aceptar**; Cancelar conserva el color anterior y los colores ya ocupados aparecen desactivados.
+- La aplicación evita que dos asignaturas usen el mismo color mientras haya colores disponibles.
+- La cuadrícula del horario completo y la cuadrícula de configuración calculan sus columnas según el ancho real de pantalla, se centran cuando caben y solo usan desplazamiento horizontal como respaldo en pantallas estrechas.
 - Las pantallas de configuración y horario completo respetan los **insets de la barra de estado y navegación**, evitando solaparse con hora, batería o botones del sistema.
 - Widget 4×2 redimensionable a 4×1, con clase actual, siguiente, hora de comienzo y cuenta atrás.
 - Icono personalizado de calendario y reloj.
@@ -25,9 +27,9 @@ Aplicación Android con widget de pantalla de inicio para consultar el horario l
 
 ## Descargar
 
-- **APK actual:** [HorarioLectivo_v1.11.apk](./HorarioLectivo_v1.11.apk)
+- **APK actual:** [HorarioLectivo_v1.12.apk](./HorarioLectivo_v1.12.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
 
 ## Pruebas y build
 
-GitHub Actions ejecuta tests, lint, compilación y comprobaciones del selector de colores, persistencia, insets y widget antes de publicar el APK.
+GitHub Actions ejecuta tests, lint, compilación y comprobaciones del selector de colores, cuadrícula adaptable, insets y widget antes de publicar el APK.
