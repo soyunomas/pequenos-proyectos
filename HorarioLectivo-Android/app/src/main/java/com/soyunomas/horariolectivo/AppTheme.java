@@ -34,27 +34,60 @@ final class AppTheme {
     }
 
     void bindSubjects(List<Subject> subjects) {
-        subjectSlots.clear(); for(int i=0;i<used.length;i++)used[i]=false;
-        if(subjects==null)return;
-        for(Subject s:subjects) if(s!=null&&s.code!=null&&s.colorIndex>=0){int p=Math.floorMod(s.colorIndex,PALETTE_SIZE);subjectSlots.put(s.code,p);used[p]=true;}
-        for(Subject s:subjects) if(s!=null&&s.code!=null&&!subjectSlots.containsKey(s.code)){int p=firstFree(s.code);subjectSlots.put(s.code,p);used[p]=true;}
+        subjectSlots.clear();
+        for(int i=0;i<used.length;i++) used[i]=false;
+        if(subjects==null) return;
+        for(Subject s:subjects) {
+            if(s!=null && s.code!=null && s.colorIndex>=0) {
+                int p=Math.floorMod(s.colorIndex,PALETTE_SIZE);
+                if(!used[p]) {
+                    subjectSlots.put(s.code,p);
+                    used[p]=true;
+                }
+            }
+        }
+        for(Subject s:subjects) {
+            if(s!=null && s.code!=null && !subjectSlots.containsKey(s.code)) {
+                int p=firstFree(s.code);
+                subjectSlots.put(s.code,p);
+                used[p]=true;
+            }
+        }
     }
 
-    int subjectColor(String code){return paletteColor(slot(code));}
-    int subjectTextColor(String code){return textFor(paletteColor(slot(code)));}
-    int paletteColor(int index){float hue=HUES[Math.floorMod(index,PALETTE_SIZE)];return Color.HSVToColor(new float[]{hue,dark?0.62f:0.38f,dark?0.45f:0.97f});}
-    int paletteTextColor(int index){return textFor(paletteColor(index));}
-    int paletteSize(){return PALETTE_SIZE;}
+    int subjectColor(String code){ return paletteColor(subjectPaletteIndex(code)); }
+    int subjectTextColor(String code){ return textFor(subjectColor(code)); }
+    int subjectPaletteIndex(String code){ return slot(code); }
+    int paletteColor(int index){ float hue=HUES[Math.floorMod(index,PALETTE_SIZE)]; return Color.HSVToColor(new float[]{hue,dark?0.62f:0.38f,dark?0.45f:0.97f}); }
+    int paletteTextColor(int index){ return textFor(paletteColor(index)); }
+    int paletteSize(){ return PALETTE_SIZE; }
 
-    boolean paletteUsedByOther(List<Subject> subjects,Subject current,int index){
-        if(subjects==null)return false;int p=Math.floorMod(index,PALETTE_SIZE);
-        for(Subject s:subjects)if(s!=null&&s!=current&&s.colorIndex>=0&&Math.floorMod(s.colorIndex,PALETTE_SIZE)==p)return true;
+    boolean paletteUsedByOther(List<Subject> subjects, Subject current, int index){
+        if(subjects==null) return false;
+        int p=Math.floorMod(index,PALETTE_SIZE);
+        for(Subject s:subjects) {
+            if(s!=null && s!=current && s.code!=null && slot(s.code)==p) return true;
+        }
         return false;
     }
 
-    private int slot(String code){Integer p=subjectSlots.get(code==null?"":code);if(p!=null)return p;return firstFree(code==null?"":code);}
-    private int firstFree(String key){int start=Math.floorMod(key.hashCode(),PALETTE_SIZE);for(int i=0;i<PALETTE_SIZE;i++){int p=(start+i)%PALETTE_SIZE;if(!used[p])return p;}return start;}
-    private int textFor(int bg){return relativeLuminance(bg)>0.46?Color.rgb(24,28,38):Color.WHITE;}
-    private static double relativeLuminance(int c){return 0.2126*ch(Color.red(c)/255.0)+0.7152*ch(Color.green(c)/255.0)+0.0722*ch(Color.blue(c)/255.0);}
-    private static double ch(double c){return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
+    private int slot(String code){
+        String key=code==null?"":code;
+        Integer p=subjectSlots.get(key);
+        if(p!=null) return p;
+        return firstFree(key);
+    }
+
+    private int firstFree(String key){
+        int start=Math.floorMod(key.hashCode(),PALETTE_SIZE);
+        for(int i=0;i<PALETTE_SIZE;i++) {
+            int p=(start+i)%PALETTE_SIZE;
+            if(!used[p]) return p;
+        }
+        return start;
+    }
+
+    private int textFor(int bg){ return relativeLuminance(bg)>0.46?Color.rgb(24,28,38):Color.WHITE; }
+    private static double relativeLuminance(int c){ return 0.2126*ch(Color.red(c)/255.0)+0.7152*ch(Color.green(c)/255.0)+0.0722*ch(Color.blue(c)/255.0); }
+    private static double ch(double c){ return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4); }
 }
