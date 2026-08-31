@@ -54,7 +54,9 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
         v.setTextViewText(R.id.widget_day,now.format(f).toUpperCase(ES));
         bindCurrent(v,nn.current,now);
         bindNext(v,nn.next,now);
-        PendingIntent p=PendingIntent.getActivity(c,0,new Intent(c,MainActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Intent open=new Intent(c,MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent p=PendingIntent.getActivity(c,0,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         v.setOnClickPendingIntent(R.id.widget_root,p);
         m.updateAppWidget(id,v);
     }
