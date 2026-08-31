@@ -18,17 +18,18 @@
                 <TextView android:id="@+id/current_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AHORA" android:textColor="#FCA5A5" android:textSize="7sp" android:textStyle="bold" />
                 <TextView android:id="@+id/current_remaining" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="end" android:textColor="#FCA5A5" android:textSize="7sp" android:textStyle="bold" />
             </LinearLayout>
-            <TextView android:id="@+id/current_subject" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" />
-            <TextView android:id="@+id/current_time" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#E2E8F0" android:textSize="8sp" android:maxLines="1" />
+            <TextView android:id="@+id/current_subject" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" />
+            <TextView android:id="@+id/current_time" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#E2E8F0" android:textSize="7sp" android:maxLines="1" />
         </LinearLayout>
 
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="4dp" android:orientation="vertical" android:padding="4dp" android:background="@drawable/widget_highlight">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SIGUIENTE" android:textColor="#FCA5A5" android:textSize="7sp" android:textStyle="bold" />
+                <TextView android:id="@+id/next_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PRÓX. LECTIVA" android:textColor="#FCA5A5" android:textSize="7sp" android:textStyle="bold" />
                 <Chronometer android:id="@+id/next_countdown" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="end" android:textColor="#FCA5A5" android:textSize="7sp" android:textStyle="bold" />
             </LinearLayout>
-            <TextView android:id="@+id/next_subject" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" />
-            <TextView android:id="@+id/next_time" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#E2E8F0" android:textSize="8sp" android:maxLines="1" />
+            <TextView android:id="@+id/next_context" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FBBF24" android:textSize="6sp" android:textStyle="bold" android:maxLines="1" android:visibility="gone" />
+            <TextView android:id="@+id/next_subject" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="10sp" android:textStyle="bold" android:maxLines="1" />
+            <TextView android:id="@+id/next_time" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#E2E8F0" android:textSize="7sp" android:maxLines="1" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
