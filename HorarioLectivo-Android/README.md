@@ -12,7 +12,7 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 - Editor semanal por casillas, modo bloque y copia de días.
 - Modo claro y oscuro con colores diferenciados por asignatura.
 - Paleta cerrada de 24 colores; los colores ya ocupados se desactivan.
-- Cada asignatura se clasifica como **Lectiva** o **Complementaria**.
+- Cada asignatura se clasifica como **L** (lectiva) o **C** (complementaria) en la interfaz de configuración, evitando etiquetas largas.
 - Las asignaturas se pueden **editar después de crearlas**: siglas, nombre, tipo y color. Si cambias las siglas, las casillas ya asignadas se migran automáticamente al nuevo código.
 - Widget **4×2**, redimensionable a **4×1**.
 - En **AHORA**, una lectiva usa borde verde; una complementaria se identifica en ámbar y aparece como `COMPLEMENTARIA`; una franja sin actividad mantiene el estado neutro/rojo.
@@ -24,7 +24,7 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 
 ## 📲 Instalación
 
-1. Descarga **[HorarioLectivo_v1.15.apk](./HorarioLectivo_v1.15.apk)**.
+1. Descarga **[HorarioLectivo_v1.16.apk](./HorarioLectivo_v1.16.apk)**.
 2. Abre el APK desde Android.
 3. Si el sistema lo solicita, autoriza temporalmente la instalación de aplicaciones desconocidas para el navegador o gestor de archivos utilizado.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -43,11 +43,11 @@ Pulsa **+ Añadir asignatura**. El editor presenta tres decisiones separadas par
 
 1. **Siglas**: de 1 a 3 caracteres, por ejemplo `APW`.
 2. **Nombre**: por ejemplo `Aplicaciones Web`.
-3. **Tipo**:
-   - **Lectiva**: clase docente que debe aparecer como próxima clase en el widget.
-   - **Complementaria**: guardia, reunión u otra franja no lectiva.
+3. **Tipo**: selecciona **L** o **C**. La propia pantalla muestra la leyenda `L = lectiva · C = complementaria`.
 
-Después de crearla, pulsa **Editar** en su fila para cambiar siglas, nombre o tipo. El botón coloreado de las siglas abre el selector de color. Los cambios solo se aplican al confirmar; **Cancelar** conserva los valores anteriores.
+**L** corresponde a una clase docente que debe aparecer como próxima clase en el widget. **C** corresponde a una guardia, reunión u otra franja no lectiva.
+
+Después de crearla, pulsa **Editar** en su fila para cambiar siglas, nombre o tipo. En el listado, el tipo se muestra únicamente como **L** o **C**, con descripción de accesibilidad completa. El botón coloreado de las siglas abre el selector de color. Los cambios solo se aplican al confirmar; **Cancelar** conserva los valores anteriores.
 
 ### Rellenar la semana
 
@@ -56,19 +56,6 @@ Selecciona una asignatura en **Asignatura activa** y toca las casillas. Con **Mo
 ### Widget 4×2
 
 El widget prioriza dos preguntas: qué ocurre **AHORA** y cuál es la **SIGUIENTE LECTIVA**. Una complementaria futura no sustituye a la próxima lectiva: aparece como contexto intermedio.
-
-Ejemplo:
-
-```text
-AHORA
-POI                         quedan 38 min
-12:10–13:05
-
-COMPLEMENTARIA ANTES · 13:05–14:00
-SIGUIENTE LECTIVA
-APW                         en 1 h 43 min
-Empieza 14:00
-```
 
 ### Widget 4×1
 
@@ -110,7 +97,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## CI y publicación
 
-GitHub Actions ejecuta tests, lint y compilación, y verifica específicamente la persistencia del tipo Lectiva/Complementaria, la búsqueda de la próxima lectiva, el contexto de complementarias, la edición de siglas/nombre y los layouts 4×2/4×1. Al llegar a `main`, publica el APK versionado en este directorio.
+GitHub Actions ejecuta tests, lint y compilación, y verifica específicamente la clasificación lectiva/complementaria, las abreviaturas **L/C**, la búsqueda de la próxima lectiva, la edición de asignaturas y los layouts del widget. Al llegar a `main`, publica el APK versionado en este directorio.
 
 ## Compatibilidad
 
@@ -120,5 +107,5 @@ GitHub Actions ejecuta tests, lint y compilación, y verifica específicamente l
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.15.apk](./HorarioLectivo_v1.15.apk)
+- **APK actual:** [HorarioLectivo_v1.16.apk](./HorarioLectivo_v1.16.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
