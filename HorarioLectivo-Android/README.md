@@ -25,14 +25,14 @@ Aplicación Android ligera para configurar un horario lectivo semanal y consulta
 - El marco de **AHORA** cambia a **verde únicamente cuando la franja actual tiene una asignatura/módulo asignado**; si está vacía, es recreo o no hay clase, mantiene el estado rojo.
 - En **SIGUIENTE** se muestra la clase siguiente, su hora de comienzo y cuánto falta para que empiece.
 - El widget actualiza el tiempo restante de la clase actual por minutos y también se refresca al cambiar de franja.
-- Al pulsar el widget se abre el horario completo.
+- Al pulsar el widget se abre el horario completo reutilizando la actividad existente, para que **una sola pulsación de Atrás vuelva directamente a la pantalla de inicio**.
 - Icono personalizado de calendario y reloj.
 
 ## 📲 Instalación
 
 ### Opción recomendada: instalar el APK
 
-1. Descarga la versión actual: **[HorarioLectivo_v1.13.apk](./HorarioLectivo_v1.13.apk)**.
+1. Descarga la versión actual: **[HorarioLectivo_v1.14.apk](./HorarioLectivo_v1.14.apk)**.
 2. Abre el APK desde el navegador o el gestor de archivos de Android.
 3. Si Android lo solicita, permite temporalmente **Instalar aplicaciones desconocidas** para la aplicación desde la que abriste el APK.
 4. Confirma la instalación.
@@ -73,7 +73,7 @@ La pantalla principal muestra un resumen de **AHORA** y **SIGUIENTE** y, debajo,
 4. Añádelo a la pantalla de inicio. El tamaño objetivo por defecto es **4×2**.
 5. Si quieres una versión más compacta, redimensiónalo a **4×1**. La información se reorganiza para conservar la clase actual y la siguiente.
 
-En **AHORA** se muestra el módulo actual y, por ejemplo, `quedan 37 min`. El borde pasa a verde solo si esa franja tiene un módulo asignado. En **SIGUIENTE** se muestra la asignatura, la hora a la que comienza y una cuenta atrás hasta su inicio. Tocar el widget abre la aplicación y el horario completo.
+En **AHORA** se muestra el módulo actual y, por ejemplo, `quedan 37 min`. El borde pasa a verde solo si esa franja tiene un módulo asignado. En **SIGUIENTE** se muestra la asignatura, la hora a la que comienza y una cuenta atrás hasta su inicio. Tocar el widget abre la aplicación y el horario completo; al pulsar **Atrás** una vez vuelves directamente al launcher.
 
 ## 🛠️ Compilar desde el código fuente
 
@@ -127,7 +127,7 @@ gradle assembleDebug
 
 ## CI y publicación
 
-El workflow `.github/workflows/horario-lectivo-android.yml` ejecuta automáticamente tests, `lintDebug`, compilación del APK y comprobaciones específicas del widget, incluyendo el contador de minutos de **AHORA**, el estado verde cuando hay módulo asignado y el refresco por minuto. Cuando los cambios llegan a `main`, publica el APK versionado en este directorio.
+El workflow `.github/workflows/horario-lectivo-android.yml` ejecuta automáticamente tests, `lintDebug`, compilación del APK y comprobaciones específicas del widget, incluyendo el contador de minutos de **AHORA**, el estado verde cuando hay módulo asignado y la navegación desde el widget sin duplicar la actividad. Cuando los cambios llegan a `main`, publica el APK versionado en este directorio.
 
 ## Compatibilidad
 
@@ -138,5 +138,5 @@ El workflow `.github/workflows/horario-lectivo-android.yml` ejecuta automáticam
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.13.apk](./HorarioLectivo_v1.13.apk)
+- **APK actual:** [HorarioLectivo_v1.14.apk](./HorarioLectivo_v1.14.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
