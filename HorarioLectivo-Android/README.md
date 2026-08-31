@@ -4,139 +4,121 @@
   <img src="./assets/horario-icon.png" alt="Icono de Horario Lectivo" width="160" />
 </p>
 
-Aplicación Android ligera para configurar un horario lectivo semanal y consultarlo rápidamente desde un widget de la pantalla de inicio. Está pensada para mostrar con claridad la clase actual, la siguiente y el horario completo, con soporte para modo claro y oscuro.
+Aplicación Android para configurar un horario semanal y consultarlo rápidamente desde un widget de pantalla de inicio.
 
 ## ✨ Funciones principales
 
-- Turno de mañana y/o tarde, con hora de inicio y fin configurables.
-- Duración global de las sesiones y recreos configurables.
-- Editor semanal tipo “pintar”: selecciona una asignatura y toca las casillas del horario.
-- Modo **Bloque** para rellenar varias sesiones consecutivas con dos toques.
-- Copia de un día completo a otro día o a toda la semana.
-- Vista completa con la franja actual y la siguiente resaltadas.
-- Cuadrícula adaptable al ancho real de la pantalla; se centra cuando cabe y permite desplazamiento horizontal solo cuando es necesario.
-- Respeto de las barras de estado y navegación de Android mediante `WindowInsets`, evitando solapamientos con hora, batería o botones del sistema.
-- Modo claro y oscuro.
-- **Selector de color por asignatura** con una paleta cerrada de 24 colores predefinidos.
-- Flujo de selección de color **seleccionar → Aceptar**. **Cancelar** conserva el color anterior.
-- Los colores ya utilizados por otras asignaturas aparecen desactivados para evitar duplicados mientras haya colores disponibles.
-- Widget solicitado como **4×2** y redimensionable a **4×1**.
-- En **AHORA** se muestra la clase actual, su franja horaria y los **minutos que quedan** para que termine.
-- El marco de **AHORA** cambia a **verde únicamente cuando la franja actual tiene una asignatura/módulo asignado**; si está vacía, es recreo o no hay clase, mantiene el estado rojo.
-- En **SIGUIENTE** se muestra la clase siguiente, su hora de comienzo y cuánto falta para que empiece.
-- El widget actualiza el tiempo restante de la clase actual por minutos y también se refresca al cambiar de franja.
-- Al pulsar el widget se abre el horario completo reutilizando la actividad existente, para que **una sola pulsación de Atrás vuelva directamente a la pantalla de inicio**.
-- Icono personalizado de calendario y reloj.
+- Turnos de mañana y tarde, duración de sesiones y recreos configurables.
+- Editor semanal por casillas, modo bloque y copia de días.
+- Modo claro y oscuro con colores diferenciados por asignatura.
+- Paleta cerrada de 24 colores; los colores ya ocupados se desactivan.
+- Cada asignatura se clasifica como **Lectiva** o **Complementaria**.
+- Las asignaturas se pueden **editar después de crearlas**: siglas, nombre, tipo y color. Si cambias las siglas, las casillas ya asignadas se migran automáticamente al nuevo código.
+- Widget **4×2**, redimensionable a **4×1**.
+- En **AHORA**, una lectiva usa borde verde; una complementaria se identifica en ámbar y aparece como `COMPLEMENTARIA`; una franja sin actividad mantiene el estado neutro/rojo.
+- En **SIGUIENTE LECTIVA**, el widget busca la próxima clase lectiva real, aunque haya complementarias antes.
+- Si existen complementarias entre la hora actual y la siguiente lectiva, el widget muestra una nota compacta como `COMPLEMENTARIA ANTES · 13:05–14:00`.
+- Si ya no quedan clases lectivas, muestra `NO QUEDAN LECTIVAS HOY`.
+- La clase actual indica los minutos restantes; la próxima lectiva incluye hora de inicio y cuenta atrás.
+- Al tocar el widget se abre el horario completo y una sola pulsación de **Atrás** vuelve al launcher.
 
 ## 📲 Instalación
 
-### Opción recomendada: instalar el APK
+1. Descarga **[HorarioLectivo_v1.15.apk](./HorarioLectivo_v1.15.apk)**.
+2. Abre el APK desde Android.
+3. Si el sistema lo solicita, autoriza temporalmente la instalación de aplicaciones desconocidas para el navegador o gestor de archivos utilizado.
+4. Confirma la instalación y abre **Horario Lectivo**.
 
-1. Descarga la versión actual: **[HorarioLectivo_v1.14.apk](./HorarioLectivo_v1.14.apk)**.
-2. Abre el APK desde el navegador o el gestor de archivos de Android.
-3. Si Android lo solicita, permite temporalmente **Instalar aplicaciones desconocidas** para la aplicación desde la que abriste el APK.
-4. Confirma la instalación.
-5. Abre **Horario Lectivo** desde el launcher.
+El SHA-256 de la compilación publicada está en [APK_SHA256.txt](./APK_SHA256.txt).
 
-El APK que publica este repositorio se genera mediante el workflow de GitHub Actions y está pensado para instalación directa y pruebas personales. El hash de la compilación publicada está disponible en **[APK_SHA256.txt](./APK_SHA256.txt)**.
+## 🧭 Uso
 
-### Actualizar desde una versión anterior
+### Configurar turnos
 
-Normalmente puedes instalar el APK nuevo encima del anterior y conservar la configuración. Si el launcher mantiene un widget o icono antiguo en caché, elimina el widget de la pantalla de inicio y vuelve a añadirlo después de actualizar.
+En **Configurar** puedes activar mañana, tarde o ambos turnos, definir comienzo y fin, duración de sesión y recreo.
 
-## 🧭 Cómo se usa
+### Crear y editar asignaturas
 
-### 1. Configura el horario
+Pulsa **+ Añadir asignatura**. El editor presenta tres decisiones separadas para reducir errores:
 
-Al abrir la aplicación por primera vez se muestra la pantalla de configuración.
+1. **Siglas**: de 1 a 3 caracteres, por ejemplo `APW`.
+2. **Nombre**: por ejemplo `Aplicaciones Web`.
+3. **Tipo**:
+   - **Lectiva**: clase docente que debe aparecer como próxima clase en el widget.
+   - **Complementaria**: guardia, reunión u otra franja no lectiva.
 
-1. Elige **modo claro u oscuro**.
-2. Define la duración de las sesiones.
-3. Configura el turno de **mañana**, **tarde** o ambos.
-4. Indica el comienzo, el final y, si corresponde, la posición y duración del recreo.
-5. Añade las asignaturas con una abreviatura de hasta 3 caracteres y su nombre completo.
-6. Toca la etiqueta de color de una asignatura para abrir la paleta. Selecciona un color disponible y pulsa **Aceptar**. Si pulsas **Cancelar**, no se modifica el color anterior.
-7. En **Semana**, selecciona una asignatura y toca las casillas en las que se imparte.
-8. Activa **Modo bloque** si quieres marcar un intervalo completo tocando la primera y la última sesión.
-9. Usa **Copiar** para duplicar un día en otro o en todos los días.
-10. Pulsa **Guardar**.
+Después de crearla, pulsa **Editar** en su fila para cambiar siglas, nombre o tipo. El botón coloreado de las siglas abre el selector de color. Los cambios solo se aplican al confirmar; **Cancelar** conserva los valores anteriores.
 
-### 2. Consulta el horario completo
+### Rellenar la semana
 
-La pantalla principal muestra un resumen de **AHORA** y **SIGUIENTE** y, debajo, la tabla semanal completa. La tabla adapta sus columnas al ancho disponible y resalta la franja actual y la siguiente.
+Selecciona una asignatura en **Asignatura activa** y toca las casillas. Con **Modo bloque** puedes tocar inicio y fin para rellenar un intervalo. **Copiar** duplica un día en otro o en todos.
 
-### 3. Añade el widget
+### Widget 4×2
 
-1. Mantén pulsada una zona vacía de la pantalla de inicio.
-2. Abre el selector de **Widgets** de tu launcher.
-3. Busca **Horario Lectivo**.
-4. Añádelo a la pantalla de inicio. El tamaño objetivo por defecto es **4×2**.
-5. Si quieres una versión más compacta, redimensiónalo a **4×1**. La información se reorganiza para conservar la clase actual y la siguiente.
+El widget prioriza dos preguntas: qué ocurre **AHORA** y cuál es la **SIGUIENTE LECTIVA**. Una complementaria futura no sustituye a la próxima lectiva: aparece como contexto intermedio.
 
-En **AHORA** se muestra el módulo actual y, por ejemplo, `quedan 37 min`. El borde pasa a verde solo si esa franja tiene un módulo asignado. En **SIGUIENTE** se muestra la asignatura, la hora a la que comienza y una cuenta atrás hasta su inicio. Tocar el widget abre la aplicación y el horario completo; al pulsar **Atrás** una vez vuelves directamente al launcher.
+Ejemplo:
 
-## 🛠️ Compilar desde el código fuente
+```text
+AHORA
+POI                         quedan 38 min
+12:10–13:05
+
+COMPLEMENTARIA ANTES · 13:05–14:00
+SIGUIENTE LECTIVA
+APW                         en 1 h 43 min
+Empieza 14:00
+```
+
+### Widget 4×1
+
+Al reducirlo a una fila conserva la misma semántica con tipografía más compacta y dos zonas horizontales: **AHORA** a la izquierda y **PRÓX. LECTIVA** a la derecha. La existencia de complementarias intermedias se muestra en una línea breve de contexto.
+
+## 🛠️ Compilar desde código fuente
 
 ### Requisitos
 
 - JDK **17**.
-- Android SDK con **API 36** y Build Tools **36.0.0**.
-- Gradle **9.5** para reproducir el entorno usado en CI.
-- Conexión a Internet en la primera compilación para descargar las dependencias de Gradle.
+- Android SDK **API 36**.
+- Android Build Tools **36.0.0**.
+- Gradle **9.5**.
 
 El proyecto usa Android Gradle Plugin **9.3.0**, `compileSdk 36`, `targetSdk 36` y `minSdk 26`.
 
-### Con Android Studio
+### Android Studio
 
-1. Clona el repositorio:
+```bash
+git clone https://github.com/soyunomas/pequenos-proyectos.git
+```
 
-   ```bash
-   git clone https://github.com/soyunomas/pequenos-proyectos.git
-   ```
+Abre `pequenos-proyectos/HorarioLectivo-Android` en Android Studio, selecciona JDK 17, sincroniza Gradle y ejecuta la app o usa **Build > Build APK(s)**.
 
-2. En Android Studio selecciona **Open** y abre la carpeta:
+### Terminal
 
-   ```text
-   pequenos-proyectos/HorarioLectivo-Android
-   ```
-
-3. Usa JDK 17 para Gradle y asegúrate de tener instalada la plataforma Android 36.
-4. Espera a que finalice la sincronización de Gradle.
-5. Ejecuta la aplicación desde Android Studio o usa **Build > Build APK(s)** para generar un APK de depuración.
-
-### Desde terminal
-
-Este proyecto no incluye actualmente Gradle Wrapper, por lo que el comando `gradle` debe estar disponible en el sistema. Para reproducir la compilación del CI:
+El proyecto no incluye Gradle Wrapper, por lo que `gradle` debe estar instalado:
 
 ```bash
 cd HorarioLectivo-Android
 gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
 ```
 
-El APK resultante queda en:
+APK generado:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-También puedes ejecutar únicamente la compilación:
-
-```bash
-gradle assembleDebug
-```
-
 ## CI y publicación
 
-El workflow `.github/workflows/horario-lectivo-android.yml` ejecuta automáticamente tests, `lintDebug`, compilación del APK y comprobaciones específicas del widget, incluyendo el contador de minutos de **AHORA**, el estado verde cuando hay módulo asignado y la navegación desde el widget sin duplicar la actividad. Cuando los cambios llegan a `main`, publica el APK versionado en este directorio.
+GitHub Actions ejecuta tests, lint y compilación, y verifica específicamente la persistencia del tipo Lectiva/Complementaria, la búsqueda de la próxima lectiva, el contexto de complementarias, la edición de siglas/nombre y los layouts 4×2/4×1. Al llegar a `main`, publica el APK versionado en este directorio.
 
 ## Compatibilidad
 
 - Android **8.0 (API 26)** o superior.
-- `compileSdk`: **36**.
-- `targetSdk`: **36**.
-- Java: **17**.
+- Java **17**.
+- `compileSdk` / `targetSdk`: **36**.
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.14.apk](./HorarioLectivo_v1.14.apk)
+- **APK actual:** [HorarioLectivo_v1.15.apk](./HorarioLectivo_v1.15.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
