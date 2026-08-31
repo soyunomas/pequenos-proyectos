@@ -34,29 +34,28 @@ jobs:
       - name: Unit tests, lint and APK
         working-directory: HorarioLectivo-Android
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
-      - name: Verify responsive grid, color dialog and widget
+      - name: Verify current countdown, green active state and widget
         run: |
           grep -q 'android:targetCellWidth="4"' HorarioLectivo-Android/app/src/main/res/xml/horario_widget_info.xml
-          grep -q 'PALETTE_SIZE = 24' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/AppTheme.java
-          grep -q 'setPositiveButton("Aceptar"' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'pending\[0\]' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'dayColumnDp' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -q 'setGravity(Gravity.CENTER_HORIZONTAL)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -q 'getSystemWindowInsetTop' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -q 'current_remaining' HorarioLectivo-Android/app/src/main/res/layout/widget_horario.xml
+          grep -q 'current_remaining' HorarioLectivo-Android/app/src/main/res/layout/widget_horario_compact.xml
+          grep -q 'widget_highlight_active' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
+          grep -q 'quedan ' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
+          grep -q 'nextMinute' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
           unzip -t HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Upload tested APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HorarioLectivo-v1.12-debug
+          name: HorarioLectivo-v1.13-debug
           path: HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish APK in repository
         if: github.event_name == 'push'
         run: |
-          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.12.apk
-          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.12.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
+          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.13.apk
+          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.13.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add HorarioLectivo-Android/HorarioLectivo_v1.12.apk HorarioLectivo-Android/APK_SHA256.txt
+          git add HorarioLectivo-Android/HorarioLectivo_v1.13.apk HorarioLectivo-Android/APK_SHA256.txt
           git diff --cached --quiet && exit 0
-          git commit -m 'build: publish Horario Lectivo v1.12 APK [skip ci]'
+          git commit -m 'build: publish Horario Lectivo v1.13 APK [skip ci]'
           git push
