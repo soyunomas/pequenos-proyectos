@@ -14,10 +14,12 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 - Paleta cerrada de 24 colores; los colores ya ocupados se desactivan.
 - Cada asignatura se clasifica como **L** (lectiva) o **C** (complementaria) en la interfaz de configuración.
 - Las asignaturas se pueden editar después de crearlas: siglas, nombre, tipo y color. Si cambias las siglas, las casillas ya asignadas se migran automáticamente.
+- En **Asignatura activa**, cada botón usa el mismo color configurado para esa asignatura. La selección actual se refuerza con una marca ✓ y un contorno destacado.
+- La pantalla de configuración tiene **Guardar** tanto en la parte superior como al final del editor semanal, para evitar tener que volver arriba después de editar el horario.
 - Widget **4×2**, redimensionable a **4×1**.
 - **AHORA** muestra siempre las siglas reales de la actividad asignada. Una lectiva se identifica como `AHORA · L` y una complementaria como `AHORA · C`.
-- Las complementarias ya no se sustituyen por la palabra genérica `COMPLEMENTARIA`: se muestran sus siglas configuradas, por ejemplo `GU`, `REU` o `JD`.
-- **SIGUIENTE** muestra la próxima actividad real en orden cronológico, sea lectiva o complementaria. Si hay dos complementarias consecutivas, al empezar la primera la segunda pasa automáticamente a ser la siguiente.
+- Las complementarias muestran sus siglas configuradas, por ejemplo `GU`, `REU` o `JD`.
+- **SIGUIENTE** muestra la próxima actividad real en orden cronológico, sea lectiva o complementaria.
 - El tipo de la siguiente actividad se indica de forma compacta como `SIGUIENTE · L` o `SIGUIENTE · C`.
 - Solo cuando no queda ninguna actividad asignada se muestra `FIN DEL DÍA`.
 - La actividad actual indica los minutos restantes; la siguiente incluye hora de inicio y cuenta atrás.
@@ -25,7 +27,7 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 
 ## 📲 Instalación
 
-1. Descarga **[HorarioLectivo_v1.17.apk](./HorarioLectivo_v1.17.apk)**.
+1. Descarga **[HorarioLectivo_v1.18.apk](./HorarioLectivo_v1.18.apk)**.
 2. Abre el APK desde Android.
 3. Si el sistema lo solicita, autoriza temporalmente la instalación de aplicaciones desconocidas para el navegador o gestor de archivos utilizado.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -50,7 +52,11 @@ Después de crearla, pulsa **Editar** para cambiar siglas, nombre o tipo. El bot
 
 ### Rellenar la semana
 
-Selecciona una asignatura en **Asignatura activa** y toca las casillas. Con **Modo bloque** puedes tocar inicio y fin para rellenar un intervalo. **Copiar** duplica un día en otro o en todos.
+En **Asignatura activa**, cada asignatura aparece con su color real. Al seleccionar una, el botón conserva ese color y muestra ✓ para distinguir claramente qué asignatura se aplicará al tocar la tabla. **BORRAR** mantiene un tratamiento visual independiente.
+
+Con **Modo bloque** puedes tocar inicio y fin para rellenar un intervalo. **Copiar** duplica un día en otro o en todos.
+
+Cuando termines, puedes pulsar **Guardar** en la cabecera o el segundo botón **Guardar** situado justo debajo de la tabla semanal.
 
 ### Widget
 
@@ -106,7 +112,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## CI y publicación
 
-GitHub Actions ejecuta tests, lint y compilación y verifica específicamente la lógica secuencial de lectivas/complementarias, las siglas en complementarias y la ausencia del antiguo mensaje `NO QUEDAN LECTIVAS HOY`. Al llegar a `main`, publica el APK versionado en este directorio.
+GitHub Actions ejecuta tests, lint y compilación y verifica específicamente los colores del selector de asignaturas, el estado seleccionado y el botón Guardar inferior. Al llegar a `main`, publica el APK versionado en este directorio.
 
 ## Compatibilidad
 
@@ -116,5 +122,5 @@ GitHub Actions ejecuta tests, lint y compilación y verifica específicamente la
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.17.apk](./HorarioLectivo_v1.17.apk)
+- **APK actual:** [HorarioLectivo_v1.18.apk](./HorarioLectivo_v1.18.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
