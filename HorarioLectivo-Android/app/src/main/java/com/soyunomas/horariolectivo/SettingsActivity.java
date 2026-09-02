@@ -29,12 +29,12 @@ public final class SettingsActivity extends Activity {
 
     section("Apariencia","Ajusta el tema para una lectura cómoda.");LinearLayout dc=card();Switch dark=new Switch(this);dark.setText("Modo oscuro");dark.setTextColor(th.ink);dark.setChecked(repo.isDarkMode());dark.setOnCheckedChangeListener((b,on)->{repo.setDarkMode(on);render();});dc.addView(dark);addCard(dc);
 
-    section("1 · Franjas horarias","Mañana y tarde son independientes. La franja entre turnos permite registrar reuniones, RETA, departamento u otras horas aunque solo tengas activo uno de los turnos.");
+    section("1 · Franjas horarias","Mañana, tarde y noche son turnos independientes. Los intervalos entre turnos pueden usarse para reuniones, RETA, departamento u otras actividades.");
     LinearLayout duration=card();value(duration,"Duración de sesión",d.sessionMinutes+" min",v->number("Duración",10,180,d.sessionMinutes,n->{d.sessionMinutes=n;render();}));addCard(duration);
-    shift(d.morning);betweenConfig();shift(d.afternoon);
+    shift(d.morning);betweenConfig(d.between,"Entre mañana y tarde");shift(d.afternoon);betweenConfig(d.betweenNight,"Entre tarde y noche");shift(d.night);
 
     section("2 · Asignaturas","L = lectiva · C = complementaria. Puedes editar siglas, nombre, tipo y color sin perder las casillas ya asignadas.");subjects();
-    section("3 · Semana","Selecciona una asignatura y toca casillas. También puedes asignar módulos en los recreos y en la franja entre turnos; si un recreo queda vacío conserva su diseño de RECREO.");editor=new LinearLayout(this);editor.setOrientation(LinearLayout.VERTICAL);root.addView(editor);renderEditor();
+    section("3 · Semana","Selecciona una asignatura y toca casillas. Recreos e intervalos entre turnos se muestran en ámbar cuando están vacíos y permiten asignar módulos.");editor=new LinearLayout(this);editor.setOrientation(LinearLayout.VERTICAL);root.addView(editor);renderEditor();
   }
 
   private void shift(ShiftConfig s){
@@ -43,10 +43,10 @@ public final class SettingsActivity extends Activity {
     addCard(c);
   }
 
-  private void betweenConfig(){
-    LinearLayout c=card();CheckBox on=new CheckBox(this);on.setText("Franja entre turnos");on.setTextColor(th.ink);on.setChecked(d.between.enabled);on.setOnCheckedChangeListener((b,x)->{d.between.enabled=x;render();});c.addView(on);
-    TextView hint=text("Independiente de mañana/tarde. Úsala para reuniones, RETA, departamento u otras actividades fuera del turno habitual.",12,false);hint.setTextColor(th.muted);hint.setPadding(0,dp(4),0,0);c.addView(hint);
-    if(d.between.enabled){divider(c);value(c,"Comienzo",fmt(d.between.start),v->time(d.between.start,x->{d.between.start=x;render();}));divider(c);value(c,"Fin",fmt(d.between.end),v->time(d.between.end,x->{d.between.end=x;render();}));}
+  private void betweenConfig(ShiftConfig gap,String title){
+    LinearLayout c=card();CheckBox on=new CheckBox(this);on.setText(title);on.setTextColor(th.ink);on.setChecked(gap.enabled);on.setOnCheckedChangeListener((b,x)->{gap.enabled=x;render();});c.addView(on);
+    TextView hint=text("Se verá como una fila horaria ámbar, similar al recreo, no como una cabecera independiente.",12,false);hint.setTextColor(th.muted);hint.setPadding(0,dp(4),0,0);c.addView(hint);
+    if(gap.enabled){divider(c);value(c,"Comienzo",fmt(gap.start),v->time(gap.start,x->{gap.start=x;render();}));divider(c);value(c,"Fin",fmt(gap.end),v->time(gap.end,x->{gap.end=x;render();}));}
     addCard(c);
   }
 
@@ -77,27 +77,31 @@ public final class SettingsActivity extends Activity {
 
   private void renderEditor(){
     editor.removeAllViews();LinearLayout tools=card();TextView title=text("Asignatura activa",13,true);title.setTextColor(th.muted);tools.addView(title);HorizontalScrollView ps=new HorizontalScrollView(this);ps.setHorizontalScrollBarEnabled(false);LinearLayout p=row();p.setPadding(0,dp(8),0,dp(4));p.addView(pick("BORRAR",ERASE));for(Subject s:d.subjects)p.addView(pick(s.code,s.code));ps.addView(p);tools.addView(ps);divider(tools);CheckBox bm=new CheckBox(this);bm.setText("Modo bloque: toca inicio y fin");bm.setTextColor(th.ink);bm.setChecked(block);bm.setOnCheckedChangeListener((b,x)->{block=x;start=null;});tools.addView(bm);divider(tools);copyControls(tools);addCardTo(editor,tools,0,dp(12));
-    LinearLayout gridCard=card();gridCard.setPadding(dp(8),dp(10),dp(8),dp(10));HorizontalScrollView hs=new HorizontalScrollView(this);hs.setFillViewport(true);hs.setHorizontalScrollBarEnabled(false);GridLayout g=new GridLayout(this);g.setColumnCount(6);g.setUseDefaultMargins(false);String[]h={"HORA","LUN","MAR","MIÉ","JUE","VIE"};int timeW=timeColumnDp(),dayW=dayColumnDp();for(int i=0;i<6;i++)add(g,cell(h[i],true),i==0?timeW:dayW,42,1);editShift(g,d.morning,timeW,dayW);editShift(g,d.between,timeW,dayW);editShift(g,d.afternoon,timeW,dayW);LinearLayout centered=new LinearLayout(this);centered.setGravity(Gravity.CENTER_HORIZONTAL);centered.addView(g,new LinearLayout.LayoutParams(-2,-2));hs.addView(centered,new HorizontalScrollView.LayoutParams(-1,-2));gridCard.addView(hs);addCardTo(editor,gridCard,0,0);
+    LinearLayout gridCard=card();gridCard.setPadding(dp(8),dp(10),dp(8),dp(10));HorizontalScrollView hs=new HorizontalScrollView(this);hs.setFillViewport(true);hs.setHorizontalScrollBarEnabled(false);GridLayout g=new GridLayout(this);g.setColumnCount(6);g.setUseDefaultMargins(false);String[]h={"HORA","LUN","MAR","MIÉ","JUE","VIE"};int timeW=timeColumnDp(),dayW=dayColumnDp();for(int i=0;i<6;i++)add(g,cell(h[i],true),i==0?timeW:dayW,42,1);editShift(g,d.morning,timeW,dayW);editShift(g,d.between,timeW,dayW);editShift(g,d.afternoon,timeW,dayW);editShift(g,d.betweenNight,timeW,dayW);editShift(g,d.night,timeW,dayW);LinearLayout centered=new LinearLayout(this);centered.setGravity(Gravity.CENTER_HORIZONTAL);centered.addView(g,new LinearLayout.LayoutParams(-2,-2));hs.addView(centered,new HorizontalScrollView.LayoutParams(-1,-2));gridCard.addView(hs);addCardTo(editor,gridCard,0,0);
     Button bottomSave=primaryButton("Guardar");bottomSave.setContentDescription("Guardar configuración");bottomSave.setOnClickListener(v->save());LinearLayout.LayoutParams saveParams=new LinearLayout.LayoutParams(-1,dp(52));saveParams.setMargins(0,dp(16),0,0);editor.addView(bottomSave,saveParams);
   }
 
   private void editShift(GridLayout g,ShiftConfig s,int timeW,int dayW){
-    if(!s.enabled)return;TextView head=cell(s.label,true);head.setTextColor(BETWEEN.equals(s.id)?th.breakBorder:th.primarySoftText);head.setBackground(box(BETWEEN.equals(s.id)?th.breakBg:th.primarySoft,BETWEEN.equals(s.id)?th.breakBorder:th.primarySoft,0,8));GridLayout.LayoutParams hp=new GridLayout.LayoutParams();hp.columnSpec=GridLayout.spec(0,6);hp.width=dp(tableContentDp(timeW,dayW));hp.height=dp(38);hp.setMargins(dp(1),dp(6),dp(1),dp(2));hp.setGravity(Gravity.FILL);g.addView(head,hp);
+    if(!s.enabled)return;boolean between=isBetweenShift(s.id);
+    if(!between){TextView head=cell(s.label,true);head.setTextColor(th.primarySoftText);head.setBackground(box(th.primarySoft,th.primarySoft,0,8));GridLayout.LayoutParams hp=new GridLayout.LayoutParams();hp.columnSpec=GridLayout.spec(0,6);hp.width=dp(tableContentDp(timeW,dayW));hp.height=dp(38);hp.setMargins(dp(1),dp(6),dp(1),dp(2));hp.setGravity(Gravity.FILL);g.addView(head,hp);}
     for(Slot q:ScheduleEngine.generateSlots(d,s)){
-      add(g,cell(String.format(Locale.US,"%02d:%02d\n%02d:%02d",q.start.getHour(),q.start.getMinute(),q.end.getHour(),q.end.getMinute()),false),timeW,54,1);
+      TextView time=cell(String.format(Locale.US,"%02d:%02d\n%02d:%02d",q.start.getHour(),q.start.getMinute(),q.end.getHour(),q.end.getMinute()),between);if(between){time.setTextColor(th.breakBorder);time.setBackground(box(th.breakBg,th.breakBorder,1,8));}add(g,time,timeW,54,1);
       if(q.isBreak){
         for(int day=0;day<5;day++){int dd=day;String c=d.getAssignment(day,s.id,0);TextView x=c.isEmpty()?breakCell():subjectCell(c);x.setContentDescription(c.isEmpty()?"Recreo. Toca para asignar una actividad":c+" durante el recreo");x.setOnClickListener(v->{set(dd,q.shiftId,0);renderEditor();});add(g,x,dayW,54,1);}
+      }else if(between){
+        for(int day=0;day<5;day++){int dd=day;String c=d.getAssignment(day,s.id,q.sessionIndex);TextView x=c.isEmpty()?betweenCell():subjectCell(c);x.setContentDescription(c.isEmpty()?"Entre turnos. Toca para asignar una actividad":c+" entre turnos");x.setOnClickListener(v->{set(dd,q.shiftId,q.sessionIndex);renderEditor();});add(g,x,dayW,54,1);}
       }else for(int day=0;day<5;day++){int dd=day;String c=d.getAssignment(day,s.id,q.sessionIndex);TextView x=subjectCell(c.isEmpty()?"·":c);x.setOnClickListener(v->assign(dd,q));add(g,x,dayW,54,1);}
     }
   }
 
   private TextView subjectCell(String code){TextView x=text(code,12,true);x.setGravity(Gravity.CENTER);boolean empty="·".equals(code);x.setTextColor(empty?th.muted:th.subjectTextColor(code));x.setBackground(box(empty?th.surfaceAlt:th.subjectColor(code),empty?th.border:th.subjectColor(code),1,10));return x;}
   private TextView breakCell(){TextView x=text("RECREO",11,true);x.setGravity(Gravity.CENTER);x.setTextColor(th.breakBorder);x.setBackground(box(th.breakBg,th.breakBorder,1,10));return x;}
+  private TextView betweenCell(){TextView x=text("ENTRE",11,true);x.setGravity(Gravity.CENTER);x.setTextColor(th.breakBorder);x.setBackground(box(th.breakBg,th.breakBorder,1,10));return x;}
   private void assign(int day,Slot q){if(!block){set(day,q.shiftId,q.sessionIndex);renderEditor();return;}if(start==null){start=new Start(day,q.shiftId,q.sessionIndex);renderEditor();return;}if(start.day!=day||!start.shift.equals(q.shiftId)){start=new Start(day,q.shiftId,q.sessionIndex);renderEditor();return;}for(int i=Math.min(start.session,q.sessionIndex);i<=Math.max(start.session,q.sessionIndex);i++)set(day,q.shiftId,i);start=null;renderEditor();}
   private void set(int day,String shift,int session){d.setAssignment(day,shift,session,ERASE.equals(selected)?"":selected);}
 
   private void copyControls(LinearLayout target){LinearLayout r=row();Spinner from=new Spinner(this),to=new Spinner(this);from.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,DAYS));String[]targets={"LUN","MAR","MIÉ","JUE","VIE","TODOS"};to.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,targets));r.addView(from,new LinearLayout.LayoutParams(0,dp(48),1));r.addView(to,new LinearLayout.LayoutParams(0,dp(48),1));Button b=tonalButton("Copiar");b.setOnClickListener(v->{int src=from.getSelectedItemPosition();String t=(String)to.getSelectedItem();if("TODOS".equals(t)){for(int day=0;day<5;day++)if(day!=src)copyDay(src,day);}else copyDay(src,Arrays.asList(DAYS).indexOf(t));renderEditor();});r.addView(b);target.addView(r);}
-  private void copyDay(int src,int dst){if(dst<0||src==dst)return;for(ShiftConfig s:new ShiftConfig[]{d.morning,d.between,d.afternoon})for(Slot q:ScheduleEngine.generateSlots(d,s))d.setAssignment(dst,s.id,q.sessionIndex,d.getAssignment(src,s.id,q.sessionIndex));}
+  private void copyDay(int src,int dst){if(dst<0||src==dst)return;for(ShiftConfig s:new ShiftConfig[]{d.morning,d.between,d.afternoon,d.betweenNight,d.night})for(Slot q:ScheduleEngine.generateSlots(d,s))d.setAssignment(dst,s.id,q.sessionIndex,d.getAssignment(src,s.id,q.sessionIndex));}
 
   private Button pick(String label,String value){Button b=tonalButton(label);boolean on=value.equals(selected);if(ERASE.equals(value)){b.setText(on?"✓ BORRAR":"BORRAR");b.setTextColor(on?th.primaryText:th.buttonText);b.setBackground(box(on?th.primary:th.buttonBg,on?th.primary:th.border,on?3:1,18));b.setContentDescription(on?"Borrar seleccionado":"Borrar");}else{int fill=th.subjectColor(value);b.setText(on?"✓ "+label:label);b.setTextColor(th.subjectTextColor(value));b.setBackground(box(fill,on?th.primary:fill,on?3:0,18));b.setContentDescription((on?"Asignatura seleccionada ":"Seleccionar asignatura ")+label);}b.setOnClickListener(v->{selected=value;start=null;renderEditor();});return b;}
   private void confirmDelete(String code){new AlertDialog.Builder(this).setTitle("Eliminar "+code).setMessage("También se borrará de la semana.").setNegativeButton("Cancelar",null).setPositiveButton("Eliminar",(a,b)->{d.subjects.removeIf(s->s.code.equals(code));d.assignments.entrySet().removeIf(e->e.getValue().equals(code));if(code.equals(selected))selected=ERASE;render();}).show();}
