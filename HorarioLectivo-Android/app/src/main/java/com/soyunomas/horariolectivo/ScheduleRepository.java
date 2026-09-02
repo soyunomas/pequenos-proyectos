@@ -24,28 +24,19 @@ public final class ScheduleRepository {
             d.morning=readShift(root.optJSONObject("morning"),d.morning);
             d.between=readShift(root.optJSONObject("between"),d.between);
             d.afternoon=readShift(root.optJSONObject("afternoon"),d.afternoon);
+            d.betweenNight=readShift(root.optJSONObject("betweenNight"),d.betweenNight);
+            d.night=readShift(root.optJSONObject("night"),d.night);
             d.subjects.clear();
             JSONArray a=root.optJSONArray("subjects");
-            if(a!=null)for(int i=0;i<a.length();i++){
-                JSONObject o=a.optJSONObject(i);
-                if(o!=null){
-                    String c=o.optString("code","").trim().toUpperCase(),n=o.optString("name","").trim();
-                    String type=o.optString("type",TYPE_LECTIVA).trim().toUpperCase();
-                    if(!c.isEmpty())d.subjects.add(new Subject(c,n.isEmpty()?c:n,o.optInt("colorIndex",-1),type));
-                }
-            }
-            d.assignments.clear();
-            JSONObject as=root.optJSONObject("assignments");
-            if(as!=null){Iterator<String>keys=as.keys();while(keys.hasNext()){String k=keys.next(),v=as.optString(k,"").trim().toUpperCase();if(!v.isEmpty())d.assignments.put(k,v);}}
+            if(a!=null)for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o!=null){String c=o.optString("code","").trim().toUpperCase(),n=o.optString("name","").trim();String type=o.optString("type",TYPE_LECTIVA).trim().toUpperCase();if(!c.isEmpty())d.subjects.add(new Subject(c,n.isEmpty()?c:n,o.optInt("colorIndex",-1),type));}}
+            d.assignments.clear();JSONObject as=root.optJSONObject("assignments");if(as!=null){Iterator<String>keys=as.keys();while(keys.hasNext()){String k=keys.next(),v=as.optString(k,"").trim().toUpperCase();if(!v.isEmpty())d.assignments.put(k,v);}}
             return d;
         }catch(Exception ignored){return new Data();}
     }
     public void save(Data d){
         try{
-            JSONObject root=new JSONObject();root.put("sessionMinutes",d.sessionMinutes);root.put("morning",writeShift(d.morning));root.put("between",writeShift(d.between));root.put("afternoon",writeShift(d.afternoon));
-            JSONArray a=new JSONArray();
-            for(Subject s:d.subjects){JSONObject o=new JSONObject();o.put("code",s.code);o.put("name",s.name);o.put("colorIndex",s.colorIndex);o.put("type",s.type);a.put(o);}
-            root.put("subjects",a);
+            JSONObject root=new JSONObject();root.put("sessionMinutes",d.sessionMinutes);root.put("morning",writeShift(d.morning));root.put("between",writeShift(d.between));root.put("afternoon",writeShift(d.afternoon));root.put("betweenNight",writeShift(d.betweenNight));root.put("night",writeShift(d.night));
+            JSONArray a=new JSONArray();for(Subject s:d.subjects){JSONObject o=new JSONObject();o.put("code",s.code);o.put("name",s.name);o.put("colorIndex",s.colorIndex);o.put("type",s.type);a.put(o);}root.put("subjects",a);
             JSONObject as=new JSONObject();for(String k:d.assignments.keySet())as.put(k,d.assignments.get(k));root.put("assignments",as);
             prefs.edit().putString(KEY_DATA,root.toString()).putBoolean(KEY_INITIALIZED,true).apply();
         }catch(Exception e){throw new IllegalStateException("No se pudo guardar el horario",e);}
