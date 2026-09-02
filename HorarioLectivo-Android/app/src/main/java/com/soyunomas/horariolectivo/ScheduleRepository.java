@@ -22,6 +22,7 @@ public final class ScheduleRepository {
             JSONObject root=new JSONObject(raw);Data d=new Data();
             d.sessionMinutes=root.optInt("sessionMinutes",55);
             d.morning=readShift(root.optJSONObject("morning"),d.morning);
+            d.between=readShift(root.optJSONObject("between"),d.between);
             d.afternoon=readShift(root.optJSONObject("afternoon"),d.afternoon);
             d.subjects.clear();
             JSONArray a=root.optJSONArray("subjects");
@@ -41,7 +42,7 @@ public final class ScheduleRepository {
     }
     public void save(Data d){
         try{
-            JSONObject root=new JSONObject();root.put("sessionMinutes",d.sessionMinutes);root.put("morning",writeShift(d.morning));root.put("afternoon",writeShift(d.afternoon));
+            JSONObject root=new JSONObject();root.put("sessionMinutes",d.sessionMinutes);root.put("morning",writeShift(d.morning));root.put("between",writeShift(d.between));root.put("afternoon",writeShift(d.afternoon));
             JSONArray a=new JSONArray();
             for(Subject s:d.subjects){JSONObject o=new JSONObject();o.put("code",s.code);o.put("name",s.name);o.put("colorIndex",s.colorIndex);o.put("type",s.type);a.put(o);}
             root.put("subjects",a);
