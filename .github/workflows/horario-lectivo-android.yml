@@ -34,27 +34,30 @@ jobs:
       - name: Unit tests, lint and APK
         working-directory: HorarioLectivo-Android
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
-      - name: Verify colored picker and bottom save action
+      - name: Verify breaks and between-turn assignments
         run: |
-          grep -q 'th.subjectColor(value)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'th.subjectTextColor(value)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q '✓ ' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'Button bottomSave=primaryButton("Guardar")' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'bottomSave.setOnClickListener(v->save())' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -q 'BETWEEN="E"' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
+          grep -q 'd.between=readShift' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
+          grep -q 'generateSlots(data,data.between)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleEngine.java
+          grep -q 'Franja entre turnos' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -q 'd.getAssignment(day,s.id,0)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -q 'code.isEmpty()?breakCell():subjectCell(code)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -q 'shift(g,d,d.between' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
+          grep -q 's.isBreak)return new SlotRef(day,s,code.isEmpty()?"RECREO":code)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
           unzip -t HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Upload tested APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HorarioLectivo-v1.18-debug
+          name: HorarioLectivo-v1.19-debug
           path: HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish APK in repository
         if: github.event_name == 'push'
         run: |
-          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.18.apk
-          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.18.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
+          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.19.apk
+          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.19.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add HorarioLectivo-Android/HorarioLectivo_v1.18.apk HorarioLectivo-Android/APK_SHA256.txt
+          git add HorarioLectivo-Android/HorarioLectivo_v1.19.apk HorarioLectivo-Android/APK_SHA256.txt
           git diff --cached --quiet && exit 0
-          git commit -m 'build: publish Horario Lectivo v1.18 APK [skip ci]'
+          git commit -m 'build: publish Horario Lectivo v1.19 APK [skip ci]'
           git push
