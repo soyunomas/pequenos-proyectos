@@ -36,14 +36,14 @@ jobs:
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
       - name: Verify breaks and between-turn assignments
         run: |
-          grep -q 'BETWEEN="E"' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -q 'd.between=readShift' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -q 'generateSlots(data,data.between)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleEngine.java
-          grep -q 'Franja entre turnos' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'd.getAssignment(day,s.id,0)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'code.isEmpty()?breakCell():subjectCell(code)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -q 'shift(g,d,d.between' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -q 's.isBreak)return new SlotRef(day,s,code.isEmpty()?"RECREO":code)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
+          grep -Fq 'BETWEEN="E"' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
+          grep -Fq 'd.between=readShift' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
+          grep -Fq 'generateSlots(data,data.between)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleEngine.java
+          grep -Fq 'Franja entre turnos' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'd.getAssignment(day,s.id,0)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'breakCell():subjectCell(c)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'shift(g,d,d.between' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
+          grep -Fq 'code.isEmpty()?"RECREO":code' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
           unzip -t HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Upload tested APK artifact
         uses: actions/upload-artifact@v4
