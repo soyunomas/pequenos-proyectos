@@ -8,7 +8,7 @@ import java.util.Map;
 
 public final class ScheduleModels {
     private ScheduleModels() {}
-    public static final String MORNING="M", AFTERNOON="T";
+    public static final String MORNING="M", AFTERNOON="T", BETWEEN="E";
     public static final String TYPE_LECTIVA="LECTIVA", TYPE_COMPLEMENTARIA="COMPLEMENTARIA";
 
     public static final class ShiftConfig {
@@ -30,9 +30,10 @@ public final class ScheduleModels {
     public static final class Data {
         public int sessionMinutes=55;
         public ShiftConfig morning=new ShiftConfig(MORNING,"MAÑANA",true,LocalTime.of(8,0),LocalTime.of(14,0),3,30);
+        public ShiftConfig between=new ShiftConfig(BETWEEN,"ENTRE TURNOS",true,LocalTime.of(14,0),LocalTime.of(15,0),0,0);
         public ShiftConfig afternoon=new ShiftConfig(AFTERNOON,"TARDE",false,LocalTime.of(15,0),LocalTime.of(21,0),3,30);
         public final List<Subject> subjects=new ArrayList<>(); public final Map<String,String> assignments=new HashMap<>();
-        public Data copy(){Data d=new Data();d.sessionMinutes=sessionMinutes;d.morning=morning.copy();d.afternoon=afternoon.copy();d.subjects.clear();for(Subject s:subjects)d.subjects.add(s.copy());d.assignments.clear();d.assignments.putAll(assignments);return d;}
+        public Data copy(){Data d=new Data();d.sessionMinutes=sessionMinutes;d.morning=morning.copy();d.between=between.copy();d.afternoon=afternoon.copy();d.subjects.clear();for(Subject s:subjects)d.subjects.add(s.copy());d.assignments.clear();d.assignments.putAll(assignments);return d;}
         public static String assignmentKey(int day,String shift,int session){return day+"|"+shift+"|"+session;}
         public String getAssignment(int day,String shift,int session){String v=assignments.get(assignmentKey(day,shift,session));return v==null?"":v;}
         public void setAssignment(int day,String shift,int session,String code){String k=assignmentKey(day,shift,session);if(code==null||code.trim().isEmpty())assignments.remove(k);else assignments.put(k,code.trim().toUpperCase());}
