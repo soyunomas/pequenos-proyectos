@@ -38,7 +38,7 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
     static boolean isCompact(Bundle options){if(options==null)return false;int h=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT,0),min=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,0);return(h>0&&h<100)||(h==0&&min>0&&min<80);}
 
     static void bindCurrent(RemoteViews v,Data d,SlotRef r,ZonedDateTime now){
-        boolean lect=r!=null&&d.isLectiva(r.code),comp=r!=null&&d.isComplementaria(r.code),rest=r!=null&&r.slot.isBreak&&!lect&&!comp;
+        boolean lect=r!=null&&d.isLectiva(r.code),comp=r!=null&&d.isComplementaria(r.code),rest=r!=null&&(r.slot.isBreak||isBetweenShift(r.slot.shiftId))&&!lect&&!comp;
         int col=lect?GREEN:(comp||rest)?AMBER:RED;
         v.setInt(R.id.current_card,"setBackgroundResource",lect?R.drawable.widget_highlight_active:(comp||rest)?R.drawable.widget_highlight_complementary:R.drawable.widget_highlight);
         v.setTextColor(R.id.current_label,col);v.setTextColor(R.id.current_remaining,col);v.setTextViewText(R.id.current_label,lect?"AHORA · L":comp?"AHORA · C":"AHORA");
@@ -49,7 +49,7 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
     static void bindNext(RemoteViews v,Data d,SlotRef r,ZonedDateTime now){
         v.setViewVisibility(R.id.next_context,View.GONE);
         if(r==null){v.setTextViewText(R.id.next_label,"SIGUIENTE");v.setTextColor(R.id.next_label,RED);v.setTextViewText(R.id.next_subject,"FIN DEL DÍA");v.setTextViewText(R.id.next_time,"");v.setViewVisibility(R.id.next_countdown,View.GONE);return;}
-        boolean lect=d.isLectiva(r.code),comp=d.isComplementaria(r.code),rest=r.slot.isBreak&&!lect&&!comp;int col=lect?GREEN:(comp||rest)?AMBER:RED;
+        boolean lect=d.isLectiva(r.code),comp=d.isComplementaria(r.code),rest=(r.slot.isBreak||isBetweenShift(r.slot.shiftId))&&!lect&&!comp;int col=lect?GREEN:(comp||rest)?AMBER:RED;
         v.setTextViewText(R.id.next_label,lect?"SIGUIENTE · L":comp?"SIGUIENTE · C":"SIGUIENTE");v.setTextColor(R.id.next_label,col);v.setTextColor(R.id.next_countdown,col);v.setTextViewText(R.id.next_subject,displayCode(r));v.setTextViewText(R.id.next_time,"Empieza "+fmt(r.slot.start));ZonedDateTime start=ZonedDateTime.of(now.toLocalDate(),r.slot.start,now.getZone());v.setViewVisibility(R.id.next_countdown,View.VISIBLE);v.setChronometer(R.id.next_countdown,SystemClock.elapsedRealtime()+Math.max(0L,Duration.between(now,start).toMillis()),"en %s",true);v.setChronometerCountDown(R.id.next_countdown,true);
     }
 
@@ -59,12 +59,13 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
             if(!s.start.isAfter(t))continue;
             String code=d.getAssignment(day,s.shiftId,s.sessionIndex);
             if(s.isBreak)return new SlotRef(day,s,code.isEmpty()?"RECREO":code);
+            if(isBetweenShift(s.shiftId))return new SlotRef(day,s,code.isEmpty()?"ENTRE TURNOS":code);
             if(code!=null&&!code.trim().isEmpty())return new SlotRef(day,s,code);
         }
         return null;
     }
 
-    static String displayCode(SlotRef r){if(r==null)return "";if(r.slot.isBreak&&(r.code==null||r.code.trim().isEmpty()||"RECREO".equals(r.code)))return "RECREO";return r.code==null||r.code.trim().isEmpty()?"SIN ASIGNAR":r.code;}
+    static String displayCode(SlotRef r){if(r==null)return "";if(r.slot.isBreak&&(r.code==null||r.code.trim().isEmpty()||"RECREO".equals(r.code)))return "RECREO";if(isBetweenShift(r.slot.shiftId)&&(r.code==null||r.code.trim().isEmpty()||"ENTRE TURNOS".equals(r.code)))return "ENTRE TURNOS";return r.code==null||r.code.trim().isEmpty()?"SIN ASIGNAR":r.code;}
     static String fmt(LocalTime t){return String.format(Locale.US,"%02d:%02d",t.getHour(),t.getMinute());}
 }
 
