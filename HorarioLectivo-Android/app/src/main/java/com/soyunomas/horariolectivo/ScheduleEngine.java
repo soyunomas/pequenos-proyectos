@@ -18,12 +18,17 @@ public final class ScheduleEngine {
         List<Slot> out=new ArrayList<>();
         if(data==null||shift==null||!shift.enabled||data.sessionMinutes<=0||shift.start==null||shift.end==null||!shift.start.isBefore(shift.end))return out;
         if(isBetweenShift(shift.id)){out.add(new Slot(shift.id,shift.label,shift.start,shift.end,false,1));return out;}
-        LocalTime cursor=shift.start; int session=0;
-        while(true){
-            LocalTime sessionEnd=cursor.plusMinutes(data.sessionMinutes);
-            if(sessionEnd.isAfter(shift.end)||sessionEnd.equals(cursor))break;
-            session++; out.add(new Slot(shift.id,shift.label,cursor,sessionEnd,false,session)); cursor=sessionEnd;
-            if(shift.breakAfterSession==session&&shift.breakMinutes>0){LocalTime breakEnd=cursor.plusMinutes(shift.breakMinutes);if(!breakEnd.isAfter(shift.end)&&!breakEnd.equals(cursor)){out.add(new Slot(shift.id,shift.label,cursor,breakEnd,true,0));cursor=breakEnd;}}
+        long available=Duration.between(shift.start,shift.end).toMinutes();
+        long used=0; int session=0;
+        while(used+data.sessionMinutes<=available){
+            LocalTime sessionStart=shift.start.plusMinutes(used);
+            LocalTime sessionEnd=shift.start.plusMinutes(used+data.sessionMinutes);
+            session++;out.add(new Slot(shift.id,shift.label,sessionStart,sessionEnd,false,session));used+=data.sessionMinutes;
+            if(shift.breakAfterSession==session&&shift.breakMinutes>0&&used+shift.breakMinutes<=available){
+                LocalTime breakStart=shift.start.plusMinutes(used);
+                LocalTime breakEnd=shift.start.plusMinutes(used+shift.breakMinutes);
+                out.add(new Slot(shift.id,shift.label,breakStart,breakEnd,true,0));used+=shift.breakMinutes;
+            }
         }
         return out;
     }
