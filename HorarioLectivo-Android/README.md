@@ -17,6 +17,8 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 - Asignaturas **L** (lectivas) y **C** (complementarias), con siglas, nombre y color editables.
 - Modo claro y oscuro.
 - Widget 4×2, redimensionable a 4×1, con actividad actual, siguiente actividad y cuenta atrás.
+- **Copia de seguridad JSON**: exporta toda la configuración y permite importarla después.
+- Si todavía no has rellenado el horario, **Exportar JSON** genera igualmente un archivo completo con todas las opciones, el esquema admitido y los arrays `subjects` y `assignments` vacíos. Está pensado también para poder entregárselo a una IA junto con una foto de un horario en papel y pedirle que rellene el JSON sin cambiar su estructura.
 
 ## Configurar turnos
 
@@ -35,9 +37,24 @@ Selecciona una asignatura y toca una celda de recreo o de intervalo entre turnos
 
 Las asignaciones de estas franjas se incluyen al copiar un día a otro y también se tienen en cuenta en **AHORA** y **SIGUIENTE** del widget.
 
+## Copia de seguridad e importación JSON
+
+En **Configurar horario > Copia de seguridad** hay dos acciones:
+
+- **Exportar JSON** abre el selector de archivos de Android y guarda la configuración actual.
+- **Importar JSON** permite seleccionar una copia previa. Antes de sustituir el horario actual se valida el formato y se pide confirmación.
+
+El formato externo está versionado como `horario-lectivo-backup` / esquema `1`. Incluye apariencia, duración de sesión, mañana, tarde, noche, ambos intervalos entre turnos, recreos, asignaturas y asignaciones semanales.
+
+La exportación incluye además un bloque `schema` con días válidos, tipos de asignatura, claves de turno y reglas de asignación. De este modo el propio archivo sirve como plantilla para una IA. Para una configuración aún vacía, `subjects` y `assignments` aparecen como arrays vacíos, pero todas las opciones permanecen presentes.
+
+También se incluye una plantilla lista para usar: **[horario_backup_template.json](./horario_backup_template.json)**.
+
+Una importación rechaza, entre otros casos, códigos de asignatura inválidos o duplicados, asignaciones a materias no declaradas, turnos desconocidos, sesiones inexistentes y configuraciones horarias incoherentes.
+
 ## Instalación
 
-1. Descarga **[HorarioLectivo_v1.20.apk](./HorarioLectivo_v1.20.apk)**.
+1. Descarga **[HorarioLectivo_v1.21.apk](./HorarioLectivo_v1.21.apk)**.
 2. Abre el APK desde Android.
 3. Autoriza la instalación de aplicaciones desconocidas si Android lo solicita.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -68,5 +85,5 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.20.apk](./HorarioLectivo_v1.20.apk)
+- **APK actual:** [HorarioLectivo_v1.21.apk](./HorarioLectivo_v1.21.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
