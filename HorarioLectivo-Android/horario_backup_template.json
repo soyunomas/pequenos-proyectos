@@ -1,23 +1,153 @@
 {
   "format": "horario-lectivo-backup",
   "schemaVersion": 1,
+  "contentState": "BLANK_TEMPLATE",
   "schema": {
-    "days": ["LUN", "MAR", "MIE", "JUE", "VIE"],
-    "subjectTypes": ["LECTIVA", "COMPLEMENTARIA"],
-    "shiftKeys": [
-      "morning",
-      "betweenMorningAfternoon",
-      "afternoon",
-      "betweenAfternoonNight",
-      "night"
+    "purpose": "Plantilla y copia de seguridad importable por Horario Lectivo. Si subjects y assignments están vacíos, rellénalos a partir de la imagen del horario sin eliminar el resto de campos.",
+    "aiInstructions": [
+      "Analiza la imagen del horario y conserva format, schemaVersion, appearance, sessionMinutes, shifts y la estructura general.",
+      "Crea primero subjects y después assignments. Todas las asignaturas usadas en assignments deben existir previamente en subjects.",
+      "subject.code es obligatorio, único y debe tener entre 1 y 3 caracteres, solo letras A-Z mayúsculas y dígitos 0-9. Ejemplos válidos: APW, BD, 2A.",
+      "subject.name es obligatorio y no puede estar vacío.",
+      "subject.type solo puede ser LECTIVA o COMPLEMENTARIA.",
+      "Para colorIndex usa -1 si no quieres elegir un color concreto; los valores explícitos válidos son 0..23.",
+      "Para assignments es preferible usar start con formato HH:mm y omitir session si la foto muestra las horas. La app calculará la sesión correspondiente.",
+      "Para una actividad durante un recreo usa el shift del turno al que pertenece el recreo y su hora start. Si usas session explícitamente, el recreo es session=0.",
+      "Para actividades entre turnos usa shift=betweenMorningAfternoon o shift=betweenAfternoonNight.",
+      "No inventes días, tipos ni claves de turno. No dupliques dos assignments para la misma casilla.",
+      "Devuelve únicamente JSON válido, sin Markdown, sin comentarios // o /* */ y sin texto fuera del JSON."
     ],
-    "colorIndex": "-1 = automático; 0..23 = color de la paleta",
-    "assignmentRule": "Cada asignación necesita day, shift, subject y session. session=0 identifica un recreo. También puedes omitir session y usar start con formato HH:mm.",
-    "assignmentExample": {
-      "day": "LUN",
-      "shift": "morning",
-      "start": "08:00",
-      "subject": "APW"
+    "fields": {
+      "appearance.darkMode": {
+        "type": "boolean",
+        "description": "true o false."
+      },
+      "sessionMinutes": {
+        "type": "integer",
+        "description": "Duración común de una sesión, en minutos.",
+        "min": 10,
+        "max": 180
+      },
+      "shifts.*.enabled": {
+        "type": "boolean",
+        "description": "Activa o desactiva esa franja."
+      },
+      "shifts.*.start": {
+        "type": "string HH:mm",
+        "description": "Hora de inicio en formato de 24 horas, por ejemplo 08:00."
+      },
+      "shifts.*.end": {
+        "type": "string HH:mm",
+        "description": "Hora de fin en formato de 24 horas y posterior a start."
+      },
+      "shifts.*.breakAfterSession": {
+        "type": "integer",
+        "description": "0 = sin recreo; N = recreo después de la sesión N. En intervalos entre turnos debe ser 0.",
+        "min": 0,
+        "max": 12
+      },
+      "shifts.*.breakMinutes": {
+        "type": "integer",
+        "description": "0 si no hay recreo; si hay recreo, entre 5 y 90. En intervalos entre turnos debe ser 0.",
+        "min": 0,
+        "max": 90
+      },
+      "subjects[].code": {
+        "type": "string",
+        "description": "Siglas que se muestran en el horario y widget.",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 3,
+        "pattern": "^[A-Z0-9]{1,3}$",
+        "unique": true
+      },
+      "subjects[].name": {
+        "type": "string",
+        "description": "Nombre completo de la asignatura o actividad.",
+        "required": true,
+        "minLength": 1
+      },
+      "subjects[].type": {
+        "type": "string",
+        "description": "Clasificación de la asignatura.",
+        "enum": ["LECTIVA", "COMPLEMENTARIA"]
+      },
+      "subjects[].colorIndex": {
+        "type": "integer",
+        "description": "-1 = color automático; 0..23 = índice de la paleta.",
+        "min": -1,
+        "max": 23
+      },
+      "assignments[].day": {
+        "type": "string",
+        "description": "Día laborable.",
+        "enum": ["LUN", "MAR", "MIE", "JUE", "VIE"]
+      },
+      "assignments[].shift": {
+        "type": "string",
+        "description": "Franja en la que se encuentra la actividad.",
+        "enum": [
+          "morning",
+          "betweenMorningAfternoon",
+          "afternoon",
+          "betweenAfternoonNight",
+          "night"
+        ]
+      },
+      "assignments[].subject": {
+        "type": "string",
+        "description": "Debe coincidir exactamente con un subjects[].code declarado."
+      },
+      "assignments[].start": {
+        "type": "string HH:mm",
+        "description": "Hora inicial de la casilla. Recomendado para generar el JSON desde una imagen.",
+        "optionalIf": "session está presente"
+      },
+      "assignments[].session": {
+        "type": "integer",
+        "description": "Índice de sesión. 0 identifica un recreo. Puede omitirse si se proporciona start.",
+        "min": 0,
+        "max": 99,
+        "optionalIf": "start está presente"
+      }
+    },
+    "rules": [
+      "Todos los objetos de shifts deben estar presentes aunque enabled sea false.",
+      "Las horas usan formato HH:mm de 24 horas y cada start debe ser anterior a end.",
+      "sessionMinutes debe estar entre 10 y 180.",
+      "breakAfterSession debe estar entre 0 y 12. Si es mayor que 0, breakMinutes debe estar entre 5 y 90.",
+      "Los intervalos betweenMorningAfternoon y betweenAfternoonNight no tienen recreo: breakAfterSession=0 y breakMinutes=0.",
+      "No puede haber dos asignaturas con el mismo code.",
+      "Cada assignment debe apuntar a una asignatura declarada en subjects.",
+      "Cada assignment debe corresponder a una casilla real generada por la configuración de shifts y sessionMinutes.",
+      "Una misma casilla day+shift+session solo puede tener una asignación.",
+      "Los intervalos entre turnos no deben solaparse con los turnos adyacentes que estén enabled."
+    ],
+    "examples": {
+      "subject": {
+        "code": "APW",
+        "name": "Aplicaciones Web",
+        "type": "LECTIVA",
+        "colorIndex": -1
+      },
+      "assignmentByStart": {
+        "day": "LUN",
+        "shift": "morning",
+        "start": "08:00",
+        "subject": "APW"
+      },
+      "assignmentDuringRecess": {
+        "day": "MAR",
+        "shift": "morning",
+        "start": "10:45",
+        "subject": "RET"
+      },
+      "assignmentBetweenTurns": {
+        "day": "JUE",
+        "shift": "betweenMorningAfternoon",
+        "start": "14:00",
+        "subject": "DEP"
+      }
     }
   },
   "appearance": {
