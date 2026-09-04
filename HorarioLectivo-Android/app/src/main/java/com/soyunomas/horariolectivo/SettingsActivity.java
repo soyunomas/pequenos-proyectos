@@ -130,7 +130,7 @@ public final class SettingsActivity extends Activity {
   private void importJson(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");i.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"application/json","text/json","text/plain"});startActivityForResult(i,REQ_IMPORT_JSON);}
 
   @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
-    super.onActivityResult(requestCode,resultCode,data);if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();
+    super.onActivityResult(requestCode,resultCode,data);if(resultCode!=RESULT_OK||data==null||data.getData()==null){if(requestCode==REQ_EXPORT_JSON)pendingExportJson=null;return;}Uri uri=data.getData();
     if(requestCode==REQ_EXPORT_JSON){writeBackup(uri);return;}
     if(requestCode==REQ_IMPORT_JSON)readBackup(uri);
   }
