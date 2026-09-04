@@ -102,7 +102,7 @@ public final class ScheduleRepository {
                 o.put("day",dayName(day));
                 o.put("shift",externalShiftKey(shiftId));
                 o.put("session",session);
-                Slot slot=findSlot(d,shiftId,session,false);
+                Slot slot=findSlot(d,shiftId,session,true);
                 if(slot!=null)o.put("start",slot.start.toString());
                 o.put("subject",subject);
                 assignments.put(o);
@@ -175,6 +175,9 @@ public final class ScheduleRepository {
                     if(slot==null)throw new IllegalArgumentException("No existe una franja que empiece a "+start+" en "+shiftKey+".");
                     session=slot.sessionIndex;
                 }
+                Slot target=findSlot(d,shift.id,session,true);
+                if(target==null)throw new IllegalArgumentException("No existe la sesión "+session+" en "+shiftKey+" con la configuración indicada.");
+                if(o.has("start")){String stated=o.optString("start","").trim();if(!stated.isEmpty()&&!target.start.equals(LocalTime.parse(stated)))throw new IllegalArgumentException("La hora start no coincide con la sesión "+session+" en assignments["+i+"].");}
                 String key=Data.assignmentKey(day,shift.id,session);
                 if(!assignmentKeys.add(key))throw new IllegalArgumentException("Asignación duplicada para "+o.optString("day","")+" / "+shiftKey+" / sesión "+session+".");
                 d.setAssignment(day,shift.id,session,subject);
