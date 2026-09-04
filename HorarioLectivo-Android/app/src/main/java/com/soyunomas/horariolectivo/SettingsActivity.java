@@ -34,7 +34,7 @@ public final class SettingsActivity extends Activity {
 
     section("Apariencia","Ajusta el tema para una lectura cómoda.");LinearLayout dc=card();Switch dark=new Switch(this);dark.setText("Modo oscuro");dark.setTextColor(th.ink);dark.setChecked(repo.isDarkMode());dark.setOnCheckedChangeListener((b,on)->{repo.setDarkMode(on);render();});dc.addView(dark);addCard(dc);
 
-    section("Copia de seguridad","Exporta un JSON completo o restaura uno existente. El archivo vacío conserva todas las opciones y el esquema para poder rellenarlo también con ayuda de una IA.");
+    section("Copia de seguridad","Exporta un JSON completo o restaura uno existente. Si aún no hay asignaturas ni casillas, se genera una plantilla IA autocontenida con todas las opciones, restricciones y ejemplos.");
     LinearLayout backup=card();LinearLayout br=row();Button exportJson=tonalButton("Exportar JSON");exportJson.setOnClickListener(v->exportJson());Button importJson=tonalButton("Importar JSON");importJson.setOnClickListener(v->importJson());br.addView(exportJson,new LinearLayout.LayoutParams(0,dp(48),1));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(0,dp(48),1);ip.setMargins(dp(8),0,0,0);br.addView(importJson,ip);backup.addView(br);TextView bh=text("La importación sustituye la configuración completa después de pedir confirmación.",12,false);bh.setTextColor(th.muted);bh.setPadding(0,dp(8),0,0);backup.addView(bh);addCard(backup);
 
     section("1 · Franjas horarias","Mañana, tarde y noche son turnos independientes. Los intervalos entre turnos pueden usarse para reuniones, RETA, departamento u otras actividades.");
@@ -115,7 +115,7 @@ public final class SettingsActivity extends Activity {
   private void confirmDelete(String code){new AlertDialog.Builder(this).setTitle("Eliminar "+code).setMessage("También se borrará de la semana.").setNegativeButton("Cancelar",null).setPositiveButton("Eliminar",(a,b)->{d.subjects.removeIf(s->s.code.equals(code));d.assignments.entrySet().removeIf(e->e.getValue().equals(code));if(code.equals(selected))selected=ERASE;render();}).show();}
   private void save(){List<String>e=ScheduleEngine.validate(d);if(!e.isEmpty()){new AlertDialog.Builder(this).setTitle("Revisa la configuración").setMessage(String.join("\n",e)).setPositiveButton("OK",null).show();return;}repo.save(d);HorarioWidgetProvider.refreshAll(this);finish();}
 
-  private void exportJson(){Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,"HorarioLectivo_backup.json");startActivityForResult(i,REQ_EXPORT_JSON);}
+  private void exportJson(){boolean blank=d.subjects.isEmpty()&&d.assignments.isEmpty();Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,blank?"HorarioLectivo_plantilla_IA.json":"HorarioLectivo_backup.json");startActivityForResult(i,REQ_EXPORT_JSON);}
   private void importJson(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");i.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"application/json","text/json","text/plain"});startActivityForResult(i,REQ_IMPORT_JSON);}
 
   @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
@@ -127,8 +127,8 @@ public final class SettingsActivity extends Activity {
   private void writeBackup(Uri uri){
     try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
       if(out==null)throw new IOException("No se pudo abrir el archivo de destino.");
-      out.write(repo.exportBackup(d).getBytes(StandardCharsets.UTF_8));out.flush();
-      Toast.makeText(this,"Copia JSON exportada",Toast.LENGTH_SHORT).show();
+      boolean blank=d.subjects.isEmpty()&&d.assignments.isEmpty();out.write(repo.exportBackup(d).getBytes(StandardCharsets.UTF_8));out.flush();
+      Toast.makeText(this,blank?"Plantilla JSON para IA exportada":"Copia JSON exportada",Toast.LENGTH_SHORT).show();
     }catch(Exception e){showBackupError("No se pudo exportar",e);}
   }
 
