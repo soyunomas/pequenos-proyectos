@@ -67,6 +67,7 @@ public final class ScheduleRepository {
             JSONObject root=new JSONObject();
             root.put("format",BACKUP_FORMAT);
             root.put("schemaVersion",BACKUP_SCHEMA_VERSION);
+            root.put("contentState",d.subjects.isEmpty()&&d.assignments.isEmpty()?"BLANK_TEMPLATE":"BACKUP");
             root.put("schema",backupSchema());
 
             JSONObject appearance=new JSONObject();
@@ -123,6 +124,7 @@ public final class ScheduleRepository {
             Data d=new Data();
             if(!root.has("sessionMinutes"))throw new IllegalArgumentException("Falta sessionMinutes.");
             d.sessionMinutes=root.getInt("sessionMinutes");
+            if(d.sessionMinutes<10||d.sessionMinutes>180)throw new IllegalArgumentException("sessionMinutes debe estar entre 10 y 180.");
 
             JSONObject shifts=root.optJSONObject("shifts");
             if(shifts==null)throw new IllegalArgumentException("Falta el objeto shifts.");
@@ -142,7 +144,7 @@ public final class ScheduleRepository {
                 String code=SubjectCode.normalize(o.optString("code",""));
                 if(!SubjectCode.isValid(code))throw new IllegalArgumentException("Código de asignatura no válido en subjects["+i+"].");
                 if(!subjectCodes.add(code))throw new IllegalArgumentException("Código de asignatura duplicado: "+code+".");
-                String name=o.optString("name","").trim();if(name.isEmpty())name=code;
+                String name=o.optString("name","").trim();if(name.isEmpty())throw new IllegalArgumentException("El nombre de "+code+" no puede estar vacío.");
                 String type=o.optString("type",TYPE_LECTIVA).trim().toUpperCase(Locale.ROOT);
                 if(!TYPE_LECTIVA.equals(type)&&!TYPE_COMPLEMENTARIA.equals(type))throw new IllegalArgumentException("Tipo no válido para "+code+": "+type+".");
                 int color=o.optInt("colorIndex",-1);
@@ -194,13 +196,73 @@ public final class ScheduleRepository {
 
     private static JSONObject backupSchema()throws Exception{
         JSONObject s=new JSONObject();
-        JSONArray days=new JSONArray();for(String d:BACKUP_DAYS)days.put(d);s.put("days",days);
-        JSONArray types=new JSONArray();types.put(TYPE_LECTIVA);types.put(TYPE_COMPLEMENTARIA);s.put("subjectTypes",types);
-        JSONArray shifts=new JSONArray();shifts.put("morning");shifts.put("betweenMorningAfternoon");shifts.put("afternoon");shifts.put("betweenAfternoonNight");shifts.put("night");s.put("shiftKeys",shifts);
-        s.put("colorIndex","-1 = automático; 0..23 = color de la paleta");
-        s.put("assignmentRule","Cada asignación necesita day, shift, subject y session. session=0 identifica un recreo. También puedes omitir session y usar start con formato HH:mm.");
-        JSONObject example=new JSONObject();example.put("day","LUN");example.put("shift","morning");example.put("start","08:00");example.put("subject","APW");s.put("assignmentExample",example);
+        s.put("purpose","Plantilla y copia de seguridad importable por Horario Lectivo. Si subjects y assignments están vacíos, rellénalos a partir de la imagen del horario sin eliminar el resto de campos.");
+
+        JSONArray ai=new JSONArray();
+        ai.put("Analiza la imagen del horario y conserva format, schemaVersion, appearance, sessionMinutes, shifts y la estructura general.");
+        ai.put("Crea primero subjects y después assignments. Todas las asignaturas usadas en assignments deben existir previamente en subjects.");
+        ai.put("subject.code es obligatorio, único y debe tener entre 1 y 3 caracteres, solo letras A-Z mayúsculas y dígitos 0-9. Ejemplos válidos: APW, BD, 2A.");
+        ai.put("subject.name es obligatorio y no puede estar vacío.");
+        ai.put("subject.type solo puede ser LECTIVA o COMPLEMENTARIA.");
+        ai.put("Para colorIndex usa -1 si no quieres elegir un color concreto; los valores explícitos válidos son 0..23.");
+        ai.put("Para assignments es preferible usar start con formato HH:mm y omitir session si la foto muestra las horas. La app calculará la sesión correspondiente.");
+        ai.put("Para una actividad durante un recreo usa el shift del turno al que pertenece el recreo y su hora start. Si usas session explícitamente, el recreo es session=0.");
+        ai.put("Para actividades entre turnos usa shift=betweenMorningAfternoon o shift=betweenAfternoonNight.");
+        ai.put("No inventes días, tipos ni claves de turno. No dupliques dos assignments para la misma casilla.");
+        ai.put("Devuelve únicamente JSON válido, sin Markdown, sin comentarios // o /* */ y sin texto fuera del JSON.");
+        s.put("aiInstructions",ai);
+
+        JSONObject fields=new JSONObject();
+        fields.put("appearance.darkMode",field("boolean","true o false."));
+        fields.put("sessionMinutes",numberField(10,180,"Duración común de una sesión, en minutos."));
+        fields.put("shifts.*.enabled",field("boolean","Activa o desactiva esa franja."));
+        fields.put("shifts.*.start",field("string HH:mm","Hora de inicio en formato de 24 horas, por ejemplo 08:00."));
+        fields.put("shifts.*.end",field("string HH:mm","Hora de fin en formato de 24 horas y posterior a start."));
+        fields.put("shifts.*.breakAfterSession",numberField(0,12,"0 = sin recreo; N = recreo después de la sesión N. En intervalos entre turnos debe ser 0."));
+        fields.put("shifts.*.breakMinutes",numberField(0,90,"0 si no hay recreo; si hay recreo, entre 5 y 90. En intervalos entre turnos debe ser 0."));
+
+        JSONObject code=field("string","Siglas que se muestran en el horario y widget.");
+        code.put("required",true);code.put("minLength",1);code.put("maxLength",3);code.put("pattern","^[A-Z0-9]{1,3}$");code.put("unique",true);
+        fields.put("subjects[].code",code);
+        JSONObject name=field("string","Nombre completo de la asignatura o actividad.");name.put("required",true);name.put("minLength",1);fields.put("subjects[].name",name);
+        JSONObject type=field("string","Clasificación de la asignatura.");JSONArray typeValues=new JSONArray();typeValues.put(TYPE_LECTIVA);typeValues.put(TYPE_COMPLEMENTARIA);type.put("enum",typeValues);fields.put("subjects[].type",type);
+        JSONObject color=numberField(-1,23,"-1 = color automático; 0..23 = índice de la paleta.");fields.put("subjects[].colorIndex",color);
+
+        JSONObject day=field("string","Día laborable.");JSONArray days=new JSONArray();for(String d:BACKUP_DAYS)days.put(d);day.put("enum",days);fields.put("assignments[].day",day);
+        JSONObject shift=field("string","Franja en la que se encuentra la actividad.");JSONArray shifts=new JSONArray();shifts.put("morning");shifts.put("betweenMorningAfternoon");shifts.put("afternoon");shifts.put("betweenAfternoonNight");shifts.put("night");shift.put("enum",shifts);fields.put("assignments[].shift",shift);
+        fields.put("assignments[].subject",field("string","Debe coincidir exactamente con un subjects[].code declarado."));
+        JSONObject start=field("string HH:mm","Hora inicial de la casilla. Recomendado para generar el JSON desde una imagen.");start.put("optionalIf","session está presente");fields.put("assignments[].start",start);
+        JSONObject session=numberField(0,99,"Índice de sesión. 0 identifica un recreo. Puede omitirse si se proporciona start.");session.put("optionalIf","start está presente");fields.put("assignments[].session",session);
+        s.put("fields",fields);
+
+        JSONArray rules=new JSONArray();
+        rules.put("Todos los objetos de shifts deben estar presentes aunque enabled sea false.");
+        rules.put("Las horas usan formato HH:mm de 24 horas y cada start debe ser anterior a end.");
+        rules.put("sessionMinutes debe estar entre 10 y 180.");
+        rules.put("breakAfterSession debe estar entre 0 y 12. Si es mayor que 0, breakMinutes debe estar entre 5 y 90.");
+        rules.put("Los intervalos betweenMorningAfternoon y betweenAfternoonNight no tienen recreo: breakAfterSession=0 y breakMinutes=0.");
+        rules.put("No puede haber dos asignaturas con el mismo code.");
+        rules.put("Cada assignment debe apuntar a una asignatura declarada en subjects.");
+        rules.put("Cada assignment debe corresponder a una casilla real generada por la configuración de shifts y sessionMinutes.");
+        rules.put("Una misma casilla day+shift+session solo puede tener una asignación.");
+        rules.put("Los intervalos entre turnos no deben solaparse con los turnos adyacentes que estén enabled.");
+        s.put("rules",rules);
+
+        JSONObject examples=new JSONObject();
+        JSONObject subjectExample=new JSONObject();subjectExample.put("code","APW");subjectExample.put("name","Aplicaciones Web");subjectExample.put("type",TYPE_LECTIVA);subjectExample.put("colorIndex",-1);examples.put("subject",subjectExample);
+        JSONObject assignmentExample=new JSONObject();assignmentExample.put("day","LUN");assignmentExample.put("shift","morning");assignmentExample.put("start","08:00");assignmentExample.put("subject","APW");examples.put("assignmentByStart",assignmentExample);
+        JSONObject breakExample=new JSONObject();breakExample.put("day","MAR");breakExample.put("shift","morning");breakExample.put("start","10:45");breakExample.put("subject","RET");examples.put("assignmentDuringRecess",breakExample);
+        JSONObject betweenExample=new JSONObject();betweenExample.put("day","JUE");betweenExample.put("shift","betweenMorningAfternoon");betweenExample.put("start","14:00");betweenExample.put("subject","DEP");examples.put("assignmentBetweenTurns",betweenExample);
+        s.put("examples",examples);
         return s;
+    }
+
+    private static JSONObject field(String type,String description)throws Exception{
+        JSONObject o=new JSONObject();o.put("type",type);o.put("description",description);return o;
+    }
+
+    private static JSONObject numberField(int min,int max,String description)throws Exception{
+        JSONObject o=field("integer",description);o.put("min",min);o.put("max",max);return o;
     }
 
     private static JSONObject writeBackupShift(ShiftConfig s)throws Exception{
@@ -210,7 +272,12 @@ public final class ScheduleRepository {
     private static ShiftConfig readBackupShift(JSONObject o,ShiftConfig fallback,String path)throws Exception{
         if(o==null)throw new IllegalArgumentException("Falta "+path+".");
         for(String field:new String[]{"enabled","start","end","breakAfterSession","breakMinutes"})if(!o.has(field))throw new IllegalArgumentException("Falta "+path+"."+field+".");
-        return new ShiftConfig(fallback.id,fallback.label,o.getBoolean("enabled"),LocalTime.parse(o.getString("start")),LocalTime.parse(o.getString("end")),o.getInt("breakAfterSession"),o.getInt("breakMinutes"));
+        int breakAfter=o.getInt("breakAfterSession"),breakMinutes=o.getInt("breakMinutes");
+        if(breakAfter<0||breakAfter>12)throw new IllegalArgumentException(path+".breakAfterSession debe estar entre 0 y 12.");
+        if(breakMinutes<0||breakMinutes>90)throw new IllegalArgumentException(path+".breakMinutes debe estar entre 0 y 90.");
+        if(breakAfter>0&&breakMinutes<5)throw new IllegalArgumentException(path+".breakMinutes debe estar entre 5 y 90 cuando hay recreo.");
+        if(isBetweenShift(fallback.id)&&(breakAfter!=0||breakMinutes!=0))throw new IllegalArgumentException(path+" es un intervalo entre turnos y debe tener breakAfterSession=0 y breakMinutes=0.");
+        return new ShiftConfig(fallback.id,fallback.label,o.getBoolean("enabled"),LocalTime.parse(o.getString("start")),LocalTime.parse(o.getString("end")),breakAfter,breakMinutes);
     }
 
     private static ShiftConfig shiftByExternalKey(Data d,String raw){
