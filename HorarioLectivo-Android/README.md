@@ -52,13 +52,15 @@ Si la configuración todavía no contiene asignaturas ni casillas, la aplicació
 
 El JSON no utiliza comentarios `//` o `/* */`, porque dejaría de ser JSON válido. Las explicaciones viven dentro del propio objeto `schema` y la aplicación las ignora al importar.
 
+Desde **v1.23**, la exportación se prepara completamente en memoria antes de abrir el selector de archivos. Tras guardar, la aplicación fuerza la escritura al almacenamiento y vuelve a leer el documento para verificar que no tenga 0 bytes y que coincida exactamente con el JSON generado. Solo entonces muestra el mensaje de exportación correcta, incluyendo el número de bytes guardados.
+
 También se incluye una plantilla lista para usar: **[horario_backup_template.json](./horario_backup_template.json)**.
 
 Una importación rechaza, entre otros casos, códigos de asignatura inválidos o duplicados, asignaciones a materias no declaradas, turnos desconocidos, sesiones inexistentes y configuraciones horarias incoherentes.
 
 ## Instalación
 
-1. Descarga **[HorarioLectivo_v1.22.apk](./HorarioLectivo_v1.22.apk)**.
+1. Descarga **[HorarioLectivo_v1.23.apk](./HorarioLectivo_v1.23.apk)**.
 2. Abre el APK desde Android.
 3. Autoriza la instalación de aplicaciones desconocidas si Android lo solicita.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -89,5 +91,5 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.22.apk](./HorarioLectivo_v1.22.apk)
+- **APK actual:** [HorarioLectivo_v1.23.apk](./HorarioLectivo_v1.23.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
