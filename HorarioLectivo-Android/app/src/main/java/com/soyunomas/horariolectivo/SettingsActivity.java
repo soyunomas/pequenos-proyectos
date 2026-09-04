@@ -1,18 +1,23 @@
 package com.soyunomas.horariolectivo;
 
 import android.app.*;
+import android.content.Intent;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.InputFilter;
 import android.view.*;
 import android.widget.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalTime;
 import java.util.*;
 import static com.soyunomas.horariolectivo.ScheduleModels.*;
 
 public final class SettingsActivity extends Activity {
   private static final String ERASE="__ERASE__";
+  private static final int REQ_EXPORT_JSON=4101,REQ_IMPORT_JSON=4102;
   private static final String[] DAYS={"LUN","MAR","MIÉ","JUE","VIE"};
   private ScheduleRepository repo; private Data d; private LinearLayout root,editor; private String selected=ERASE; private boolean block; private Start start; private AppTheme th;
 
@@ -28,6 +33,9 @@ public final class SettingsActivity extends Activity {
     TextView intro=text("Personaliza turnos, asignaturas y semana.",14,false);intro.setTextColor(th.muted);root.addView(intro);
 
     section("Apariencia","Ajusta el tema para una lectura cómoda.");LinearLayout dc=card();Switch dark=new Switch(this);dark.setText("Modo oscuro");dark.setTextColor(th.ink);dark.setChecked(repo.isDarkMode());dark.setOnCheckedChangeListener((b,on)->{repo.setDarkMode(on);render();});dc.addView(dark);addCard(dc);
+
+    section("Copia de seguridad","Exporta un JSON completo o restaura uno existente. El archivo vacío conserva todas las opciones y el esquema para poder rellenarlo también con ayuda de una IA.");
+    LinearLayout backup=card();LinearLayout br=row();Button exportJson=tonalButton("Exportar JSON");exportJson.setOnClickListener(v->exportJson());Button importJson=tonalButton("Importar JSON");importJson.setOnClickListener(v->importJson());br.addView(exportJson,new LinearLayout.LayoutParams(0,dp(48),1));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(0,dp(48),1);ip.setMargins(dp(8),0,0,0);br.addView(importJson,ip);backup.addView(br);TextView bh=text("La importación sustituye la configuración completa después de pedir confirmación.",12,false);bh.setTextColor(th.muted);bh.setPadding(0,dp(8),0,0);backup.addView(bh);addCard(backup);
 
     section("1 · Franjas horarias","Mañana, tarde y noche son turnos independientes. Los intervalos entre turnos pueden usarse para reuniones, RETA, departamento u otras actividades.");
     LinearLayout duration=card();value(duration,"Duración de sesión",d.sessionMinutes+" min",v->number("Duración",10,180,d.sessionMinutes,n->{d.sessionMinutes=n;render();}));addCard(duration);
@@ -106,6 +114,38 @@ public final class SettingsActivity extends Activity {
   private Button pick(String label,String value){Button b=tonalButton(label);boolean on=value.equals(selected);if(ERASE.equals(value)){b.setText(on?"✓ BORRAR":"BORRAR");b.setTextColor(on?th.primaryText:th.buttonText);b.setBackground(box(on?th.primary:th.buttonBg,on?th.primary:th.border,on?3:1,18));b.setContentDescription(on?"Borrar seleccionado":"Borrar");}else{int fill=th.subjectColor(value);b.setText(on?"✓ "+label:label);b.setTextColor(th.subjectTextColor(value));b.setBackground(box(fill,on?th.primary:fill,on?3:0,18));b.setContentDescription((on?"Asignatura seleccionada ":"Seleccionar asignatura ")+label);}b.setOnClickListener(v->{selected=value;start=null;renderEditor();});return b;}
   private void confirmDelete(String code){new AlertDialog.Builder(this).setTitle("Eliminar "+code).setMessage("También se borrará de la semana.").setNegativeButton("Cancelar",null).setPositiveButton("Eliminar",(a,b)->{d.subjects.removeIf(s->s.code.equals(code));d.assignments.entrySet().removeIf(e->e.getValue().equals(code));if(code.equals(selected))selected=ERASE;render();}).show();}
   private void save(){List<String>e=ScheduleEngine.validate(d);if(!e.isEmpty()){new AlertDialog.Builder(this).setTitle("Revisa la configuración").setMessage(String.join("\n",e)).setPositiveButton("OK",null).show();return;}repo.save(d);HorarioWidgetProvider.refreshAll(this);finish();}
+
+  private void exportJson(){Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,"HorarioLectivo_backup.json");startActivityForResult(i,REQ_EXPORT_JSON);}
+  private void importJson(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");startActivityForResult(i,REQ_IMPORT_JSON);}
+
+  @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+    super.onActivityResult(requestCode,resultCode,data);if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();
+    if(requestCode==REQ_EXPORT_JSON){writeBackup(uri);return;}
+    if(requestCode==REQ_IMPORT_JSON)readBackup(uri);
+  }
+
+  private void writeBackup(Uri uri){
+    try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
+      if(out==null)throw new IOException("No se pudo abrir el archivo de destino.");
+      out.write(repo.exportBackup(d).getBytes(StandardCharsets.UTF_8));out.flush();
+      Toast.makeText(this,"Copia JSON exportada",Toast.LENGTH_SHORT).show();
+    }catch(Exception e){showBackupError("No se pudo exportar",e);}
+  }
+
+  private void readBackup(Uri uri){
+    try(InputStream in=getContentResolver().openInputStream(uri)){
+      if(in==null)throw new IOException("No se pudo abrir el archivo.");
+      ByteArrayOutputStream bytes=new ByteArrayOutputStream();byte[]buf=new byte[8192];int n;while((n=in.read(buf))!=-1){bytes.write(buf,0,n);if(bytes.size()>2*1024*1024)throw new IOException("El JSON supera el límite de 2 MB.");}
+      ScheduleRepository.Backup imported=ScheduleRepository.importBackup(bytes.toString(StandardCharsets.UTF_8.name()));
+      int subjects=imported.data.subjects.size(),assignments=imported.data.assignments.size();
+      new AlertDialog.Builder(this).setTitle("Importar copia JSON").setMessage("Se sustituirá toda la configuración actual.\n\nAsignaturas: "+subjects+"\nAsignaciones: "+assignments).setNegativeButton("Cancelar",null).setPositiveButton("Importar",(a,b)->applyBackup(imported)).show();
+    }catch(Exception e){showBackupError("No se pudo importar",e);}
+  }
+
+  private void applyBackup(ScheduleRepository.Backup imported){
+    d=imported.data.copy();repo.setDarkMode(imported.darkMode);repo.save(d);selected=ERASE;block=false;start=null;HorarioWidgetProvider.refreshAll(this);render();Toast.makeText(this,"Copia JSON importada",Toast.LENGTH_SHORT).show();
+  }
+  private void showBackupError(String title,Exception e){String m=e.getMessage();if(m==null||m.trim().isEmpty())m=e.getClass().getSimpleName();new AlertDialog.Builder(this).setTitle(title).setMessage(m).setPositiveButton("OK",null).show();}
 
   private int screenWidthDp(){return Math.round(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);}private int timeColumnDp(){int available=Math.max(300,screenWidthDp()-52);return Math.max(64,Math.min(80,Math.round(available*0.22f)));}private int dayColumnDp(){int available=Math.max(300,screenWidthDp()-52);int time=timeColumnDp();return Math.max(44,(available-time-24)/5);}private int tableContentDp(int timeW,int dayW){return timeW+5*dayW+20;}
   private void section(String a,String b){TextView x=text(a,19,true);x.setPadding(dp(2),dp(22),dp(2),dp(4));root.addView(x);TextView dsc=text(b,13,false);dsc.setTextColor(th.muted);dsc.setPadding(dp(2),0,dp(2),dp(10));root.addView(dsc);}private void value(LinearLayout p,String label,String value,View.OnClickListener l){LinearLayout r=row();r.addView(text(label,15,false),new LinearLayout.LayoutParams(0,-2,1));Button b=tonalButton(value);b.setOnClickListener(l);r.addView(b);p.addView(r);}private void number(String title,int min,int max,int cur,java.util.function.IntConsumer done){NumberPicker p=new NumberPicker(this);p.setMinValue(min);p.setMaxValue(max);p.setValue(Math.max(min,Math.min(max,cur)));new AlertDialog.Builder(this).setTitle(title).setView(p).setNegativeButton("Cancelar",null).setPositiveButton("Aceptar",(a,b)->done.accept(p.getValue())).show();}private void time(LocalTime cur,java.util.function.Consumer<LocalTime> done){new TimePickerDialog(this,(v,h,m)->done.accept(LocalTime.of(h,m)),cur.getHour(),cur.getMinute(),true).show();}private String fmt(LocalTime t){return String.format(Locale.US,"%02d:%02d",t.getHour(),t.getMinute());}
