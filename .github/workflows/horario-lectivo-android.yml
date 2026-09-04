@@ -60,20 +60,24 @@ jobs:
           grep -Fq 'contentState' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
           grep -Fq 'maxLength",3' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
           grep -Fq 'HorarioLectivo_plantilla_IA.json' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'pendingExportJson=repo.exportBackup(d)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'openFileDescriptor(uri,"rwt")' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'out.getFD().sync()' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'verifyExportedFile' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           unzip -t HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Upload tested APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HorarioLectivo-v1.22-debug
+          name: HorarioLectivo-v1.23-debug
           path: HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish APK in repository
         if: github.event_name == 'push'
         run: |
-          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.22.apk
-          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.22.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
+          cp HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk HorarioLectivo-Android/HorarioLectivo_v1.23.apk
+          sha256sum HorarioLectivo-Android/HorarioLectivo_v1.23.apk | awk '{print $1}' > HorarioLectivo-Android/APK_SHA256.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add HorarioLectivo-Android/HorarioLectivo_v1.22.apk HorarioLectivo-Android/APK_SHA256.txt
+          git add HorarioLectivo-Android/HorarioLectivo_v1.23.apk HorarioLectivo-Android/APK_SHA256.txt
           git diff --cached --quiet && exit 0
-          git commit -m 'build: publish Horario Lectivo v1.22 APK [skip ci]'
+          git commit -m 'build: publish Horario Lectivo v1.23 APK [skip ci]'
           git push
