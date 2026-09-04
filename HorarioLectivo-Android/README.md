@@ -46,7 +46,11 @@ En **Configurar horario > Copia de seguridad** hay dos acciones:
 
 El formato externo está versionado como `horario-lectivo-backup` / esquema `1`. Incluye apariencia, duración de sesión, mañana, tarde, noche, ambos intervalos entre turnos, recreos, asignaturas y asignaciones semanales.
 
-La exportación incluye además un bloque `schema` con días válidos, tipos de asignatura, claves de turno y reglas de asignación. De este modo el propio archivo sirve como plantilla para una IA. Para una configuración aún vacía, `subjects` y `assignments` aparecen como arrays vacíos, pero todas las opciones permanecen presentes.
+La exportación incluye además un bloque `schema` autocontenido. Describe los campos, tipos, rangos, valores permitidos, reglas y ejemplos necesarios para generar un horario válido. Entre otras restricciones, documenta que las siglas `subjects[].code` son obligatorias, únicas, de **1 a 3 caracteres** y solo admiten `A-Z` y `0-9`.
+
+Si la configuración todavía no contiene asignaturas ni casillas, la aplicación propone el nombre **`HorarioLectivo_plantilla_IA.json`** y marca el documento como `contentState: "BLANK_TEMPLATE"`. No es un archivo vacío: contiene todos los turnos y opciones configurables, además de instrucciones `aiInstructions`, definición de campos `fields`, reglas `rules` y ejemplos `examples`; únicamente `subjects` y `assignments` permanecen vacíos para que una IA con visión los complete a partir de una foto.
+
+El JSON no utiliza comentarios `//` o `/* */`, porque dejaría de ser JSON válido. Las explicaciones viven dentro del propio objeto `schema` y la aplicación las ignora al importar.
 
 También se incluye una plantilla lista para usar: **[horario_backup_template.json](./horario_backup_template.json)**.
 
@@ -54,7 +58,7 @@ Una importación rechaza, entre otros casos, códigos de asignatura inválidos o
 
 ## Instalación
 
-1. Descarga **[HorarioLectivo_v1.21.apk](./HorarioLectivo_v1.21.apk)**.
+1. Descarga **[HorarioLectivo_v1.22.apk](./HorarioLectivo_v1.22.apk)**.
 2. Abre el APK desde Android.
 3. Autoriza la instalación de aplicaciones desconocidas si Android lo solicita.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -85,5 +89,5 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.21.apk](./HorarioLectivo_v1.21.apk)
+- **APK actual:** [HorarioLectivo_v1.22.apk](./HorarioLectivo_v1.22.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
