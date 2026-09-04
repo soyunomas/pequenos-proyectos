@@ -4,6 +4,7 @@ import android.app.*;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.InputFilter;
@@ -20,6 +21,7 @@ public final class SettingsActivity extends Activity {
   private static final int REQ_EXPORT_JSON=4101,REQ_IMPORT_JSON=4102;
   private static final String[] DAYS={"LUN","MAR","MIÉ","JUE","VIE"};
   private ScheduleRepository repo; private Data d; private LinearLayout root,editor; private String selected=ERASE; private boolean block; private Start start; private AppTheme th;
+  private String pendingExportJson; private boolean pendingExportBlank;
 
   @Override protected void onCreate(Bundle b){super.onCreate(b);repo=new ScheduleRepository(this);d=repo.load().copy();render();}
 
@@ -115,7 +117,16 @@ public final class SettingsActivity extends Activity {
   private void confirmDelete(String code){new AlertDialog.Builder(this).setTitle("Eliminar "+code).setMessage("También se borrará de la semana.").setNegativeButton("Cancelar",null).setPositiveButton("Eliminar",(a,b)->{d.subjects.removeIf(s->s.code.equals(code));d.assignments.entrySet().removeIf(e->e.getValue().equals(code));if(code.equals(selected))selected=ERASE;render();}).show();}
   private void save(){List<String>e=ScheduleEngine.validate(d);if(!e.isEmpty()){new AlertDialog.Builder(this).setTitle("Revisa la configuración").setMessage(String.join("\n",e)).setPositiveButton("OK",null).show();return;}repo.save(d);HorarioWidgetProvider.refreshAll(this);finish();}
 
-  private void exportJson(){boolean blank=d.subjects.isEmpty()&&d.assignments.isEmpty();Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,blank?"HorarioLectivo_plantilla_IA.json":"HorarioLectivo_backup.json");startActivityForResult(i,REQ_EXPORT_JSON);}
+  private void exportJson(){
+    try{
+      pendingExportBlank=d.subjects.isEmpty()&&d.assignments.isEmpty();
+      pendingExportJson=repo.exportBackup(d);
+      if(pendingExportJson==null||pendingExportJson.trim().isEmpty())throw new IOException("La aplicación generó un JSON vacío y ha cancelado la exportación.");
+      byte[] check=pendingExportJson.getBytes(StandardCharsets.UTF_8);
+      if(check.length<128)throw new IOException("La plantilla JSON generada es demasiado pequeña ("+check.length+" bytes).");
+      Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,pendingExportBlank?"HorarioLectivo_plantilla_IA.json":"HorarioLectivo_backup.json");startActivityForResult(i,REQ_EXPORT_JSON);
+    }catch(Exception e){pendingExportJson=null;showBackupError("No se pudo preparar la exportación",e);}
+  }
   private void importJson(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");i.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"application/json","text/json","text/plain"});startActivityForResult(i,REQ_IMPORT_JSON);}
 
   @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
@@ -125,11 +136,35 @@ public final class SettingsActivity extends Activity {
   }
 
   private void writeBackup(Uri uri){
-    try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
-      if(out==null)throw new IOException("No se pudo abrir el archivo de destino.");
-      boolean blank=d.subjects.isEmpty()&&d.assignments.isEmpty();out.write(repo.exportBackup(d).getBytes(StandardCharsets.UTF_8));out.flush();
-      Toast.makeText(this,blank?"Plantilla JSON para IA exportada":"Copia JSON exportada",Toast.LENGTH_SHORT).show();
-    }catch(Exception e){showBackupError("No se pudo exportar",e);}
+    String json=pendingExportJson;boolean blank=pendingExportBlank;pendingExportJson=null;
+    try{
+      if(json==null||json.trim().isEmpty())throw new IOException("No hay contenido JSON preparado para guardar.");
+      byte[] bytes=json.getBytes(StandardCharsets.UTF_8);
+      try(ParcelFileDescriptor pfd=getContentResolver().openFileDescriptor(uri,"rwt")){
+        if(pfd==null)throw new IOException("No se pudo abrir el archivo de destino.");
+        try(FileOutputStream out=new FileOutputStream(pfd.getFileDescriptor())){
+          out.getChannel().truncate(0);
+          out.write(bytes);
+          out.flush();
+          out.getFD().sync();
+        }
+      }
+      int verified=verifyExportedFile(uri,bytes);
+      if(verified<=0)throw new IOException("Android ha creado el archivo, pero sigue teniendo 0 bytes.");
+      Toast.makeText(this,(blank?"Plantilla JSON para IA exportada":"Copia JSON exportada")+" · "+verified+" bytes",Toast.LENGTH_LONG).show();
+    }catch(Exception e){showBackupError("No se pudo exportar correctamente",e);}
+  }
+
+  private int verifyExportedFile(Uri uri,byte[] expected)throws IOException{
+    try(InputStream in=getContentResolver().openInputStream(uri)){
+      if(in==null)throw new IOException("No se pudo volver a abrir el archivo para verificarlo.");
+      ByteArrayOutputStream copy=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;
+      while((n=in.read(buf))!=-1){copy.write(buf,0,n);if(copy.size()>2*1024*1024)throw new IOException("El archivo exportado supera 2 MB inesperadamente.");}
+      byte[] actual=copy.toByteArray();
+      if(actual.length==0)throw new IOException("El archivo guardado tiene 0 bytes.");
+      if(!Arrays.equals(expected,actual))throw new IOException("El contenido guardado no coincide con el JSON generado.");
+      return actual.length;
+    }
   }
 
   private void readBackup(Uri uri){
