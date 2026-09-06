@@ -26,13 +26,14 @@ public final class ScheduleModels {
     }
 
     public static final class Subject {
-        public String code,name,type; public int colorIndex;
-        public Subject(String code,String name){this(code,name,-1,TYPE_LECTIVA);}
-        public Subject(String code,String name,int colorIndex){this(code,name,colorIndex,TYPE_LECTIVA);}
-        public Subject(String code,String name,int colorIndex,String type){this.code=code;this.name=name;this.colorIndex=colorIndex;this.type=TYPE_COMPLEMENTARIA.equals(type)?TYPE_COMPLEMENTARIA:TYPE_LECTIVA;}
+        public String code,name,type,defaultRoom; public int colorIndex;
+        public Subject(String code,String name){this(code,name,-1,TYPE_LECTIVA,"");}
+        public Subject(String code,String name,int colorIndex){this(code,name,colorIndex,TYPE_LECTIVA,"");}
+        public Subject(String code,String name,int colorIndex,String type){this(code,name,colorIndex,type,"");}
+        public Subject(String code,String name,int colorIndex,String type,String defaultRoom){this.code=code;this.name=name;this.colorIndex=colorIndex;this.type=TYPE_COMPLEMENTARIA.equals(type)?TYPE_COMPLEMENTARIA:TYPE_LECTIVA;this.defaultRoom=defaultRoom==null?"":defaultRoom.trim();}
         public boolean isLectiva(){return !TYPE_COMPLEMENTARIA.equals(type);}
         public boolean isComplementaria(){return TYPE_COMPLEMENTARIA.equals(type);}
-        public Subject copy(){return new Subject(code,name,colorIndex,type);}
+        public Subject copy(){return new Subject(code,name,colorIndex,type,defaultRoom);}
     }
 
     public static final class Data {
@@ -59,8 +60,10 @@ public final class ScheduleModels {
         public static String assignmentKey(int day,String shift,int session){return day+"|"+shift+"|"+session;}
         public String getAssignment(int day,String shift,int session){String v=assignments.get(assignmentKey(day,shift,session));return v==null?"":v;}
         public void setAssignment(int day,String shift,int session,String code){String k=assignmentKey(day,shift,session);if(code==null||code.trim().isEmpty()){assignments.remove(k);rooms.remove(k);}else{String normalized=code.trim().toUpperCase();String previous=assignments.get(k);assignments.put(k,normalized);if(previous!=null&&!previous.equalsIgnoreCase(normalized))rooms.remove(k);}}
-        public String getRoom(int day,String shift,int session){String v=rooms.get(assignmentKey(day,shift,session));return v==null?"":v;}
-        public void setRoom(int day,String shift,int session,String room){String k=assignmentKey(day,shift,session);if(!assignments.containsKey(k)||room==null||room.trim().isEmpty())rooms.remove(k);else rooms.put(k,room.trim());}
+        public String getRoomOverride(int day,String shift,int session){String v=rooms.get(assignmentKey(day,shift,session));return v==null?"":v;}
+        public String getRoom(int day,String shift,int session){String override=getRoomOverride(day,shift,session);if(!override.isEmpty())return override;Subject s=subject(getAssignment(day,shift,session));return s==null||s.defaultRoom==null?"":s.defaultRoom.trim();}
+        public boolean hasRoomOverride(int day,String shift,int session){return !getRoomOverride(day,shift,session).isEmpty();}
+        public void setRoom(int day,String shift,int session,String room){String k=assignmentKey(day,shift,session);String value=room==null?"":room.trim();Subject subject=subject(getAssignment(day,shift,session));if(!assignments.containsKey(k)||value.isEmpty()||(subject!=null&&!subject.defaultRoom.isEmpty()&&subject.defaultRoom.equalsIgnoreCase(value)))rooms.remove(k);else rooms.put(k,value);}
 
         public List<TimeSlotConfig> customSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list==null?new ArrayList<>():list;}
         public boolean hasCustomSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list!=null&&!list.isEmpty();}
