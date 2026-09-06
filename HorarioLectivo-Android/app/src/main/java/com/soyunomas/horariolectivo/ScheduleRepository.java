@@ -94,7 +94,7 @@ public final class ScheduleRepository {
             JSONArray subjects=new JSONArray();
             for(Subject s:d.subjects){
                 JSONObject o=new JSONObject();
-                o.put("code",s.code);o.put("name",s.name);o.put("type",s.type);o.put("colorIndex",s.colorIndex);o.put("defaultRoom",s.defaultRoom==null?"":s.defaultRoom);o.put("defaultRoom",s.defaultRoom);
+                o.put("code",s.code);o.put("name",s.name);o.put("type",s.type);o.put("colorIndex",s.colorIndex);o.put("defaultRoom",s.defaultRoom==null?"":s.defaultRoom);
                 subjects.put(o);
             }
             root.put("subjects",subjects);

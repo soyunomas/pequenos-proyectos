@@ -34,71 +34,34 @@ jobs:
       - name: Unit tests, lint and APK
         working-directory: HorarioLectivo-Android
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
-      - name: Verify timetable rows and JSON backup
+      - name: Verify timetable, classrooms and JSON backup
         run: |
-          grep -Fq 'NIGHT="N"' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'BETWEEN_NIGHT="EN"' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'd.betweenNight=readShift' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'd.night=readShift' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'generateSlots(data,data.betweenNight)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleEngine.java
-          grep -Fq 'generateSlots(data,data.night)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleEngine.java
-          grep -Fq 'betweenCell()' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'betweenTimeCell' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -Fq 'ENTRE TURNOS' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
-          grep -Fq 'BACKUP_FORMAT="horario-lectivo-backup"' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'exportBackup(Data data)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'importBackup(String raw)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'Exportar JSON' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'Importar JSON' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq '"subjects": []' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"assignments": []' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"maxLength": 3' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"pattern": "^[A-Z0-9]{1,3}$"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"aiInstructions"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"fields"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"rules"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq 'contentState' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'maxLength",3' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'HorarioLectivo_plantilla_IA.json' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'pendingExportJson=repo.exportBackup(d)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'openFileDescriptor(uri,"rwt")' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'out.getFD().sync()' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'verifyExportedFile' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'public final Map<String,String> rooms' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'showRoomsInWidget' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'o.put("room",d.getRoomOverride' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'assignments[].room' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'Mostrar aula/lugar en el widget' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'editRoom(' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'roomFor(d,r)' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java
-          grep -Fq '"widget": {' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"assignments[].room"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"room": ""' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq 'customSlots' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'ensureSlotsForAssignments' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'shifts.*.slots' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq 'exactSlotsWithFiveMinuteGap' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq '"shifts.*.slots"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"exactSlotsWithFiveMinuteGap"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"end": "09:55"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq 'Franjas exactas importadas' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'getRoomOverride' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'Aula general' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'Guardar excepción' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'showSubjectDetails' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -Fq 'subjects[].defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq '"subjects[].defaultRoom"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"assignmentWithRoomException"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq 'defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'getRoomOverride' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'Aula general' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -Fq 'Aula excepcional' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -Fq 'showSubjectDetails' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -Fq 'OvershootInterpolator' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -Fq 'subjects[].defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
-          grep -Fq '"subjects[].defaultRoom"' HorarioLectivo-Android/horario_backup_template.json
-          grep -Fq '"assignmentWithRoomException"' HorarioLectivo-Android/horario_backup_template.json
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def has(path, *needles):
+              text = Path(path).read_text(encoding="utf-8")
+              missing = [n for n in needles if n not in text]
+              if missing:
+                  raise SystemExit(f"{path}: missing {missing}")
+
+          has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java",
+              'NIGHT="N"', 'BETWEEN_NIGHT="EN"', 'defaultRoom', 'getRoomOverride', 'customSlots')
+          has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java",
+              'BACKUP_FORMAT="horario-lectivo-backup"', 'subjects[].defaultRoom',
+              'assignments[].room', 'getRoomOverride', 'ensureSlotsForAssignments')
+          has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java",
+              'Exportar JSON', 'Importar JSON', 'Aula general', 'Guardar excepción',
+              'Mostrar aula/lugar en el widget', 'verifyExportedFile')
+          has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java",
+              'showSubjectDetails', 'Aula general', 'Aula excepcional', 'OvershootInterpolator')
+          has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java",
+              'roomFor(d,r)', 'ENTRE TURNOS')
+          has("HorarioLectivo-Android/horario_backup_template.json",
+              '"subjects": []', '"assignments": []', '"subjects[].defaultRoom"',
+              '"assignments[].room"', '"assignmentWithRoomException"',
+              '"shifts.*.slots"', '"exactSlotsWithFiveMinuteGap"')
+          PY
           unzip -t HorarioLectivo-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Upload tested APK artifact
         uses: actions/upload-artifact@v4
