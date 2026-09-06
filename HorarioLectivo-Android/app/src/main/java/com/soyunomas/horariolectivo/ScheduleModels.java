@@ -19,6 +19,12 @@ public final class ScheduleModels {
         public ShiftConfig copy(){return new ShiftConfig(id,label,enabled,start,end,breakAfterSession,breakMinutes);}
     }
 
+    public static final class TimeSlotConfig {
+        public LocalTime start,end; public boolean isBreak;
+        public TimeSlotConfig(LocalTime start,LocalTime end,boolean isBreak){this.start=start;this.end=end;this.isBreak=isBreak;}
+        public TimeSlotConfig copy(){return new TimeSlotConfig(start,end,isBreak);}
+    }
+
     public static final class Subject {
         public String code,name,type; public int colorIndex;
         public Subject(String code,String name){this(code,name,-1,TYPE_LECTIVA);}
@@ -31,19 +37,38 @@ public final class ScheduleModels {
 
     public static final class Data {
         public int sessionMinutes=55;
+        public boolean showRoomsInWidget=true;
         public ShiftConfig morning=new ShiftConfig(MORNING,"MAÑANA",true,LocalTime.of(8,0),LocalTime.of(14,0),3,30);
         public ShiftConfig between=new ShiftConfig(BETWEEN,"ENTRE MAÑANA Y TARDE",true,LocalTime.of(14,0),LocalTime.of(15,0),0,0);
         public ShiftConfig afternoon=new ShiftConfig(AFTERNOON,"TARDE",false,LocalTime.of(15,0),LocalTime.of(21,0),3,30);
         public ShiftConfig betweenNight=new ShiftConfig(BETWEEN_NIGHT,"ENTRE TARDE Y NOCHE",false,LocalTime.of(21,0),LocalTime.of(22,0),0,0);
         public ShiftConfig night=new ShiftConfig(NIGHT,"NOCHE",false,LocalTime.of(22,0),LocalTime.of(23,55),0,0);
-        public boolean showRoomsInWidget=true;
-        public final List<Subject> subjects=new ArrayList<>(); public final Map<String,String> assignments=new HashMap<>(); public final Map<String,String> rooms=new HashMap<>();
-        public Data copy(){Data d=new Data();d.sessionMinutes=sessionMinutes;d.showRoomsInWidget=showRoomsInWidget;d.morning=morning.copy();d.between=between.copy();d.afternoon=afternoon.copy();d.betweenNight=betweenNight.copy();d.night=night.copy();d.subjects.clear();for(Subject s:subjects)d.subjects.add(s.copy());d.assignments.clear();d.assignments.putAll(assignments);d.rooms.clear();d.rooms.putAll(rooms);return d;}
+        public final List<Subject> subjects=new ArrayList<>();
+        public final Map<String,String> assignments=new HashMap<>();
+        public final Map<String,String> rooms=new HashMap<>();
+        public final Map<String,List<TimeSlotConfig>> customSlots=new HashMap<>();
+
+        public Data copy(){
+            Data d=new Data();d.sessionMinutes=sessionMinutes;d.showRoomsInWidget=showRoomsInWidget;d.morning=morning.copy();d.between=between.copy();d.afternoon=afternoon.copy();d.betweenNight=betweenNight.copy();d.night=night.copy();
+            d.subjects.clear();for(Subject s:subjects)d.subjects.add(s.copy());
+            d.assignments.clear();d.assignments.putAll(assignments);d.rooms.clear();d.rooms.putAll(rooms);
+            d.customSlots.clear();for(Map.Entry<String,List<TimeSlotConfig>> e:customSlots.entrySet()){List<TimeSlotConfig> list=new ArrayList<>();for(TimeSlotConfig t:e.getValue())list.add(t.copy());d.customSlots.put(e.getKey(),list);}
+            return d;
+        }
+
         public static String assignmentKey(int day,String shift,int session){return day+"|"+shift+"|"+session;}
         public String getAssignment(int day,String shift,int session){String v=assignments.get(assignmentKey(day,shift,session));return v==null?"":v;}
         public void setAssignment(int day,String shift,int session,String code){String k=assignmentKey(day,shift,session);if(code==null||code.trim().isEmpty()){assignments.remove(k);rooms.remove(k);}else{String normalized=code.trim().toUpperCase();String previous=assignments.get(k);assignments.put(k,normalized);if(previous!=null&&!previous.equalsIgnoreCase(normalized))rooms.remove(k);}}
         public String getRoom(int day,String shift,int session){String v=rooms.get(assignmentKey(day,shift,session));return v==null?"":v;}
         public void setRoom(int day,String shift,int session,String room){String k=assignmentKey(day,shift,session);if(!assignments.containsKey(k)||room==null||room.trim().isEmpty())rooms.remove(k);else rooms.put(k,room.trim());}
+
+        public List<TimeSlotConfig> customSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list==null?new ArrayList<>():list;}
+        public boolean hasCustomSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list!=null&&!list.isEmpty();}
+        public void setCustomSlots(String shiftId,List<TimeSlotConfig> slots){
+            if(slots==null||slots.isEmpty()){customSlots.remove(shiftId);return;}
+            List<TimeSlotConfig> copy=new ArrayList<>();for(TimeSlotConfig s:slots)copy.add(s.copy());customSlots.put(shiftId,copy);
+        }
+
         public String subjectName(String code){Subject s=subject(code);return s==null?(code==null?"":code):s.name;}
         public Subject subject(String code){if(code==null||code.isEmpty())return null;for(Subject s:subjects)if(s.code.equalsIgnoreCase(code))return s;return null;}
         public boolean isLectiva(String code){Subject s=subject(code);return s!=null&&s.isLectiva();}
@@ -51,7 +76,7 @@ public final class ScheduleModels {
         public void renameSubjectCode(String oldCode,String newCode){if(oldCode==null||newCode==null||oldCode.equalsIgnoreCase(newCode))return;String oldUpper=oldCode.trim().toUpperCase(),newUpper=newCode.trim().toUpperCase();for(Map.Entry<String,String> e:assignments.entrySet())if(oldUpper.equalsIgnoreCase(e.getValue()))e.setValue(newUpper);}
     }
 
-    public static final class Slot {public final String shiftId,shiftLabel;public final LocalTime start,end;public final boolean isBreak;public final int sessionIndex;public Slot(String shiftId,String shiftLabel,LocalTime start,LocalTime end,boolean isBreak,int sessionIndex){this.shiftId=shiftId;this.shiftLabel=shiftLabel;this.start=start;this.end=end;this.isBreak=isBreak;this.sessionIndex=sessionIndex;}public String identity(){return shiftId+":"+(isBreak?"B":"S"+sessionIndex);}}
+    public static final class Slot {public final String shiftId,shiftLabel;public final LocalTime start,end;public final boolean isBreak;public final int sessionIndex;public Slot(String shiftId,String shiftLabel,LocalTime start,LocalTime end,boolean isBreak,int sessionIndex){this.shiftId=shiftId;this.shiftLabel=shiftLabel;this.start=start;this.end=end;this.isBreak=isBreak;this.sessionIndex=sessionIndex;}public String identity(){return shiftId+":"+(isBreak?"B"+sessionIndex:"S"+sessionIndex);}}
     public static final class SlotRef {public final int dayIndex;public final Slot slot;public final String code;public SlotRef(int dayIndex,Slot slot,String code){this.dayIndex=dayIndex;this.slot=slot;this.code=code==null?"":code;}}
     public static final class NowNext {public final SlotRef current,next;public NowNext(SlotRef current,SlotRef next){this.current=current;this.next=next;}}
 }
