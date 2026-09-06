@@ -16,7 +16,17 @@ public final class ScheduleEngine {
 
     public static List<Slot> generateSlots(Data data, ShiftConfig shift) {
         List<Slot> out=new ArrayList<>();
-        if(data==null||shift==null||!shift.enabled||data.sessionMinutes<=0||shift.start==null||shift.end==null||!shift.start.isBefore(shift.end))return out;
+        if(data==null||shift==null||!shift.enabled||shift.start==null||shift.end==null||!shift.start.isBefore(shift.end))return out;
+        if(data.hasCustomSlots(shift.id)){
+            int session=0,breakIndex=0;
+            for(TimeSlotConfig t:data.customSlots(shift.id)){
+                if(t==null||t.start==null||t.end==null||!t.start.isBefore(t.end))continue;
+                if(t.isBreak)out.add(new Slot(shift.id,shift.label,t.start,t.end,true,--breakIndex));
+                else out.add(new Slot(shift.id,shift.label,t.start,t.end,false,++session));
+            }
+            return out;
+        }
+        if(data.sessionMinutes<=0)return out;
         if(isBetweenShift(shift.id)){out.add(new Slot(shift.id,shift.label,shift.start,shift.end,false,1));return out;}
         long available=Duration.between(shift.start,shift.end).toMinutes();
         long used=0; int session=0;
