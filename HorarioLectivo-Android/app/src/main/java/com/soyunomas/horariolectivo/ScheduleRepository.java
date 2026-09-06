@@ -262,7 +262,6 @@ public final class ScheduleRepository {
         JSONObject type=field("string","Clasificación de la asignatura.");JSONArray typeValues=new JSONArray();typeValues.put(TYPE_LECTIVA);typeValues.put(TYPE_COMPLEMENTARIA);type.put("enum",typeValues);fields.put("subjects[].type",type);
         JSONObject color=numberField(-1,23,"-1 = color automático; 0..23 = índice de la paleta.");fields.put("subjects[].colorIndex",color);
         JSONObject defaultRoom=field("string","Aula o lugar habitual de la asignatura. Se usa por defecto en todas sus casillas salvo que assignments[].room defina una excepción.");defaultRoom.put("maxLength",80);defaultRoom.put("allowEmpty",true);fields.put("subjects[].defaultRoom",defaultRoom);
-        JSONObject defaultRoom=field("string","Aula/lugar habitual de la asignatura. Se aplica a todas sus casillas salvo que un assignment defina una excepción en room.");defaultRoom.put("maxLength",80);defaultRoom.put("allowEmpty",true);fields.put("subjects[].defaultRoom",defaultRoom);
 
         JSONObject day=field("string","Día laborable.");JSONArray days=new JSONArray();for(String d:BACKUP_DAYS)days.put(d);day.put("enum",days);fields.put("assignments[].day",day);
         JSONObject shift=field("string","Franja en la que se encuentra la actividad.");JSONArray shifts=new JSONArray();shifts.put("morning");shifts.put("betweenMorningAfternoon");shifts.put("afternoon");shifts.put("betweenAfternoonNight");shifts.put("night");shift.put("enum",shifts);fields.put("assignments[].shift",shift);
