@@ -51,7 +51,7 @@ jobs:
               'BACKUP_FORMAT="horario-lectivo-backup"', 'subjects[].defaultRoom',
               'assignments[].room', 'getRoomOverride', 'ensureSlotsForAssignments')
           has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java",
-              'Exportar JSON', 'Importar JSON', 'Aula habitual', 'Guardar excepción',
+              'Exportar JSON', 'Importar JSON', 'Aula general', 'Guardar excepción',
               'Mostrar aula/lugar en el widget', 'verifyExportedFile')
           has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java",
               'showSubjectDetails', 'Aula general', 'Aula excepcional', 'OvershootInterpolator')
