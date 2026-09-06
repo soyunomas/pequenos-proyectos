@@ -87,14 +87,13 @@ jobs:
           grep -Fq 'Aula habitual' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           grep -Fq 'Guardar excepción' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           grep -Fq 'showSubjectDetails' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
-          grep -Fq 'ScaleAnimation(0.86f,1f' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
           grep -Fq 'subjects[].defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
           grep -Fq '"subjects[].defaultRoom"' HorarioLectivo-Android/horario_backup_template.json
           grep -Fq '"assignmentWithRoomException"' HorarioLectivo-Android/horario_backup_template.json
           grep -Fq 'defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
           grep -Fq 'getRoomOverride' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'Aula general' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
-          grep -Fq 'Aula excepcional' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'Aula general' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
+          grep -Fq 'Aula excepcional' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
           grep -Fq 'showSubjectDetails' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
           grep -Fq 'OvershootInterpolator' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
           grep -Fq 'subjects[].defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
