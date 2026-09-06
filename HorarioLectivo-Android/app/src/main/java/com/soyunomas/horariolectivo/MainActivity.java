@@ -40,7 +40,7 @@ public final class MainActivity extends Activity {
     for(Slot slot:ScheduleEngine.generateSlots(d,s)){
       boolean rowCur=same(nn.current,slot),rowNext=same(nn.next,slot);add(g,between?betweenTimeCell(time(slot),rowCur||rowNext,rowCur):timeCell(time(slot),rowCur||rowNext,rowCur),timeW,54,1);
       if(slot.isBreak){
-        for(int day=0;day<5;day++){String code=d.getAssignment(day,s.id,0),room=d.getRoom(day,s.id,0);boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,code.isEmpty()?breakCell(cur,next):subjectCell(code,room,cur,next),dayW,54,1);}
+        for(int day=0;day<5;day++){String code=d.getAssignment(day,s.id,q.sessionIndex),room=d.getRoom(day,s.id,q.sessionIndex);boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,code.isEmpty()?breakCell(cur,next):subjectCell(code,room,cur,next),dayW,54,1);}
       }else if(between){
         for(int day=0;day<5;day++){String code=d.getAssignment(day,s.id,slot.sessionIndex),room=d.getRoom(day,s.id,slot.sessionIndex);boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,code.isEmpty()?betweenCell(cur,next):subjectCell(code,room,cur,next),dayW,54,1);}
       }else for(int day=0;day<5;day++){boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,subjectCell(d.getAssignment(day,s.id,slot.sessionIndex),d.getRoom(day,s.id,slot.sessionIndex),cur,next),dayW,54,1);}
