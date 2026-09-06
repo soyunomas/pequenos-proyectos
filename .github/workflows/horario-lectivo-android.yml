@@ -66,7 +66,7 @@ jobs:
           grep -Fq 'verifyExportedFile' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           grep -Fq 'public final Map<String,String> rooms' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
           grep -Fq 'showRoomsInWidget' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'o.put("room",d.getRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
+          grep -Fq 'o.put("room",d.getRoomOverride' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
           grep -Fq 'assignments[].room' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
           grep -Fq 'Mostrar aula/lugar en el widget' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           grep -Fq 'editRoom(' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
@@ -84,7 +84,7 @@ jobs:
           grep -Fq 'Franjas exactas importadas' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           grep -Fq 'defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
           grep -Fq 'getRoomOverride' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleModels.java
-          grep -Fq 'Aula habitual' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
+          grep -Fq 'Aula general' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           grep -Fq 'Guardar excepción' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/SettingsActivity.java
           grep -Fq 'showSubjectDetails' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java
           grep -Fq 'subjects[].defaultRoom' HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ScheduleRepository.java
