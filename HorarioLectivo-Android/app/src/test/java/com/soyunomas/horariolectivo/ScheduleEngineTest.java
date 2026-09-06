@@ -25,6 +25,8 @@ public class ScheduleEngineTest {
 
   @Test public void nightAssignmentIsCurrent(){Data d=new Data();d.between.enabled=false;d.night.enabled=true;d.subjects.add(new Subject("NOC","Nocturna",0,TYPE_LECTIVA));d.setAssignment(2,NIGHT,1,"NOC");NowNext n=ScheduleEngine.findNowNext(d,ZonedDateTime.of(2026,9,2,22,10,0,0,z));assertEquals("NOC",n.current.code);}
 
+  @Test public void classroomBelongsToAssignment(){Data d=new Data();d.subjects.add(new Subject("APW","Aplicaciones Web",0,TYPE_LECTIVA));d.setAssignment(0,MORNING,1,"APW");d.setRoom(0,MORNING,1,"Aula PB.01");assertEquals("Aula PB.01",d.getRoom(0,MORNING,1));Data copy=d.copy();assertEquals("Aula PB.01",copy.getRoom(0,MORNING,1));d.setAssignment(0,MORNING,1,"BDD");assertEquals("",d.getRoom(0,MORNING,1));}
+
   @Test public void weekendEmpty(){Data d=new Data();NowNext n=ScheduleEngine.findNowNext(d,ZonedDateTime.of(2026,9,5,10,0,0,0,z));assertNull(n.current);assertNull(n.next);}
   @Test public void boundary(){Data d=new Data();long m=ScheduleEngine.nextBoundaryMillis(d,ZonedDateTime.of(2026,9,2,9,10,0,0,z));assertEquals(LocalTime.of(9,50,1),Instant.ofEpochMilli(m).atZone(z).toLocalTime());}
 }
