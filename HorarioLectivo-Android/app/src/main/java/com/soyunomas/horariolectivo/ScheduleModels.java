@@ -36,11 +36,14 @@ public final class ScheduleModels {
         public ShiftConfig afternoon=new ShiftConfig(AFTERNOON,"TARDE",false,LocalTime.of(15,0),LocalTime.of(21,0),3,30);
         public ShiftConfig betweenNight=new ShiftConfig(BETWEEN_NIGHT,"ENTRE TARDE Y NOCHE",false,LocalTime.of(21,0),LocalTime.of(22,0),0,0);
         public ShiftConfig night=new ShiftConfig(NIGHT,"NOCHE",false,LocalTime.of(22,0),LocalTime.of(23,55),0,0);
-        public final List<Subject> subjects=new ArrayList<>(); public final Map<String,String> assignments=new HashMap<>();
-        public Data copy(){Data d=new Data();d.sessionMinutes=sessionMinutes;d.morning=morning.copy();d.between=between.copy();d.afternoon=afternoon.copy();d.betweenNight=betweenNight.copy();d.night=night.copy();d.subjects.clear();for(Subject s:subjects)d.subjects.add(s.copy());d.assignments.clear();d.assignments.putAll(assignments);return d;}
+        public boolean showRoomsInWidget=true;
+        public final List<Subject> subjects=new ArrayList<>(); public final Map<String,String> assignments=new HashMap<>(); public final Map<String,String> rooms=new HashMap<>();
+        public Data copy(){Data d=new Data();d.sessionMinutes=sessionMinutes;d.showRoomsInWidget=showRoomsInWidget;d.morning=morning.copy();d.between=between.copy();d.afternoon=afternoon.copy();d.betweenNight=betweenNight.copy();d.night=night.copy();d.subjects.clear();for(Subject s:subjects)d.subjects.add(s.copy());d.assignments.clear();d.assignments.putAll(assignments);d.rooms.clear();d.rooms.putAll(rooms);return d;}
         public static String assignmentKey(int day,String shift,int session){return day+"|"+shift+"|"+session;}
         public String getAssignment(int day,String shift,int session){String v=assignments.get(assignmentKey(day,shift,session));return v==null?"":v;}
-        public void setAssignment(int day,String shift,int session,String code){String k=assignmentKey(day,shift,session);if(code==null||code.trim().isEmpty())assignments.remove(k);else assignments.put(k,code.trim().toUpperCase());}
+        public void setAssignment(int day,String shift,int session,String code){String k=assignmentKey(day,shift,session);if(code==null||code.trim().isEmpty()){assignments.remove(k);rooms.remove(k);}else assignments.put(k,code.trim().toUpperCase());}
+        public String getRoom(int day,String shift,int session){String v=rooms.get(assignmentKey(day,shift,session));return v==null?"":v;}
+        public void setRoom(int day,String shift,int session,String room){String k=assignmentKey(day,shift,session);if(!assignments.containsKey(k)||room==null||room.trim().isEmpty())rooms.remove(k);else rooms.put(k,room.trim());}
         public String subjectName(String code){Subject s=subject(code);return s==null?(code==null?"":code):s.name;}
         public Subject subject(String code){if(code==null||code.isEmpty())return null;for(Subject s:subjects)if(s.code.equalsIgnoreCase(code))return s;return null;}
         public boolean isLectiva(String code){Subject s=subject(code);return s!=null&&s.isLectiva();}
