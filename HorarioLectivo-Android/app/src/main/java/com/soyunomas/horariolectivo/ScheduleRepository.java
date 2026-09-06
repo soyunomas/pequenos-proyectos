@@ -94,7 +94,7 @@ public final class ScheduleRepository {
             JSONArray subjects=new JSONArray();
             for(Subject s:d.subjects){
                 JSONObject o=new JSONObject();
-                o.put("code",s.code);o.put("name",s.name);o.put("type",s.type);o.put("colorIndex",s.colorIndex);o.put("defaultRoom",s.defaultRoom);
+                o.put("code",s.code);o.put("name",s.name);o.put("type",s.type);o.put("colorIndex",s.colorIndex);o.put("defaultRoom",s.defaultRoom==null?"":s.defaultRoom);o.put("defaultRoom",s.defaultRoom);
                 subjects.put(o);
             }
             root.put("subjects",subjects);
@@ -261,6 +261,7 @@ public final class ScheduleRepository {
         JSONObject name=field("string","Nombre completo de la asignatura o actividad.");name.put("required",true);name.put("minLength",1);fields.put("subjects[].name",name);
         JSONObject type=field("string","Clasificación de la asignatura.");JSONArray typeValues=new JSONArray();typeValues.put(TYPE_LECTIVA);typeValues.put(TYPE_COMPLEMENTARIA);type.put("enum",typeValues);fields.put("subjects[].type",type);
         JSONObject color=numberField(-1,23,"-1 = color automático; 0..23 = índice de la paleta.");fields.put("subjects[].colorIndex",color);
+        JSONObject defaultRoom=field("string","Aula o lugar habitual de la asignatura. Se usa por defecto en todas sus casillas salvo que assignments[].room defina una excepción.");defaultRoom.put("maxLength",80);defaultRoom.put("allowEmpty",true);fields.put("subjects[].defaultRoom",defaultRoom);
         JSONObject defaultRoom=field("string","Aula/lugar habitual de la asignatura. Se aplica a todas sus casillas salvo que un assignment defina una excepción en room.");defaultRoom.put("maxLength",80);defaultRoom.put("allowEmpty",true);fields.put("subjects[].defaultRoom",defaultRoom);
 
         JSONObject day=field("string","Día laborable.");JSONArray days=new JSONArray();for(String d:BACKUP_DAYS)days.put(d);day.put("enum",days);fields.put("assignments[].day",day);
@@ -297,6 +298,7 @@ public final class ScheduleRepository {
         JSONObject assignmentExample=new JSONObject();assignmentExample.put("day","LUN");assignmentExample.put("shift","morning");assignmentExample.put("start","09:00");assignmentExample.put("end","09:55");assignmentExample.put("subject","APW");assignmentExample.put("room","");examples.put("assignmentUsingDefaultRoom",assignmentExample);
         JSONObject exceptionExample=new JSONObject();exceptionExample.put("day","MIE");exceptionExample.put("shift","morning");exceptionExample.put("start","09:00");exceptionExample.put("end","09:55");exceptionExample.put("subject","APW");exceptionExample.put("room","Sala 2.4");examples.put("assignmentWithRoomException",exceptionExample);
         JSONObject blankAssignment=new JSONObject();blankAssignment.put("day","LUN");blankAssignment.put("shift","morning");blankAssignment.put("start","08:00");blankAssignment.put("subject","APW");blankAssignment.put("room","");examples.put("assignmentBlankTemplate",blankAssignment);
+        JSONObject overrideExample=new JSONObject();overrideExample.put("day","MIE");overrideExample.put("shift","morning");overrideExample.put("start","11:00");overrideExample.put("end","11:55");overrideExample.put("subject","APW");overrideExample.put("room","Sala 2.4");examples.put("assignmentRoomOverride",overrideExample);
         JSONObject breakExample=new JSONObject();breakExample.put("day","MAR");breakExample.put("shift","morning");breakExample.put("start","10:45");breakExample.put("subject","RET");breakExample.put("room","Sala Admin");examples.put("assignmentDuringRecess",breakExample);
         JSONObject betweenExample=new JSONObject();betweenExample.put("day","JUE");betweenExample.put("shift","betweenMorningAfternoon");betweenExample.put("start","14:00");betweenExample.put("subject","DEP");betweenExample.put("room","Sala 2.4");examples.put("assignmentBetweenTurns",betweenExample);
         s.put("examples",examples);
