@@ -11,6 +11,11 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
+import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.ScaleAnimation;
+import android.view.Window;
 import android.view.animation.OvershootInterpolator;
 import android.widget.*;
 import java.time.ZonedDateTime;
@@ -77,6 +82,46 @@ public final class MainActivity extends Activity {
 
   private void detailRow(LinearLayout panel,String label,String value){LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.TOP);TextView l=t(label,12,true);l.setTextColor(th.muted);r.addView(l,new LinearLayout.LayoutParams(dp(105),-2));TextView v=t(value,14,false);v.setGravity(Gravity.END);r.addView(v,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(4),0,dp(4));panel.addView(r,p);}
   private String dayName(int day){String[] days={"Lunes","Martes","Miércoles","Jueves","Viernes"};return day>=0&&day<days.length?days[day]:"";}
+
+  private void showSubjectDetails(Data d,int day,Slot slot,String code){
+    Subject subject=d.subject(code);if(subject==null)return;
+    Dialog dialog=new Dialog(this);dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+    LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(22),dp(20),dp(22),dp(18));card.setBackground(box(th.surface,th.border,1,22));
+
+    TextView badge=t(subject.code,20,true);badge.setGravity(Gravity.CENTER);badge.setTextColor(th.subjectTextColor(subject.code));badge.setBackground(box(th.subjectColor(subject.code),th.subjectColor(subject.code),0,16));card.addView(badge,new LinearLayout.LayoutParams(-1,dp(52)));
+
+    TextView name=t(subject.name,20,true);name.setGravity(Gravity.CENTER_HORIZONTAL);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.setMargins(0,dp(14),0,dp(4));card.addView(name,np);
+    TextView type=t(subject.isComplementaria()?"Complementaria":"Lectiva",13,true);type.setGravity(Gravity.CENTER_HORIZONTAL);type.setTextColor(subject.isComplementaria()?th.breakBorder:th.muted);card.addView(type);
+
+    View sep=new View(this);sep.setBackgroundColor(th.border);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(1));sp.setMargins(0,dp(14),0,dp(12));card.addView(sep,sp);
+
+    String dayName=new String[]{"Lunes","Martes","Miércoles","Jueves","Viernes"}[Math.max(0,Math.min(4,day))];
+    detailRow(card,"Día",dayName);
+    detailRow(card,"Hora",inline(slot));
+    detailRow(card,"Turno",slot.shiftLabel);
+    String effective=d.getRoom(day,slot.shiftId,slot.sessionIndex),override=d.getRoomOverride(day,slot.shiftId,slot.sessionIndex);
+    if(!effective.isEmpty())detailRow(card,"Aula / lugar",effective+(override.isEmpty()?" · habitual":" · excepción"));
+    else detailRow(card,"Aula / lugar","Sin aula indicada");
+
+    Button close=button("Cerrar");close.setOnClickListener(v->dialog.dismiss());LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(48));cp.setMargins(0,dp(16),0,0);card.addView(close,cp);
+    int width=Math.min(dp(380),getResources().getDisplayMetrics().widthPixels-dp(36));dialog.setContentView(card,new android.view.ViewGroup.LayoutParams(width,-2));
+    if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);dialog.getWindow().setDimAmount(0.45f);dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);}
+    dialog.setOnShowListener(x->animateDetails(card));dialog.show();
+  }
+
+  private void detailRow(LinearLayout parent,String label,String value){
+    LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(Gravity.TOP);
+    TextView l=t(label,13,true);l.setTextColor(th.muted);row.addView(l,new LinearLayout.LayoutParams(dp(92),-2));
+    TextView v=t(value,14,false);v.setGravity(Gravity.START);row.addView(v,new LinearLayout.LayoutParams(0,-2,1));
+    LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.setMargins(0,dp(5),0,dp(5));parent.addView(row,rp);
+  }
+
+  private void animateDetails(View card){
+    AnimationSet set=new AnimationSet(true);
+    ScaleAnimation scale=new ScaleAnimation(0.86f,1f,0.86f,1f,Animation.RELATIVE_TO_SELF,0.5f,Animation.RELATIVE_TO_SELF,0.5f);scale.setDuration(190);
+    AlphaAnimation alpha=new AlphaAnimation(0f,1f);alpha.setDuration(150);
+    set.addAnimation(scale);set.addAnimation(alpha);set.setInterpolator(new android.view.animation.DecelerateInterpolator());card.startAnimation(set);
+  }
 
   private int screenWidthDp(){return Math.round(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);}private int timeColumnDp(){int available=Math.max(300,screenWidthDp()-24);return Math.max(66,Math.min(82,Math.round(available*0.22f)));}private int dayColumnDp(){int available=Math.max(300,screenWidthDp()-24);int time=timeColumnDp();return Math.max(46,(available-time-24)/5);}private int tableContentDp(int timeW,int dayW){return timeW+5*dayW+20;}
   private int blend(int a,int b){return Color.rgb((Color.red(a)*2+Color.red(b))/3,(Color.green(a)*2+Color.green(b))/3,(Color.blue(a)*2+Color.blue(b))/3);}private boolean same(SlotRef r,Slot s){return r!=null&&r.slot.identity().equals(s.identity())&&r.slot.start.equals(s.start)&&r.slot.end.equals(s.end);}
