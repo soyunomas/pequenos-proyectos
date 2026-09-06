@@ -15,8 +15,9 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 - Duración de sesiones y recreos configurable.
 - Editor semanal por casillas, modo bloque y copia de días.
 - Asignaturas **L** (lectivas) y **C** (complementarias), con siglas, nombre y color editables.
+- **Aula/lugar por casilla**: la misma asignatura puede tener un aula distinta según el día y la hora.
 - Modo claro y oscuro.
-- Widget 4×2, redimensionable a 4×1, con actividad actual, siguiente actividad y cuenta atrás.
+- Widget 4×2, redimensionable a 4×1, con actividad actual, siguiente actividad y cuenta atrás. Opcionalmente muestra también el aula/lugar de ambas.
 - **Copia de seguridad JSON**: exporta toda la configuración y permite importarla después.
 - Si todavía no has rellenado el horario, **Exportar JSON** genera igualmente un archivo completo con todas las opciones, el esquema admitido y los arrays `subjects` y `assignments` vacíos. Está pensado también para poder entregárselo a una IA junto con una foto de un horario en papel y pedirle que rellene el JSON sin cambiar su estructura.
 
@@ -37,6 +38,14 @@ Selecciona una asignatura y toca una celda de recreo o de intervalo entre turnos
 
 Las asignaciones de estas franjas se incluyen al copiar un día a otro y también se tienen en cuenta en **AHORA** y **SIGUIENTE** del widget.
 
+## Aulas y lugares
+
+El aula pertenece a cada **casilla del horario**, no a la asignatura global. Esto permite que una misma materia use, por ejemplo, `Aula PB.01` en una hora y `Sala 2.4` en otra.
+
+En **Configurar horario > Semana**, mantén pulsada una casilla que ya tenga asignatura para editar su **Aula o lugar**. La tabla muestra el aula debajo de las siglas. Al copiar un día se copian también las aulas.
+
+En **Apariencia** puedes activar o desactivar **Mostrar aula/lugar en el widget**. Cuando está activo y existe un aula definida, el widget la añade a la información de **AHORA** y **SIGUIENTE**.
+
 ## Copia de seguridad e importación JSON
 
 En **Configurar horario > Copia de seguridad** hay dos acciones:
@@ -44,7 +53,7 @@ En **Configurar horario > Copia de seguridad** hay dos acciones:
 - **Exportar JSON** abre el selector de archivos de Android y guarda la configuración actual.
 - **Importar JSON** permite seleccionar una copia previa. Antes de sustituir el horario actual se valida el formato y se pide confirmación.
 
-El formato externo está versionado como `horario-lectivo-backup` / esquema `1`. Incluye apariencia, duración de sesión, mañana, tarde, noche, ambos intervalos entre turnos, recreos, asignaturas y asignaciones semanales.
+El formato externo está versionado como `horario-lectivo-backup` / esquema `1`. Incluye apariencia, opciones del widget, duración de sesión, mañana, tarde, noche, ambos intervalos entre turnos, recreos, asignaturas, aulas y asignaciones semanales. Cada objeto de `assignments` puede llevar `room`, porque el aula puede variar por día y hora.
 
 La exportación incluye además un bloque `schema` autocontenido. Describe los campos, tipos, rangos, valores permitidos, reglas y ejemplos necesarios para generar un horario válido. Entre otras restricciones, documenta que las siglas `subjects[].code` son obligatorias, únicas, de **1 a 3 caracteres** y solo admiten `A-Z` y `0-9`.
 
@@ -60,7 +69,7 @@ Una importación rechaza, entre otros casos, códigos de asignatura inválidos o
 
 ## Instalación
 
-1. Descarga **[HorarioLectivo_v1.23.apk](./HorarioLectivo_v1.23.apk)**.
+1. Descarga **[HorarioLectivo_v1.24.apk](./HorarioLectivo_v1.24.apk)**.
 2. Abre el APK desde Android.
 3. Autoriza la instalación de aplicaciones desconocidas si Android lo solicita.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -91,5 +100,5 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.23.apk](./HorarioLectivo_v1.23.apk)
+- **APK actual:** [HorarioLectivo_v1.24.apk](./HorarioLectivo_v1.24.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
