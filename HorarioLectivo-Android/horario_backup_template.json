@@ -5,16 +5,18 @@
   "schema": {
     "purpose": "Plantilla y copia de seguridad importable por Horario Lectivo. Si subjects y assignments están vacíos, rellénalos a partir de la imagen del horario sin eliminar el resto de campos.",
     "aiInstructions": [
-      "Analiza la imagen del horario y conserva format, schemaVersion, appearance, sessionMinutes, shifts y la estructura general.",
+      "Analiza la imagen del horario y conserva format, schemaVersion, appearance y la estructura general, pero ADAPTA las horas de shifts y sus slots al horario real de la imagen. No conserves las horas de ejemplo si no coinciden con el documento.",
       "Crea primero subjects y después assignments. Todas las asignaturas usadas en assignments deben existir previamente en subjects.",
       "subject.code es obligatorio, único y debe tener entre 1 y 3 caracteres, solo letras A-Z mayúsculas y dígitos 0-9. Ejemplos válidos: APW, BD, 2A.",
       "subject.name es obligatorio y no puede estar vacío.",
       "subject.type solo puede ser LECTIVA o COMPLEMENTARIA.",
       "Para colorIndex usa -1 si no quieres elegir un color concreto; los valores explícitos válidos son 0..23.",
-      "Para assignments es preferible usar start con formato HH:mm y omitir session si la foto muestra las horas. La app calculará la sesión correspondiente.",
-      "Cada assignment admite room para indicar el aula o lugar concreto. Cópialo de la imagen cuando aparezca, por ejemplo Aula PB.01, Sala 2.4 o Aula P1.06 - Cabildo. Si no se conoce, usa room como cadena vacía.",
-      "Para una actividad durante un recreo usa el shift del turno al que pertenece el recreo y su hora start. Si usas session explícitamente, el recreo es session=0.",
-      "Para actividades entre turnos usa shift=betweenMorningAfternoon o shift=betweenAfternoonNight.",
+      "Copia las franjas horarias REALES de la imagen. Si el documento muestra 09:00-09:55, 10:00-10:55, etc., no las conviertas en sesiones continuas de 55 minutos desde otra hora.",
+      "Rellena shifts.<turno>.slots con cada franja exacta {start,end,kind}. Usa kind=CLASS para una franja asignable y kind=BREAK para un recreo. Los huecos entre franjas, por ejemplo 09:55-10:00, NO son slots.",
+      "En assignments usa start y end exactamente como aparecen en el horario y omite session. La app localizará la franja por start. Si omites slots, la app intentará inferirlos desde assignments por compatibilidad, pero slots explícitos es lo recomendado.",
+      "Cada assignment admite room para indicar el aula o lugar concreto. Cópialo de la imagen cuando aparezca. Si no se conoce, usa room como cadena vacía.",
+      "No uses betweenMorningAfternoon o betweenAfternoonNight solo porque una clase ocurra a las 14:00 o 21:00. Úsalos únicamente si el documento representa realmente una franja entre turnos. Si las clases del mismo bloque continúan, amplía morning, afternoon o night y añade sus slots exactos.",
+      "No inventes recreos para rellenar huecos. Un hueco de 5, 10 o cualquier número de minutos entre dos clases puede ser simplemente tiempo sin actividad.",
       "No inventes días, tipos ni claves de turno. No dupliques dos assignments para la misma casilla.",
       "Devuelve únicamente JSON válido, sin Markdown, sin comentarios // o /* */ y sin texto fuera del JSON."
     ],
@@ -53,7 +55,7 @@
       },
       "shifts.*.breakMinutes": {
         "type": "integer",
-        "description": "0 si no hay recreo; si hay recreo, entre 5 y 90. En intervalos entre turnos debe ser 0.",
+        "description": "0 si no hay recreo; si hay recreo, entre 5 y 90. En intervalos entre turnos debe ser 0. Se ignora si shifts.*.slots contiene franjas exactas.",
         "min": 0,
         "max": 90
       },
@@ -75,7 +77,10 @@
       "subjects[].type": {
         "type": "string",
         "description": "Clasificación de la asignatura.",
-        "enum": ["LECTIVA", "COMPLEMENTARIA"]
+        "enum": [
+          "LECTIVA",
+          "COMPLEMENTARIA"
+        ]
       },
       "subjects[].colorIndex": {
         "type": "integer",
@@ -86,7 +91,13 @@
       "assignments[].day": {
         "type": "string",
         "description": "Día laborable.",
-        "enum": ["LUN", "MAR", "MIE", "JUE", "VIE"]
+        "enum": [
+          "LUN",
+          "MAR",
+          "MIE",
+          "JUE",
+          "VIE"
+        ]
       },
       "assignments[].shift": {
         "type": "string",
@@ -111,28 +122,56 @@
       },
       "assignments[].start": {
         "type": "string HH:mm",
-        "description": "Hora inicial de la casilla. Recomendado para generar el JSON desde una imagen.",
+        "description": "Hora inicial exacta de la casilla, copiada del documento. Recomendado para generar el JSON desde una imagen.",
         "optionalIf": "session está presente"
       },
       "assignments[].session": {
         "type": "integer",
-        "description": "Índice de sesión. 0 identifica un recreo. Puede omitirse si se proporciona start.",
-        "min": 0,
+        "description": "Índice interno de sesión. Para JSON generado desde imagen es preferible omitirlo y usar start/end.",
+        "min": -99,
         "max": 99,
         "optionalIf": "start está presente"
+      },
+      "shifts.*.slots": {
+        "type": "array",
+        "description": "Lista opcional y recomendada de franjas exactas del horario. Cada elemento contiene start, end y kind=CLASS o BREAK. Permite pausas entre clases, duraciones variables y otros formatos sin asumir sesiones contiguas."
+      },
+      "shifts.*.slots[].start": {
+        "type": "string HH:mm",
+        "description": "Inicio exacto de la franja, copiado del documento."
+      },
+      "shifts.*.slots[].end": {
+        "type": "string HH:mm",
+        "description": "Fin exacto de la franja, copiado del documento."
+      },
+      "shifts.*.slots[].kind": {
+        "type": "string",
+        "description": "Tipo de franja exacta.",
+        "enum": [
+          "CLASS",
+          "BREAK"
+        ]
+      },
+      "assignments[].end": {
+        "type": "string HH:mm",
+        "description": "Hora final exacta de la casilla, copiada del documento. Recomendado junto con start para horarios con separaciones o duraciones variables.",
+        "allowEmpty": true
       }
     },
     "rules": [
       "Todos los objetos de shifts deben estar presentes aunque enabled sea false.",
       "Las horas usan formato HH:mm de 24 horas y cada start debe ser anterior a end.",
-      "sessionMinutes debe estar entre 10 y 180.",
+      "Las horas del documento mandan sobre los valores de ejemplo de la plantilla: adapta shifts y slots al horario real.",
+      "Si existen shifts.*.slots, esos slots exactos mandan sobre sessionMinutes, breakAfterSession y breakMinutes para generar las filas.",
+      "No conviertas huecos entre clases en recreos ni alargues una clase para rellenarlos. Ejemplo: 09:00-09:55 y 10:00-10:55 son dos slots separados por un hueco de 5 minutos.",
+      "sessionMinutes debe estar entre 10 y 180 y solo sirve como modelo automático o como fallback si faltan end/slots.",
       "breakAfterSession debe estar entre 0 y 12. Si es mayor que 0, breakMinutes debe estar entre 5 y 90.",
       "Los intervalos betweenMorningAfternoon y betweenAfternoonNight no tienen recreo: breakAfterSession=0 y breakMinutes=0.",
       "No puede haber dos asignaturas con el mismo code.",
       "Cada assignment debe apuntar a una asignatura declarada en subjects.",
       "room pertenece a cada assignment, no a la asignatura global, porque una misma materia puede impartirse en aulas distintas.",
-      "Cada assignment debe corresponder a una casilla real generada por la configuración de shifts y sessionMinutes.",
-      "Una misma casilla day+shift+session solo puede tener una asignación.",
+      "Cada assignment debe corresponder a una franja exacta declarada en shifts.*.slots o inferible por start/end.",
+      "Una misma casilla day+shift+start solo puede tener una asignación.",
       "Los intervalos entre turnos no deben solaparse con los turnos adyacentes que estén enabled."
     ],
     "examples": {
@@ -145,7 +184,8 @@
       "assignmentByStart": {
         "day": "LUN",
         "shift": "morning",
-        "start": "08:00",
+        "start": "09:00",
+        "end": "09:55",
         "subject": "APW",
         "room": "Aula PB.01"
       },
@@ -169,7 +209,19 @@
         "start": "14:00",
         "subject": "DEP",
         "room": "Sala 2.4"
-      }
+      },
+      "exactSlotsWithFiveMinuteGap": [
+        {
+          "start": "09:00",
+          "end": "09:55",
+          "kind": "CLASS"
+        },
+        {
+          "start": "10:00",
+          "end": "10:55",
+          "kind": "CLASS"
+        }
+      ]
     }
   },
   "appearance": {
@@ -185,35 +237,40 @@
       "start": "08:00",
       "end": "14:00",
       "breakAfterSession": 3,
-      "breakMinutes": 30
+      "breakMinutes": 30,
+      "slots": []
     },
     "betweenMorningAfternoon": {
       "enabled": true,
       "start": "14:00",
       "end": "15:00",
       "breakAfterSession": 0,
-      "breakMinutes": 0
+      "breakMinutes": 0,
+      "slots": []
     },
     "afternoon": {
       "enabled": false,
       "start": "15:00",
       "end": "21:00",
       "breakAfterSession": 3,
-      "breakMinutes": 30
+      "breakMinutes": 30,
+      "slots": []
     },
     "betweenAfternoonNight": {
       "enabled": false,
       "start": "21:00",
       "end": "22:00",
       "breakAfterSession": 0,
-      "breakMinutes": 0
+      "breakMinutes": 0,
+      "slots": []
     },
     "night": {
       "enabled": false,
       "start": "22:00",
       "end": "23:55",
       "breakAfterSession": 0,
-      "breakMinutes": 0
+      "breakMinutes": 0,
+      "slots": []
     }
   },
   "subjects": [],
