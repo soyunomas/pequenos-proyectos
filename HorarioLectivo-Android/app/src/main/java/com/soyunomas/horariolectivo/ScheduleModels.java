@@ -63,7 +63,7 @@ public final class ScheduleModels {
         public String getRoomOverride(int day,String shift,int session){String v=rooms.get(assignmentKey(day,shift,session));return v==null?"":v;}
         public String getRoom(int day,String shift,int session){String override=getRoomOverride(day,shift,session);if(!override.isEmpty())return override;Subject s=subject(getAssignment(day,shift,session));return s==null||s.defaultRoom==null?"":s.defaultRoom.trim();}
         public boolean hasRoomOverride(int day,String shift,int session){return !getRoomOverride(day,shift,session).isEmpty();}
-        public void setRoom(int day,String shift,int session,String room){String k=assignmentKey(day,shift,session);if(!assignments.containsKey(k)||room==null||room.trim().isEmpty())rooms.remove(k);else rooms.put(k,room.trim());}
+        public void setRoom(int day,String shift,int session,String room){String k=assignmentKey(day,shift,session);String value=room==null?"":room.trim();Subject subject=subject(getAssignment(day,shift,session));if(!assignments.containsKey(k)||value.isEmpty()||(subject!=null&&!subject.defaultRoom.isEmpty()&&subject.defaultRoom.equalsIgnoreCase(value)))rooms.remove(k);else rooms.put(k,value);}
 
         public List<TimeSlotConfig> customSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list==null?new ArrayList<>():list;}
         public boolean hasCustomSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list!=null&&!list.isEmpty();}
