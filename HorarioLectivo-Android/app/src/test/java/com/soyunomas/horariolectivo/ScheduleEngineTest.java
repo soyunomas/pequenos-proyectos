@@ -31,6 +31,8 @@ public class ScheduleEngineTest {
 
   @Test public void exactSlotsPreserveGaps(){Data d=new Data();List<TimeSlotConfig> exact=new java.util.ArrayList<>();exact.add(new TimeSlotConfig(LocalTime.of(9,0),LocalTime.of(9,55),false));exact.add(new TimeSlotConfig(LocalTime.of(10,0),LocalTime.of(10,55),false));d.setCustomSlots(MORNING,exact);List<Slot> slots=ScheduleEngine.generateSlots(d,d.morning);assertEquals(2,slots.size());assertEquals(LocalTime.of(9,0),slots.get(0).start);assertEquals(LocalTime.of(9,55),slots.get(0).end);assertEquals(LocalTime.of(10,0),slots.get(1).start);NowNext gap=ScheduleEngine.findNowNext(d,ZonedDateTime.of(2026,9,2,9,57,0,0,z));assertNull(gap.current);assertNotNull(gap.next);assertEquals(LocalTime.of(10,0),gap.next.slot.start);}
 
+  @Test public void defaultRoomFallsBackAndOverrideWins(){Data d=new Data();d.subjects.add(new Subject("APW","Aplicaciones Web",0,TYPE_LECTIVA,"Aula PB.01"));d.setAssignment(0,MORNING,1,"APW");assertEquals("Aula PB.01",d.getRoom(0,MORNING,1));assertFalse(d.hasRoomOverride(0,MORNING,1));d.setRoom(0,MORNING,1,"Sala 2.4");assertEquals("Sala 2.4",d.getRoom(0,MORNING,1));assertTrue(d.hasRoomOverride(0,MORNING,1));d.setRoom(0,MORNING,1,"");assertEquals("Aula PB.01",d.getRoom(0,MORNING,1));}
+
   @Test public void weekendEmpty(){Data d=new Data();NowNext n=ScheduleEngine.findNowNext(d,ZonedDateTime.of(2026,9,5,10,0,0,0,z));assertNull(n.current);assertNull(n.next);}
   @Test public void boundary(){Data d=new Data();long m=ScheduleEngine.nextBoundaryMillis(d,ZonedDateTime.of(2026,9,2,9,10,0,0,z));assertEquals(LocalTime.of(9,50,1),Instant.ofEpochMilli(m).atZone(z).toLocalTime());}
 }
