@@ -43,14 +43,14 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
         v.setInt(R.id.current_card,"setBackgroundResource",lect?R.drawable.widget_highlight_active:(comp||rest)?R.drawable.widget_highlight_complementary:R.drawable.widget_highlight);
         v.setTextColor(R.id.current_label,col);v.setTextColor(R.id.current_remaining,col);v.setTextViewText(R.id.current_label,lect?"AHORA · L":comp?"AHORA · C":"AHORA");
         if(r==null){v.setTextViewText(R.id.current_subject,"SIN CLASE");v.setTextViewText(R.id.current_time,"");v.setTextViewText(R.id.current_remaining,"");return;}
-        v.setTextViewText(R.id.current_subject,displayCode(r));v.setTextViewText(R.id.current_time,fmt(r.slot.start)+"–"+fmt(r.slot.end));ZonedDateTime end=ZonedDateTime.of(now.toLocalDate(),r.slot.end,now.getZone());long min=(Math.max(0L,Duration.between(now,end).getSeconds())+59L)/60L;v.setTextViewText(R.id.current_remaining,min==1?"queda 1 min":"quedan "+min+" min");
+        v.setTextViewText(R.id.current_subject,displayCode(r));String currentRoom=roomFor(d,r);v.setTextViewText(R.id.current_time,fmt(r.slot.start)+"–"+fmt(r.slot.end)+(d.showRoomsInWidget&&!currentRoom.isEmpty()?" · "+currentRoom:""));ZonedDateTime end=ZonedDateTime.of(now.toLocalDate(),r.slot.end,now.getZone());long min=(Math.max(0L,Duration.between(now,end).getSeconds())+59L)/60L;v.setTextViewText(R.id.current_remaining,min==1?"queda 1 min":"quedan "+min+" min");
     }
 
     static void bindNext(RemoteViews v,Data d,SlotRef r,ZonedDateTime now){
         v.setViewVisibility(R.id.next_context,View.GONE);
         if(r==null){v.setTextViewText(R.id.next_label,"SIGUIENTE");v.setTextColor(R.id.next_label,RED);v.setTextViewText(R.id.next_subject,"FIN DEL DÍA");v.setTextViewText(R.id.next_time,"");v.setViewVisibility(R.id.next_countdown,View.GONE);return;}
         boolean lect=d.isLectiva(r.code),comp=d.isComplementaria(r.code),rest=(r.slot.isBreak||isBetweenShift(r.slot.shiftId))&&!lect&&!comp;int col=lect?GREEN:(comp||rest)?AMBER:RED;
-        v.setTextViewText(R.id.next_label,lect?"SIGUIENTE · L":comp?"SIGUIENTE · C":"SIGUIENTE");v.setTextColor(R.id.next_label,col);v.setTextColor(R.id.next_countdown,col);v.setTextViewText(R.id.next_subject,displayCode(r));v.setTextViewText(R.id.next_time,"Empieza "+fmt(r.slot.start));ZonedDateTime start=ZonedDateTime.of(now.toLocalDate(),r.slot.start,now.getZone());v.setViewVisibility(R.id.next_countdown,View.VISIBLE);v.setChronometer(R.id.next_countdown,SystemClock.elapsedRealtime()+Math.max(0L,Duration.between(now,start).toMillis()),"en %s",true);v.setChronometerCountDown(R.id.next_countdown,true);
+        v.setTextViewText(R.id.next_label,lect?"SIGUIENTE · L":comp?"SIGUIENTE · C":"SIGUIENTE");v.setTextColor(R.id.next_label,col);v.setTextColor(R.id.next_countdown,col);v.setTextViewText(R.id.next_subject,displayCode(r));String nextRoom=roomFor(d,r);v.setTextViewText(R.id.next_time,"Empieza "+fmt(r.slot.start)+(d.showRoomsInWidget&&!nextRoom.isEmpty()?" · "+nextRoom:""));ZonedDateTime start=ZonedDateTime.of(now.toLocalDate(),r.slot.start,now.getZone());v.setViewVisibility(R.id.next_countdown,View.VISIBLE);v.setChronometer(R.id.next_countdown,SystemClock.elapsedRealtime()+Math.max(0L,Duration.between(now,start).toMillis()),"en %s",true);v.setChronometerCountDown(R.id.next_countdown,true);
     }
 
     static SlotRef findNextRelevant(Data d,ZonedDateTime now){
@@ -66,6 +66,7 @@ public final class HorarioWidgetProvider extends AppWidgetProvider {
     }
 
     static String displayCode(SlotRef r){if(r==null)return "";if(r.slot.isBreak&&(r.code==null||r.code.trim().isEmpty()||"RECREO".equals(r.code)))return "RECREO";if(isBetweenShift(r.slot.shiftId)&&(r.code==null||r.code.trim().isEmpty()||"ENTRE TURNOS".equals(r.code)))return "ENTRE TURNOS";return r.code==null||r.code.trim().isEmpty()?"SIN ASIGNAR":r.code;}
+    static String roomFor(Data d,SlotRef r){if(d==null||r==null)return "";return d.getRoom(r.dayIndex,r.slot.shiftId,r.slot.sessionIndex);}
     static String fmt(LocalTime t){return String.format(Locale.US,"%02d:%02d",t.getHour(),t.getMinute());}
 }
 
