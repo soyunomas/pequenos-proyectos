@@ -14,7 +14,9 @@
       "Copia las franjas horarias REALES de la imagen. Si el documento muestra 09:00-09:55, 10:00-10:55, etc., no las conviertas en sesiones continuas de 55 minutos desde otra hora.",
       "Rellena shifts.<turno>.slots con cada franja exacta {start,end,kind}. Usa kind=CLASS para una franja asignable y kind=BREAK para un recreo. Los huecos entre franjas, por ejemplo 09:55-10:00, NO son slots.",
       "En assignments usa start y end exactamente como aparecen en el horario y omite session. La app localizará la franja por start. Si omites slots, la app intentará inferirlos desde assignments por compatibilidad, pero slots explícitos es lo recomendado.",
-      "Cada assignment admite room para indicar el aula o lugar concreto. Cópialo de la imagen cuando aparezca. Si no se conoce, usa room como cadena vacía.",
+      "Cada subject admite defaultRoom para su aula/lugar habitual. Si una asignatura tiene un aula general estable, escríbela en defaultRoom.",
+      "assignments[].room se usa SOLO para una excepción de aula en una hora concreta. Si esa casilla usa el aula general, deja room como cadena vacía. Si no existe un aula general clara, deja defaultRoom vacío y escribe room en cada assignment donde el documento indique aula.",
+      "Ejemplo: si APW suele estar en Aula PB.01 y solo el miércoles va a Sala 2.4, usa subjects[].defaultRoom='Aula PB.01' y únicamente el assignment del miércoles con room='Sala 2.4'.",
       "No uses betweenMorningAfternoon o betweenAfternoonNight solo porque una clase ocurra a las 14:00 o 21:00. Úsalos únicamente si el documento representa realmente una franja entre turnos. Si las clases del mismo bloque continúan, amplía morning, afternoon o night y añade sus slots exactos.",
       "No inventes recreos para rellenar huecos. Un hueco de 5, 10 o cualquier número de minutos entre dos clases puede ser simplemente tiempo sin actividad.",
       "No inventes días, tipos ni claves de turno. No dupliques dos assignments para la misma casilla.",
@@ -116,7 +118,7 @@
       },
       "assignments[].room": {
         "type": "string",
-        "description": "Aula o lugar concreto de esa actividad. Puede variar para la misma asignatura según día y hora. Ejemplos: Aula PB.01, Sala 2.4, Aula P1.06 - Cabildo.",
+        "description": "Excepción de aula/lugar SOLO para esta casilla. Déjalo vacío para heredar subjects[].defaultRoom. Si no hay aula general, puede contener el aula concreta de esta casilla.",
         "maxLength": 80,
         "allowEmpty": true
       },
@@ -156,6 +158,12 @@
         "type": "string HH:mm",
         "description": "Hora final exacta de la casilla, copiada del documento. Recomendado junto con start para horarios con separaciones o duraciones variables.",
         "allowEmpty": true
+      },
+      "subjects[].defaultRoom": {
+        "type": "string",
+        "description": "Aula/lugar habitual de la asignatura. Se aplica a todas sus casillas salvo que un assignment defina una excepción en room.",
+        "maxLength": 80,
+        "allowEmpty": true
       }
     },
     "rules": [
@@ -169,7 +177,9 @@
       "Los intervalos betweenMorningAfternoon y betweenAfternoonNight no tienen recreo: breakAfterSession=0 y breakMinutes=0.",
       "No puede haber dos asignaturas con el mismo code.",
       "Cada assignment debe apuntar a una asignatura declarada en subjects.",
-      "room pertenece a cada assignment, no a la asignatura global, porque una misma materia puede impartirse en aulas distintas.",
+      "subjects[].defaultRoom es el aula habitual general de la asignatura.",
+      "assignments[].room es una excepción por día/hora y tiene prioridad sobre defaultRoom. Si está vacío, la aplicación hereda defaultRoom.",
+      "Si no puede determinarse un aula general estable, usa defaultRoom vacío y conserva el aula observada en cada assignments[].room.",
       "Cada assignment debe corresponder a una franja exacta declarada en shifts.*.slots o inferible por start/end.",
       "Una misma casilla day+shift+start solo puede tener una asignación.",
       "Los intervalos entre turnos no deben solaparse con los turnos adyacentes que estén enabled."
@@ -179,15 +189,8 @@
         "code": "APW",
         "name": "Aplicaciones Web",
         "type": "LECTIVA",
-        "colorIndex": -1
-      },
-      "assignmentByStart": {
-        "day": "LUN",
-        "shift": "morning",
-        "start": "09:00",
-        "end": "09:55",
-        "subject": "APW",
-        "room": "Aula PB.01"
+        "colorIndex": -1,
+        "defaultRoom": "Aula PB.01"
       },
       "assignmentBlankTemplate": {
         "day": "LUN",
@@ -221,7 +224,23 @@
           "end": "10:55",
           "kind": "CLASS"
         }
-      ]
+      ],
+      "assignmentUsingDefaultRoom": {
+        "day": "LUN",
+        "shift": "morning",
+        "start": "09:00",
+        "end": "09:55",
+        "subject": "APW",
+        "room": ""
+      },
+      "assignmentWithRoomException": {
+        "day": "MIE",
+        "shift": "morning",
+        "start": "09:00",
+        "end": "09:55",
+        "subject": "APW",
+        "room": "Sala 2.4"
+      }
     }
   },
   "appearance": {
