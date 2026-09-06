@@ -37,6 +37,7 @@ public final class ScheduleRepository {
         try{
             JSONObject root=new JSONObject(raw);Data d=new Data();
             d.sessionMinutes=root.optInt("sessionMinutes",55);
+            d.showRoomsInWidget=root.optBoolean("showRoomsInWidget",true);
             d.morning=readShift(root.optJSONObject("morning"),d.morning);
             d.between=readShift(root.optJSONObject("between"),d.between);
             d.afternoon=readShift(root.optJSONObject("afternoon"),d.afternoon);
@@ -46,15 +47,17 @@ public final class ScheduleRepository {
             JSONArray a=root.optJSONArray("subjects");
             if(a!=null)for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o!=null){String c=o.optString("code","").trim().toUpperCase(),n=o.optString("name","").trim();String type=o.optString("type",TYPE_LECTIVA).trim().toUpperCase();if(!c.isEmpty())d.subjects.add(new Subject(c,n.isEmpty()?c:n,o.optInt("colorIndex",-1),type));}}
             d.assignments.clear();JSONObject as=root.optJSONObject("assignments");if(as!=null){Iterator<String>keys=as.keys();while(keys.hasNext()){String k=keys.next(),v=as.optString(k,"").trim().toUpperCase();if(!v.isEmpty())d.assignments.put(k,v);}}
+            d.rooms.clear();JSONObject rooms=root.optJSONObject("rooms");if(rooms!=null){Iterator<String>keys=rooms.keys();while(keys.hasNext()){String k=keys.next(),v=rooms.optString(k,"").trim();if(!v.isEmpty()&&d.assignments.containsKey(k))d.rooms.put(k,v);}}
             return d;
         }catch(Exception ignored){return new Data();}
     }
 
     public void save(Data d){
         try{
-            JSONObject root=new JSONObject();root.put("sessionMinutes",d.sessionMinutes);root.put("morning",writeShift(d.morning));root.put("between",writeShift(d.between));root.put("afternoon",writeShift(d.afternoon));root.put("betweenNight",writeShift(d.betweenNight));root.put("night",writeShift(d.night));
+            JSONObject root=new JSONObject();root.put("sessionMinutes",d.sessionMinutes);root.put("showRoomsInWidget",d.showRoomsInWidget);root.put("morning",writeShift(d.morning));root.put("between",writeShift(d.between));root.put("afternoon",writeShift(d.afternoon));root.put("betweenNight",writeShift(d.betweenNight));root.put("night",writeShift(d.night));
             JSONArray a=new JSONArray();for(Subject s:d.subjects){JSONObject o=new JSONObject();o.put("code",s.code);o.put("name",s.name);o.put("colorIndex",s.colorIndex);o.put("type",s.type);a.put(o);}root.put("subjects",a);
             JSONObject as=new JSONObject();for(String k:d.assignments.keySet())as.put(k,d.assignments.get(k));root.put("assignments",as);
+            JSONObject rooms=new JSONObject();for(String k:d.rooms.keySet())if(d.assignments.containsKey(k)&&!d.rooms.get(k).trim().isEmpty())rooms.put(k,d.rooms.get(k));root.put("rooms",rooms);
             prefs.edit().putString(KEY_DATA,root.toString()).putBoolean(KEY_INITIALIZED,true).apply();
         }catch(Exception e){throw new IllegalStateException("No se pudo guardar el horario",e);}
     }
@@ -73,6 +76,9 @@ public final class ScheduleRepository {
             JSONObject appearance=new JSONObject();
             appearance.put("darkMode",darkMode);
             root.put("appearance",appearance);
+            JSONObject widget=new JSONObject();
+            widget.put("showRooms",d.showRoomsInWidget);
+            root.put("widget",widget);
             root.put("sessionMinutes",d.sessionMinutes);
 
             JSONObject shifts=new JSONObject();
@@ -106,6 +112,7 @@ public final class ScheduleRepository {
                 Slot slot=findSlot(d,shiftId,session,true);
                 if(slot!=null)o.put("start",slot.start.toString());
                 o.put("subject",subject);
+                o.put("room",d.getRoom(day,shiftId,session));
                 assignments.put(o);
             }
             root.put("assignments",assignments);
@@ -122,6 +129,8 @@ public final class ScheduleRepository {
             if(version!=BACKUP_SCHEMA_VERSION)throw new IllegalArgumentException("Versión de esquema no compatible: "+version+".");
 
             Data d=new Data();
+            JSONObject widget=root.optJSONObject("widget");
+            d.showRoomsInWidget=widget==null?true:widget.optBoolean("showRooms",true);
             if(!root.has("sessionMinutes"))throw new IllegalArgumentException("Falta sessionMinutes.");
             d.sessionMinutes=root.getInt("sessionMinutes");
             if(d.sessionMinutes<10||d.sessionMinutes>180)throw new IllegalArgumentException("sessionMinutes debe estar entre 10 y 180.");
@@ -183,6 +192,9 @@ public final class ScheduleRepository {
                 String key=Data.assignmentKey(day,shift.id,session);
                 if(!assignmentKeys.add(key))throw new IllegalArgumentException("Asignación duplicada para "+o.optString("day","")+" / "+shiftKey+" / sesión "+session+".");
                 d.setAssignment(day,shift.id,session,subject);
+                String room=o.optString("room","").trim();
+                if(room.length()>80)throw new IllegalArgumentException("El aula/lugar supera 80 caracteres en assignments["+i+"].");
+                d.setRoom(day,shift.id,session,room);
             }
 
             List<String> errors=ScheduleEngine.validate(d);
@@ -206,6 +218,7 @@ public final class ScheduleRepository {
         ai.put("subject.type solo puede ser LECTIVA o COMPLEMENTARIA.");
         ai.put("Para colorIndex usa -1 si no quieres elegir un color concreto; los valores explícitos válidos son 0..23.");
         ai.put("Para assignments es preferible usar start con formato HH:mm y omitir session si la foto muestra las horas. La app calculará la sesión correspondiente.");
+        ai.put("Cada assignment admite room para indicar aula o lugar concreto. Debe copiarse de la imagen cuando aparezca, por ejemplo Aula PB.01, Sala 2.4 o Aula P1.06 - Cabildo. Si no se conoce, usa room como cadena vacía.");
         ai.put("Para una actividad durante un recreo usa el shift del turno al que pertenece el recreo y su hora start. Si usas session explícitamente, el recreo es session=0.");
         ai.put("Para actividades entre turnos usa shift=betweenMorningAfternoon o shift=betweenAfternoonNight.");
         ai.put("No inventes días, tipos ni claves de turno. No dupliques dos assignments para la misma casilla.");
@@ -214,6 +227,7 @@ public final class ScheduleRepository {
 
         JSONObject fields=new JSONObject();
         fields.put("appearance.darkMode",field("boolean","true o false."));
+        fields.put("widget.showRooms",field("boolean","Si es true, el widget muestra el aula/lugar de la actividad actual y de la siguiente cuando esté definido."));
         fields.put("sessionMinutes",numberField(10,180,"Duración común de una sesión, en minutos."));
         fields.put("shifts.*.enabled",field("boolean","Activa o desactiva esa franja."));
         fields.put("shifts.*.start",field("string HH:mm","Hora de inicio en formato de 24 horas, por ejemplo 08:00."));
@@ -231,6 +245,7 @@ public final class ScheduleRepository {
         JSONObject day=field("string","Día laborable.");JSONArray days=new JSONArray();for(String d:BACKUP_DAYS)days.put(d);day.put("enum",days);fields.put("assignments[].day",day);
         JSONObject shift=field("string","Franja en la que se encuentra la actividad.");JSONArray shifts=new JSONArray();shifts.put("morning");shifts.put("betweenMorningAfternoon");shifts.put("afternoon");shifts.put("betweenAfternoonNight");shifts.put("night");shift.put("enum",shifts);fields.put("assignments[].shift",shift);
         fields.put("assignments[].subject",field("string","Debe coincidir exactamente con un subjects[].code declarado."));
+        JSONObject room=field("string","Aula o lugar concreto de esa actividad. Puede variar para la misma asignatura según día y hora. Ejemplos: Aula PB.01, Sala 2.4, Aula P1.06 - Cabildo.");room.put("maxLength",80);room.put("allowEmpty",true);fields.put("assignments[].room",room);
         JSONObject start=field("string HH:mm","Hora inicial de la casilla. Recomendado para generar el JSON desde una imagen.");start.put("optionalIf","session está presente");fields.put("assignments[].start",start);
         JSONObject session=numberField(0,99,"Índice de sesión. 0 identifica un recreo. Puede omitirse si se proporciona start.");session.put("optionalIf","start está presente");fields.put("assignments[].session",session);
         s.put("fields",fields);
@@ -243,6 +258,7 @@ public final class ScheduleRepository {
         rules.put("Los intervalos betweenMorningAfternoon y betweenAfternoonNight no tienen recreo: breakAfterSession=0 y breakMinutes=0.");
         rules.put("No puede haber dos asignaturas con el mismo code.");
         rules.put("Cada assignment debe apuntar a una asignatura declarada en subjects.");
+        rules.put("room pertenece a cada assignment, no a la asignatura global, porque una misma materia puede impartirse en aulas distintas.");
         rules.put("Cada assignment debe corresponder a una casilla real generada por la configuración de shifts y sessionMinutes.");
         rules.put("Una misma casilla day+shift+session solo puede tener una asignación.");
         rules.put("Los intervalos entre turnos no deben solaparse con los turnos adyacentes que estén enabled.");
@@ -250,9 +266,9 @@ public final class ScheduleRepository {
 
         JSONObject examples=new JSONObject();
         JSONObject subjectExample=new JSONObject();subjectExample.put("code","APW");subjectExample.put("name","Aplicaciones Web");subjectExample.put("type",TYPE_LECTIVA);subjectExample.put("colorIndex",-1);examples.put("subject",subjectExample);
-        JSONObject assignmentExample=new JSONObject();assignmentExample.put("day","LUN");assignmentExample.put("shift","morning");assignmentExample.put("start","08:00");assignmentExample.put("subject","APW");examples.put("assignmentByStart",assignmentExample);
-        JSONObject breakExample=new JSONObject();breakExample.put("day","MAR");breakExample.put("shift","morning");breakExample.put("start","10:45");breakExample.put("subject","RET");examples.put("assignmentDuringRecess",breakExample);
-        JSONObject betweenExample=new JSONObject();betweenExample.put("day","JUE");betweenExample.put("shift","betweenMorningAfternoon");betweenExample.put("start","14:00");betweenExample.put("subject","DEP");examples.put("assignmentBetweenTurns",betweenExample);
+        JSONObject assignmentExample=new JSONObject();assignmentExample.put("day","LUN");assignmentExample.put("shift","morning");assignmentExample.put("start","08:00");assignmentExample.put("subject","APW");assignmentExample.put("room","Aula PB.01");examples.put("assignmentByStart",assignmentExample);
+        JSONObject breakExample=new JSONObject();breakExample.put("day","MAR");breakExample.put("shift","morning");breakExample.put("start","10:45");breakExample.put("subject","RET");breakExample.put("room","Sala Admin");examples.put("assignmentDuringRecess",breakExample);
+        JSONObject betweenExample=new JSONObject();betweenExample.put("day","JUE");betweenExample.put("shift","betweenMorningAfternoon");betweenExample.put("start","14:00");betweenExample.put("subject","DEP");betweenExample.put("room","Sala 2.4");examples.put("assignmentBetweenTurns",betweenExample);
         s.put("examples",examples);
         return s;
     }
