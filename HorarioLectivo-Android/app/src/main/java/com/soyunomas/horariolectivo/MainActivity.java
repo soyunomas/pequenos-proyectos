@@ -1,13 +1,17 @@
 package com.soyunomas.horariolectivo;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.animation.OvershootInterpolator;
 import android.widget.*;
 import java.time.ZonedDateTime;
 import java.util.Locale;
@@ -40,19 +44,39 @@ public final class MainActivity extends Activity {
     for(Slot slot:ScheduleEngine.generateSlots(d,s)){
       boolean rowCur=same(nn.current,slot),rowNext=same(nn.next,slot);add(g,between?betweenTimeCell(time(slot),rowCur||rowNext,rowCur):timeCell(time(slot),rowCur||rowNext,rowCur),timeW,54,1);
       if(slot.isBreak){
-        for(int day=0;day<5;day++){String code=d.getAssignment(day,s.id,slot.sessionIndex),room=d.getRoom(day,s.id,slot.sessionIndex);boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,code.isEmpty()?breakCell(cur,next):subjectCell(code,room,cur,next),dayW,54,1);}
+        for(int day=0;day<5;day++){String code=d.getAssignment(day,s.id,slot.sessionIndex),room=d.getRoom(day,s.id,slot.sessionIndex);boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,code.isEmpty()?breakCell(cur,next):subjectCell(d,day,slot,code,room,cur,next),dayW,54,1);}
       }else if(between){
-        for(int day=0;day<5;day++){String code=d.getAssignment(day,s.id,slot.sessionIndex),room=d.getRoom(day,s.id,slot.sessionIndex);boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,code.isEmpty()?betweenCell(cur,next):subjectCell(code,room,cur,next),dayW,54,1);}
-      }else for(int day=0;day<5;day++){boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,subjectCell(d.getAssignment(day,s.id,slot.sessionIndex),d.getRoom(day,s.id,slot.sessionIndex),cur,next),dayW,54,1);}
+        for(int day=0;day<5;day++){String code=d.getAssignment(day,s.id,slot.sessionIndex),room=d.getRoom(day,s.id,slot.sessionIndex);boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,code.isEmpty()?betweenCell(cur,next):subjectCell(d,day,slot,code,room,cur,next),dayW,54,1);}
+      }else for(int day=0;day<5;day++){boolean cur=ScheduleEngine.matches(nn.current,day,slot),next=ScheduleEngine.matches(nn.next,day,slot);add(g,subjectCell(d,day,slot,d.getAssignment(day,s.id,slot.sessionIndex),d.getRoom(day,s.id,slot.sessionIndex),cur,next),dayW,54,1);}
     }
   }
 
   private TextView headerCell(String v){TextView x=t(v,12,true);x.setGravity(Gravity.CENTER);x.setBackground(box(th.surfaceAlt,th.border,1,8));return x;}
   private TextView timeCell(String v,boolean highlighted,boolean current){TextView x=t(v,11,false);x.setGravity(Gravity.CENTER);x.setTextColor(th.muted);x.setBackground(box(current?th.primarySoft:highlighted?th.surfaceAlt:th.surface,highlighted?th.primary:th.border,highlighted?2:1,10));return x;}
   private TextView betweenTimeCell(String v,boolean highlighted,boolean current){TextView x=t(v,11,true);x.setGravity(Gravity.CENTER);x.setTextColor(th.breakBorder);x.setBackground(box(highlighted?blend(th.breakBg,th.primarySoft):th.breakBg,highlighted?th.primary:th.breakBorder,highlighted?2:1,10));return x;}
-  private TextView subjectCell(String raw,String room,boolean current,boolean next){String code=(raw==null||raw.isEmpty())?"—":raw;String label=code;boolean hasRoom=!code.equals("—")&&room!=null&&!room.trim().isEmpty();if(hasRoom)label+="\n"+room.trim();else if(current)label+="\nAHORA";else if(next)label+="\nSIG.";TextView x=t(label,hasRoom?9:(current||next?10:12),true);x.setGravity(Gravity.CENTER);x.setMaxLines(2);x.setEllipsize(android.text.TextUtils.TruncateAt.END);boolean empty="—".equals(code);int fill=empty?th.surfaceAlt:th.subjectColor(code);x.setTextColor(empty?th.muted:th.subjectTextColor(code));if(current||next){fill=blend(fill,th.primarySoft);x.setTextColor(th.dark?Color.WHITE:th.ink);}x.setBackground(box(fill,current||next?th.primary:(empty?th.border:fill),current||next?2:1,10));return x;}
+  private TextView subjectCell(Data d,int day,Slot slot,String raw,String room,boolean current,boolean next){String code=(raw==null||raw.isEmpty())?"—":raw;String label=code;boolean hasRoom=!code.equals("—")&&room!=null&&!room.trim().isEmpty();if(hasRoom)label+="\n"+room.trim();else if(current)label+="\nAHORA";else if(next)label+="\nSIG.";TextView x=t(label,hasRoom?9:(current||next?10:12),true);x.setGravity(Gravity.CENTER);x.setMaxLines(2);x.setEllipsize(android.text.TextUtils.TruncateAt.END);boolean empty="—".equals(code);int fill=empty?th.surfaceAlt:th.subjectColor(code);x.setTextColor(empty?th.muted:th.subjectTextColor(code));if(current||next){fill=blend(fill,th.primarySoft);x.setTextColor(th.dark?Color.WHITE:th.ink);}x.setBackground(box(fill,current||next?th.primary:(empty?th.border:fill),current||next?2:1,10));if(!empty){x.setClickable(true);x.setFocusable(true);x.setContentDescription("Ver detalles de "+code+(hasRoom?" en "+room:""));x.setOnClickListener(v->showSubjectDetails(d,day,slot,code,current,next));}return x;}
   private TextView breakCell(boolean current,boolean next){TextView x=t("RECREO"+(current?"\nAHORA":next?"\nSIG.":""),current||next?10:11,true);x.setGravity(Gravity.CENTER);x.setTextColor(th.breakBorder);x.setBackground(box(current||next?blend(th.breakBg,th.primarySoft):th.breakBg,current||next?th.primary:th.breakBorder,current||next?2:1,10));return x;}
   private TextView betweenCell(boolean current,boolean next){TextView x=t("ENTRE"+(current?"\nAHORA":next?"\nSIG.":""),current||next?10:11,true);x.setGravity(Gravity.CENTER);x.setTextColor(th.breakBorder);x.setBackground(box(current||next?blend(th.breakBg,th.primarySoft):th.breakBg,current||next?th.primary:th.breakBorder,current||next?2:1,10));return x;}
+
+  private void showSubjectDetails(Data d,int day,Slot slot,String code,boolean current,boolean next){
+    Subject subject=d.subject(code);if(subject==null)return;String effectiveRoom=d.getRoom(day,slot.shiftId,slot.sessionIndex);String override=d.getRoomOverride(day,slot.shiftId,slot.sessionIndex);
+    Dialog dialog=new Dialog(this);LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(dp(20),dp(18),dp(20),dp(16));panel.setBackground(box(th.surface,th.border,1,22));
+
+    LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView badge=t(subject.code,18,true);badge.setGravity(Gravity.CENTER);badge.setTextColor(th.subjectTextColor(subject.code));badge.setBackground(box(th.subjectColor(subject.code),th.subjectColor(subject.code),0,14));head.addView(badge,new LinearLayout.LayoutParams(dp(68),dp(48)));LinearLayout names=new LinearLayout(this);names.setOrientation(LinearLayout.VERTICAL);names.setPadding(dp(12),0,0,0);TextView name=t(subject.name,18,true);names.addView(name);TextView type=t(subject.isComplementaria()?"Complementaria":"Lectiva",12,true);type.setTextColor(subject.isComplementaria()?th.breakBorder:th.muted);names.addView(type);head.addView(names,new LinearLayout.LayoutParams(0,-2,1));panel.addView(head);
+
+    View line=new View(this);line.setBackgroundColor(th.border);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(1));lp.setMargins(0,dp(14),0,dp(14));panel.addView(line,lp);
+    detailRow(panel,"Día",dayName(day));detailRow(panel,"Hora",inline(slot));detailRow(panel,"Turno",slot.shiftLabel);
+    if(effectiveRoom.isEmpty())detailRow(panel,"Aula / lugar","Sin especificar");else detailRow(panel,override.isEmpty()?"Aula general":"Aula excepcional",effectiveRoom);
+    if(!override.isEmpty()&&!subject.defaultRoom.isEmpty())detailRow(panel,"Aula habitual",subject.defaultRoom);
+    if(current)detailRow(panel,"Estado","Ahora");else if(next)detailRow(panel,"Estado","Siguiente");
+
+    TextView close=t("Cerrar",14,true);close.setGravity(Gravity.CENTER);close.setTextColor(th.primaryText);close.setBackground(box(th.primary,th.primary,0,14));close.setOnClickListener(v->dialog.dismiss());LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(48));cp.setMargins(0,dp(16),0,0);panel.addView(close,cp);
+    dialog.setContentView(panel);Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));w.setDimAmount(0.45f);w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);}dialog.show();w=dialog.getWindow();if(w!=null){w.setLayout(Math.min(dp(420),getResources().getDisplayMetrics().widthPixels-dp(36)),-2);}
+    panel.setScaleX(0.84f);panel.setScaleY(0.84f);panel.setAlpha(0f);panel.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(190).setInterpolator(new OvershootInterpolator(0.9f)).start();
+  }
+
+  private void detailRow(LinearLayout panel,String label,String value){LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.TOP);TextView l=t(label,12,true);l.setTextColor(th.muted);r.addView(l,new LinearLayout.LayoutParams(dp(105),-2));TextView v=t(value,14,false);v.setGravity(Gravity.END);r.addView(v,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(4),0,dp(4));panel.addView(r,p);}
+  private String dayName(int day){String[] days={"Lunes","Martes","Miércoles","Jueves","Viernes"};return day>=0&&day<days.length?days[day]:"";}
 
   private int screenWidthDp(){return Math.round(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);}private int timeColumnDp(){int available=Math.max(300,screenWidthDp()-24);return Math.max(66,Math.min(82,Math.round(available*0.22f)));}private int dayColumnDp(){int available=Math.max(300,screenWidthDp()-24);int time=timeColumnDp();return Math.max(46,(available-time-24)/5);}private int tableContentDp(int timeW,int dayW){return timeW+5*dayW+20;}
   private int blend(int a,int b){return Color.rgb((Color.red(a)*2+Color.red(b))/3,(Color.green(a)*2+Color.green(b))/3,(Color.blue(a)*2+Color.blue(b))/3);}private boolean same(SlotRef r,Slot s){return r!=null&&r.slot.identity().equals(s.identity())&&r.slot.start.equals(s.start)&&r.slot.end.equals(s.end);}
