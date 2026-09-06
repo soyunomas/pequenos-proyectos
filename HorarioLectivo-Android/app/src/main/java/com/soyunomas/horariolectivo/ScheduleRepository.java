@@ -267,6 +267,7 @@ public final class ScheduleRepository {
         JSONObject examples=new JSONObject();
         JSONObject subjectExample=new JSONObject();subjectExample.put("code","APW");subjectExample.put("name","Aplicaciones Web");subjectExample.put("type",TYPE_LECTIVA);subjectExample.put("colorIndex",-1);examples.put("subject",subjectExample);
         JSONObject assignmentExample=new JSONObject();assignmentExample.put("day","LUN");assignmentExample.put("shift","morning");assignmentExample.put("start","08:00");assignmentExample.put("subject","APW");assignmentExample.put("room","Aula PB.01");examples.put("assignmentByStart",assignmentExample);
+        JSONObject blankAssignment=new JSONObject();blankAssignment.put("day","LUN");blankAssignment.put("shift","morning");blankAssignment.put("start","08:00");blankAssignment.put("subject","APW");blankAssignment.put("room","");examples.put("assignmentBlankTemplate",blankAssignment);
         JSONObject breakExample=new JSONObject();breakExample.put("day","MAR");breakExample.put("shift","morning");breakExample.put("start","10:45");breakExample.put("subject","RET");breakExample.put("room","Sala Admin");examples.put("assignmentDuringRecess",breakExample);
         JSONObject betweenExample=new JSONObject();betweenExample.put("day","JUE");betweenExample.put("shift","betweenMorningAfternoon");betweenExample.put("start","14:00");betweenExample.put("subject","DEP");betweenExample.put("room","Sala 2.4");examples.put("assignmentBetweenTurns",betweenExample);
         s.put("examples",examples);
