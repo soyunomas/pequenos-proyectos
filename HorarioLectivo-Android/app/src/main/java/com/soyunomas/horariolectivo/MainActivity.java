@@ -4,13 +4,12 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.Window;
 import android.view.Window;
 import android.view.animation.OvershootInterpolator;
 import android.widget.*;
@@ -61,7 +60,7 @@ public final class MainActivity extends Activity {
 
   private void showSubjectDetails(Data d,int day,Slot slot,String code,boolean current,boolean next){
     Subject subject=d.subject(code);if(subject==null)return;String effectiveRoom=d.getRoom(day,slot.shiftId,slot.sessionIndex);String override=d.getRoomOverride(day,slot.shiftId,slot.sessionIndex);
-    Dialog dialog=new Dialog(this);LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(dp(20),dp(18),dp(20),dp(16));panel.setBackground(box(th.surface,th.border,1,22));
+    Dialog dialog=new Dialog(this);dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(dp(20),dp(18),dp(20),dp(16));panel.setBackground(box(th.surface,th.border,1,22));
 
     LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView badge=t(subject.code,18,true);badge.setGravity(Gravity.CENTER);badge.setTextColor(th.subjectTextColor(subject.code));badge.setBackground(box(th.subjectColor(subject.code),th.subjectColor(subject.code),0,14));head.addView(badge,new LinearLayout.LayoutParams(dp(68),dp(48)));LinearLayout names=new LinearLayout(this);names.setOrientation(LinearLayout.VERTICAL);names.setPadding(dp(12),0,0,0);TextView name=t(subject.name,18,true);names.addView(name);TextView type=t(subject.isComplementaria()?"Complementaria":"Lectiva",12,true);type.setTextColor(subject.isComplementaria()?th.breakBorder:th.muted);names.addView(type);head.addView(names,new LinearLayout.LayoutParams(0,-2,1));panel.addView(head);
 
