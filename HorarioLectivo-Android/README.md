@@ -16,6 +16,7 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 - Editor semanal por casillas, modo bloque y copia de días.
 - Asignaturas **L** (lectivas) y **C** (complementarias), con siglas, nombre y color editables.
 - **Aula/lugar por casilla**: la misma asignatura puede tener un aula distinta según el día y la hora.
+- **Franjas exactas importables**: el JSON puede describir horas reales como `09:00–09:55`, `10:00–10:55`, con huecos o duraciones diferentes, sin obligarlas a encajar en sesiones contiguas.
 - Modo claro y oscuro.
 - Widget 4×2, redimensionable a 4×1, con actividad actual, siguiente actividad y cuenta atrás. Opcionalmente muestra también el aula/lugar de ambas.
 - **Copia de seguridad JSON**: exporta toda la configuración y permite importarla después.
@@ -55,7 +56,9 @@ En **Configurar horario > Copia de seguridad** hay dos acciones:
 
 El formato externo está versionado como `horario-lectivo-backup` / esquema `1`. Incluye apariencia, opciones del widget, duración de sesión, mañana, tarde, noche, ambos intervalos entre turnos, recreos, asignaturas, aulas y asignaciones semanales. Cada objeto de `assignments` puede llevar `room`, porque el aula puede variar por día y hora.
 
-La exportación incluye además un bloque `schema` autocontenido. Describe los campos, tipos, rangos, valores permitidos, reglas y ejemplos necesarios para generar un horario válido. Entre otras restricciones, documenta que las siglas `subjects[].code` son obligatorias, únicas, de **1 a 3 caracteres** y solo admiten `A-Z` y `0-9`.
+La exportación incluye además un bloque `schema` autocontenido. Desde v1.25, la plantilla indica expresamente a una IA que **las horas del documento mandan sobre los valores de ejemplo**. Cada turno puede incluir `slots` exactos con `start`, `end` y `kind` (`CLASS` o `BREAK`). Esto permite horarios con pausas de 5 minutos, duraciones variables u otros formatos.
+
+Si un JSON antiguo no incluye `slots` pero contiene `assignments` con horas que no encajan en el patrón automático, el importador intenta inferir las franjas exactas a partir de `start` y `end` (o de `sessionMinutes` como fallback). Por ejemplo, un horario con `09:00–09:55` y `10:00–10:55` se conserva con el hueco de cinco minutos y no se transforma en una sesión continua. Describe los campos, tipos, rangos, valores permitidos, reglas y ejemplos necesarios para generar un horario válido. Entre otras restricciones, documenta que las siglas `subjects[].code` son obligatorias, únicas, de **1 a 3 caracteres** y solo admiten `A-Z` y `0-9`.
 
 Si la configuración todavía no contiene asignaturas ni casillas, la aplicación propone el nombre **`HorarioLectivo_plantilla_IA.json`** y marca el documento como `contentState: "BLANK_TEMPLATE"`. No es un archivo vacío: contiene todos los turnos y opciones configurables, además de instrucciones `aiInstructions`, definición de campos `fields`, reglas `rules` y ejemplos `examples`; únicamente `subjects` y `assignments` permanecen vacíos para que una IA con visión los complete a partir de una foto.
 
@@ -69,7 +72,7 @@ Una importación rechaza, entre otros casos, códigos de asignatura inválidos o
 
 ## Instalación
 
-1. Descarga **[HorarioLectivo_v1.24.apk](./HorarioLectivo_v1.24.apk)**.
+1. Descarga **[HorarioLectivo_v1.25.apk](./HorarioLectivo_v1.25.apk)**.
 2. Abre el APK desde Android.
 3. Autoriza la instalación de aplicaciones desconocidas si Android lo solicita.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -100,5 +103,5 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.24.apk](./HorarioLectivo_v1.24.apk)
+- **APK actual:** [HorarioLectivo_v1.25.apk](./HorarioLectivo_v1.25.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
