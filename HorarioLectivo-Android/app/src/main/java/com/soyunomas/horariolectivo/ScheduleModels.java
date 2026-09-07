@@ -47,23 +47,26 @@ public final class ScheduleModels {
         public final List<Subject> subjects=new ArrayList<>();
         public final Map<String,String> assignments=new HashMap<>();
         public final Map<String,String> rooms=new HashMap<>();
+        public final Map<String,String> groups=new HashMap<>();
         public final Map<String,List<TimeSlotConfig>> customSlots=new HashMap<>();
 
         public Data copy(){
             Data d=new Data();d.sessionMinutes=sessionMinutes;d.showRoomsInWidget=showRoomsInWidget;d.morning=morning.copy();d.between=between.copy();d.afternoon=afternoon.copy();d.betweenNight=betweenNight.copy();d.night=night.copy();
             d.subjects.clear();for(Subject s:subjects)d.subjects.add(s.copy());
-            d.assignments.clear();d.assignments.putAll(assignments);d.rooms.clear();d.rooms.putAll(rooms);
+            d.assignments.clear();d.assignments.putAll(assignments);d.rooms.clear();d.rooms.putAll(rooms);d.groups.clear();d.groups.putAll(groups);
             d.customSlots.clear();for(Map.Entry<String,List<TimeSlotConfig>> e:customSlots.entrySet()){List<TimeSlotConfig> list=new ArrayList<>();for(TimeSlotConfig t:e.getValue())list.add(t.copy());d.customSlots.put(e.getKey(),list);}
             return d;
         }
 
         public static String assignmentKey(int day,String shift,int session){return day+"|"+shift+"|"+session;}
         public String getAssignment(int day,String shift,int session){String v=assignments.get(assignmentKey(day,shift,session));return v==null?"":v;}
-        public void setAssignment(int day,String shift,int session,String code){String k=assignmentKey(day,shift,session);if(code==null||code.trim().isEmpty()){assignments.remove(k);rooms.remove(k);}else{String normalized=code.trim().toUpperCase();String previous=assignments.get(k);assignments.put(k,normalized);if(previous!=null&&!previous.equalsIgnoreCase(normalized))rooms.remove(k);}}
+        public void setAssignment(int day,String shift,int session,String code){String k=assignmentKey(day,shift,session);if(code==null||code.trim().isEmpty()){assignments.remove(k);rooms.remove(k);groups.remove(k);}else{String normalized=code.trim().toUpperCase();String previous=assignments.get(k);assignments.put(k,normalized);if(previous!=null&&!previous.equalsIgnoreCase(normalized)){rooms.remove(k);groups.remove(k);}}}
         public String getRoomOverride(int day,String shift,int session){String v=rooms.get(assignmentKey(day,shift,session));return v==null?"":v;}
         public String getRoom(int day,String shift,int session){String override=getRoomOverride(day,shift,session);if(!override.isEmpty())return override;Subject s=subject(getAssignment(day,shift,session));return s==null||s.defaultRoom==null?"":s.defaultRoom.trim();}
         public boolean hasRoomOverride(int day,String shift,int session){return !getRoomOverride(day,shift,session).isEmpty();}
         public void setRoom(int day,String shift,int session,String room){String k=assignmentKey(day,shift,session);String value=room==null?"":room.trim();Subject subject=subject(getAssignment(day,shift,session));if(!assignments.containsKey(k)||value.isEmpty()||(subject!=null&&!subject.defaultRoom.isEmpty()&&subject.defaultRoom.equalsIgnoreCase(value)))rooms.remove(k);else rooms.put(k,value);}
+        public String getGroup(int day,String shift,int session){String v=groups.get(assignmentKey(day,shift,session));return v==null?"":v;}
+        public void setGroup(int day,String shift,int session,String group){String k=assignmentKey(day,shift,session);String value=group==null?"":group.trim();if(!assignments.containsKey(k)||value.isEmpty())groups.remove(k);else groups.put(k,value);}
 
         public List<TimeSlotConfig> customSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list==null?new ArrayList<>():list;}
         public boolean hasCustomSlots(String shiftId){List<TimeSlotConfig> list=customSlots.get(shiftId);return list!=null&&!list.isEmpty();}

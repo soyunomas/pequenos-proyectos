@@ -14,6 +14,8 @@
       "Copia las franjas horarias REALES de la imagen. Si el documento muestra 09:00-09:55, 10:00-10:55, etc., no las conviertas en sesiones continuas de 55 minutos desde otra hora.",
       "Rellena shifts.<turno>.slots con cada franja exacta {start,end,kind}. Usa kind=CLASS para una franja asignable y kind=BREAK para un recreo. Los huecos entre franjas, por ejemplo 09:55-10:00, NO son slots.",
       "En assignments usa start y end exactamente como aparecen en el horario y omite session. La app localizará la franja por start. Si omites slots, la app intentará inferirlos desde assignments por compatibilidad, pero slots explícitos es lo recomendado.",
+      "assignments[].group es opcional y pertenece a la casilla concreta. Copia literalmente el identificador de grupo que aparezca en el horario, por ejemplo PA101, PE102 o varios grupos como PE101 / TU101. No presupongas un formato fijo porque otros centros pueden usar otras nomenclaturas.",
+      "Si junto al grupo aparecen horas acumuladas entre paréntesis, por ejemplo PE101 (8h) y TU101 (7h), conserva la identificación útil en group; puedes mantener también las horas si son relevantes y caben en el texto.",
       "Cada subject admite defaultRoom para su aula/lugar habitual. Si una asignatura tiene un aula general estable, escríbela en defaultRoom.",
       "assignments[].room se usa SOLO para una excepción de aula en una hora concreta. Si esa casilla usa el aula general, deja room como cadena vacía. Si no existe un aula general clara, deja defaultRoom vacío y escribe room en cada assignment donde el documento indique aula.",
       "Ejemplo: si APW suele estar en Aula PB.01 y solo el miércoles va a Sala 2.4, usa subjects[].defaultRoom='Aula PB.01' y únicamente el assignment del miércoles con room='Sala 2.4'.",
@@ -164,6 +166,12 @@
         "description": "Aula/lugar habitual de la asignatura. Se aplica a todas sus casillas salvo que un assignment defina una excepción en room.",
         "maxLength": 80,
         "allowEmpty": true
+      },
+      "assignments[].group": {
+        "type": "string",
+        "description": "Grupo o subgrupo de esta casilla. Es opcional y admite cualquier nomenclatura del centro, por ejemplo PA101, PE102 o PE101 / TU101.",
+        "maxLength": 80,
+        "allowEmpty": true
       }
     },
     "rules": [
@@ -177,6 +185,7 @@
       "Los intervalos betweenMorningAfternoon y betweenAfternoonNight no tienen recreo: breakAfterSession=0 y breakMinutes=0.",
       "No puede haber dos asignaturas con el mismo code.",
       "Cada assignment debe apuntar a una asignatura declarada en subjects.",
+      "assignments[].group es opcional y describe el grupo de esa franja concreta; no debe inferirse como propiedad global de la asignatura.",
       "subjects[].defaultRoom es el aula habitual general de la asignatura.",
       "assignments[].room es una excepción por día/hora y tiene prioridad sobre defaultRoom. Si está vacío, la aplicación hereda defaultRoom.",
       "Si no puede determinarse un aula general estable, usa defaultRoom vacío y conserva el aula observada en cada assignments[].room.",
@@ -197,21 +206,24 @@
         "shift": "morning",
         "start": "08:00",
         "subject": "APW",
-        "room": ""
+        "room": "",
+        "group": ""
       },
       "assignmentDuringRecess": {
         "day": "MAR",
         "shift": "morning",
         "start": "10:45",
         "subject": "RET",
-        "room": "Sala Admin"
+        "room": "Sala Admin",
+        "group": ""
       },
       "assignmentBetweenTurns": {
         "day": "JUE",
         "shift": "betweenMorningAfternoon",
         "start": "14:00",
         "subject": "DEP",
-        "room": "Sala 2.4"
+        "room": "Sala 2.4",
+        "group": ""
       },
       "exactSlotsWithFiveMinuteGap": [
         {
@@ -231,7 +243,8 @@
         "start": "09:00",
         "end": "09:55",
         "subject": "APW",
-        "room": ""
+        "room": "",
+        "group": "PA101"
       },
       "assignmentWithRoomException": {
         "day": "MIE",
@@ -239,7 +252,17 @@
         "start": "09:00",
         "end": "09:55",
         "subject": "APW",
-        "room": "Sala 2.4"
+        "room": "Sala 2.4",
+        "group": "PE101 / TU101"
+      },
+      "assignmentWithMultipleGroups": {
+        "day": "JUE",
+        "shift": "morning",
+        "start": "10:00",
+        "end": "10:55",
+        "subject": "APW",
+        "group": "PE101 (8h) / TU101 (7h)",
+        "room": ""
       }
     }
   },

@@ -21,6 +21,7 @@
             <TextView android:id="@+id/current_subject" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" />
             <TextView android:id="@+id/current_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E2E8F0" android:textSize="12sp" />
         </LinearLayout>
+        <TextView android:id="@+id/current_group" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#CBD5E1" android:textSize="10sp" android:textStyle="bold" android:maxLines="1" android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="6dp" android:orientation="vertical" android:padding="8dp" android:background="@drawable/widget_highlight">
@@ -33,5 +34,6 @@
             <TextView android:id="@+id/next_subject" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:maxLines="1" />
             <TextView android:id="@+id/next_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E2E8F0" android:textSize="12sp" />
         </LinearLayout>
+        <TextView android:id="@+id/next_group" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#CBD5E1" android:textSize="10sp" android:textStyle="bold" android:maxLines="1" android:visibility="gone" />
     </LinearLayout>
 </LinearLayout>

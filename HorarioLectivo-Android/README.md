@@ -16,6 +16,7 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 - Editor semanal por casillas, modo bloque y copia de días.
 - Asignaturas **L** (lectivas) y **C** (complementarias), con siglas, nombre y color editables.
 - **Aula general por asignatura** con excepciones por casilla: la materia hereda su aula habitual y solo necesitas editar las horas que se impartan en otro lugar.
+- **Grupo por casilla**: cada hora puede indicar grupo o subgrupo (`PA101`, `PE102`, `PE101 / TU101`, etc.) sin asumir una nomenclatura concreta.
 - **Franjas exactas importables**: el JSON puede describir horas reales como `09:00–09:55`, `10:00–10:55`, con huecos o duraciones diferentes, sin obligarlas a encajar en sesiones contiguas.
 - Modo claro y oscuro.
 - Widget 4×2, redimensionable a 4×1, con actividad actual, siguiente actividad y cuenta atrás. Opcionalmente muestra también el aula/lugar de ambas.
@@ -45,11 +46,13 @@ Cada asignatura puede tener un **aula general**. Se configura desde **Configurar
 
 Si una hora concreta se imparte excepcionalmente en otra aula, mantén pulsada esa casilla en **Semana** y define una **Aula excepcional**. La excepción tiene prioridad únicamente en esa casilla; **Usar aula general** elimina la excepción y vuelve a heredar el valor habitual.
 
-La tabla muestra siempre el aula efectiva debajo de las siglas. Al copiar un día se copian también las excepciones.
+La tabla prioriza la lectura en este orden: **siglas → grupo → aula**. El grupo es opcional y aparece justo debajo de las siglas; el aula queda como información terciaria. Al copiar un día se copian también grupos y excepciones de aula.
 
 En **Apariencia** puedes activar o desactivar **Mostrar aula/lugar en el widget**. Cuando está activo, el widget utiliza el aula efectiva: primero la excepción de esa casilla y, si no existe, el aula general de la asignatura.
 
-En la pantalla de consulta, tocar una casilla con asignatura abre una ficha con animación de aparición/zoom. Muestra siglas, nombre completo, tipo L/C, día, hora, turno, aula efectiva y, cuando corresponde, diferencia entre **aula excepcional** y **aula habitual**.
+En **Configurar horario > Semana**, mantén pulsada una casilla asignada para abrir **Detalles de esta hora**. Desde un único diálogo puedes editar el grupo y el aula excepcional, evitando repartir dos acciones relacionadas en gestos distintos.
+
+En la pantalla de consulta, tocar una casilla con asignatura abre una ficha con animación de aparición/zoom. Muestra siglas, nombre completo, tipo L/C, día, hora, turno, **grupo**, aula efectiva y, cuando corresponde, diferencia entre **aula excepcional** y **aula habitual**.
 
 ## Copia de seguridad e importación JSON
 
@@ -58,7 +61,7 @@ En **Configurar horario > Copia de seguridad** hay dos acciones:
 - **Exportar JSON** abre el selector de archivos de Android y guarda la configuración actual.
 - **Importar JSON** permite seleccionar una copia previa. Antes de sustituir el horario actual se valida el formato y se pide confirmación.
 
-El formato externo está versionado como `horario-lectivo-backup` / esquema `1`. Cada objeto de `subjects` puede llevar `defaultRoom` como aula habitual. Cada `assignment.room` representa una **excepción** para esa casilla; si está vacío, se hereda `defaultRoom`. Si no existe un aula general clara, `defaultRoom` puede quedar vacío y el JSON puede conservar el aula concreta en cada asignación.
+El formato externo está versionado como `horario-lectivo-backup` / esquema `1`. Cada objeto de `subjects` puede llevar `defaultRoom` como aula habitual. Cada `assignment.room` representa una **excepción** para esa casilla; si está vacío, se hereda `defaultRoom`. Cada `assignment.group` guarda opcionalmente el grupo o subgrupo de esa franja y admite texto libre de hasta 80 caracteres, incluidos varios grupos en una misma casilla.
 
 La exportación incluye además un bloque `schema` autocontenido. Desde v1.25, la plantilla indica expresamente a una IA que **las horas del documento mandan sobre los valores de ejemplo**. Cada turno puede incluir `slots` exactos con `start`, `end` y `kind` (`CLASS` o `BREAK`). Esto permite horarios con pausas de 5 minutos, duraciones variables u otros formatos.
 
@@ -76,7 +79,7 @@ Una importación rechaza, entre otros casos, códigos de asignatura inválidos o
 
 ## Instalación
 
-1. Descarga **[HorarioLectivo_v1.26.apk](./HorarioLectivo_v1.26.apk)**.
+1. Descarga **[HorarioLectivo_v1.27.apk](./HorarioLectivo_v1.27.apk)**.
 2. Abre el APK desde Android.
 3. Autoriza la instalación de aplicaciones desconocidas si Android lo solicita.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -107,5 +110,5 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.26.apk](./HorarioLectivo_v1.26.apk)
+- **APK actual:** [HorarioLectivo_v1.27.apk](./HorarioLectivo_v1.27.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
