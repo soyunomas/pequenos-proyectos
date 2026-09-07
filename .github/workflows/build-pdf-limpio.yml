@@ -6,6 +6,11 @@ on:
     paths:
       - 'lector-pdf/**'
       - '.github/workflows/build-pdf-limpio.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lector-pdf/**'
+      - '.github/workflows/build-pdf-limpio.yml'
   workflow_dispatch:
 
 permissions:
@@ -37,6 +42,7 @@ jobs:
           name: PDF-Limpio
           path: lector-pdf/PDF-Limpio.apk
       - name: Commit APK to main
+        if: ${{ github.event_name == 'push' }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
