@@ -32,3 +32,5 @@ gradle :app:assembleDebug
 ```
 
 La APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
+
+GitHub Actions compila también `PDF-Limpio.apk` al publicar cambios en `main`.
