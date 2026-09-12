@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">PDF Limpio</string>
+    <string name="no_document">Sin documento</string>
+    <string name="loading_document">Abriendo…</string>
+    <string name="reader_ready">Listo para leer</string>
+    <string name="reader_ready_editable">Lectura · selección · formularios</string>
+    <string name="document_error_short">No se pudo abrir</string>
+    <string name="open_pdf">Abrir PDF</string>
+    <string name="search">Buscar</string>
+    <string name="edit_fill">Rellenar / editar</string>
+    <string name="compat_mode">Abrir en modo compatible</string>
+    <string name="diagnostic_log">Registro de diagnóstico</string>
+    <string name="empty_title">Tu PDF, sin distracciones</string>
+    <string name="empty_body">Abre un documento para leerlo, buscar, copiar texto o rellenar sus campos. Sin anuncios ni cuenta.</string>
+    <string name="edit_mode_title">Modo edición</string>
+    <string name="edit_mode_help">Toca los campos del formulario para rellenarlos.</string>
+    <string name="edit_mode_active">Editando formulario</string>
+    <string name="cancel">Cancelar</string>
+    <string name="save_copy">Guardar copia</string>
+    <string name="saving">Guardando…</string>
 </resources>
