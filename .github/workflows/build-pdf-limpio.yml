@@ -11,8 +11,6 @@ on:
     paths:
       - 'lector-pdf/**'
       - '.github/workflows/build-pdf-limpio.yml'
-  schedule:
-    - cron: '17 4 * * 1,4'
   workflow_dispatch:
 
 permissions:
