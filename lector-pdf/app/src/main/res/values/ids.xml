@@ -1,0 +1,3 @@
+<resources>
+    <item name="pdf_viewer_container" type="id" />
+</resources>

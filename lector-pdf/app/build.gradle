@@ -4,14 +4,15 @@ plugins {
 
 android {
     namespace 'com.soyunomas.pdflimpio'
-    compileSdk 35
+    compileSdk 36
+    compileSdkExtension 19
 
     defaultConfig {
         applicationId 'com.soyunomas.pdflimpio'
-        minSdk 21
-        targetSdk 35
-        versionCode 1
-        versionName '1.0.0'
+        minSdk 28
+        targetSdk 36
+        versionCode 2
+        versionName '1.1.0'
     }
 
     buildTypes {
@@ -20,4 +21,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.pdf:pdf-viewer-fragment:1.0.0-beta01'
 }

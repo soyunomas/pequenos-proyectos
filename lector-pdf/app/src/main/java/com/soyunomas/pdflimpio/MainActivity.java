@@ -1,62 +1,61 @@
 package com.soyunomas.pdflimpio;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.ContentResolver;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.pdf.PdfDocument;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity implements ReaderPdfFragment.Listener {
     private static final int OPEN_PDF = 41;
     private static final String PREFS = "reader";
     private static final String LAST_URI = "last_uri";
+    private static final String SELECTION_HINT_DISMISSED = "selection_hint_dismissed";
+    private static final String VIEWER_TAG = "pdf_viewer";
 
-    private final ExecutorService renderExecutor = Executors.newSingleThreadExecutor();
-    private final PdfDocumentController document = new PdfDocumentController();
-    private int pageIndex;
-    private int renderGeneration;
-
-    private ZoomableImageView pageView;
+    private ReaderPdfFragment readerFragment;
     private TextView titleView;
-    private TextView pageIndicator;
-    private TextView emptyText;
-    private ProgressBar progress;
-    private ImageButton previousButton;
-    private ImageButton nextButton;
+    private TextView emptyView;
+    private Button searchButton;
+    private LinearLayout selectionHint;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setStatusBarColor(Color.rgb(17, 21, 27));
         getWindow().setNavigationBarColor(Color.rgb(17, 21, 27));
         setContentView(buildUi());
+
+        readerFragment = (ReaderPdfFragment) getSupportFragmentManager().findFragmentByTag(VIEWER_TAG);
+        if (readerFragment == null) {
+            readerFragment = new ReaderPdfFragment();
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.pdf_viewer_container, readerFragment, VIEWER_TAG)
+                    .commitNow();
+        }
+        readerFragment.setListener(this);
 
         Intent intent = getIntent();
         if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
             openDocument(intent.getData(), false);
         } else {
             String last = getSharedPreferences(PREFS, MODE_PRIVATE).getString(LAST_URI, null);
-            if (last != null) openDocument(Uri.parse(last), false);
+            if (last != null) {
+                openDocument(Uri.parse(last), false);
+            }
         }
     }
 
@@ -84,55 +83,63 @@ public class MainActivity extends Activity {
         titleView.setTextColor(Color.WHITE);
         titleView.setTextSize(18);
         titleView.setSingleLine(true);
-        titleView.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        titleView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        titleView.setContentDescription("Documento abierto");
         top.addView(titleView, new LinearLayout.LayoutParams(0, dp(48), 1f));
 
+        searchButton = new Button(this);
+        searchButton.setText("Buscar");
+        searchButton.setAllCaps(false);
+        searchButton.setEnabled(false);
+        searchButton.setContentDescription("Buscar texto en el PDF");
+        searchButton.setOnClickListener(v -> startSearch());
+        top.addView(searchButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
+
         Button openButton = new Button(this);
-        openButton.setText("Abrir PDF");
+        openButton.setText("Abrir");
         openButton.setAllCaps(false);
+        openButton.setContentDescription("Abrir otro PDF");
         openButton.setOnClickListener(v -> choosePdf());
         top.addView(openButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
         root.addView(top);
 
+        selectionHint = new LinearLayout(this);
+        selectionHint.setGravity(Gravity.CENTER_VERTICAL);
+        selectionHint.setPadding(dp(14), dp(8), dp(8), dp(8));
+        selectionHint.setBackgroundColor(Color.rgb(255, 244, 205));
+        selectionHint.setVisibility(View.GONE);
+
+        TextView hintText = new TextView(this);
+        hintText.setText("Para copiar: mantén pulsado sobre el texto, ajusta los tiradores y toca Copiar.");
+        hintText.setTextColor(Color.rgb(59, 48, 16));
+        hintText.setTextSize(15);
+        selectionHint.addView(hintText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button closeHint = new Button(this);
+        closeHint.setText("×");
+        closeHint.setTextSize(22);
+        closeHint.setContentDescription("Cerrar consejo de selección");
+        closeHint.setOnClickListener(v -> dismissSelectionHint());
+        selectionHint.addView(closeHint, new LinearLayout.LayoutParams(dp(48), dp(44)));
+        root.addView(selectionHint);
+
         FrameLayout content = new FrameLayout(this);
-        pageView = new ZoomableImageView(this);
-        pageView.setBackgroundColor(Color.rgb(218, 221, 226));
-        pageView.setOnPageSwipeListener(direction -> showPage(pageIndex + (direction < 0 ? 1 : -1)));
-        content.addView(pageView, new FrameLayout.LayoutParams(-1, -1));
+        content.setBackgroundColor(Color.rgb(224, 226, 230));
 
-        emptyText = new TextView(this);
-        emptyText.setText("Abre un PDF para empezar\n\nSin anuncios · sin cuenta · sin Internet");
-        emptyText.setTextColor(Color.rgb(66, 72, 80));
-        emptyText.setTextSize(18);
-        emptyText.setGravity(Gravity.CENTER);
-        emptyText.setPadding(dp(32), dp(32), dp(32), dp(32));
-        content.addView(emptyText, new FrameLayout.LayoutParams(-1, -1));
+        FrameLayout viewerContainer = new FrameLayout(this);
+        viewerContainer.setId(R.id.pdf_viewer_container);
+        content.addView(viewerContainer, new FrameLayout.LayoutParams(-1, -1));
 
-        progress = new ProgressBar(this);
-        progress.setVisibility(View.GONE);
-        content.addView(progress, new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER));
+        emptyView = new TextView(this);
+        emptyView.setText("Abre un PDF para empezar\n\nMantén pulsado sobre el texto para seleccionarlo y copiarlo.\n\nSin anuncios · sin cuenta · sin Internet");
+        emptyView.setTextColor(Color.rgb(66, 72, 80));
+        emptyView.setTextSize(17);
+        emptyView.setGravity(Gravity.CENTER);
+        emptyView.setPadding(dp(32), dp(32), dp(32), dp(32));
+        emptyView.setBackgroundColor(Color.rgb(238, 240, 243));
+        content.addView(emptyView, new FrameLayout.LayoutParams(-1, -1));
+
         root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1f));
-
-        LinearLayout bottom = new LinearLayout(this);
-        bottom.setGravity(Gravity.CENTER);
-        bottom.setPadding(dp(8), dp(6), dp(8), dp(6));
-        bottom.setBackgroundColor(Color.rgb(17, 21, 27));
-
-        previousButton = new GlyphImageButton(this, "‹", "Página anterior", v -> showPage(pageIndex - 1));
-        nextButton = new GlyphImageButton(this, "›", "Página siguiente", v -> showPage(pageIndex + 1));
-        pageIndicator = new TextView(this);
-        pageIndicator.setText("—");
-        pageIndicator.setTextColor(Color.WHITE);
-        pageIndicator.setTextSize(17);
-        pageIndicator.setGravity(Gravity.CENTER);
-        pageIndicator.setPadding(dp(20), 0, dp(20), 0);
-        pageIndicator.setOnClickListener(v -> showJumpDialog());
-
-        bottom.addView(previousButton, new LinearLayout.LayoutParams(dp(64), dp(52)));
-        bottom.addView(pageIndicator, new LinearLayout.LayoutParams(0, dp(52), 1f));
-        bottom.addView(nextButton, new LinearLayout.LayoutParams(dp(64), dp(52)));
-        root.addView(bottom);
-        updateNavigation();
         return root;
     }
 
@@ -147,102 +154,82 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != OPEN_PDF || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        if (requestCode != OPEN_PDF || resultCode != RESULT_OK || data == null || data.getData() == null) {
+            return;
+        }
         Uri uri = data.getData();
         try {
             getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } catch (SecurityException ignored) { }
+        } catch (SecurityException ignored) {
+        }
         openDocument(uri, true);
     }
 
     private void openDocument(Uri uri, boolean remember) {
-        renderGeneration++;
-        progress.setVisibility(View.VISIBLE);
-        emptyText.setVisibility(View.GONE);
+        if (readerFragment == null || uri == null) {
+            return;
+        }
         titleView.setText(displayName(uri));
+        searchButton.setEnabled(false);
+        emptyView.setVisibility(View.GONE);
+        selectionHint.setVisibility(View.GONE);
         try {
-            document.open(getContentResolver(), uri);
-            pageIndex = 0;
+            readerFragment.setDocumentUri(uri);
             if (remember) {
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(LAST_URI, uri.toString()).apply();
+                getSharedPreferences(PREFS, MODE_PRIVATE)
+                        .edit()
+                        .putString(LAST_URI, uri.toString())
+                        .apply();
             }
-            showPage(0);
-        } catch (Exception error) {
-            progress.setVisibility(View.GONE);
-            emptyText.setVisibility(View.VISIBLE);
-            emptyText.setText("No se pudo abrir este PDF.\n\n" + safeMessage(error));
-            document.close();
-            updateNavigation();
+        } catch (RuntimeException error) {
+            showOpenError(error);
         }
     }
 
-    private void showPage(int index) {
-        int count = document.pageCount();
-        if (index < 0 || index >= count) return;
-        pageIndex = index;
-        updateNavigation();
-        progress.setVisibility(View.VISIBLE);
-        pageView.setVisibility(View.INVISIBLE);
-        int generation = ++renderGeneration;
-        int width = Math.max(pageView.getWidth(), getResources().getDisplayMetrics().widthPixels);
-        int height = Math.max(pageView.getHeight(), getResources().getDisplayMetrics().heightPixels - dp(140));
-
-        renderExecutor.execute(() -> {
-            try {
-                Bitmap bitmap = document.renderPage(index, width, height);
-                runOnUiThread(() -> {
-                    if (generation != renderGeneration || isFinishing()) {
-                        bitmap.recycle();
-                        return;
-                    }
-                    pageView.setImageBitmapAndReset(bitmap);
-                    pageView.setVisibility(View.VISIBLE);
-                    emptyText.setVisibility(View.GONE);
-                    progress.setVisibility(View.GONE);
-                });
-            } catch (Exception error) {
-                runOnUiThread(() -> {
-                    if (generation == renderGeneration) {
-                        progress.setVisibility(View.GONE);
-                        Toast.makeText(this, "No se pudo renderizar la página", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
+    private void startSearch() {
+        if (readerFragment == null || !searchButton.isEnabled()) {
+            return;
+        }
+        readerFragment.setTextSearchActive(true);
     }
 
-    private void showJumpDialog() {
-        if (!document.isOpen()) return;
-        int max = document.pageCount();
-        EditText input = new EditText(this);
-        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        input.setText(String.valueOf(pageIndex + 1));
-        input.setSelectAllOnFocus(true);
-        new AlertDialog.Builder(this)
-                .setTitle("Ir a página")
-                .setMessage("Introduce un número entre 1 y " + max)
-                .setView(input)
-                .setPositiveButton("Ir", (dialog, which) -> {
-                    try {
-                        int target = Integer.parseInt(input.getText().toString()) - 1;
-                        if (target >= 0 && target < max) showPage(target);
-                        else Toast.makeText(this, "Página fuera de rango", Toast.LENGTH_SHORT).show();
-                    } catch (NumberFormatException error) {
-                        Toast.makeText(this, "Número de página no válido", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+    @Override
+    public void onDocumentLoaded(PdfDocument document) {
+        searchButton.setEnabled(true);
+        emptyView.setVisibility(View.GONE);
+        showSelectionHintIfNeeded();
     }
 
-    private void updateNavigation() {
-        int count = document.pageCount();
-        boolean hasPdf = count > 0;
-        pageIndicator.setText(hasPdf ? (pageIndex + 1) + " / " + count : "—");
-        previousButton.setEnabled(hasPdf && pageIndex > 0);
-        nextButton.setEnabled(hasPdf && pageIndex < count - 1);
-        previousButton.setAlpha(previousButton.isEnabled() ? 1f : 0.35f);
-        nextButton.setAlpha(nextButton.isEnabled() ? 1f : 0.35f);
+    @Override
+    public void onDocumentLoadError(Throwable error) {
+        showOpenError(error);
+    }
+
+    private void showOpenError(Throwable error) {
+        searchButton.setEnabled(false);
+        selectionHint.setVisibility(View.GONE);
+        emptyView.setVisibility(View.VISIBLE);
+        String message = error == null ? null : error.getMessage();
+        if (message == null || message.trim().isEmpty()) {
+            message = "Archivo no compatible o permiso no disponible.";
+        }
+        emptyView.setText("No se pudo abrir este PDF.\n\n" + message);
+    }
+
+    private void showSelectionHintIfNeeded() {
+        boolean dismissed = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean(SELECTION_HINT_DISMISSED, false);
+        if (!dismissed) {
+            selectionHint.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void dismissSelectionHint() {
+        selectionHint.setVisibility(View.GONE);
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+                .edit()
+                .putBoolean(SELECTION_HINT_DISMISSED, true)
+                .apply();
     }
 
     private String displayName(Uri uri) {
@@ -250,25 +237,16 @@ public class MainActivity extends Activity {
         if ("content".equals(uri.getScheme())) {
             try (android.database.Cursor cursor = getContentResolver().query(
                     uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
-                if (cursor != null && cursor.moveToFirst()) name = cursor.getString(0);
-            } catch (Exception ignored) { }
+                if (cursor != null && cursor.moveToFirst()) {
+                    name = cursor.getString(0);
+                }
+            } catch (Exception ignored) {
+            }
         }
-        if (name == null || name.trim().isEmpty()) name = uri.getLastPathSegment();
+        if (name == null || name.trim().isEmpty()) {
+            name = uri.getLastPathSegment();
+        }
         return name == null || name.trim().isEmpty() ? "PDF Limpio" : name;
-    }
-
-    private String safeMessage(Exception error) {
-        String message = error.getMessage();
-        return message == null || message.trim().isEmpty()
-                ? "Archivo no compatible o permiso no disponible." : message;
-    }
-
-    @Override
-    protected void onDestroy() {
-        renderGeneration++;
-        document.close();
-        renderExecutor.shutdownNow();
-        super.onDestroy();
     }
 
     private int dp(int value) {
