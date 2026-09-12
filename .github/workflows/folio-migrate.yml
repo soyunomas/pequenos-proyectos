@@ -1,0 +1,121 @@
+name: Folio PDF migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/folio-migrate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Folio PDF identity
+        run: |
+          set -euo pipefail
+
+          git mv lector-pdf/app/src/main/java/com/soyunomas/pdflimpio lector-pdf/app/src/main/java/com/soyunomas/foliopdf
+          git mv .github/workflows/build-pdf-limpio.yml .github/workflows/build-folio-pdf.yml
+          rm -f lector-pdf/PDF-Limpio.apk
+
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          roots = [Path('lector-pdf'), Path('.github/workflows/build-folio-pdf.yml')]
+          replacements = [
+              ('com.soyunomas.pdflimpio', 'com.soyunomas.foliopdf'),
+              ('PDF Limpio', 'Folio PDF'),
+              ('PDFLimpio', 'FolioPDF'),
+              ('PDF-Limpio', 'Folio-PDF'),
+              ('pdf-limpio', 'folio-pdf'),
+          ]
+          text_exts = {'.java', '.kt', '.xml', '.gradle', '.md', '.yml', '.yaml', '.properties', '.txt'}
+
+          paths = []
+          for root in roots:
+              if root.is_file():
+                  paths.append(root)
+              elif root.exists():
+                  paths.extend(p for p in root.rglob('*') if p.is_file())
+
+          for path in paths:
+              if path.suffix.lower() not in text_exts:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              updated = text
+              for old, new in replacements:
+                  updated = updated.replace(old, new)
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+
+          build = Path('lector-pdf/app/build.gradle')
+          text = build.read_text(encoding='utf-8')
+          text = re.sub(r'versionCode\s+\d+', 'versionCode 9', text)
+          text = re.sub(r"versionName\s+'[^']+'", "versionName '1.3.0'", text)
+          build.write_text(text, encoding='utf-8')
+
+          strings = Path('lector-pdf/app/src/main/res/values/strings.xml')
+          text = strings.read_text(encoding='utf-8')
+          text = re.sub(r'<string name="empty_title">.*?</string>', '<string name="empty_title">Abre un documento</string>', text)
+          text = re.sub(r'<string name="empty_body">.*?</string>', '<string name="empty_body">Lee, busca, copia texto y rellena formularios PDF.</string>', text)
+          strings.write_text(text, encoding='utf-8')
+
+          readme = Path('lector-pdf/README.md')
+          readme.write_text('''# Folio PDF
+
+Lector y editor ligero de PDF para Android.
+
+## Funciones
+
+- Apertura de PDF desde el selector de archivos y desde «Abrir con…».
+- Lectura con zoom y desplazamiento.
+- Selección y copia de texto cuando el documento contiene texto real.
+- Búsqueda dentro del documento.
+- Rellenado de formularios PDF compatibles y guardado de una copia.
+- Modo compatible para documentos que el visor avanzado no procese correctamente.
+- Registro de diagnóstico copiable para investigar errores.
+
+## Interfaz
+
+La pantalla prioriza el documento. Las acciones frecuentes están en la barra superior y las opciones de diagnóstico o compatibilidad quedan en el menú secundario. Los formularios se rellenan tocando directamente sus campos; no hay que activar un modo de dibujo.
+
+## Compatibilidad
+
+- Android 9 (API 28) o superior.
+- `applicationId`: `com.soyunomas.foliopdf`.
+- `versionCode`: 9.
+- `versionName`: 1.3.0.
+
+## Compilar
+
+```bash
+gradle :app:assembleDebug
+```
+
+GitHub Actions compila y publica `lector-pdf/Folio-PDF.apk`.
+''', encoding='utf-8')
+          PY
+
+          # The migration helper must not remain in the final tree.
+          rm .github/workflows/folio-migrate.yml
+
+          # Refuse to commit if the old identity survives anywhere in the current tree.
+          if grep -RInE 'PDF[ -]?Limpio|PDFLimpio|pdflimpio|pdf-limpio' lector-pdf .github/workflows --exclude='*.apk'; then
+            echo 'Previous application identity is still present.' >&2
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor: adopt Folio PDF identity'
+          git push
