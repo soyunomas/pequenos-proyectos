@@ -1,36 +1,50 @@
 # PDF Limpio
 
-Visor PDF para Android centrado en una sola tarea: abrir un PDF y leerlo sin anuncios, cuentas ni conexión a Internet.
+Visor PDF para Android sin anuncios, cuenta, analítica ni conexión a Internet.
 
-## UX y decisiones de producto
+## Versión 1.1.0
 
-- Apertura directa con «Abrir PDF» mediante el selector de archivos de Android.
-- Compatible con «Abrir con…» desde gestores de archivos, mensajería y correo.
-- Página a pantalla completa, con interfaz mínima y controles de navegación grandes.
-- Pinza para zoom y doble toque para ampliar/restablecer.
-- Deslizamiento horizontal para cambiar de página cuando la vista está sin zoom.
-- Toque sobre el indicador `página / total` para saltar directamente a una página.
-- Recuerda el último PDF cuando Android concede permiso persistente sobre el documento.
-- Sin permiso `INTERNET`, anuncios, analítica, telemetría ni subida de documentos.
+La lectura pasa al visor PDF oficial de AndroidX para ofrecer una capa de texto real y una interacción nativa:
+
+- Mantén pulsado sobre texto para seleccionarlo.
+- Ajusta los tiradores de selección y usa **Copiar** o **Seleccionar todo**.
+- Busca texto con el botón **Buscar**.
+- Zoom con gesto de pinza y doble toque.
+- Desplazamiento continuo, navegación rápida y enlaces del PDF.
+- Apertura desde **Abrir**, desde gestores de archivos o mediante **Abrir con…**.
+- Recuerda el último documento cuando Android concede permiso persistente.
+- No solicita permiso `INTERNET`.
+
+> La selección requiere que el PDF contenga texto real. En un PDF escaneado que solo contiene imágenes no hay texto que seleccionar; el OCR no forma parte de esta versión.
+
+## UX
+
+Al cargar el primer documento aparece un consejo discreto explicando la pulsación larga para seleccionar. Puede cerrarse y no vuelve a ocupar espacio. La búsqueda solo se habilita cuando el documento ha terminado de cargar.
+
+La interfaz mantiene el documento como elemento principal: barra superior compacta con título, **Buscar** y **Abrir**; el resto del espacio pertenece al PDF y a sus controles nativos de selección.
 
 ## Arquitectura
 
-La aplicación usa exclusivamente APIs de Android: `Storage Access Framework`, `PdfRenderer`, `ExecutorService` y una `ZoomableImageView` propia. No incluye SDKs de terceros.
+- `androidx.pdf:pdf-viewer-fragment:1.0.0-beta01`
+- `Storage Access Framework` para elegir documentos.
+- `PdfViewerFragment` para renderizado, selección, copia, búsqueda y zoom.
+- Sin SDK publicitario ni telemetría.
 
-## Requisitos
+## Compatibilidad
 
-- Android 5.0 (API 21) o superior.
-- Android SDK 35.
-- JDK 17+ y Gradle 8.9 para compilar.
+- Android 9 (API 28) o superior.
+- `applicationId`: `com.soyunomas.pdflimpio` — se mantiene respecto a la versión 1.0.
+- `versionCode`: 2.
+- `versionName`: 1.1.0.
 
 ## Compilar
-
-Desde esta carpeta:
 
 ```bash
 gradle :app:assembleDebug
 ```
 
-La APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
+GitHub Actions compila y publica `lector-pdf/PDF-Limpio.apk` en `main`.
 
-GitHub Actions compila también `PDF-Limpio.apk` al publicar cambios en `main`.
+### Firma de actualizaciones
+
+El workflow conserva el almacén de firma de depuración en la caché de GitHub Actions para que las compilaciones posteriores mantengan la misma firma. La APK 1.0 se generó antes de configurar esta persistencia, por lo que Android puede exigir una única reinstalación al pasar de 1.0 a 1.1; las siguientes versiones se compilarán con la firma persistente mientras esa caché esté disponible.

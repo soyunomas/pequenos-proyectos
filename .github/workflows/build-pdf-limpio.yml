@@ -11,6 +11,8 @@ on:
     paths:
       - 'lector-pdf/**'
       - '.github/workflows/build-pdf-limpio.yml'
+  schedule:
+    - cron: '17 4 * * 1,4'
   workflow_dispatch:
 
 permissions:
@@ -27,16 +29,25 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
-      - name: Install Android SDK 35
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Install Android SDK 36
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.11.1'
+      - name: Preserve PDF Limpio signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: pdf-limpio-debug-signing-v1
       - name: Build debug APK
         working-directory: lector-pdf
         run: gradle :app:assembleDebug --stacktrace
+      - name: Verify APK signature
+        run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose lector-pdf/app/build/outputs/apk/debug/app-debug.apk
       - name: Copy APK
-        run: cp lector-pdf/app/build/outputs/apk/debug/app-debug.apk lector-pdf/PDF-Limpio.apk
+        run: |
+          cp lector-pdf/app/build/outputs/apk/debug/app-debug.apk lector-pdf/PDF-Limpio.apk
+          sha256sum lector-pdf/PDF-Limpio.apk
       - uses: actions/upload-artifact@v4
         with:
           name: PDF-Limpio
