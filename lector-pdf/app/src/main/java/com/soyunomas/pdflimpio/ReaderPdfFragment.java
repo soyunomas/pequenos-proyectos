@@ -115,9 +115,23 @@ public class ReaderPdfFragment extends PdfViewerFragment {
 
     @Override
     public void onLoadDocumentError(@NonNull Throwable error) {
-        Diagnostics.e("VIEWER", "onLoadDocumentError", error);
         super.onLoadDocumentError(error);
+        if (isCancellation(error)) {
+            Diagnostics.w("VIEWER", "Ignoring cancellation from replaced document: " + error);
+            return;
+        }
+        Diagnostics.e("VIEWER", "onLoadDocumentError", error);
         if (listener != null) listener.onDocumentLoadError(error);
         else Diagnostics.w("VIEWER", "error callback has no listener");
+    }
+
+    private boolean isCancellation(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String name = current.getClass().getName();
+            if (name.contains("CancellationException") || name.contains("JobCancellationException")) return true;
+            current = current.getCause();
+        }
+        return false;
     }
 }
