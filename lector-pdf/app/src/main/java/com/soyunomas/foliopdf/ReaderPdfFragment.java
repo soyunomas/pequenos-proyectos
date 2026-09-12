@@ -1,4 +1,4 @@
-package com.soyunomas.pdflimpio;
+package com.soyunomas.foliopdf;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PDFLimpio"
+rootProject.name = "FolioPDF"
 include ':app'

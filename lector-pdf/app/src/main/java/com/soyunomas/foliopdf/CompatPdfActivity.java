@@ -1,4 +1,4 @@
-package com.soyunomas.pdflimpio;
+package com.soyunomas.foliopdf;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;

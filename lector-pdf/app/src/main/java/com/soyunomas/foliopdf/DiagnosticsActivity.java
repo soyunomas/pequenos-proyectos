@@ -1,4 +1,4 @@
-package com.soyunomas.pdflimpio;
+package com.soyunomas.foliopdf;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -112,7 +112,7 @@ public class DiagnosticsActivity extends AppCompatActivity {
         String text = Diagnostics.readAll();
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard != null) {
-            clipboard.setPrimaryClip(ClipData.newPlainText("PDF Limpio - log", text));
+            clipboard.setPrimaryClip(ClipData.newPlainText("Folio PDF - log", text));
             Diagnostics.i("DIAGNOSTICS_UI", "Diagnostic log copied to clipboard chars=" + text.length());
             Toast.makeText(this, "Log copiado. Ya puedes pegarlo en ChatGPT.", Toast.LENGTH_LONG).show();
         }

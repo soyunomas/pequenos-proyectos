@@ -1,4 +1,4 @@
-package com.soyunomas.pdflimpio;
+package com.soyunomas.foliopdf;
 
 import android.content.Intent;
 import android.content.UriPermission;
@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private Fragment currentFragment;
     private Uri activeUri;
     private Uri pendingSaveUri;
-    private String activeDisplayName = "PDF Limpio";
+    private String activeDisplayName = "Folio PDF";
     private boolean documentLoaded;
     private boolean formSessionActive;
     private boolean currentDocumentHasForm;
@@ -519,7 +519,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             Diagnostics.e("URI", "displayName query failed", error);
         }
         if (name == null || name.trim().isEmpty()) name = uri.getLastPathSegment();
-        return name == null || name.trim().isEmpty() ? "PDF Limpio" : name;
+        return name == null || name.trim().isEmpty() ? "Folio PDF" : name;
     }
 
     private void logUriDiagnostics(Uri uri) {

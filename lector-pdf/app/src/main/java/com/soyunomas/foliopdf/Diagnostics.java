@@ -1,4 +1,4 @@
-package com.soyunomas.pdflimpio;
+package com.soyunomas.foliopdf;
 
 import android.app.ActivityManager;
 import android.content.Context;
@@ -24,7 +24,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 final class Diagnostics {
-    private static final String TAG = "PDFLimpio";
+    private static final String TAG = "FolioPDF";
     private static final String LOG_FILE = "diagnostics.log";
     private static final long MAX_LOG_BYTES = 512 * 1024;
     private static final long KEEP_BYTES = 320 * 1024;
