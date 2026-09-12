@@ -2,20 +2,21 @@ name: Apply Folio PDF rename
 
 on:
   push:
-    branches: [folio-pdf-rename]
+    branches:
+      - folio-pdf-rename
 
 permissions:
   contents: write
 
 jobs:
   rename:
-    if: ${{ !contains(github.event.head_commit.message || '', '[folio rename done]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: folio-pdf-rename
       - name: Rename application cleanly
+        shell: bash
         run: |
           python3 <<'PY'
           from pathlib import Path
@@ -70,8 +71,7 @@ jobs:
           text = re.sub(r'<string name="empty_body">.*?</string>', '<string name="empty_body">Lee, busca, copia texto y rellena formularios PDF.</string>', text)
           strings.write_text(text, encoding='utf-8')
 
-          readme = Path('lector-pdf/README.md')
-          readme.write_text('''# Folio PDF
+          Path('lector-pdf/README.md').write_text('''# Folio PDF
 
 Lector y editor ligero de PDF para Android.
 
@@ -87,7 +87,7 @@ Lector y editor ligero de PDF para Android.
 
 ## Interfaz
 
-La pantalla prioriza el documento. Las acciones frecuentes están en la barra superior y las opciones de diagnóstico o compatibilidad quedan en el menú secundario. Los formularios se rellenan tocando directamente sus campos; no hay que activar un modo de dibujo.
+La pantalla prioriza el documento. Las acciones frecuentes están en la barra superior y las opciones de diagnóstico o compatibilidad quedan en el menú secundario. Los formularios se rellenan tocando directamente sus campos.
 
 ## Compatibilidad
 
@@ -105,9 +105,7 @@ gradle :app:assembleDebug
 GitHub Actions compila y publica `lector-pdf/Folio-PDF.apk`.
 ''', encoding='utf-8')
 
-          temp = Path('.github/workflows/folio-rename.yml')
-          if temp.exists():
-              temp.unlink()
+          Path('.github/workflows/folio-rename.yml').unlink(missing_ok=True)
           PY
 
           if grep -RInE 'PDF[ -]?Limpio|PDFLimpio|pdflimpio|pdf-limpio' . --exclude-dir=.git; then
