@@ -3,7 +3,9 @@ package com.soyunomas.pdflimpio;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.ViewGroup;
@@ -54,8 +56,14 @@ public class DiagnosticsActivity extends AppCompatActivity {
         actions.addView(clear, new LinearLayout.LayoutParams(0, dp(48), 1f));
         root.addView(actions);
 
+        Button compat = button("Abrir último PDF en modo compatible", "Abrir el último PDF con el visor compatible");
+        compat.setOnClickListener(v -> openLastInCompatMode());
+        LinearLayout.LayoutParams compatParams = new LinearLayout.LayoutParams(-1, dp(52));
+        compatParams.setMargins(dp(8), 0, dp(8), dp(8));
+        root.addView(compat, compatParams);
+
         TextView note = new TextView(this);
-        note.setText("El registro no contiene el texto del PDF. Sí incluye nombre/URI del archivo, metadatos técnicos, tiempos, memoria, permisos y errores para poder diagnosticar bloqueos.");
+        note.setText("El registro no contiene el texto del PDF. Sí incluye nombre/URI del archivo, metadatos técnicos, tiempos, memoria, permisos y errores. Si un PDF se queda cargando, puedes probar el modo compatible; abre el documento con PdfRenderer y prioriza la lectura, aunque sin selección de texto.");
         note.setTextColor(Color.rgb(210, 214, 220));
         note.setTextSize(13);
         note.setPadding(dp(12), dp(4), dp(12), dp(10));
@@ -73,6 +81,19 @@ public class DiagnosticsActivity extends AppCompatActivity {
         scroll.addView(logView, new ScrollView.LayoutParams(-1, -2));
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         return root;
+    }
+
+    private void openLastInCompatMode() {
+        String last = getSharedPreferences("reader", MODE_PRIVATE).getString("last_uri", null);
+        if (last == null) {
+            Toast.makeText(this, "No hay un PDF reciente para abrir", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Uri uri = Uri.parse(last);
+        Diagnostics.i("DIAGNOSTICS_UI", "Opening last document in compatibility mode uri=" + uri);
+        Intent intent = new Intent(this, CompatPdfActivity.class);
+        intent.putExtra(CompatPdfActivity.EXTRA_URI, uri);
+        startActivity(intent);
     }
 
     private Button button(String text, String description) {
