@@ -11,8 +11,8 @@ android {
         applicationId 'com.soyunomas.pdflimpio'
         minSdk 28
         targetSdk 36
-        versionCode 5
-        versionName '1.1.3'
+        versionCode 6
+        versionName '1.2.0'
     }
 
     buildTypes {
@@ -27,4 +27,5 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.pdf:pdf-viewer-fragment:1.0.0-beta01'
+    implementation 'androidx.pdf:pdf-ink:1.0.0-beta01'
 }

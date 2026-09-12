@@ -1,15 +1,26 @@
 <resources>
     <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#D94A4A</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSurface">#EEF0F3</item>
-        <item name="colorOnSurface">#11151B</item>
-        <item name="colorSurfaceVariant">#E0E2E6</item>
-        <item name="colorOnSurfaceVariant">#424850</item>
+        <item name="colorPrimary">@color/app_primary</item>
+        <item name="colorOnPrimary">@color/app_on_primary</item>
+        <item name="colorSurface">@color/app_surface</item>
+        <item name="colorOnSurface">@color/app_on_surface</item>
+        <item name="colorSurfaceVariant">@color/app_canvas</item>
+        <item name="colorOnSurfaceVariant">@color/app_on_surface_muted</item>
+        <item name="colorOutline">@color/app_outline</item>
         <item name="android:fontFamily">sans</item>
-        <item name="android:navigationBarColor">#11151B</item>
-        <item name="android:statusBarColor">#11151B</item>
+        <item name="android:statusBarColor">@color/app_bar</item>
+        <item name="android:navigationBarColor">@color/app_bar</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <style name="Widget.PDFLimpio.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">14dp</item>
+    </style>
+
+    <style name="Widget.PDFLimpio.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">14dp</item>
     </style>
 </resources>

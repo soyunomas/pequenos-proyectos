@@ -1,0 +1,14 @@
+<resources>
+    <color name="white">#FFFFFFFF</color>
+    <color name="app_primary">#D94A4A</color>
+    <color name="app_on_primary">#FFFFFFFF</color>
+    <color name="app_surface">#FFF8F8FA</color>
+    <color name="app_surface_container">#FFFFFFFF</color>
+    <color name="app_canvas">#FFE6E7EB</color>
+    <color name="app_on_surface">#FF1B1B1F</color>
+    <color name="app_on_surface_muted">#FF66666F</color>
+    <color name="app_outline">#FFD8D8E0</color>
+    <color name="app_bar">#FF17191E</color>
+    <color name="app_on_bar">#FFFFFFFF</color>
+    <color name="app_on_bar_muted">#FFCACBD1</color>
+</resources>

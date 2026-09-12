@@ -1,128 +1,99 @@
 package com.soyunomas.pdflimpio;
 
-import android.content.Context;
-import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
+import androidx.pdf.ExperimentalPdfApi;
 import androidx.pdf.PdfDocument;
-import androidx.pdf.viewer.fragment.PdfViewerFragment;
+import androidx.pdf.PdfWriteHandle;
+import androidx.pdf.ink.EditablePdfViewerFragment;
 
-public class ReaderPdfFragment extends PdfViewerFragment {
-    public interface Listener {
-        void onDocumentLoaded(PdfDocument document);
-        void onDocumentLoadError(Throwable error);
-    }
+@OptIn(markerClass = ExperimentalPdfApi.class)
+public class ReaderPdfFragment extends EditablePdfViewerFragment {
+    private ReaderEvents listener;
 
-    private Listener listener;
-
-    public void setListener(Listener listener) {
+    public void setListener(ReaderEvents listener) {
         this.listener = listener;
-        Diagnostics.i("FRAGMENT", "listener attached=" + (listener != null));
     }
 
-    @Override
-    public void onAttach(@NonNull Context context) {
-        Diagnostics.init(context);
-        Diagnostics.i("FRAGMENT", "onAttach context=" + context.getClass().getName());
-        super.onAttach(context);
+    public void beginEditMode() {
+        Diagnostics.i("EDIT", "Entering edit mode");
+        setEditModeEnabled(true);
     }
 
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        Diagnostics.i("FRAGMENT", "onCreate savedInstanceState=" + (savedInstanceState != null));
-        super.onCreate(savedInstanceState);
+    public void discardEditMode() {
+        Diagnostics.i("EDIT", "Leaving edit mode without saving drafts=" + hasUnsavedChanges());
+        setEditModeEnabled(false);
     }
 
-    @Nullable
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
-        long start = android.os.SystemClock.elapsedRealtime();
-        Diagnostics.i("FRAGMENT", "onCreateView BEGIN container=" + (container == null ? "null" : container.getClass().getName()));
-        try {
-            View view = super.onCreateView(inflater, container, savedInstanceState);
-            Diagnostics.i("FRAGMENT", "onCreateView SUCCESS elapsedMs="
-                    + (android.os.SystemClock.elapsedRealtime() - start)
-                    + " view=" + (view == null ? "null" : view.getClass().getName()));
-            return view;
-        } catch (RuntimeException error) {
-            Diagnostics.e("FRAGMENT", "onCreateView FAILED elapsedMs="
-                    + (android.os.SystemClock.elapsedRealtime() - start), error);
-            throw error;
-        }
+    public boolean hasDraftChanges() {
+        return hasUnsavedChanges();
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        Diagnostics.i("FRAGMENT", "onViewCreated root=" + view.getClass().getName()
-                + " width=" + view.getWidth() + " height=" + view.getHeight());
+    public boolean isApplyingChanges() {
+        return isApplyEditsInProgress();
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        Diagnostics.i("FRAGMENT", "onStart");
+    public void applyChanges() {
+        Diagnostics.i("EDIT", "applyDraftEdits requested drafts=" + hasUnsavedChanges());
+        applyDraftEdits();
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        Diagnostics.i("FRAGMENT", "onResume");
-    }
-
-    @Override
-    public void onPause() {
-        Diagnostics.i("FRAGMENT", "onPause");
-        super.onPause();
-    }
-
-    @Override
-    public void onStop() {
-        Diagnostics.i("FRAGMENT", "onStop");
-        super.onStop();
-    }
-
-    @Override
-    public void onDestroyView() {
-        Diagnostics.i("FRAGMENT", "onDestroyView");
-        super.onDestroyView();
-    }
-
-    @Override
-    public void onDestroy() {
-        Diagnostics.i("FRAGMENT", "onDestroy");
-        super.onDestroy();
+    public void finishEditModeAfterSave() {
+        setEditModeEnabled(false);
     }
 
     @Override
     public void onLoadDocumentSuccess(@NonNull PdfDocument document) {
-        Diagnostics.i("VIEWER", "onLoadDocumentSuccess documentClass=" + document.getClass().getName());
         super.onLoadDocumentSuccess(document);
         try {
             setToolboxVisible(false);
-            Diagnostics.i("VIEWER", "toolbox hidden");
         } catch (RuntimeException error) {
-            Diagnostics.e("VIEWER", "setToolboxVisible(false) failed", error);
+            Diagnostics.e("VIEWER", "Could not hide editable toolbox", error);
         }
+        Diagnostics.i("VIEWER", "Editable viewer loaded document class=" + document.getClass().getName());
         if (listener != null) listener.onDocumentLoaded(document);
-        else Diagnostics.w("VIEWER", "success callback has no listener");
     }
 
     @Override
     public void onLoadDocumentError(@NonNull Throwable error) {
         super.onLoadDocumentError(error);
         if (isCancellation(error)) {
-            Diagnostics.w("VIEWER", "Ignoring cancellation from replaced document: " + error);
+            Diagnostics.w("VIEWER", "Ignoring cancellation from detached editable viewer: " + error);
             return;
         }
-        Diagnostics.e("VIEWER", "onLoadDocumentError", error);
+        Diagnostics.e("VIEWER", "Editable viewer load error", error);
         if (listener != null) listener.onDocumentLoadError(error);
-        else Diagnostics.w("VIEWER", "error callback has no listener");
+    }
+
+    @Override
+    public void onEnterEditMode() {
+        super.onEnterEditMode();
+        Diagnostics.i("EDIT", "Editable viewer entered edit mode");
+        if (listener != null) listener.onEditModeChanged(true);
+    }
+
+    @Override
+    public void onExitEditMode() {
+        super.onExitEditMode();
+        Diagnostics.i("EDIT", "Editable viewer exited edit mode");
+        if (listener != null) listener.onEditModeChanged(false);
+    }
+
+    @Override
+    public void onApplyEditsSuccess(@NonNull PdfWriteHandle handle) {
+        super.onApplyEditsSuccess(handle);
+        Diagnostics.i("EDIT", "Draft edits applied; write handle ready");
+        if (listener != null) listener.onEditsReady(handle);
+        else {
+            try { handle.close(); } catch (Exception ignored) { }
+        }
+    }
+
+    @Override
+    public void onApplyEditsFailed(@NonNull Throwable error) {
+        super.onApplyEditsFailed(error);
+        Diagnostics.e("EDIT", "Applying draft edits failed", error);
+        if (listener != null) listener.onApplyEditsFailed(error);
     }
 
     private boolean isCancellation(Throwable error) {
