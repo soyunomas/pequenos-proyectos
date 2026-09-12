@@ -14,12 +14,12 @@
         <item name="android:windowLightNavigationBar">false</item>
     </style>
 
-    <style name="Widget.PDFLimpio.Button.Primary" parent="Widget.Material3.Button">
+    <style name="Widget.FolioPDF.Button.Primary" parent="Widget.Material3.Button">
         <item name="android:minHeight">48dp</item>
         <item name="cornerRadius">14dp</item>
     </style>
 
-    <style name="Widget.PDFLimpio.Button.Text" parent="Widget.Material3.Button.TextButton">
+    <style name="Widget.FolioPDF.Button.Text" parent="Widget.Material3.Button.TextButton">
         <item name="android:minHeight">48dp</item>
         <item name="cornerRadius">14dp</item>
     </style>

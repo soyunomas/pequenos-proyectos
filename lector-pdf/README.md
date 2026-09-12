@@ -1,4 +1,4 @@
-# PDF Limpio
+# Folio PDF
 
 Visor PDF para Android sin anuncios, cuenta, analítica ni conexión a Internet.
 
@@ -33,7 +33,7 @@ La interfaz mantiene el documento como elemento principal: barra superior compac
 ## Compatibilidad
 
 - Android 9 (API 28) o superior.
-- `applicationId`: `com.soyunomas.pdflimpio` — se mantiene respecto a la versión 1.0.
+- `applicationId`: `com.soyunomas.foliopdf` — se mantiene respecto a la versión 1.0.
 - `versionCode`: 2.
 - `versionName`: 1.1.0.
 
@@ -43,7 +43,7 @@ La interfaz mantiene el documento como elemento principal: barra superior compac
 gradle :app:assembleDebug
 ```
 
-GitHub Actions compila y publica `lector-pdf/PDF-Limpio.apk` en `main`.
+GitHub Actions compila y publica `lector-pdf/Folio-PDF.apk` en `main`.
 
 ### Firma de actualizaciones
 

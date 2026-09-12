@@ -1,0 +1,61 @@
+name: Build Folio PDF
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lector-pdf/**'
+      - '.github/workflows/build-folio-pdf.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lector-pdf/**'
+      - '.github/workflows/build-folio-pdf.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip folio build]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK 36 extension 19
+        run: sdkmanager 'platforms;android-36-ext19' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Preserve Folio PDF signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: folio-pdf-debug-signing-v1
+      - name: Build debug APK
+        working-directory: lector-pdf
+        run: gradle :app:assembleDebug --stacktrace
+      - name: Verify APK signature
+        run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose lector-pdf/app/build/outputs/apk/debug/app-debug.apk
+      - name: Copy APK
+        run: |
+          cp lector-pdf/app/build/outputs/apk/debug/app-debug.apk lector-pdf/Folio-PDF.apk
+          sha256sum lector-pdf/Folio-PDF.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Folio-PDF
+          path: lector-pdf/Folio-PDF.apk
+      - name: Commit APK to main
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lector-pdf/Folio-PDF.apk
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Build Folio PDF APK [skip folio build]'
+          git push
