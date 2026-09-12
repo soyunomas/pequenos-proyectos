@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private static final String PREFS = "reader";
     private static final String LAST_URI = "last_uri";
     private static final String COPY_HINT_SHOWN = "copy_hint_shown_v2";
-    private static final String EDIT_HINT_SHOWN = "edit_hint_shown_v1";
+    private static final String FORM_HINT_SHOWN = "form_hint_shown_v1";
     private static final String VIEWER_TAG = "pdf_viewer";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -56,7 +56,8 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private Uri pendingSaveUri;
     private String activeDisplayName = "PDF Limpio";
     private boolean documentLoaded;
-    private boolean editMode;
+    private boolean formSessionActive;
+    private boolean currentDocumentHasForm;
     private boolean saving;
     private int openGeneration;
     private long openStartedAt;
@@ -65,7 +66,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Diagnostics.init(this);
-        Diagnostics.i("ACTIVITY", "onCreate v1.2.1 saved=" + (savedInstanceState != null));
+        Diagnostics.i("ACTIVITY", "onCreate v1.2.2 saved=" + (savedInstanceState != null));
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         bindViews();
@@ -100,7 +101,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     }
 
     private void setupEditBar() {
-        findViewById(R.id.action_cancel_edits).setOnClickListener(v -> requestCancelEditMode());
+        findViewById(R.id.action_cancel_edits).setOnClickListener(v -> requestCancelFormChanges());
         saveButton.setOnClickListener(v -> startSaveFlow(null));
     }
 
@@ -112,10 +113,6 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         }
         if (id == R.id.action_search) {
             startSearch();
-            return true;
-        }
-        if (id == R.id.action_edit) {
-            enterEditMode();
             return true;
         }
         if (id == R.id.action_compat) {
@@ -151,7 +148,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         }
         if (requestCode == SAVE_PDF) {
             if (resultCode != RESULT_OK || data == null || data.getData() == null) {
-                Diagnostics.i("EDIT", "Save destination cancelled");
+                Diagnostics.i("FORM", "Save destination cancelled");
                 pendingSaveUri = null;
                 afterSaveAction = null;
                 setSaving(false);
@@ -190,7 +187,8 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
 
         final int generation = ++openGeneration;
         documentLoaded = false;
-        editMode = false;
+        formSessionActive = false;
+        currentDocumentHasForm = false;
         activeUri = uri;
         activeDisplayName = displayName(uri);
         openStartedAt = SystemClock.elapsedRealtime();
@@ -214,14 +212,14 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             editableFragment = editable;
             viewerFragment = editable;
             next = editable;
-            Diagnostics.i("VIEWER", "Creating fresh EditablePdfViewerFragment generation=" + generation);
+            Diagnostics.i("VIEWER", "Creating fresh form-capable viewer generation=" + generation);
         } else {
             BasicReaderPdfFragment basic = new BasicReaderPdfFragment();
             basic.setListener(this);
             editableFragment = null;
             viewerFragment = basic;
             next = basic;
-            Diagnostics.i("VIEWER", "Creating fresh basic PdfViewerFragment generation=" + generation);
+            Diagnostics.i("VIEWER", "Creating fresh basic viewer generation=" + generation);
         }
         currentFragment = next;
 
@@ -272,11 +270,17 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     @Override
     public void onDocumentLoaded(PdfDocument document) {
         documentLoaded = true;
-        toolbar.setSubtitle(supportsEditablePdf() ? R.string.reader_ready_editable : R.string.reader_ready);
-        Diagnostics.i("OPEN", "SUCCESS fresh viewer elapsedMs=" + elapsed() + " class=" + document.getClass().getName());
+        String formType = String.valueOf(document.getFormType());
+        currentDocumentHasForm = !"NONE".equalsIgnoreCase(formType)
+                && !"0".equals(formType)
+                && !"null".equalsIgnoreCase(formType);
+        toolbar.setSubtitle(currentDocumentHasForm ? R.string.reader_ready_editable : R.string.reader_ready);
+        Diagnostics.i("OPEN", "SUCCESS fresh viewer elapsedMs=" + elapsed()
+                + " class=" + document.getClass().getName() + " formType=" + formType);
         Diagnostics.memory("after-document-loaded");
         updateMenuState();
         maybeShowCopyHint();
+        if (currentDocumentHasForm) maybeShowFormHint();
     }
 
     @Override
@@ -291,7 +295,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     }
 
     private void startSearch() {
-        if (!documentLoaded || viewerFragment == null || editMode) return;
+        if (!documentLoaded || viewerFragment == null || formSessionActive) return;
         try {
             viewerFragment.setTextSearchActive(true);
             Diagnostics.i("UI", "Search activated");
@@ -301,40 +305,31 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         }
     }
 
-    private void enterEditMode() {
-        if (!documentLoaded || editableFragment == null || saving) return;
-        try {
-            editableFragment.beginEditMode();
-            maybeShowEditHint();
-        } catch (RuntimeException error) {
-            Diagnostics.e("EDIT", "Could not enter edit mode", error);
-            Snackbar.make(root, "Este dispositivo no permite editar el PDF con este motor", Snackbar.LENGTH_LONG).show();
-        }
-    }
-
     @Override
     public void onEditModeChanged(boolean enabled) {
-        editMode = enabled;
+        formSessionActive = enabled;
         editBar.setVisibility(enabled ? View.VISIBLE : View.GONE);
         if (enabled) {
             editSubtitle.setText(R.string.edit_mode_help);
             toolbar.setSubtitle(R.string.edit_mode_active);
+            Diagnostics.i("FORM", "Form session active; save controls visible");
         } else if (documentLoaded) {
-            toolbar.setSubtitle(supportsEditablePdf() ? R.string.reader_ready_editable : R.string.reader_ready);
+            toolbar.setSubtitle(currentDocumentHasForm ? R.string.reader_ready_editable : R.string.reader_ready);
+            Diagnostics.i("FORM", "Form session ended");
         }
         updateMenuState();
     }
 
-    private void requestCancelEditMode() {
-        if (editableFragment == null || !editMode || saving) return;
+    private void requestCancelFormChanges() {
+        if (editableFragment == null || !formSessionActive || saving) return;
         if (!editableFragment.hasDraftChanges()) {
             editableFragment.discardEditMode();
             return;
         }
         new MaterialAlertDialogBuilder(this)
                 .setTitle("¿Descartar los cambios?")
-                .setMessage("Los campos rellenados y las anotaciones que no hayas guardado se perderán.")
-                .setNegativeButton("Seguir editando", null)
+                .setMessage("Los campos rellenados que no hayas guardado se perderán.")
+                .setNegativeButton("Seguir rellenando", null)
                 .setPositiveButton("Descartar", (dialog, which) -> editableFragment.discardEditMode())
                 .show();
     }
@@ -342,8 +337,8 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private void showUnsavedChangesDialog(Runnable continueAction) {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Hay cambios sin guardar")
-                .setMessage("Guarda una copia antes de abrir otro documento o descarta los cambios.")
-                .setNeutralButton("Seguir editando", null)
+                .setMessage("Guarda una copia del formulario antes de abrir otro documento o descarta los cambios.")
+                .setNeutralButton("Seguir rellenando", null)
                 .setNegativeButton("Descartar", (dialog, which) -> {
                     if (editableFragment != null) editableFragment.discardEditMode();
                     continueAction.run();
@@ -353,11 +348,11 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     }
 
     private boolean hasUnsavedChanges() {
-        return editableFragment != null && editMode && editableFragment.hasDraftChanges();
+        return editableFragment != null && formSessionActive && editableFragment.hasDraftChanges();
     }
 
     private void startSaveFlow(Runnable actionAfterSave) {
-        if (editableFragment == null || !editMode || saving) return;
+        if (editableFragment == null || !formSessionActive || saving) return;
         if (!editableFragment.hasDraftChanges()) {
             Snackbar.make(root, "No hay cambios que guardar", Snackbar.LENGTH_SHORT).show();
             if (actionAfterSave != null) actionAfterSave.run();
@@ -370,7 +365,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         intent.putExtra(Intent.EXTRA_TITLE, suggestedSaveName());
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        Diagnostics.i("EDIT", "Requesting save destination title=" + suggestedSaveName());
+        Diagnostics.i("FORM", "Requesting save destination title=" + suggestedSaveName());
         startActivityForResult(intent, SAVE_PDF);
     }
 
@@ -383,7 +378,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             setSaving(false);
             pendingSaveUri = null;
             afterSaveAction = null;
-            Diagnostics.e("EDIT", "applyDraftEdits threw", error);
+            Diagnostics.e("FORM", "applyDraftEdits threw", error);
             Snackbar.make(root, "No se pudieron preparar los cambios", Snackbar.LENGTH_LONG).show();
         }
     }
@@ -396,7 +391,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             setSaving(false);
             return;
         }
-        Diagnostics.i("EDIT", "Writing edited PDF destination=" + destination);
+        Diagnostics.i("FORM", "Writing filled PDF destination=" + destination);
         PdfWriteBridge.write(getContentResolver(), destination, handle,
                 error -> runOnUiThread(() -> finishSaving(destination, error)));
     }
@@ -405,12 +400,12 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         setSaving(false);
         pendingSaveUri = null;
         if (failure != null) {
-            Diagnostics.e("EDIT", "Writing edited PDF failed", failure);
+            Diagnostics.e("FORM", "Writing filled PDF failed", failure);
             afterSaveAction = null;
             Snackbar.make(root, "No se pudo guardar la copia", Snackbar.LENGTH_LONG).show();
             return;
         }
-        Diagnostics.i("EDIT", "Edited PDF saved destination=" + destination);
+        Diagnostics.i("FORM", "Filled PDF saved destination=" + destination);
         if (editableFragment != null) editableFragment.finishEditModeAfterSave();
         Runnable next = afterSaveAction;
         afterSaveAction = null;
@@ -428,7 +423,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         setSaving(false);
         pendingSaveUri = null;
         afterSaveAction = null;
-        Diagnostics.e("EDIT", "Applying edits failed", error);
+        Diagnostics.e("FORM", "Applying form changes failed", error);
         Snackbar.make(root, "No se pudieron aplicar los cambios del formulario", Snackbar.LENGTH_LONG).show();
     }
 
@@ -450,14 +445,9 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         if (toolbar == null) return;
         Menu menu = toolbar.getMenu();
         MenuItem search = menu.findItem(R.id.action_search);
-        MenuItem edit = menu.findItem(R.id.action_edit);
         MenuItem open = menu.findItem(R.id.action_open);
         MenuItem compat = menu.findItem(R.id.action_compat);
-        if (search != null) search.setEnabled(documentLoaded && !editMode && !saving);
-        if (edit != null) {
-            edit.setVisible(supportsEditablePdf());
-            edit.setEnabled(documentLoaded && !editMode && !saving);
-        }
+        if (search != null) search.setEnabled(documentLoaded && !formSessionActive && !saving);
         if (open != null) open.setEnabled(!saving);
         if (compat != null) compat.setVisible(activeUri != null);
     }
@@ -467,7 +457,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         try {
             return SdkExtensions.getExtensionVersion(Build.VERSION_CODES.S) >= 18;
         } catch (Throwable error) {
-            Diagnostics.e("EDIT", "Could not inspect SDK extension", error);
+            Diagnostics.e("FORM", "Could not inspect SDK extension", error);
             return false;
         }
     }
@@ -479,11 +469,11 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         Snackbar.make(root, "Mantén pulsado sobre el texto para seleccionarlo y copiarlo", Snackbar.LENGTH_LONG).show();
     }
 
-    private void maybeShowEditHint() {
-        boolean shown = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(EDIT_HINT_SHOWN, false);
+    private void maybeShowFormHint() {
+        boolean shown = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(FORM_HINT_SHOWN, false);
         if (shown) return;
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(EDIT_HINT_SHOWN, true).apply();
-        Snackbar.make(root, "Toca un campo del PDF para rellenarlo; guarda una copia cuando termines", Snackbar.LENGTH_LONG).show();
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(FORM_HINT_SHOWN, true).apply();
+        Snackbar.make(root, "Formulario rellenable: toca directamente sus campos", Snackbar.LENGTH_LONG).show();
     }
 
     private void showEmptyState() {
@@ -491,6 +481,8 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         toolbar.setTitle(R.string.app_name);
         toolbar.setSubtitle(R.string.no_document);
         documentLoaded = false;
+        formSessionActive = false;
+        currentDocumentHasForm = false;
         updateMenuState();
     }
 
@@ -589,7 +581,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     protected void onDestroy() {
         detachOldViewer();
         handler.removeCallbacksAndMessages(null);
-        Diagnostics.i("ACTIVITY", "onDestroy v1.2.1");
+        Diagnostics.i("ACTIVITY", "onDestroy v1.2.2");
         super.onDestroy();
     }
 }

@@ -7,11 +7,6 @@
         android:title="@string/search"
         app:showAsAction="always" />
     <item
-        android:id="@+id/action_edit"
-        android:icon="@drawable/ic_edit"
-        android:title="@string/edit_fill"
-        app:showAsAction="always" />
-    <item
         android:id="@+id/action_open"
         android:icon="@drawable/ic_folder_open"
         android:title="@string/open_pdf"
