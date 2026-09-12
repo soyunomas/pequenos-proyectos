@@ -5,6 +5,7 @@ plugins {
 android {
     namespace 'com.soyunomas.pdflimpio'
     compileSdk 36
+    compileSdkExtension 19
 
     defaultConfig {
         applicationId 'com.soyunomas.pdflimpio'
