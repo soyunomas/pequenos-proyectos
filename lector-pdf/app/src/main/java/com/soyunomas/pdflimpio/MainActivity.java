@@ -31,8 +31,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private static final int OPEN_PDF = 41;
@@ -44,7 +42,6 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private static final String VIEWER_TAG = "pdf_viewer";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
 
     private MaterialToolbar toolbar;
     private FrameLayout root;
@@ -150,7 +147,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
             Uri uri = data.getData();
             persistReadPermission(uri, data.getFlags());
-            openDocumentNow(uri, true);
+            requestReplaceWith(uri, true);
             return;
         }
         if (requestCode == SAVE_PDF) {
@@ -190,8 +187,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     }
 
     private void openDocumentNow(Uri uri, boolean remember) {
-        if (uri == null) return;
-        if (saving) return;
+        if (uri == null || saving) return;
 
         final int generation = ++openGeneration;
         documentLoaded = false;
@@ -325,7 +321,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             editSubtitle.setText(R.string.edit_mode_help);
             toolbar.setSubtitle(R.string.edit_mode_active);
         } else if (documentLoaded) {
-            toolbar.setSubtitle(R.string.reader_ready_editable);
+            toolbar.setSubtitle(supportsEditablePdf() ? R.string.reader_ready_editable : R.string.reader_ready);
         }
         updateMenuState();
     }
@@ -402,18 +398,8 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             return;
         }
         Diagnostics.i("EDIT", "Writing edited PDF destination=" + destination);
-        ioExecutor.execute(() -> {
-            Throwable failure = null;
-            try (PdfWriteHandle writeHandle = handle;
-                 ParcelFileDescriptor pfd = getContentResolver().openFileDescriptor(destination, "rwt")) {
-                if (pfd == null) throw new IllegalStateException("No se pudo abrir el destino de guardado");
-                writeHandle.writeTo(pfd);
-            } catch (Throwable error) {
-                failure = error;
-            }
-            Throwable finalFailure = failure;
-            runOnUiThread(() -> finishSaving(destination, finalFailure));
-        });
+        PdfWriteBridge.write(getContentResolver(), destination, handle,
+                error -> runOnUiThread(() -> finishSaving(destination, error)));
     }
 
     private void finishSaving(Uri destination, Throwable failure) {
@@ -518,7 +504,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private void persistReadPermission(Uri uri, int flags) {
         try {
             int takeFlags = flags & Intent.FLAG_GRANT_READ_URI_PERMISSION;
-            getContentResolver().takePersistableUriPermission(uri, takeFlags);
+            if (takeFlags != 0) getContentResolver().takePersistableUriPermission(uri, takeFlags);
         } catch (Exception error) {
             Diagnostics.e("PERMISSION", "Could not persist read permission uri=" + uri, error);
         }
@@ -603,7 +589,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     @Override
     protected void onDestroy() {
         detachOldViewer();
-        ioExecutor.shutdownNow();
+        handler.removeCallbacksAndMessages(null);
         Diagnostics.i("ACTIVITY", "onDestroy v1.2");
         super.onDestroy();
     }
