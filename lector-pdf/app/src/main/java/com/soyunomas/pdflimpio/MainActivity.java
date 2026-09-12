@@ -15,7 +15,6 @@ import android.provider.OpenableColumns;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -44,7 +43,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private MaterialToolbar toolbar;
-    private FrameLayout root;
+    private View root;
     private View emptyState;
     private View editBar;
     private TextView editSubtitle;
@@ -66,7 +65,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Diagnostics.init(this);
-        Diagnostics.i("ACTIVITY", "onCreate v1.2 saved=" + (savedInstanceState != null));
+        Diagnostics.i("ACTIVITY", "onCreate v1.2.1 saved=" + (savedInstanceState != null));
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         bindViews();
@@ -590,7 +589,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     protected void onDestroy() {
         detachOldViewer();
         handler.removeCallbacksAndMessages(null);
-        Diagnostics.i("ACTIVITY", "onDestroy v1.2");
+        Diagnostics.i("ACTIVITY", "onDestroy v1.2.1");
         super.onDestroy();
     }
 }
