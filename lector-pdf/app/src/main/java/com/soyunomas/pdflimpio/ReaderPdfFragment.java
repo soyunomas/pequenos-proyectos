@@ -6,6 +6,7 @@ import androidx.pdf.ExperimentalPdfApi;
 import androidx.pdf.PdfDocument;
 import androidx.pdf.PdfWriteHandle;
 import androidx.pdf.ink.EditablePdfViewerFragment;
+import androidx.pdf.view.PdfView;
 
 @OptIn(markerClass = ExperimentalPdfApi.class)
 public class ReaderPdfFragment extends EditablePdfViewerFragment {
@@ -15,13 +16,23 @@ public class ReaderPdfFragment extends EditablePdfViewerFragment {
         this.listener = listener;
     }
 
-    public void beginEditMode() {
-        Diagnostics.i("EDIT", "Entering edit mode");
-        setEditModeEnabled(true);
+    @Override
+    public void onPdfViewCreated(@NonNull PdfView pdfView) {
+        super.onPdfViewCreated(pdfView);
+        try {
+            // Form filling is a separate interaction path from annotation mode.
+            // Keep it enabled during normal reading so tapping a PDF form widget
+            // opens the appropriate native control instead of drawing ink.
+            pdfView.setFormFillingEnabled(true);
+            setToolboxVisible(false);
+            Diagnostics.i("FORM", "Inline form filling enabled; annotation toolbox hidden");
+        } catch (RuntimeException error) {
+            Diagnostics.e("FORM", "Could not enable inline form filling", error);
+        }
     }
 
     public void discardEditMode() {
-        Diagnostics.i("EDIT", "Leaving edit mode without saving drafts=" + hasUnsavedChanges());
+        Diagnostics.i("FORM", "Leaving form edit session without saving drafts=" + hasUnsavedChanges());
         setEditModeEnabled(false);
     }
 
@@ -34,7 +45,7 @@ public class ReaderPdfFragment extends EditablePdfViewerFragment {
     }
 
     public void applyChanges() {
-        Diagnostics.i("EDIT", "applyDraftEdits requested drafts=" + hasUnsavedChanges());
+        Diagnostics.i("FORM", "applyDraftEdits requested drafts=" + hasUnsavedChanges());
         applyDraftEdits();
     }
 
@@ -48,9 +59,10 @@ public class ReaderPdfFragment extends EditablePdfViewerFragment {
         try {
             setToolboxVisible(false);
         } catch (RuntimeException error) {
-            Diagnostics.e("VIEWER", "Could not hide editable toolbox", error);
+            Diagnostics.e("VIEWER", "Could not keep annotation toolbox hidden", error);
         }
-        Diagnostics.i("VIEWER", "Editable viewer loaded document class=" + document.getClass().getName());
+        Diagnostics.i("VIEWER", "Editable viewer loaded document class=" + document.getClass().getName()
+                + " formType=" + document.getFormType());
         if (listener != null) listener.onDocumentLoaded(document);
     }
 
@@ -68,21 +80,21 @@ public class ReaderPdfFragment extends EditablePdfViewerFragment {
     @Override
     public void onEnterEditMode() {
         super.onEnterEditMode();
-        Diagnostics.i("EDIT", "Editable viewer entered edit mode");
+        Diagnostics.i("FORM", "Form interaction entered edit session");
         if (listener != null) listener.onEditModeChanged(true);
     }
 
     @Override
     public void onExitEditMode() {
         super.onExitEditMode();
-        Diagnostics.i("EDIT", "Editable viewer exited edit mode");
+        Diagnostics.i("FORM", "Form edit session exited");
         if (listener != null) listener.onEditModeChanged(false);
     }
 
     @Override
     public void onApplyEditsSuccess(@NonNull PdfWriteHandle handle) {
         super.onApplyEditsSuccess(handle);
-        Diagnostics.i("EDIT", "Draft edits applied; write handle ready");
+        Diagnostics.i("FORM", "Form edits applied; write handle ready");
         if (listener != null) listener.onEditsReady(handle);
         else {
             try { handle.close(); } catch (Exception ignored) { }
@@ -92,7 +104,7 @@ public class ReaderPdfFragment extends EditablePdfViewerFragment {
     @Override
     public void onApplyEditsFailed(@NonNull Throwable error) {
         super.onApplyEditsFailed(error);
-        Diagnostics.e("EDIT", "Applying draft edits failed", error);
+        Diagnostics.e("FORM", "Applying form edits failed", error);
         if (listener != null) listener.onApplyEditsFailed(error);
     }
 
