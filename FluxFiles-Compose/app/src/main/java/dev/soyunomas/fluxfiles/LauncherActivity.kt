@@ -52,16 +52,17 @@ class LauncherActivity : ComponentActivity() {
                 val vm: BrowserViewModelV53 = viewModel()
                 val state by vm.state.collectAsStateWithLifecycle()
                 val canWrite by vm.canWrite.collectAsStateWithLifecycle()
+                val fileSystem: StorageFileSystem = remember { SafStorageRepository(applicationContext) }
                 var about by remember { mutableStateOf(false) }
                 var inspector by remember { mutableStateOf<InspectorRequestV5?>(null) }
                 var zipSources by remember { mutableStateOf<List<StorageEntry>?>(null) }
 
                 when {
-                    zipSources != null && state.treeUri != null && state.currentLocation != null && canWrite -> {
+                    zipSources != null && state.currentLocation != null && canWrite -> {
                         ZipCreatorV52(
                             sources = zipSources!!,
-                            treeUri = state.treeUri!!,
                             destination = state.currentLocation!!,
+                            fileSystem = fileSystem,
                             onBack = { zipSources = null },
                             onCreated = {
                                 vm.clearSelection()
@@ -72,19 +73,17 @@ class LauncherActivity : ComponentActivity() {
 
                     inspector != null -> {
                         val request = inspector!!
-                        val tree = state.treeUri
                         val destination = state.currentLocation
                         if (
                             request.tab == InspectorTabV5.PREVIEW &&
                             previewKindV5(request.entry) == PreviewKindV5.ZIP &&
-                            tree != null &&
                             destination != null &&
                             canWrite
                         ) {
                             ZipInspectorV51(
                                 entry = request.entry,
-                                treeUri = tree,
                                 destination = destination,
+                                fileSystem = fileSystem,
                                 onBack = { inspector = null },
                                 onExtracted = vm::refresh,
                             )
@@ -130,7 +129,7 @@ class LauncherActivity : ComponentActivity() {
                                         inspector = InspectorRequestV5(entry, tab)
                                     },
                                 )
-                                if (state.treeUri != null) {
+                                if (state.storageRoot != null) {
                                     ReadOnlyBadgeV53(
                                         modifier = Modifier
                                             .align(Alignment.BottomCenter)
@@ -236,11 +235,11 @@ private fun AboutScreenV5(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                "Implementación propia en Kotlin y Jetpack Compose. Esta versión estabiliza la navegación SAF, detecta ubicaciones de solo lectura y conserva las funciones de creación y extracción segura de ZIP."
+                "Implementación propia en Kotlin y Jetpack Compose. Las vistas previas y las operaciones ZIP trabajan sobre la abstracción de almacenamiento de Flux Files en lugar de depender directamente de SAF."
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                "Flux Files usa Storage Access Framework (SAF): solo trabaja con ubicaciones autorizadas por el usuario.",
+                "El backend disponible en esta versión sigue siendo Storage Access Framework (SAF); la separación permite incorporar backends remotos sin rehacer las operaciones de contenido.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
