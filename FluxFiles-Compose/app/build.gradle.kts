@@ -12,8 +12,8 @@ android {
         applicationId = "dev.soyunomas.fluxfiles"
         minSdk = 23
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.0"
+        versionCode = 6
+        versionName = "0.5.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -23,7 +23,6 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
