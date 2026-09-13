@@ -14,10 +14,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     private val repo = StorageRepository(app)
+    private val transferEngine = TransferOperationEngine(repo)
     private val prefs = app.getSharedPreferences("flux_files", Context.MODE_PRIVATE)
     private val resolver = app.contentResolver
 
@@ -230,133 +230,57 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
 
         invalidateLoads()
         viewModelScope.launch {
-            var transferred = 0
-            var skipped = 0
-            var rememberedResolution: ConflictResolution? = null
             _state.update { it.copy(isMutating = true, isLoading = false, errorMessage = null) }
 
             try {
-                transfer.entries.forEachIndexed { index, entry ->
-                    val verb = if (transfer.mode == TransferMode.COPY) "Copiando" else "Moviendo"
-                    _state.update {
-                        it.copy(operationLabel = "$verb ${index + 1} de ${transfer.entries.size}…")
-                    }
-
-                    val existing = withContext(Dispatchers.IO) {
-                        findConflict(tree, destination, entry.name)
-                    }
-
-                    var resolution: ConflictResolution? = null
-                    if (existing != null) {
-                        resolution = rememberedResolution
-                        if (
-                            resolution == null ||
-                            (resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
-                        ) {
-                            val answer = awaitConflict(TransferConflict(entry, existing))
-                            if (answer.resolution == ConflictResolution.CANCEL) {
-                                throw TransferCancelledV53()
-                            }
-                            resolution = answer.resolution
-                            if (
-                                answer.applyToAll &&
-                                !(answer.resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
-                            ) {
-                                rememberedResolution = answer.resolution
-                            }
-                        }
-                    }
-
-                    when (resolution) {
-                        ConflictResolution.SKIP -> skipped++
-                        ConflictResolution.KEEP_BOTH -> {
-                            val unique = withContext(Dispatchers.IO) {
-                                uniqueNameCaseAware(tree, destination, entry.name)
-                            }
-                            withContext(Dispatchers.IO) {
-                                if (transfer.mode == TransferMode.COPY) {
-                                    repo.copyEntry(tree, entry, destination, unique)
-                                } else {
-                                    repo.moveEntry(
-                                        tree,
-                                        entry,
-                                        transfer.sourceParent,
-                                        destination,
-                                        unique,
-                                    )
-                                }
-                            }
-                            transferred++
-                        }
-                        ConflictResolution.REPLACE -> {
-                            val target = checkNotNull(existing)
-                            require(target.documentId != entry.documentId) {
-                                "No se puede reemplazar un elemento consigo mismo"
-                            }
-                            withContext(Dispatchers.IO) {
-                                repo.replaceEntry(
-                                    treeUri = tree,
-                                    source = entry,
-                                    existing = target,
-                                    sourceParent = transfer.sourceParent,
-                                    destination = destination,
-                                    move = transfer.mode == TransferMode.MOVE,
-                                )
-                            }
-                            transferred++
-                        }
-                        ConflictResolution.CANCEL -> throw TransferCancelledV53()
-                        null -> {
-                            withContext(Dispatchers.IO) {
-                                if (transfer.mode == TransferMode.COPY) {
-                                    repo.copyEntry(tree, entry, destination)
-                                } else {
-                                    repo.moveEntry(
-                                        tree,
-                                        entry,
-                                        transfer.sourceParent,
-                                        destination,
-                                    )
-                                }
-                            }
-                            transferred++
-                        }
-                    }
-                }
-
-                val action = if (transfer.mode == TransferMode.COPY) "copiados" else "movidos"
-                val summary = buildString {
-                    append("$transferred ${if (transferred == 1) "elemento" else "elementos"} $action")
-                    if (skipped > 0) append(" · $skipped omitidos")
-                }
-                _state.update {
-                    it.copy(
-                        isMutating = false,
-                        operationLabel = null,
-                        pendingTransfer = null,
-                        transferConflict = null,
-                        message = summary,
-                    )
-                }
-                refresh()
-            } catch (_: TransferCancelledV53) {
-                _state.update {
-                    it.copy(
-                        isMutating = false,
-                        operationLabel = null,
-                        pendingTransfer = null,
-                        transferConflict = null,
-                        message = if (transferred > 0 || skipped > 0) {
-                            "Operación cancelada · $transferred completados · $skipped omitidos"
-                        } else {
-                            "Operación cancelada"
+                when (
+                    val result = transferEngine.execute(
+                        treeUri = tree,
+                        transfer = transfer,
+                        destination = destination,
+                        onProgress = { progress ->
+                            _state.update { it.copy(operationLabel = progress.label) }
                         },
+                        onConflict = ::awaitConflict,
                     )
+                ) {
+                    is TransferExecutionResult.Completed -> {
+                        val action = if (transfer.mode == TransferMode.COPY) "copiados" else "movidos"
+                        val summary = buildString {
+                            append("${result.transferred} ${if (result.transferred == 1) "elemento" else "elementos"} $action")
+                            if (result.skipped > 0) append(" · ${result.skipped} omitidos")
+                        }
+                        _state.update {
+                            it.copy(
+                                isMutating = false,
+                                operationLabel = null,
+                                pendingTransfer = null,
+                                transferConflict = null,
+                                message = summary,
+                            )
+                        }
+                    }
+
+                    is TransferExecutionResult.Cancelled -> {
+                        _state.update {
+                            it.copy(
+                                isMutating = false,
+                                operationLabel = null,
+                                pendingTransfer = null,
+                                transferConflict = null,
+                                message = if (result.transferred > 0 || result.skipped > 0) {
+                                    "Operación cancelada · ${result.transferred} completados · ${result.skipped} omitidos"
+                                } else {
+                                    "Operación cancelada"
+                                },
+                            )
+                        }
+                    }
                 }
                 refresh()
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (t: Throwable) {
+            } catch (failure: TransferExecutionException) {
                 _state.update {
                     it.copy(
                         isMutating = false,
@@ -364,11 +288,27 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
                         pendingTransfer = null,
                         transferConflict = null,
                         errorMessage = buildString {
-                            if (transferred > 0 || skipped > 0) {
-                                append("La operación se detuvo: $transferred completados, $skipped omitidos. ")
+                            if (failure.transferred > 0 || failure.skipped > 0) {
+                                append("La operación se detuvo: ${failure.transferred} completados, ${failure.skipped} omitidos. ")
                             }
-                            append(t.message?.takeIf(String::isNotBlank) ?: "No se pudo completar la operación")
+                            append(
+                                failure.cause?.message?.takeIf(String::isNotBlank)
+                                    ?: failure.message?.takeIf(String::isNotBlank)
+                                    ?: "No se pudo completar la operación"
+                            )
                         },
+                    )
+                }
+                refresh()
+            } catch (t: Throwable) {
+                _state.update {
+                    it.copy(
+                        isMutating = false,
+                        operationLabel = null,
+                        pendingTransfer = null,
+                        transferConflict = null,
+                        errorMessage = t.message?.takeIf(String::isNotBlank)
+                            ?: "No se pudo completar la operación",
                     )
                 }
                 refresh()
@@ -459,38 +399,6 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun findConflict(
-        treeUri: Uri,
-        destination: BrowserLocation,
-        name: String,
-    ): StorageEntry? {
-        val children = repo.listChildren(treeUri, destination)
-        children.firstOrNull { it.name == name }?.let { return it }
-        val folded = name.lowercase(Locale.ROOT)
-        return children.firstOrNull { it.name.lowercase(Locale.ROOT) == folded }
-    }
-
-    private fun uniqueNameCaseAware(
-        treeUri: Uri,
-        destination: BrowserLocation,
-        originalName: String,
-    ): String {
-        val existing = repo.listChildren(treeUri, destination)
-            .mapTo(hashSetOf()) { it.name.lowercase(Locale.ROOT) }
-        if (originalName.lowercase(Locale.ROOT) !in existing) return originalName
-
-        val lastDot = originalName.lastIndexOf('.')
-        val hasExtension = lastDot > 0 && lastDot < originalName.lastIndex
-        val stem = if (hasExtension) originalName.substring(0, lastDot) else originalName
-        val extension = if (hasExtension) originalName.substring(lastDot) else ""
-        var number = 1
-        while (true) {
-            val candidate = "$stem ($number)$extension"
-            if (candidate.lowercase(Locale.ROOT) !in existing) return candidate
-            number++
-        }
-    }
-
     private fun invalidateLoads() {
         loadGeneration++
         loadJob?.cancel()
@@ -526,5 +434,3 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(errorMessage = message) }
     }
 }
-
-private class TransferCancelledV53 : Exception()
