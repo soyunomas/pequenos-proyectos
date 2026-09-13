@@ -1,6 +1,7 @@
 package dev.soyunomas.fluxfiles
 
 import android.net.Uri
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -29,6 +30,12 @@ sealed interface TransferExecutionResult {
     ) : TransferExecutionResult
 }
 
+class TransferExecutionException(
+    val transferred: Int,
+    val skipped: Int,
+    cause: Throwable,
+) : Exception(cause.message, cause)
+
 /**
  * Ejecuta una transferencia sin depender de Compose ni de un ViewModel.
  *
@@ -51,94 +58,102 @@ class TransferOperationEngine(
         var skipped = 0
         var rememberedResolution: ConflictResolution? = null
 
-        for ((index, entry) in transfer.entries.withIndex()) {
-            onProgress(
-                TransferProgress(
-                    current = index + 1,
-                    total = transfer.entries.size,
-                    mode = transfer.mode,
+        try {
+            for ((index, entry) in transfer.entries.withIndex()) {
+                onProgress(
+                    TransferProgress(
+                        current = index + 1,
+                        total = transfer.entries.size,
+                        mode = transfer.mode,
+                    )
                 )
-            )
 
-            val existing = withContext(Dispatchers.IO) {
-                findConflict(treeUri, destination, entry.name)
-            }
+                val existing = withContext(Dispatchers.IO) {
+                    findConflict(treeUri, destination, entry.name)
+                }
 
-            var resolution: ConflictResolution? = null
-            if (existing != null) {
-                resolution = rememberedResolution
-                if (
-                    resolution == null ||
-                    (resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
-                ) {
-                    val answer = onConflict(TransferConflict(entry, existing))
-                    if (answer.resolution == ConflictResolution.CANCEL) {
+                var resolution: ConflictResolution? = null
+                if (existing != null) {
+                    resolution = rememberedResolution
+                    if (
+                        resolution == null ||
+                        (resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
+                    ) {
+                        val answer = onConflict(TransferConflict(entry, existing))
+                        if (answer.resolution == ConflictResolution.CANCEL) {
+                            return TransferExecutionResult.Cancelled(transferred, skipped)
+                        }
+                        resolution = answer.resolution
+                        if (
+                            answer.applyToAll &&
+                            !(answer.resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
+                        ) {
+                            rememberedResolution = answer.resolution
+                        }
+                    }
+                }
+
+                when (resolution) {
+                    ConflictResolution.SKIP -> skipped++
+
+                    ConflictResolution.KEEP_BOTH -> {
+                        val uniqueName = withContext(Dispatchers.IO) {
+                            uniqueNameCaseAware(treeUri, destination, entry.name)
+                        }
+                        withContext(Dispatchers.IO) {
+                            transferEntry(
+                                treeUri = treeUri,
+                                transfer = transfer,
+                                destination = destination,
+                                entry = entry,
+                                targetName = uniqueName,
+                            )
+                        }
+                        transferred++
+                    }
+
+                    ConflictResolution.REPLACE -> {
+                        val target = checkNotNull(existing)
+                        require(target.documentId != entry.documentId) {
+                            "No se puede reemplazar un elemento consigo mismo"
+                        }
+                        withContext(Dispatchers.IO) {
+                            repository.replaceEntry(
+                                treeUri = treeUri,
+                                source = entry,
+                                existing = target,
+                                sourceParent = transfer.sourceParent,
+                                destination = destination,
+                                move = transfer.mode == TransferMode.MOVE,
+                            )
+                        }
+                        transferred++
+                    }
+
+                    ConflictResolution.CANCEL -> {
                         return TransferExecutionResult.Cancelled(transferred, skipped)
                     }
-                    resolution = answer.resolution
-                    if (
-                        answer.applyToAll &&
-                        !(answer.resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
-                    ) {
-                        rememberedResolution = answer.resolution
+
+                    null -> {
+                        withContext(Dispatchers.IO) {
+                            transferEntry(
+                                treeUri = treeUri,
+                                transfer = transfer,
+                                destination = destination,
+                                entry = entry,
+                                targetName = entry.name,
+                            )
+                        }
+                        transferred++
                     }
                 }
             }
-
-            when (resolution) {
-                ConflictResolution.SKIP -> skipped++
-
-                ConflictResolution.KEEP_BOTH -> {
-                    val uniqueName = withContext(Dispatchers.IO) {
-                        uniqueNameCaseAware(treeUri, destination, entry.name)
-                    }
-                    withContext(Dispatchers.IO) {
-                        transferEntry(
-                            treeUri = treeUri,
-                            transfer = transfer,
-                            destination = destination,
-                            entry = entry,
-                            targetName = uniqueName,
-                        )
-                    }
-                    transferred++
-                }
-
-                ConflictResolution.REPLACE -> {
-                    val target = checkNotNull(existing)
-                    require(target.documentId != entry.documentId) {
-                        "No se puede reemplazar un elemento consigo mismo"
-                    }
-                    withContext(Dispatchers.IO) {
-                        repository.replaceEntry(
-                            treeUri = treeUri,
-                            source = entry,
-                            existing = target,
-                            sourceParent = transfer.sourceParent,
-                            destination = destination,
-                            move = transfer.mode == TransferMode.MOVE,
-                        )
-                    }
-                    transferred++
-                }
-
-                ConflictResolution.CANCEL -> {
-                    return TransferExecutionResult.Cancelled(transferred, skipped)
-                }
-
-                null -> {
-                    withContext(Dispatchers.IO) {
-                        transferEntry(
-                            treeUri = treeUri,
-                            transfer = transfer,
-                            destination = destination,
-                            entry = entry,
-                            targetName = entry.name,
-                        )
-                    }
-                    transferred++
-                }
-            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: TransferExecutionException) {
+            throw failure
+        } catch (failure: Throwable) {
+            throw TransferExecutionException(transferred, skipped, failure)
         }
 
         return TransferExecutionResult.Completed(transferred, skipped)
