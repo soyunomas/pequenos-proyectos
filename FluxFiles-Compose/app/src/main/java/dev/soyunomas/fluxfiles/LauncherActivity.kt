@@ -49,8 +49,21 @@ class LauncherActivity : ComponentActivity() {
                 val state by vm.state.collectAsStateWithLifecycle()
                 var about by remember { mutableStateOf(false) }
                 var inspector by remember { mutableStateOf<InspectorRequestV5?>(null) }
+                var zipSources by remember { mutableStateOf<List<StorageEntry>?>(null) }
 
                 when {
+                    zipSources != null && state.treeUri != null && state.currentLocation != null -> {
+                        ZipCreatorV52(
+                            sources = zipSources!!,
+                            treeUri = state.treeUri!!,
+                            destination = state.currentLocation!!,
+                            onBack = { zipSources = null },
+                            onCreated = {
+                                vm.clearSelection()
+                                vm.refresh()
+                            },
+                        )
+                    }
                     inspector != null -> {
                         val request = inspector!!
                         val tree = state.treeUri
@@ -80,30 +93,37 @@ class LauncherActivity : ComponentActivity() {
                         AboutScreenV5 { about = false }
                     }
                     else -> {
-                        BrowserScreenV5(
+                        ZipSelectionOverlayV52(
                             state = state,
-                            onTreeSelected = vm::selectTree,
-                            onDirectoryClick = vm::openDirectory,
-                            onNavigateUp = { vm.navigateUp() },
-                            onRefresh = vm::refresh,
-                            onErrorConsumed = vm::consumeError,
-                            onMessageConsumed = vm::consumeMessage,
-                            onOpenAbout = { about = true },
-                            onInspect = { entry, tab -> inspector = InspectorRequestV5(entry, tab) },
-                            onCreateFolder = vm::createFolder,
-                            onRename = vm::rename,
-                            onDelete = vm::delete,
-                            onEnterSelection = vm::enterSelection,
-                            onStartSelection = vm::startSelection,
-                            onToggleSelection = vm::toggleSelection,
-                            onSelectAll = vm::selectAll,
-                            onClearSelection = vm::clearSelection,
-                            onBeginCopy = { vm.beginTransfer(TransferMode.COPY) },
-                            onBeginMove = { vm.beginTransfer(TransferMode.MOVE) },
-                            onCancelTransfer = vm::cancelTransfer,
-                            onPasteHere = vm::pasteHere,
-                            onResolveConflict = vm::resolveConflict,
-                        )
+                            onCreateZip = { selected ->
+                                if (selected.isNotEmpty()) zipSources = selected
+                            },
+                        ) {
+                            BrowserScreenV5(
+                                state = state,
+                                onTreeSelected = vm::selectTree,
+                                onDirectoryClick = vm::openDirectory,
+                                onNavigateUp = { vm.navigateUp() },
+                                onRefresh = vm::refresh,
+                                onErrorConsumed = vm::consumeError,
+                                onMessageConsumed = vm::consumeMessage,
+                                onOpenAbout = { about = true },
+                                onInspect = { entry, tab -> inspector = InspectorRequestV5(entry, tab) },
+                                onCreateFolder = vm::createFolder,
+                                onRename = vm::rename,
+                                onDelete = vm::delete,
+                                onEnterSelection = vm::enterSelection,
+                                onStartSelection = vm::startSelection,
+                                onToggleSelection = vm::toggleSelection,
+                                onSelectAll = vm::selectAll,
+                                onClearSelection = vm::clearSelection,
+                                onBeginCopy = { vm.beginTransfer(TransferMode.COPY) },
+                                onBeginMove = { vm.beginTransfer(TransferMode.MOVE) },
+                                onCancelTransfer = vm::cancelTransfer,
+                                onPasteHere = vm::pasteHere,
+                                onResolveConflict = vm::resolveConflict,
+                            )
+                        }
                     }
                 }
             }
@@ -149,7 +169,7 @@ private fun AboutScreenV5(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                "Implementación propia en Kotlin y Jetpack Compose. Esta versión incorpora extracción segura de ZIP, además de detalles y vistas previas internas de archivos."
+                "Implementación propia en Kotlin y Jetpack Compose. Esta versión incorpora creación y extracción segura de ZIP, además de detalles y vistas previas internas de archivos."
             )
             Spacer(Modifier.height(16.dp))
             Text(
