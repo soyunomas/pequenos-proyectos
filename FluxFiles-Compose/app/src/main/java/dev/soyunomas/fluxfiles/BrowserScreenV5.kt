@@ -3,11 +3,7 @@
 package dev.soyunomas.fluxfiles
 
 import android.content.Context
-import android.net.Uri
-import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,6 +89,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -101,13 +100,17 @@ import kotlin.math.pow
 
 enum class BrowserViewModeV5 { LIST, GRID }
 enum class BrowserSortModeV5 { NAME, MODIFIED, SIZE }
-data class FavoriteFolderV5(val documentId: String, val name: String)
+
+data class FavoriteFolderV5(
+    val ref: StorageRef,
+    val name: String,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowserScreenV5(
     state: BrowserUiState,
-    onTreeSelected: (Uri) -> Unit,
+    onChooseLocation: () -> Unit,
     onDirectoryClick: (StorageEntry) -> Unit,
     onNavigateUp: () -> Unit,
     onRefresh: () -> Unit,
@@ -132,6 +135,7 @@ fun BrowserScreenV5(
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("flux_files_ux", Context.MODE_PRIVATE) }
     val snackbar = remember { SnackbarHostState() }
+    val hasRoot = state.storageRoot != null
 
     var appMenu by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
@@ -159,15 +163,13 @@ fun BrowserScreenV5(
     }
     var descending by remember { mutableStateOf(prefs.getBoolean("sort_desc_v5", false)) }
 
-    val treeKey = remember(state.treeUri) { "favorites_v5_${state.treeUri?.toString()?.hashCode() ?: 0}" }
-    var favorites by remember(treeKey) {
-        mutableStateOf(loadFavoritesV5(prefs.getStringSet(treeKey, emptySet()).orEmpty()))
+    val favoritesKey = remember(state.storageRoot) { favoritePrefsKeyV5(state.storageRoot) }
+    var favorites by remember(favoritesKey) {
+        mutableStateOf(loadFavoritesV5(prefs.getStringSet(favoritesKey, emptySet()).orEmpty()))
     }
 
     val current = state.currentLocation
-    val currentIsFavorite = current?.let { location ->
-        favorites.any { it.documentId == location.documentId }
-    } == true
+    val currentIsFavorite = current?.let { location -> favorites.any { it.ref == location.ref } } == true
 
     val visibleEntries = remember(state.entries, query, sortMode, descending) {
         state.entries
@@ -177,21 +179,20 @@ fun BrowserScreenV5(
             .toList()
     }
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) {
-        it?.let(onTreeSelected)
-    }
-
     fun saveFavorites(next: List<FavoriteFolderV5>) {
-        favorites = next.distinctBy { it.documentId }
-        prefs.edit().putStringSet(treeKey, favorites.mapTo(linkedSetOf()) { encodeFavoriteV5(it) }).apply()
+        favorites = next.distinctBy { it.ref }
+        prefs.edit().putStringSet(
+            favoritesKey,
+            favorites.mapTo(linkedSetOf()) { encodeFavoriteV5(it) },
+        ).apply()
     }
 
     fun toggleCurrentFavorite() {
         val location = current ?: return
         if (currentIsFavorite) {
-            saveFavorites(favorites.filterNot { it.documentId == location.documentId })
+            saveFavorites(favorites.filterNot { it.ref == location.ref })
         } else {
-            saveFavorites(favorites + FavoriteFolderV5(location.documentId, location.name))
+            saveFavorites(favorites + FavoriteFolderV5(location.ref, location.name))
         }
     }
 
@@ -218,7 +219,7 @@ fun BrowserScreenV5(
         }
     }
 
-    LaunchedEffect(state.currentLocation?.documentId) {
+    LaunchedEffect(state.currentLocation?.ref) {
         query = ""
         searchVisible = false
         itemMenu = null
@@ -239,7 +240,7 @@ fun BrowserScreenV5(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            if (state.treeUri != null && !state.isMutating && !state.isSelectionMode && state.pendingTransfer == null) {
+            if (hasRoot && !state.isMutating && !state.isSelectionMode && state.pendingTransfer == null) {
                 FloatingActionButton(onClick = { create = true }) {
                     Icon(Icons.Default.CreateNewFolder, "Nueva carpeta")
                 }
@@ -322,7 +323,7 @@ fun BrowserScreenV5(
                             }
                         },
                         actions = {
-                            if (state.treeUri != null && state.pendingTransfer == null) {
+                            if (hasRoot && state.pendingTransfer == null) {
                                 IconButton(
                                     onClick = {
                                         searchVisible = !searchVisible
@@ -368,9 +369,7 @@ fun BrowserScreenV5(
                                         BrowserSortModeV5.entries.forEach { mode ->
                                             DropdownMenuItem(
                                                 text = { Text(sortLabelV5(mode)) },
-                                                leadingIcon = {
-                                                    RadioButton(selected = sortMode == mode, onClick = null)
-                                                },
+                                                leadingIcon = { RadioButton(selected = sortMode == mode, onClick = null) },
                                                 onClick = {
                                                     sortMode = mode
                                                     prefs.edit().putString("sort_mode_v5", mode.name).apply()
@@ -391,7 +390,7 @@ fun BrowserScreenV5(
                                 }
                             }
 
-                            if (state.treeUri != null) {
+                            if (hasRoot) {
                                 IconButton(onClick = onRefresh, enabled = !state.isMutating) {
                                     Icon(Icons.Default.Refresh, "Actualizar")
                                 }
@@ -424,11 +423,11 @@ fun BrowserScreenV5(
                                         },
                                     )
                                     DropdownMenuItem(
-                                        text = { Text(if (state.treeUri == null) "Elegir ubicación" else "Cambiar ubicación") },
+                                        text = { Text(if (!hasRoot) "Elegir ubicación" else "Cambiar ubicación") },
                                         leadingIcon = { Icon(Icons.Default.Storage, null) },
                                         onClick = {
                                             appMenu = false
-                                            picker.launch(state.treeUri)
+                                            onChooseLocation()
                                         },
                                     )
                                     DropdownMenuItem(
@@ -444,7 +443,7 @@ fun BrowserScreenV5(
                         },
                     )
 
-                    if (searchVisible && state.treeUri != null && state.pendingTransfer == null) {
+                    if (searchVisible && hasRoot && state.pendingTransfer == null) {
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
@@ -467,14 +466,14 @@ fun BrowserScreenV5(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
-                state.treeUri == null -> WelcomeV5 { picker.launch(null) }
+                !hasRoot -> WelcomeV5(onChooseLocation)
                 state.isLoading && state.entries.isEmpty() -> CenterLoadingV5("Leyendo carpeta…")
                 state.entries.isEmpty() -> EmptyV5(onRefresh) { create = true }
                 visibleEntries.isEmpty() -> NoResultsV5(query)
                 viewMode == BrowserViewModeV5.LIST -> {
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(visibleEntries, key = { it.documentId }) { entry ->
-                            val selected = entry.documentId in state.selectedIds
+                        items(visibleEntries, key = { storageKeyV5(it.ref) }) { entry ->
+                            val selected = entry.ref.opaqueId in state.selectedIds
                             Box {
                                 ListItem(
                                     headlineContent = {
@@ -535,7 +534,7 @@ fun BrowserScreenV5(
                                 )
                                 ItemMenuV5(
                                     entry = entry,
-                                    expanded = itemMenu?.documentId == entry.documentId && state.pendingTransfer == null,
+                                    expanded = itemMenu?.ref == entry.ref && state.pendingTransfer == null,
                                     onDismiss = { itemMenu = null },
                                     onPreview = {
                                         itemMenu = null
@@ -572,8 +571,8 @@ fun BrowserScreenV5(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(visibleEntries, key = { it.documentId }) { entry ->
-                            val selected = entry.documentId in state.selectedIds
+                        items(visibleEntries, key = { storageKeyV5(it.ref) }) { entry ->
+                            val selected = entry.ref.opaqueId in state.selectedIds
                             Card(
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (selected) {
@@ -640,7 +639,7 @@ fun BrowserScreenV5(
                                             }
                                             ItemMenuV5(
                                                 entry = entry,
-                                                expanded = itemMenu?.documentId == entry.documentId,
+                                                expanded = itemMenu?.ref == entry.ref,
                                                 onDismiss = { itemMenu = null },
                                                 onPreview = {
                                                     itemMenu = null
@@ -711,39 +710,31 @@ fun BrowserScreenV5(
                     Text("Eliminar", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { delete = null }) { Text("Cancelar") }
-            },
+            dismissButton = { TextButton(onClick = { delete = null }) { Text("Cancelar") } },
         )
     }
 
     if (showFavorites) {
         FavoritesDialogV5(
             favorites = favorites,
-            currentDocumentId = current?.documentId,
+            currentRef = current?.ref,
             onDismiss = { showFavorites = false },
             onOpen = { favorite ->
-                val tree = state.treeUri
-                if (tree != null && favorite.documentId != current?.documentId) {
-                    val uri = DocumentsContract.buildDocumentUriUsingTree(tree, favorite.documentId)
-                    showFavorites = false
+                showFavorites = false
+                if (favorite.ref != current?.ref) {
                     onDirectoryClick(
                         StorageEntry(
-                            documentId = favorite.documentId,
-                            uri = uri,
+                            ref = favorite.ref,
                             name = favorite.name,
-                            mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
+                            kind = StorageEntryKind.DIRECTORY,
+                            mimeType = "inode/directory",
                             sizeBytes = null,
                             modifiedAtMillis = null,
                         )
                     )
-                } else {
-                    showFavorites = false
                 }
             },
-            onRemove = { favorite ->
-                saveFavorites(favorites.filterNot { it.documentId == favorite.documentId })
-            },
+            onRemove = { favorite -> saveFavorites(favorites.filterNot { it.ref == favorite.ref }) },
         )
     }
 
@@ -805,7 +796,7 @@ private fun ItemMenuV5(
 @Composable
 private fun FavoritesDialogV5(
     favorites: List<FavoriteFolderV5>,
-    currentDocumentId: String?,
+    currentRef: StorageRef?,
     onDismiss: () -> Unit,
     onOpen: (FavoriteFolderV5) -> Unit,
     onRemove: (FavoriteFolderV5) -> Unit,
@@ -819,13 +810,14 @@ private fun FavoritesDialogV5(
                 Text("No tienes favoritas todavía. Usa la estrella de la barra superior para guardar la carpeta actual.")
             } else {
                 LazyColumn(Modifier.fillMaxWidth().height(320.dp)) {
-                    items(favorites, key = { it.documentId }) { favorite ->
+                    items(favorites, key = { storageKeyV5(it.ref) }) { favorite ->
                         ListItem(
                             headlineContent = {
                                 Text(favorite.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
                             supportingContent = {
-                                if (favorite.documentId == currentDocumentId) Text("Carpeta actual")
+                                if (favorite.ref == currentRef) Text("Carpeta actual")
+                                else Text(favorite.ref.backend.value)
                             },
                             leadingContent = { Icon(Icons.Default.Folder, null) },
                             trailingContent = {
@@ -852,9 +844,7 @@ private fun ConflictDialogV5(
     mode: TransferMode,
     onResolve: (ConflictResolution, Boolean) -> Unit,
 ) {
-    var applyToAll by remember(conflict.source.documentId, conflict.existing.documentId) {
-        mutableStateOf(false)
-    }
+    var applyToAll by remember(conflict.source.ref, conflict.existing.ref) { mutableStateOf(false) }
     val verb = if (mode == TransferMode.COPY) "copiar" else "mover"
 
     AlertDialog(
@@ -1007,7 +997,7 @@ private fun WelcomeV5(onChoose: () -> Unit) {
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            "Flux Files usa el selector de Android. Tú decides qué carpeta puede leer y modificar.",
+            "El selector de almacenamiento se abre fuera del navegador. El backend activo decide cómo interpretar la ubicación elegida.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1015,7 +1005,7 @@ private fun WelcomeV5(onChoose: () -> Unit) {
         Button(onClick = onChoose) {
             Icon(Icons.Default.Storage, null)
             Spacer(Modifier.width(8.dp))
-            Text("Elegir carpeta")
+            Text("Elegir ubicación")
         }
     }
 }
@@ -1095,17 +1085,37 @@ private fun sortLabelV5(mode: BrowserSortModeV5): String = when (mode) {
     BrowserSortModeV5.SIZE -> "Tamaño"
 }
 
-private fun encodeFavoriteV5(favorite: FavoriteFolderV5): String =
-    Uri.encode(favorite.documentId) + "|" + Uri.encode(favorite.name)
+private fun favoritePrefsKeyV5(root: StorageRootRef?): String = root?.let {
+    "favorites_v59_${it.backend.value.hashCode()}_${it.opaqueId.hashCode()}"
+} ?: "favorites_v59_none"
+
+private fun storageKeyV5(ref: StorageRef): String = "${ref.backend.value}:${ref.opaqueId}"
+
+private fun encodeFavoriteV5(favorite: FavoriteFolderV5): String = listOf(
+    favorite.ref.backend.value,
+    favorite.ref.opaqueId,
+    favorite.name,
+).joinToString("|") { encodeFavoritePartV5(it) }
 
 private fun loadFavoritesV5(raw: Set<String>): List<FavoriteFolderV5> = raw.mapNotNull { item ->
-    val split = item.indexOf('|')
-    if (split <= 0) null
-    else FavoriteFolderV5(
-        Uri.decode(item.substring(0, split)),
-        Uri.decode(item.substring(split + 1)),
-    )
+    val parts = item.split('|')
+    if (parts.size != 3) return@mapNotNull null
+    runCatching {
+        FavoriteFolderV5(
+            ref = StorageRef(
+                backend = StorageBackendId(decodeFavoritePartV5(parts[0])),
+                opaqueId = decodeFavoritePartV5(parts[1]),
+            ),
+            name = decodeFavoritePartV5(parts[2]),
+        )
+    }.getOrNull()
 }.sortedBy { it.name.lowercase(Locale.getDefault()) }
+
+private fun encodeFavoritePartV5(value: String): String =
+    URLEncoder.encode(value, StandardCharsets.UTF_8.name())
+
+private fun decodeFavoritePartV5(value: String): String =
+    URLDecoder.decode(value, StandardCharsets.UTF_8.name())
 
 private fun supportingTextV5(entry: StorageEntry): String {
     if (entry.isDirectory) return "Carpeta"
