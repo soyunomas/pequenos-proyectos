@@ -6,11 +6,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
+import java.io.InputStream
+import java.io.OutputStream
 import java.text.Collator
 import java.util.Locale
 import java.util.UUID
 
-class SafStorageRepository(context: Context) : StorageRepository {
+class SafStorageRepository(context: Context) : StorageFileSystem {
     private val resolver: ContentResolver = context.contentResolver
     private val collator = Collator.getInstance(Locale.getDefault()).apply { strength = Collator.PRIMARY }
 
@@ -62,8 +64,8 @@ class SafStorageRepository(context: Context) : StorageRepository {
         }
     }
 
-    override fun createFolder(parent: BrowserLocation, name: String) {
-        checkNotNull(
+    override fun createFolder(parent: BrowserLocation, name: String): StorageEntry {
+        val created = checkNotNull(
             DocumentsContract.createDocument(
                 resolver,
                 uri(parent.ref),
@@ -71,7 +73,40 @@ class SafStorageRepository(context: Context) : StorageRepository {
                 name,
             )
         ) { "Android no pudo crear la carpeta" }
+        return StorageEntry(
+            ref = StorageRef(SAF_BACKEND, created.toString()),
+            name = name,
+            kind = StorageEntryKind.DIRECTORY,
+            mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
+            sizeBytes = null,
+            modifiedAtMillis = null,
+        )
     }
+
+    override fun createFile(parent: BrowserLocation, name: String, mimeType: String): StorageEntry {
+        val created = checkNotNull(
+            DocumentsContract.createDocument(
+                resolver,
+                uri(parent.ref),
+                mimeType,
+                name,
+            )
+        ) { "Android no pudo crear el archivo" }
+        return StorageEntry(
+            ref = StorageRef(SAF_BACKEND, created.toString()),
+            name = name,
+            kind = StorageEntryKind.FILE,
+            mimeType = mimeType,
+            sizeBytes = null,
+            modifiedAtMillis = null,
+        )
+    }
+
+    override fun openInput(entry: StorageEntry): InputStream =
+        checkNotNull(resolver.openInputStream(uri(entry.ref))) { "No se pudo leer “${entry.name}”" }
+
+    override fun openOutput(entry: StorageEntry): OutputStream =
+        checkNotNull(resolver.openOutputStream(uri(entry.ref), "w")) { "No se pudo escribir “${entry.name}”" }
 
     override fun rename(entry: StorageEntry, name: String) {
         checkNotNull(DocumentsContract.renameDocument(resolver, uri(entry.ref), name)) {
@@ -174,9 +209,11 @@ class SafStorageRepository(context: Context) : StorageRepository {
                     copyEntryRecursive(child, createdLocation)
                 }
             } else {
-                val input = checkNotNull(resolver.openInputStream(uri(source.ref))) { "No se pudo leer “${source.name}”" }
-                val output = checkNotNull(resolver.openOutputStream(created, "w")) { "No se pudo escribir “$targetName”" }
-                input.use { sourceStream -> output.use { targetStream -> sourceStream.copyTo(targetStream) } }
+                openInput(source).use { sourceStream ->
+                    checkNotNull(resolver.openOutputStream(created, "w")) { "No se pudo escribir “$targetName”" }.use { targetStream ->
+                        sourceStream.copyTo(targetStream)
+                    }
+                }
             }
             return created
         } catch (t: Throwable) {
