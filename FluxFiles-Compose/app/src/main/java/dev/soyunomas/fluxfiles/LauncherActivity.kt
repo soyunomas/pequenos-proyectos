@@ -56,7 +56,7 @@ class LauncherActivity : ComponentActivity() {
                 val canWrite by vm.canWrite.collectAsStateWithLifecycle()
                 val fileSystem: StorageFileSystem = remember { SafStorageRepository(applicationContext) }
                 val rootPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-                    uri?.let(vm::selectTree)
+                    uri?.let { vm.selectTree(it) }
                 }
                 var about by remember { mutableStateOf(false) }
                 var inspector by remember { mutableStateOf<InspectorRequestV5?>(null) }
