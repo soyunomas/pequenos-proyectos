@@ -33,42 +33,60 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+data class InspectorRequestV5(
+    val entry: StorageEntry,
+    val tab: InspectorTabV5,
+)
+
 class LauncherActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            FluxThemeV4 {
+            FluxThemeV5 {
                 val vm: BrowserViewModel = viewModel()
                 val state by vm.state.collectAsStateWithLifecycle()
                 var about by remember { mutableStateOf(false) }
+                var inspector by remember { mutableStateOf<InspectorRequestV5?>(null) }
 
-                if (about) {
-                    AboutScreenV4 { about = false }
-                } else {
-                    BrowserScreenV4(
-                        state = state,
-                        onTreeSelected = vm::selectTree,
-                        onDirectoryClick = vm::openDirectory,
-                        onNavigateUp = { vm.navigateUp() },
-                        onRefresh = vm::refresh,
-                        onErrorConsumed = vm::consumeError,
-                        onMessageConsumed = vm::consumeMessage,
-                        onOpenAbout = { about = true },
-                        onCreateFolder = vm::createFolder,
-                        onRename = vm::rename,
-                        onDelete = vm::delete,
-                        onEnterSelection = vm::enterSelection,
-                        onStartSelection = vm::startSelection,
-                        onToggleSelection = vm::toggleSelection,
-                        onSelectAll = vm::selectAll,
-                        onClearSelection = vm::clearSelection,
-                        onBeginCopy = { vm.beginTransfer(TransferMode.COPY) },
-                        onBeginMove = { vm.beginTransfer(TransferMode.MOVE) },
-                        onCancelTransfer = vm::cancelTransfer,
-                        onPasteHere = vm::pasteHere,
-                        onResolveConflict = vm::resolveConflict,
-                    )
+                when {
+                    inspector != null -> {
+                        val request = inspector!!
+                        FileInspectorV5(
+                            entry = request.entry,
+                            initialTab = request.tab,
+                            onBack = { inspector = null },
+                        )
+                    }
+                    about -> {
+                        AboutScreenV5 { about = false }
+                    }
+                    else -> {
+                        BrowserScreenV5(
+                            state = state,
+                            onTreeSelected = vm::selectTree,
+                            onDirectoryClick = vm::openDirectory,
+                            onNavigateUp = { vm.navigateUp() },
+                            onRefresh = vm::refresh,
+                            onErrorConsumed = vm::consumeError,
+                            onMessageConsumed = vm::consumeMessage,
+                            onOpenAbout = { about = true },
+                            onInspect = { entry, tab -> inspector = InspectorRequestV5(entry, tab) },
+                            onCreateFolder = vm::createFolder,
+                            onRename = vm::rename,
+                            onDelete = vm::delete,
+                            onEnterSelection = vm::enterSelection,
+                            onStartSelection = vm::startSelection,
+                            onToggleSelection = vm::toggleSelection,
+                            onSelectAll = vm::selectAll,
+                            onClearSelection = vm::clearSelection,
+                            onBeginCopy = { vm.beginTransfer(TransferMode.COPY) },
+                            onBeginMove = { vm.beginTransfer(TransferMode.MOVE) },
+                            onCancelTransfer = vm::cancelTransfer,
+                            onPasteHere = vm::pasteHere,
+                            onResolveConflict = vm::resolveConflict,
+                        )
+                    }
                 }
             }
         }
@@ -76,7 +94,7 @@ class LauncherActivity : ComponentActivity() {
 }
 
 @Composable
-private fun FluxThemeV4(content: @Composable () -> Unit) {
+private fun FluxThemeV5(content: @Composable () -> Unit) {
     val colors = if (isSystemInDarkTheme()) {
         darkColorScheme(primary = Color(0xFF80D5D5))
     } else {
@@ -87,7 +105,7 @@ private fun FluxThemeV4(content: @Composable () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AboutScreenV4(onBack: () -> Unit) {
+private fun AboutScreenV5(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -112,7 +130,7 @@ private fun AboutScreenV4(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                "Implementación propia en Kotlin y Jetpack Compose. Esta versión incorpora búsqueda local, ordenación, favoritos y vistas de lista/cuadrícula."
+                "Implementación propia en Kotlin y Jetpack Compose. Esta versión incorpora detalles de archivos, vistas previas internas de imagen y texto, e inspección de ZIP en modo lectura."
             )
             Spacer(Modifier.height(16.dp))
             Text(
