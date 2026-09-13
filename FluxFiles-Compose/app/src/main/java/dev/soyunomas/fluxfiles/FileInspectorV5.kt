@@ -1,12 +1,7 @@
 package dev.soyunomas.fluxfiles
 
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -56,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,10 +89,14 @@ fun previewKindV5(entry: StorageEntry): PreviewKindV5 {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FileInspectorV5(entry: StorageEntry, initialTab: InspectorTabV5, onBack: () -> Unit) {
+fun FileInspectorV5(
+    entry: StorageEntry,
+    initialTab: InspectorTabV5,
+    fileSystem: StorageFileSystem,
+    onOpenExternal: (StorageEntry) -> Unit,
+    onBack: () -> Unit,
+) {
     BackHandler(onBack = onBack)
-    val context = LocalContext.current
-    val fileSystem: StorageFileSystem = remember(context) { SafStorageRepository(context) }
     val previewKind = remember(entry) { previewKindV5(entry) }
     val previewAvailable = previewKind != PreviewKindV5.UNSUPPORTED
     var tab by remember(entry.ref, initialTab) {
@@ -122,7 +120,7 @@ fun FileInspectorV5(entry: StorageEntry, initialTab: InspectorTabV5, onBack: () 
                     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") } },
                     actions = {
                         if (!entry.isDirectory) {
-                            IconButton(onClick = { openExternalV5(context, entry) }) {
+                            IconButton(onClick = { onOpenExternal(entry) }) {
                                 Icon(Icons.Default.OpenInNew, "Abrir con otra aplicación")
                             }
                         }
@@ -139,20 +137,22 @@ fun FileInspectorV5(entry: StorageEntry, initialTab: InspectorTabV5, onBack: () 
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (tab == InspectorTabV5.DETAILS || !previewAvailable) {
-                DetailsPaneV5(entry)
+                DetailsPaneV5(entry, onOpenExternal)
             } else when (previewKind) {
                 PreviewKindV5.IMAGE -> ImagePreviewV5(entry, fileSystem)
                 PreviewKindV5.TEXT -> TextPreviewV5(entry, fileSystem)
                 PreviewKindV5.ZIP -> ZipPreviewV5(entry, fileSystem)
-                PreviewKindV5.UNSUPPORTED -> UnsupportedPreviewV5(entry)
+                PreviewKindV5.UNSUPPORTED -> UnsupportedPreviewV5(entry, onOpenExternal)
             }
         }
     }
 }
 
 @Composable
-private fun DetailsPaneV5(entry: StorageEntry) {
-    val context = LocalContext.current
+private fun DetailsPaneV5(
+    entry: StorageEntry,
+    onOpenExternal: (StorageEntry) -> Unit,
+) {
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 24.dp)) {
@@ -174,7 +174,7 @@ private fun DetailsPaneV5(entry: StorageEntry) {
         item { DetailRowV5("Referencia", entry.ref.opaqueId) }
         if (!entry.isDirectory) item {
             Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.End) {
-                Button(onClick = { openExternalV5(context, entry) }) {
+                Button(onClick = { onOpenExternal(entry) }) {
                     Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.size(8.dp)); Text("Abrir con…")
                 }
             }
@@ -273,13 +273,15 @@ private fun ZipPreviewV5(entry: StorageEntry, content: StorageContentAccess) {
 }
 
 @Composable
-private fun UnsupportedPreviewV5(entry: StorageEntry) {
-    val context = LocalContext.current
+private fun UnsupportedPreviewV5(
+    entry: StorageEntry,
+    onOpenExternal: (StorageEntry) -> Unit,
+) {
     Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Icon(Icons.Default.Info, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(16.dp)); Text("Sin vista previa interna", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp)); Text("Flux Files todavía no puede mostrar este formato internamente.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(20.dp)); Button(onClick = { openExternalV5(context, entry) }) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.size(8.dp)); Text("Abrir con…") }
+        Spacer(Modifier.height(20.dp)); Button(onClick = { onOpenExternal(entry) }) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.size(8.dp)); Text("Abrir con…") }
     }
 }
 
@@ -361,19 +363,3 @@ private fun formatBytesV5(bytes: Long): String {
     val value = bytes / unit.pow(exponent.toDouble())
     return if (value >= 10) "%.0f %s".format(Locale.getDefault(), value, suffix) else "%.1f %s".format(Locale.getDefault(), value, suffix)
 }
-
-fun openExternalV5(context: Context, entry: StorageEntry) {
-    val uri = androidUriForExternalOpenV57(entry) ?: run {
-        Toast.makeText(context, "Este backend no ofrece apertura externa directa", Toast.LENGTH_SHORT).show(); return
-    }
-    val intent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, entry.mimeType)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    try { context.startActivity(intent) } catch (_: ActivityNotFoundException) {
-        Toast.makeText(context, "No hay una aplicación compatible para abrir este archivo", Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun androidUriForExternalOpenV57(entry: StorageEntry): Uri? =
-    if (entry.ref.backend == SafStorageRepository.SAF_BACKEND) Uri.parse(entry.ref.opaqueId) else null
