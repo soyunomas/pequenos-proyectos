@@ -5,275 +5,75 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light">
   <meta name="description" content="Anonimiza datos sensibles antes de enviarlos a una IA y restaura después la respuesta, sin enviar el texto a servidores externos.">
-  <title>PrivaPrompt — anonimiza antes de preguntar a una IA</title>
-  <style>
-    :root {
-      --paper: #f4f1e8;
-      --surface: #fffdf8;
-      --ink: #181816;
-      --muted: #66635c;
-      --line: #c9c3b7;
-      --line-strong: #777167;
-      --accent: #b33b24;
-      --accent-dark: #7d2516;
-      --focus: #005fcc;
-      --success: #17643a;
-      --warning: #8a5700;
-      --danger: #a12622;
-      --person: #dbe7ff;
-      --company: #dbeadf;
-      --place: #f6e7b5;
-      --secret: #f3d6d3;
-      --measure: 1440px;
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body { margin: 0; min-height: 100vh; color: var(--ink); background: var(--paper); font-family: Arial, Helvetica, sans-serif; line-height: 1.45; }
-    button, input, textarea { font: inherit; }
-    button, [role="button"], input, textarea { outline-offset: 3px; }
-    button:focus-visible, [role="button"]:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--focus); }
-    button { color: inherit; }
-    .shell { width: min(var(--measure), calc(100% - 32px)); margin: 0 auto; }
-    .masthead { border-bottom: 2px solid var(--ink); background: var(--surface); }
-    .masthead-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; padding: 22px 0 18px; }
-    .eyebrow, .micro-label { margin: 0 0 5px; color: var(--muted); font: 700 0.72rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
-    h1, h2, h3, p { margin-top: 0; }
-    h1 { margin-bottom: 4px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 4vw, 3.25rem); line-height: 0.95; letter-spacing: -0.035em; font-weight: 700; }
-    .subtitle { max-width: 760px; margin: 0; color: var(--muted); font-size: 0.98rem; }
-    .privacy-note { display: grid; gap: 2px; max-width: 290px; padding-left: 16px; border-left: 3px solid var(--success); text-align: left; }
-    .privacy-note strong { color: var(--success); font-size: 0.9rem; }
-    .privacy-note span { color: var(--muted); font-size: 0.78rem; }
-    .workflow-nav { border-bottom: 1px solid var(--line-strong); background: var(--paper); }
-    .tabs { display: flex; gap: 0; overflow-x: auto; scrollbar-width: thin; }
-    .tab { flex: 0 0 auto; border: 0; border-right: 1px solid var(--line); border-radius: 0; padding: 13px 18px 12px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; text-align: left; }
-    .tab:first-child { border-left: 1px solid var(--line); }
-    .tab:hover { background: rgba(255,255,255,0.45); color: var(--ink); }
-    .tab[aria-selected="true"] { color: var(--ink); background: var(--surface); box-shadow: inset 0 -4px 0 var(--accent); }
-    main { padding: 26px 0 44px; }
-    [hidden] { display: none !important; }
-    .section-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-bottom: 18px; }
-    .section-head h2 { margin-bottom: 5px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.55rem, 2.3vw, 2.2rem); line-height: 1.05; }
-    .section-head p { margin: 0; max-width: 760px; color: var(--muted); }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .btn { min-height: 40px; border: 1px solid var(--line-strong); border-radius: 2px; padding: 8px 12px; background: var(--surface); cursor: pointer; font-weight: 700; line-height: 1.1; }
-    .btn:hover:not(:disabled) { border-color: var(--ink); background: #fff; }
-    .btn:disabled { cursor: not-allowed; opacity: 0.45; }
-    .btn-primary { background: var(--ink); border-color: var(--ink); color: white; }
-    .btn-primary:hover:not(:disabled) { background: #000; }
-    .btn-accent { background: var(--accent); border-color: var(--accent); color: white; }
-    .btn-accent:hover:not(:disabled) { background: var(--accent-dark); border-color: var(--accent-dark); }
-    .btn-danger { color: var(--danger); border-color: #ba7773; }
-    .btn-small { min-height: 34px; padding: 6px 9px; font-size: 0.83rem; }
-    .mode-switch { display: inline-flex; border: 1px solid var(--line-strong); background: var(--surface); }
-    .mode-switch button { min-height: 38px; border: 0; border-right: 1px solid var(--line-strong); padding: 7px 13px; background: transparent; cursor: pointer; font-weight: 700; }
-    .mode-switch button:last-child { border-right: 0; }
-    .mode-switch button[aria-pressed="true"] { background: var(--ink); color: white; }
-    .workbench { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line-strong); background: var(--surface); }
-    .workbench.with-index { grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); }
-    .editor-pane { min-width: 0; }
-    .pane-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; justify-content: space-between; min-height: 54px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #ebe7dc; }
-    .pane-bar p { margin: 0; color: var(--muted); font-size: 0.84rem; }
-    .editor, .visual-editor { width: 100%; min-height: 55vh; max-height: 72vh; overflow: auto; margin: 0; border: 0; border-radius: 0; padding: clamp(16px, 2.5vw, 30px); background: var(--surface); color: var(--ink); font: 1rem/1.75 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
-    textarea.editor { resize: vertical; }
-    .visual-editor { user-select: text; }
-    .visual-editor.empty { color: var(--muted); font-family: Arial, Helvetica, sans-serif; }
-    .entity-mark { display: inline; padding: 0.08em 0.16em; border-bottom: 2px solid currentColor; color: var(--ink); cursor: pointer; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-    .entity-mark::after { content: " " attr(data-token); color: #3a3935; font-size: 0.68em; font-weight: 700; letter-spacing: 0.015em; vertical-align: 0.12em; }
-    .entity-persona { background: var(--person); border-color: #4168a8; }
-    .entity-empresa { background: var(--company); border-color: #3e7852; }
-    .entity-ubicacion { background: var(--place); border-color: #8c6b14; }
-    .entity-secreto { background: var(--secret); border-color: #9d4540; }
-    .search-mark { padding: 0.04em 0; background: #ffe66d; color: inherit; }
-    .search-mark.active { background: #ffae42; outline: 2px solid #7a3f00; }
-    .selection-bar { display: grid; grid-template-columns: minmax(160px, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid var(--line-strong); background: #252421; color: white; }
-    .selection-bar p { margin: 0; min-width: 0; font-size: 0.86rem; }
-    .selection-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
-    .category-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-    .category-actions .btn { min-height: 34px; border-color: #77736b; background: transparent; color: white; font-size: 0.78rem; }
-    .category-actions .btn:hover { border-color: white; background: #35332f; }
-    .search-row { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 10px; align-items: center; padding: 12px; border-top: 1px solid var(--line); background: #ebe7dc; }
-    .search-box { display: flex; min-width: 0; }
-    .search-box input { min-width: 0; width: 100%; min-height: 40px; border: 1px solid var(--line-strong); border-right: 0; border-radius: 2px 0 0 2px; padding: 8px 10px; background: var(--surface); color: var(--ink); }
-    .search-box .btn { border-radius: 0 2px 2px 0; }
-    .search-status { color: var(--muted); font: 700 0.78rem/1.2 ui-monospace, monospace; white-space: nowrap; }
-    .index-pane { min-width: 0; border-left: 1px solid var(--line-strong); background: #f0ede4; }
-    .index-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 13px 14px; border-bottom: 1px solid var(--line-strong); }
-    .index-head h3 { margin: 0; font: 700 0.84rem/1.2 ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0.04em; }
-    .index-list { max-height: 68vh; overflow: auto; }
-    .index-empty { padding: 18px 14px; color: var(--muted); font-size: 0.88rem; }
-    .match-row { padding: 14px; border-bottom: 1px solid var(--line); background: transparent; }
-    .match-row.active { background: #fff8e5; box-shadow: inset 4px 0 0 var(--accent); }
-    .match-meta { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 8px; }
-    .match-number { color: var(--muted); font: 700 0.72rem/1 ui-monospace, monospace; text-transform: uppercase; }
-    .snippet { margin: 0 0 10px; color: var(--muted); font: 0.78rem/1.45 ui-monospace, monospace; overflow-wrap: anywhere; }
-    .snippet mark { background: #ffe66d; color: var(--ink); }
-    .expand-controls { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; margin-bottom: 9px; }
-    .expand-controls input { min-width: 0; border: 1px solid var(--line-strong); padding: 7px 8px; background: var(--surface); font: 0.78rem/1.2 ui-monospace, monospace; }
-    .expand-controls .btn { border-radius: 0; }
-    .match-categories { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
-    .match-categories button { min-height: 34px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-size: 0.72rem; font-weight: 700; }
-    .match-categories button:hover { border-color: var(--ink); background: white; }
-    .status-line { min-height: 46px; padding: 12px 0; color: var(--muted); font-size: 0.86rem; }
-    .status-line strong { color: var(--ink); }
-    .status-line.warning { color: var(--warning); }
-    .status-line.error { color: var(--danger); }
-    .status-line.success { color: var(--success); }
-    .footer-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; margin-top: 4px; padding-top: 18px; border-top: 1px solid var(--line-strong); }
-    .footer-action p { margin: 0; color: var(--muted); font-size: 0.87rem; }
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line-strong); background: var(--surface); }
-    .two-col > section { min-width: 0; }
-    .two-col > section + section { border-left: 1px solid var(--line-strong); }
-    .panel-title { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 54px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: #ebe7dc; }
-    .panel-title h3 { margin: 0; font-size: 0.95rem; }
-    .panel-title span { color: var(--muted); font-size: 0.78rem; }
-    .panel-body { padding: 14px; }
-    .panel-body textarea { width: 100%; min-height: 46vh; resize: vertical; border: 1px solid var(--line-strong); border-radius: 0; padding: 14px; background: white; font: 0.92rem/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .panel-body textarea[readonly] { background: #f7f5ef; }
-    .panel-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
-    .registry { border-top: 2px solid var(--ink); background: var(--surface); }
-    .registry-header, .registry-row { display: grid; grid-template-columns: 150px 130px minmax(0, 1fr) 100px; gap: 12px; align-items: center; }
-    .registry-header { padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: #ebe7dc; color: var(--muted); font: 700 0.72rem/1.2 ui-monospace, monospace; letter-spacing: 0.04em; text-transform: uppercase; }
-    .registry-row { padding: 12px; border-bottom: 1px solid var(--line); }
-    .registry-row code { font-weight: 700; color: var(--accent-dark); }
-    .registry-value { min-width: 0; overflow-wrap: anywhere; }
-    .type-label { font: 700 0.72rem/1.1 ui-monospace, monospace; text-transform: uppercase; }
-    .registry-empty { padding: 28px 12px; border-bottom: 1px solid var(--line-strong); color: var(--muted); text-align: center; }
-    .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(20, 19, 17, 0.72); }
-    .modal { width: min(960px, 100%); max-height: calc(100vh - 40px); overflow: auto; border: 2px solid var(--ink); background: var(--surface); box-shadow: 12px 12px 0 rgba(0,0,0,0.28); }
-    .modal-head, .modal-foot { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 14px 16px; background: #ebe7dc; }
-    .modal-head { border-bottom: 1px solid var(--line-strong); }
-    .modal-foot { border-top: 1px solid var(--line-strong); }
-    .modal-head h2 { margin: 0; font-family: Georgia, serif; font-size: 1.4rem; }
-    .modal-body { padding: 16px; }
-    .modal-body textarea { width: 100%; min-height: 45vh; resize: vertical; border: 1px solid var(--line-strong); border-radius: 0; padding: 14px; font: 0.9rem/1.6 ui-monospace, monospace; background: white; }
-    .modal-summary { margin-bottom: 10px; color: var(--muted); font-size: 0.85rem; }
-    .toast { position: fixed; z-index: 40; right: 20px; bottom: 20px; max-width: min(440px, calc(100% - 40px)); padding: 12px 14px; border: 2px solid var(--ink); background: var(--ink); color: white; box-shadow: 6px 6px 0 rgba(0,0,0,0.18); font-size: 0.86rem; }
-    .site-footer { border-top: 1px solid var(--line-strong); padding: 16px 0 24px; color: var(--muted); font-size: 0.76rem; }
-    @media (max-width: 900px) {
-      .masthead-inner { grid-template-columns: 1fr; align-items: start; }
-      .privacy-note { max-width: none; }
-      .workbench.with-index { grid-template-columns: 1fr; }
-      .index-pane { border-left: 0; border-top: 1px solid var(--line-strong); }
-      .two-col { grid-template-columns: 1fr; }
-      .two-col > section + section { border-left: 0; border-top: 1px solid var(--line-strong); }
-      .registry-header { display: none; }
-      .registry-row { grid-template-columns: 1fr auto; gap: 7px 10px; }
-      .registry-row > :nth-child(1), .registry-row > :nth-child(2), .registry-row > :nth-child(3) { grid-column: 1; }
-      .registry-row > :last-child { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
-    }
-    @media (max-width: 640px) {
-      .shell { width: min(100% - 20px, var(--measure)); }
-      .section-head, .footer-action, .selection-bar, .search-row { grid-template-columns: 1fr; align-items: start; }
-      .section-head .toolbar, .footer-action .btn { width: 100%; }
-      .section-head .toolbar .btn { flex: 1; }
-      .mode-switch { width: 100%; }
-      .mode-switch button { flex: 1; }
-      .category-actions { justify-content: flex-start; }
-      .match-categories { grid-template-columns: 1fr 1fr; }
-      .search-status { white-space: normal; }
-      .editor, .visual-editor { min-height: 50vh; padding: 15px; font-size: 0.92rem; }
-      .modal { box-shadow: 6px 6px 0 rgba(0,0,0,0.28); }
-      .modal-foot { align-items: stretch; flex-direction: column-reverse; }
-      .modal-foot .btn { width: 100%; }
-    }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-  </style>
+  <title>PrivaPrompt</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="masthead">
-    <div class="shell masthead-inner">
-      <div>
-        <p class="eyebrow">Herramienta local · privacidad para prompts</p>
-        <h1>PrivaPrompt</h1>
-        <p class="subtitle">Sustituye nombres, empresas, lugares y datos críticos por identificadores antes de copiar un texto a una IA. Después puedes restaurar la respuesta con los valores originales.</p>
-      </div>
-      <div class="privacy-note" aria-label="Información de privacidad">
-        <strong>El texto se procesa en este navegador.</strong>
-        <span>Sin librerías externas, cuentas ni almacenamiento persistente. Al recargar la página se pierde la sesión.</span>
-      </div>
-    </div>
-  </header>
+  <header class="topbar"><div class="shell"><strong class="brand">PrivaPrompt</strong></div></header>
+
   <nav class="workflow-nav" aria-label="Flujo de trabajo">
     <div class="shell tabs" role="tablist" aria-label="Pasos de PrivaPrompt">
-      <button class="tab" type="button" role="tab" id="tab-protect" aria-controls="panel-protect" aria-selected="true" data-panel="protect">1 · Proteger texto</button>
-      <button class="tab" type="button" role="tab" id="tab-restore" aria-controls="panel-restore" aria-selected="false" data-panel="restore">2 · Restaurar respuesta</button>
-      <button class="tab" type="button" role="tab" id="tab-registry" aria-controls="panel-registry" aria-selected="false" data-panel="registry">Entidades · <span id="entityCountTab">0</span></button>
+      <button class="tab" type="button" role="tab" id="tab-protect" aria-controls="panel-protect" aria-selected="true" data-panel="protect">Proteger texto</button>
+      <button class="tab" type="button" role="tab" id="tab-restore" aria-controls="panel-restore" aria-selected="false" data-panel="restore">Restaurar respuesta</button>
+      <button class="tab" type="button" role="tab" id="tab-registry" aria-controls="panel-registry" aria-selected="false" data-panel="registry">Entidades <span id="entityCountTab">0</span></button>
     </div>
   </nav>
+
   <main class="shell">
     <section id="panel-protect" role="tabpanel" aria-labelledby="tab-protect">
       <header class="section-head">
-        <div>
-          <p class="micro-label">Paso 1</p>
-          <h2>Prepara el texto antes de sacarlo del navegador</h2>
-          <p>Pega o escribe en <strong>Editar</strong>. Después pasa a <strong>Marcar datos</strong>, selecciona un fragmento y asígnale una categoría. Cada regla se aplica a todas las apariciones equivalentes.</p>
-        </div>
-        <div class="toolbar">
-          <button class="btn btn-small" type="button" id="btnPaste">Pegar</button>
-          <button class="btn btn-small btn-danger" type="button" id="btnReset">Nueva sesión</button>
-        </div>
+        <div><h1>Protege el texto</h1><p>Pega el contenido, marca los datos sensibles y genera una copia anonimizada.</p></div>
+        <div class="toolbar"><button class="btn btn-small" type="button" id="btnPaste">Pegar</button><button class="btn btn-small btn-danger" type="button" id="btnReset">Nueva sesión</button></div>
       </header>
+
       <div class="workbench" id="workbench">
         <section class="editor-pane" aria-label="Texto de trabajo">
           <div class="pane-bar">
-            <div class="mode-switch" role="group" aria-label="Modo de trabajo">
-              <button type="button" id="btnEditMode" aria-pressed="true">Editar</button>
-              <button type="button" id="btnMarkMode" aria-pressed="false">Marcar datos</button>
-            </div>
-            <p id="modeHint">Pega con Ctrl+V o escribe directamente. Los saltos de línea se conservan.</p>
+            <div class="mode-switch" role="group" aria-label="Modo de trabajo"><button type="button" id="btnEditMode" aria-pressed="true">Editar</button><button type="button" id="btnMarkMode" aria-pressed="false">Marcar datos</button></div>
+            <p id="modeHint">Pega con Ctrl+V o escribe directamente.</p>
           </div>
+
           <div class="selection-bar" id="selectionBar" hidden>
-            <p><span class="micro-label" style="color:#b7b2aa;margin-bottom:3px">Selección</span><span class="selection-text" id="selectionText"></span></p>
+            <p><span class="micro-label selection-label">Selección</span><span class="selection-text" id="selectionText"></span></p>
             <div class="category-actions" role="group" aria-label="Categoría del dato seleccionado">
-              <button class="btn" type="button" data-category="PERSONA">Persona</button>
-              <button class="btn" type="button" data-category="EMPRESA">Empresa</button>
-              <button class="btn" type="button" data-category="UBICACION">Lugar</button>
-              <button class="btn" type="button" data-category="SECRETO">Dato crítico</button>
+              <button class="btn" type="button" data-category="PERSONA">Persona</button><button class="btn" type="button" data-category="EMPRESA">Empresa</button><button class="btn" type="button" data-category="UBICACION">Lugar</button><button class="btn" type="button" data-category="SECRETO">Dato crítico</button>
             </div>
           </div>
-          <label for="rawEditor" class="micro-label" style="position:absolute;left:-9999px">Texto original</label>
+
+          <label for="rawEditor" class="sr-only">Texto original</label>
           <textarea class="editor" id="rawEditor" spellcheck="false" placeholder="Pega aquí el texto que quieres proteger…"></textarea>
-          <div class="visual-editor empty" id="visualEditor" tabindex="0" aria-label="Texto en modo de marcado" hidden>Primero pega o escribe un texto en el modo Editar.</div>
+          <div class="visual-editor empty" id="visualEditor" tabindex="0" aria-label="Texto en modo de marcado" hidden>Primero pega o escribe un texto en Editar.</div>
+
           <div class="search-row" id="searchRow" hidden>
-            <div class="search-box">
-              <label for="searchInput" style="position:absolute;left:-9999px">Buscar en el texto</label>
-              <input type="search" id="searchInput" placeholder="Buscar una palabra o fragmento…" autocomplete="off">
-              <button class="btn btn-small" type="button" id="btnClearSearch">Borrar</button>
-            </div>
-            <div class="toolbar">
-              <span class="search-status" id="searchStatus" aria-live="polite">Sin búsqueda</span>
-              <button class="btn btn-small" type="button" id="btnPrevMatch" disabled aria-label="Coincidencia anterior">↑</button>
-              <button class="btn btn-small" type="button" id="btnNextMatch" disabled aria-label="Coincidencia siguiente">↓</button>
-              <button class="btn btn-small" type="button" id="btnToggleIndex" aria-expanded="false" aria-controls="indexPane">Ver contexto</button>
-            </div>
+            <div class="search-box"><label for="searchInput" class="sr-only">Buscar en el texto</label><input type="search" id="searchInput" placeholder="Buscar palabra o fragmento…" autocomplete="off"><button class="btn btn-small" type="button" id="btnClearSearch">Borrar</button></div>
+            <div class="toolbar"><span class="search-status" id="searchStatus" aria-live="polite">Sin búsqueda</span><button class="btn btn-small" type="button" id="btnPrevMatch" disabled aria-label="Coincidencia anterior">↑</button><button class="btn btn-small" type="button" id="btnNextMatch" disabled aria-label="Coincidencia siguiente">↓</button><button class="btn btn-small" type="button" id="btnToggleIndex" aria-expanded="false" aria-controls="indexPane">Ver contexto</button></div>
           </div>
         </section>
-        <aside class="index-pane" id="indexPane" hidden aria-label="Coincidencias y contexto">
-          <div class="index-head"><h3>Coincidencias</h3><button class="btn btn-small" type="button" id="btnCloseIndex">Cerrar</button></div>
-          <div class="index-list" id="indexList"></div>
-        </aside>
+
+        <aside class="index-pane" id="indexPane" hidden aria-label="Coincidencias y contexto"><div class="index-head"><h2>Coincidencias</h2><button class="btn btn-small" type="button" id="btnCloseIndex">Cerrar</button></div><div class="index-list" id="indexList"></div></aside>
       </div>
+
       <div class="status-line" id="protectStatus" role="status" aria-live="polite">Empieza pegando o escribiendo un texto.</div>
-      <div class="footer-action">
-        <p>Antes de copiar nada a una IA, revisa que todos los datos sensibles estén marcados. El texto anonimizado no se genera si no hay al menos una entidad protegida.</p>
-        <button class="btn btn-accent" type="button" id="btnGenerate" disabled>Revisar texto anonimizado</button>
-      </div>
+      <div class="footer-action"><p>Revisa las marcas antes de copiar el resultado a otro servicio.</p><button class="btn btn-accent" type="button" id="btnGenerate" disabled>Revisar texto anonimizado</button></div>
     </section>
+
     <section id="panel-restore" role="tabpanel" aria-labelledby="tab-restore" hidden>
-      <header class="section-head"><div><p class="micro-label">Paso 2</p><h2>Restaura los datos en la respuesta</h2><p>Pega la respuesta que te devuelva la IA. PrivaPrompt sustituirá los identificadores conocidos por los valores originales de esta sesión.</p></div></header>
+      <header class="section-head"><div><h1>Restaura la respuesta</h1><p>Pega la respuesta de la IA para sustituir los identificadores por los datos de esta sesión.</p></div></header>
       <div class="two-col">
-        <section><div class="panel-title"><h3>Respuesta anonimizada</h3><span>Entrada</span></div><div class="panel-body"><label for="aiAnswer" class="micro-label">Pega aquí la respuesta</label><textarea id="aiAnswer" placeholder="Ejemplo: [PERSONA_1] debería contactar con [EMPRESA_1]…"></textarea><div class="panel-actions"><button class="btn btn-primary" type="button" id="btnRestore">Restaurar datos</button></div></div></section>
-        <section><div class="panel-title"><h3>Texto restaurado</h3><span>Salida local</span></div><div class="panel-body"><label for="restoredOutput" class="micro-label">Resultado</label><textarea id="restoredOutput" readonly placeholder="Aquí aparecerá la respuesta con los datos originales restaurados."></textarea><div class="panel-actions"><button class="btn" type="button" id="btnCopyRestored" disabled>Copiar resultado</button></div></div></section>
+        <section><div class="panel-title"><h2>Respuesta anonimizada</h2><span>Entrada</span></div><div class="panel-body"><label for="aiAnswer" class="micro-label">Respuesta</label><textarea id="aiAnswer" placeholder="Ejemplo: [PERSONA_1] debería contactar con [EMPRESA_1]…"></textarea><div class="panel-actions"><button class="btn btn-primary" type="button" id="btnRestore">Restaurar datos</button></div></div></section>
+        <section><div class="panel-title"><h2>Texto restaurado</h2><span>Salida local</span></div><div class="panel-body"><label for="restoredOutput" class="micro-label">Resultado</label><textarea id="restoredOutput" readonly placeholder="Aquí aparecerá el texto con los datos originales restaurados."></textarea><div class="panel-actions"><button class="btn" type="button" id="btnCopyRestored" disabled>Copiar resultado</button></div></div></section>
       </div>
       <div class="status-line" id="restoreStatus" role="status" aria-live="polite">Hay <strong id="restoreEntityCount">0</strong> entidades disponibles para restaurar.</div>
     </section>
+
     <section id="panel-registry" role="tabpanel" aria-labelledby="tab-registry" hidden>
-      <header class="section-head"><div><p class="micro-label">Sesión actual</p><h2>Entidades protegidas</h2><p>Este diccionario vive solo en memoria mientras la página permanece abierta. Puedes quitar una regla concreta o iniciar una sesión nueva para borrar todo.</p></div></header>
+      <header class="section-head"><div><h1>Entidades protegidas</h1><p>Reglas activas de la sesión. No se guardan al recargar la página.</p></div></header>
       <div class="registry" aria-live="polite"><div class="registry-header" aria-hidden="true"><span>Identificador</span><span>Categoría</span><span>Valor original</span><span>Acción</span></div><div id="registryBody"></div></div>
     </section>
   </main>
-  <footer class="site-footer"><div class="shell">PrivaPrompt · aplicación web autocontenida · sin dependencias externas · los datos de la sesión no se guardan al recargar.</div></footer>
+
+  <footer class="site-footer"><div class="shell">Procesamiento local. La sesión se borra al recargar.</div></footer>
+
   <div class="modal-backdrop" id="promptModal" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="promptModalTitle">
       <header class="modal-head"><h2 id="promptModalTitle">Texto anonimizado</h2><button class="btn btn-small" type="button" id="btnCloseModal" aria-label="Cerrar diálogo">Cerrar</button></header>
@@ -282,63 +82,6 @@
     </section>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script>
-    (() => {
-      'use strict';
-      const state = { rawText: '', entities: [], counters: { PERSONA: 0, EMPRESA: 0, UBICACION: 0, SECRETO: 0 }, mode: 'edit', currentSelection: '', searchQuery: '', searchMatches: [], activeMatchIndex: -1, indexOpen: false, lastFocusedBeforeModal: null };
-      const categoryLabels = { PERSONA: 'Persona', EMPRESA: 'Empresa', UBICACION: 'Lugar', SECRETO: 'Dato crítico' };
-      const dom = Object.fromEntries(['entityCountTab','rawEditor','visualEditor','btnEditMode','btnMarkMode','modeHint','selectionBar','selectionText','searchRow','searchInput','btnClearSearch','searchStatus','btnPrevMatch','btnNextMatch','btnToggleIndex','indexPane','btnCloseIndex','indexList','workbench','protectStatus','btnGenerate','btnPaste','btnReset','registryBody','aiAnswer','btnRestore','restoredOutput','btnCopyRestored','restoreStatus','restoreEntityCount','promptModal','btnCloseModal','anonymizedOutput','modalSummary','btnCopyPrompt','btnGoRestore','toast'].map(id => [id, document.getElementById(id)]));
-      const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const isWordChar = (char) => char ? /[\p{L}\p{N}_]/u.test(char) : false;
-      const entityRegex = (text, flags = 'giu') => { const escaped = escapeRegExp(text); const left = isWordChar(text[0]) ? '(?<![\\p{L}\\p{N}_])' : ''; const right = isWordChar(text[text.length - 1]) ? '(?![\\p{L}\\p{N}_])' : ''; return new RegExp(`${left}${escaped}${right}`, flags); };
-      const overlap = (aStart, aEnd, bStart, bEnd) => aStart < bEnd && aEnd > bStart;
-      function showToast(message) { dom.toast.textContent = message; dom.toast.hidden = false; window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => { dom.toast.hidden = true; }, 2600); }
-      function setStatus(element, message, tone = '') { element.className = `status-line${tone ? ` ${tone}` : ''}`; element.innerHTML = message; }
-      function setPanel(name) { document.querySelectorAll('[role="tabpanel"]').forEach(panel => { panel.hidden = true; }); document.querySelectorAll('.tab[role="tab"]').forEach(tab => tab.setAttribute('aria-selected', 'false')); const panel = document.getElementById(`panel-${name}`); const tab = document.querySelector(`.tab[data-panel="${name}"]`); panel.hidden = false; tab.setAttribute('aria-selected', 'true'); tab.focus({ preventScroll: true }); }
-      document.querySelector('.tabs').addEventListener('click', event => { const tab = event.target.closest('.tab[data-panel]'); if (tab) setPanel(tab.dataset.panel); });
-      document.querySelector('.tabs').addEventListener('keydown', event => { const tabs = [...document.querySelectorAll('.tab[role="tab"]')]; const current = tabs.indexOf(document.activeElement); if (current < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return; event.preventDefault(); let next = current; if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length; if (event.key === 'ArrowRight') next = (current + 1) % tabs.length; if (event.key === 'Home') next = 0; if (event.key === 'End') next = tabs.length - 1; tabs[next].focus(); tabs[next].click(); });
-      function syncRawText() { state.rawText = dom.rawEditor.value; updatePrimaryAction(); }
-      function setMode(mode) { if (mode === state.mode) return; if (mode === 'mark') syncRawText(); state.mode = mode; const editing = mode === 'edit'; dom.rawEditor.hidden = !editing; dom.visualEditor.hidden = editing; dom.searchRow.hidden = editing; dom.btnEditMode.setAttribute('aria-pressed', String(editing)); dom.btnMarkMode.setAttribute('aria-pressed', String(!editing)); dom.modeHint.textContent = editing ? 'Pega con Ctrl+V o escribe directamente. Los saltos de línea se conservan.' : 'Selecciona un fragmento para protegerlo o usa la búsqueda para localizar todas sus apariciones.'; dom.selectionBar.hidden = true; state.currentSelection = ''; if (!editing) { renderVisual(); dom.visualEditor.focus(); } else { closeIndex(); dom.rawEditor.focus(); } }
-      dom.btnEditMode.addEventListener('click', () => setMode('edit')); dom.btnMarkMode.addEventListener('click', () => setMode('mark')); dom.rawEditor.addEventListener('input', syncRawText);
-      function computeEntitySpans() { const spans = []; const entities = [...state.entities].sort((a, b) => b.original.length - a.original.length); for (const entity of entities) { const regex = entityRegex(entity.original); let match; while ((match = regex.exec(state.rawText)) !== null) { const start = match.index; const end = start + match[0].length; if (!spans.some(span => overlap(start, end, span.start, span.end))) spans.push({ type: 'entity', start, end, matchedText: match[0], entity }); } } return spans.sort((a, b) => a.start - b.start); }
-      function computeSearchMatches(entitySpans) { state.searchMatches = []; const query = state.searchQuery.trim(); if (!query || !state.rawText) { state.activeMatchIndex = -1; return; } const regex = new RegExp(escapeRegExp(query), 'giu'); let match; while ((match = regex.exec(state.rawText)) !== null) { const start = match.index; const end = start + match[0].length; if (!entitySpans.some(span => overlap(start, end, span.start, span.end))) state.searchMatches.push({ index: state.searchMatches.length, start, end, expandedStart: start, expandedEnd: end, matchedText: match[0] }); if (match[0].length === 0) regex.lastIndex++; } if (!state.searchMatches.length) state.activeMatchIndex = -1; else if (state.activeMatchIndex < 0 || state.activeMatchIndex >= state.searchMatches.length) state.activeMatchIndex = 0; }
-      function renderVisual() { dom.visualEditor.replaceChildren(); if (!state.rawText.trim()) { dom.visualEditor.classList.add('empty'); dom.visualEditor.textContent = 'No hay texto. Vuelve a Editar y pega o escribe el contenido que quieres proteger.'; state.searchMatches = []; updateSearchControls(); renderIndex(); return; } dom.visualEditor.classList.remove('empty'); const entitySpans = computeEntitySpans(); computeSearchMatches(entitySpans); const tokens = [...entitySpans]; for (const match of state.searchMatches) tokens.push({ type: 'search', start: match.start, end: match.end, matchedText: match.matchedText, searchIndex: match.index }); tokens.sort((a, b) => a.start - b.start); let cursor = 0; for (const token of tokens) { if (token.start < cursor) continue; if (token.start > cursor) dom.visualEditor.append(document.createTextNode(state.rawText.slice(cursor, token.start))); if (token.type === 'entity') { const mark = document.createElement('span'); mark.className = `entity-mark entity-${token.entity.type.toLowerCase()}`; mark.textContent = token.matchedText; mark.dataset.token = token.entity.token; mark.dataset.entityId = token.entity.id; mark.tabIndex = 0; mark.setAttribute('role', 'button'); mark.setAttribute('aria-label', `${token.matchedText}, protegido como ${token.entity.token}. Pulsa para quitar esta regla.`); dom.visualEditor.append(mark); } else { const mark = document.createElement('mark'); mark.className = `search-mark${token.searchIndex === state.activeMatchIndex ? ' active' : ''}`; mark.textContent = token.matchedText; mark.dataset.searchIndex = String(token.searchIndex); dom.visualEditor.append(mark); } cursor = token.end; } if (cursor < state.rawText.length) dom.visualEditor.append(document.createTextNode(state.rawText.slice(cursor))); updateSearchControls(); renderIndex(); requestAnimationFrame(focusActiveMatch); }
-      function updateSearchControls() { const total = state.searchMatches.length; if (!state.searchQuery.trim()) dom.searchStatus.textContent = 'Sin búsqueda'; else if (!total) dom.searchStatus.textContent = '0 coincidencias sin proteger'; else dom.searchStatus.textContent = `${state.activeMatchIndex + 1} de ${total}`; dom.btnPrevMatch.disabled = state.activeMatchIndex <= 0; dom.btnNextMatch.disabled = state.activeMatchIndex < 0 || state.activeMatchIndex >= total - 1; }
-      function focusActiveMatch() { dom.visualEditor.querySelectorAll('.search-mark').forEach(mark => mark.classList.remove('active')); dom.indexList.querySelectorAll('.match-row').forEach(row => row.classList.remove('active')); if (state.activeMatchIndex < 0) return; const mark = dom.visualEditor.querySelector(`[data-search-index="${state.activeMatchIndex}"]`); if (mark) { mark.classList.add('active'); mark.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); } const row = dom.indexList.querySelector(`[data-match-index="${state.activeMatchIndex}"]`); if (row) { row.classList.add('active'); if (state.indexOpen) row.scrollIntoView({ block: 'nearest' }); } updateSearchControls(); }
-      function openIndex() { state.indexOpen = true; dom.indexPane.hidden = false; dom.workbench.classList.add('with-index'); dom.btnToggleIndex.setAttribute('aria-expanded', 'true'); dom.btnToggleIndex.textContent = 'Ocultar contexto'; renderIndex(); }
-      function closeIndex() { state.indexOpen = false; dom.indexPane.hidden = true; dom.workbench.classList.remove('with-index'); dom.btnToggleIndex.setAttribute('aria-expanded', 'false'); dom.btnToggleIndex.textContent = 'Ver contexto'; }
-      dom.btnToggleIndex.addEventListener('click', () => state.indexOpen ? closeIndex() : openIndex()); dom.btnCloseIndex.addEventListener('click', closeIndex);
-      function renderIndex() { dom.indexList.replaceChildren(); const query = state.searchQuery.trim(); if (!query) { const p = document.createElement('p'); p.className = 'index-empty'; p.textContent = 'Escribe una búsqueda para ver sus apariciones con contexto.'; dom.indexList.append(p); return; } if (!state.searchMatches.length) { const p = document.createElement('p'); p.className = 'index-empty'; p.textContent = 'No quedan coincidencias sin proteger para esta búsqueda.'; dom.indexList.append(p); return; } for (const match of state.searchMatches) { const row = document.createElement('article'); row.className = `match-row${match.index === state.activeMatchIndex ? ' active' : ''}`; row.dataset.matchIndex = String(match.index); const meta = document.createElement('div'); meta.className = 'match-meta'; const number = document.createElement('span'); number.className = 'match-number'; number.textContent = `Aparición ${match.index + 1}`; const see = document.createElement('button'); see.type = 'button'; see.className = 'btn btn-small'; see.dataset.action = 'focus-match'; see.textContent = 'Ver'; meta.append(number, see); const snippet = document.createElement('p'); snippet.className = 'snippet'; const start = Math.max(0, match.start - 44); const end = Math.min(state.rawText.length, match.end + 44); snippet.append(document.createTextNode((start > 0 ? '…' : '') + state.rawText.slice(start, match.start))); const highlighted = document.createElement('mark'); highlighted.textContent = match.matchedText; snippet.append(highlighted); snippet.append(document.createTextNode(state.rawText.slice(match.end, end) + (end < state.rawText.length ? '…' : ''))); const expand = document.createElement('div'); expand.className = 'expand-controls'; const left = document.createElement('button'); left.type = 'button'; left.className = 'btn btn-small'; left.dataset.action = 'expand-left'; left.textContent = '← palabra'; const input = document.createElement('input'); input.type = 'text'; input.value = state.rawText.slice(match.expandedStart, match.expandedEnd); input.dataset.role = 'expanded-input'; input.setAttribute('aria-label', 'Fragmento exacto a proteger'); const right = document.createElement('button'); right.type = 'button'; right.className = 'btn btn-small'; right.dataset.action = 'expand-right'; right.textContent = 'palabra →'; expand.append(left, input, right); const cats = document.createElement('div'); cats.className = 'match-categories'; for (const [category, label] of Object.entries(categoryLabels)) { const button = document.createElement('button'); button.type = 'button'; button.dataset.action = 'protect-expanded'; button.dataset.category = category; button.textContent = label; cats.append(button); } row.append(meta, snippet, expand, cats); dom.indexList.append(row); } }
-      dom.searchInput.addEventListener('input', event => { state.searchQuery = event.target.value; state.activeMatchIndex = -1; renderVisual(); });
-      dom.btnClearSearch.addEventListener('click', () => { dom.searchInput.value = ''; state.searchQuery = ''; state.activeMatchIndex = -1; renderVisual(); dom.searchInput.focus(); });
-      dom.btnPrevMatch.addEventListener('click', () => { if (state.activeMatchIndex > 0) { state.activeMatchIndex--; focusActiveMatch(); } }); dom.btnNextMatch.addEventListener('click', () => { if (state.activeMatchIndex < state.searchMatches.length - 1) { state.activeMatchIndex++; focusActiveMatch(); } });
-      function expandMatch(index, direction) { const match = state.searchMatches[index]; if (!match) return; if (direction === 'left') { const before = state.rawText.slice(0, match.expandedStart); const found = before.match(/\S+\s*$/u); if (found) match.expandedStart -= found[0].length; } else { const after = state.rawText.slice(match.expandedEnd); const found = after.match(/^\s*\S+/u); if (found) match.expandedEnd += found[0].length; } renderIndex(); }
-      dom.indexList.addEventListener('click', event => { const row = event.target.closest('.match-row'); if (!row) return; const index = Number(row.dataset.matchIndex); const action = event.target.closest('[data-action]')?.dataset.action; if (action === 'focus-match') { state.activeMatchIndex = index; focusActiveMatch(); return; } if (action === 'expand-left' || action === 'expand-right') { expandMatch(index, action.endsWith('left') ? 'left' : 'right'); return; } if (action === 'protect-expanded') { const input = row.querySelector('[data-role="expanded-input"]'); addEntity(input.value, event.target.dataset.category); } });
-      function handleSelection() { window.setTimeout(() => { const selection = window.getSelection(); if (!selection || selection.rangeCount === 0 || selection.isCollapsed) { dom.selectionBar.hidden = true; state.currentSelection = ''; return; } const range = selection.getRangeAt(0); const inside = dom.visualEditor.contains(range.commonAncestorContainer); if (!inside) return; const text = selection.toString().trim(); if (text.length < 2) { dom.selectionBar.hidden = true; return; } state.currentSelection = text; dom.selectionText.textContent = text.length > 100 ? `${text.slice(0, 100)}…` : text; dom.selectionBar.hidden = false; }, 0); }
-      dom.visualEditor.addEventListener('mouseup', handleSelection); dom.visualEditor.addEventListener('keyup', handleSelection);
-      document.querySelector('.category-actions').addEventListener('click', event => { const button = event.target.closest('[data-category]'); if (!button || !state.currentSelection) return; addEntity(state.currentSelection, button.dataset.category); window.getSelection()?.removeAllRanges(); });
-      function addEntity(text, category) { const clean = text.trim(); if (!clean || !categoryLabels[category]) return; const existing = state.entities.find(entity => entity.original.toLocaleLowerCase('es') === clean.toLocaleLowerCase('es')); if (existing) { showToast(`Ya está protegido como ${existing.token}.`); return; } const regex = entityRegex(clean); if (!regex.test(state.rawText)) { showToast('Ese fragmento ya no coincide con el texto de trabajo.'); return; } state.counters[category]++; const entity = { id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, original: clean, token: `[${category}_${state.counters[category]}]`, type: category }; state.entities.push(entity); state.currentSelection = ''; dom.selectionBar.hidden = true; renderAll(); showToast(`${clean} → ${entity.token}`); }
-      function removeEntity(id) { const entity = state.entities.find(item => item.id === id); if (!entity) return; state.entities = state.entities.filter(item => item.id !== id); renderAll(); showToast(`Regla ${entity.token} eliminada.`); }
-      dom.visualEditor.addEventListener('click', event => { const entityMark = event.target.closest('.entity-mark[data-entity-id]'); if (entityMark) removeEntity(entityMark.dataset.entityId); const searchMark = event.target.closest('.search-mark[data-search-index]'); if (searchMark) { state.activeMatchIndex = Number(searchMark.dataset.searchIndex); openIndex(); focusActiveMatch(); } });
-      dom.visualEditor.addEventListener('keydown', event => { const entityMark = event.target.closest('.entity-mark[data-entity-id]'); if (entityMark && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); removeEntity(entityMark.dataset.entityId); } });
-      function getAnonymizedText() { let text = state.rawText; const entities = [...state.entities].sort((a, b) => b.original.length - a.original.length); for (const entity of entities) text = text.replace(entityRegex(entity.original), entity.token); return text; }
-      function renderRegistry() { dom.registryBody.replaceChildren(); dom.entityCountTab.textContent = String(state.entities.length); dom.restoreEntityCount.textContent = String(state.entities.length); if (!state.entities.length) { const empty = document.createElement('div'); empty.className = 'registry-empty'; empty.textContent = 'Todavía no has protegido ningún dato.'; dom.registryBody.append(empty); return; } for (const entity of state.entities) { const row = document.createElement('div'); row.className = 'registry-row'; const token = document.createElement('code'); token.textContent = entity.token; const type = document.createElement('span'); type.className = 'type-label'; type.textContent = categoryLabels[entity.type]; const original = document.createElement('span'); original.className = 'registry-value'; original.textContent = entity.original; const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-small btn-danger'; remove.textContent = 'Quitar'; remove.dataset.entityId = entity.id; row.append(token, type, original, remove); dom.registryBody.append(row); } }
-      dom.registryBody.addEventListener('click', event => { const button = event.target.closest('button[data-entity-id]'); if (button) removeEntity(button.dataset.entityId); });
-      function updatePrimaryAction() { const hasText = state.rawText.trim().length > 0; const hasEntities = state.entities.length > 0; dom.btnGenerate.disabled = !(hasText && hasEntities); if (!hasText) setStatus(dom.protectStatus, 'Empieza pegando o escribiendo un texto.'); else if (!hasEntities) setStatus(dom.protectStatus, '<strong>Texto cargado.</strong> Pasa a “Marcar datos” y protege al menos un fragmento antes de generar la copia.', 'warning'); else setStatus(dom.protectStatus, `<strong>${state.entities.length} ${state.entities.length === 1 ? 'regla activa' : 'reglas activas'}.</strong> Revisa las marcas antes de generar el texto anonimizado.`, 'success'); }
-      function renderAll() { if (state.mode === 'mark') renderVisual(); renderRegistry(); updatePrimaryAction(); }
-      async function copyText(text, message) { if (!text.trim()) return; try { if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text); else { const helper = document.createElement('textarea'); helper.value = text; helper.setAttribute('readonly', ''); helper.style.position = 'fixed'; helper.style.opacity = '0'; document.body.append(helper); helper.select(); const ok = document.execCommand('copy'); helper.remove(); if (!ok) throw new Error('copy failed'); } showToast(message); } catch { showToast('No se pudo copiar automáticamente. Selecciona el texto y usa Ctrl+C.'); } }
-      dom.btnPaste.addEventListener('click', async () => { setMode('edit'); try { if (!navigator.clipboard || !window.isSecureContext) throw new Error('insecure'); const text = await navigator.clipboard.readText(); if (!text) { showToast('El portapapeles no contiene texto.'); return; } dom.rawEditor.value = text; syncRawText(); showToast('Texto pegado.'); } catch { dom.rawEditor.focus(); showToast('El navegador no permite leer el portapapeles aquí. Usa Ctrl+V en el editor.'); } });
-      dom.btnReset.addEventListener('click', () => { const hasSession = state.rawText.trim() || state.entities.length || dom.aiAnswer.value.trim(); if (hasSession && !window.confirm('¿Empezar una sesión nueva? Se borrarán el texto, las reglas y la respuesta restaurada.')) return; state.rawText = ''; state.entities = []; state.counters = { PERSONA: 0, EMPRESA: 0, UBICACION: 0, SECRETO: 0 }; state.searchQuery = ''; state.searchMatches = []; state.activeMatchIndex = -1; dom.rawEditor.value = ''; dom.searchInput.value = ''; dom.aiAnswer.value = ''; dom.restoredOutput.value = ''; dom.btnCopyRestored.disabled = true; closeIndex(); setMode('edit'); renderAll(); showToast('Sesión reiniciada.'); });
-      function openModal() { state.lastFocusedBeforeModal = document.activeElement; dom.anonymizedOutput.value = getAnonymizedText(); dom.modalSummary.textContent = `${state.entities.length} ${state.entities.length === 1 ? 'regla aplicada' : 'reglas aplicadas'}. Revisa que no quede ningún dato sensible sin sustituir.`; dom.promptModal.hidden = false; dom.btnCloseModal.focus(); document.body.style.overflow = 'hidden'; }
-      function closeModal() { dom.promptModal.hidden = true; document.body.style.overflow = ''; state.lastFocusedBeforeModal?.focus(); }
-      dom.btnGenerate.addEventListener('click', () => { syncRawText(); if (!state.rawText.trim() || !state.entities.length) return; openModal(); }); dom.btnCloseModal.addEventListener('click', closeModal); dom.promptModal.addEventListener('click', event => { if (event.target === dom.promptModal) closeModal(); });
-      dom.promptModal.addEventListener('keydown', event => { if (event.key === 'Escape') { closeModal(); return; } if (event.key !== 'Tab') return; const focusables = [...dom.promptModal.querySelectorAll('button:not(:disabled), textarea:not(:disabled)')]; const first = focusables[0]; const last = focusables[focusables.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } });
-      dom.btnCopyPrompt.addEventListener('click', () => copyText(dom.anonymizedOutput.value, 'Texto anonimizado copiado.')); dom.btnGoRestore.addEventListener('click', () => { closeModal(); setPanel('restore'); dom.aiAnswer.focus(); });
-      dom.btnRestore.addEventListener('click', () => { let text = dom.aiAnswer.value; if (!text.trim()) { dom.restoredOutput.value = ''; dom.btnCopyRestored.disabled = true; setStatus(dom.restoreStatus, 'Pega primero una respuesta de la IA.', 'warning'); return; } if (!state.entities.length) { dom.restoredOutput.value = text; dom.btnCopyRestored.disabled = false; setStatus(dom.restoreStatus, 'No hay entidades en esta sesión; no se ha realizado ninguna sustitución.', 'warning'); return; } let restored = text; let replacements = 0; for (const entity of state.entities) { const regex = new RegExp(escapeRegExp(entity.token), 'gi'); const hits = restored.match(regex)?.length || 0; replacements += hits; restored = restored.replace(regex, entity.original); } dom.restoredOutput.value = restored; dom.btnCopyRestored.disabled = !restored.trim(); if (replacements) setStatus(dom.restoreStatus, `<strong>${replacements} ${replacements === 1 ? 'identificador restaurado' : 'identificadores restaurados'}.</strong> Revisa el resultado antes de usarlo.`, 'success'); else setStatus(dom.restoreStatus, 'No se encontró ningún identificador conocido en la respuesta.', 'warning'); });
-      dom.btnCopyRestored.addEventListener('click', () => copyText(dom.restoredOutput.value, 'Resultado copiado.'));
-      window.addEventListener('beforeunload', event => { if (!state.rawText.trim() && !state.entities.length) return; event.preventDefault(); event.returnValue = ''; });
-      renderRegistry(); updatePrimaryAction();
-    })();
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
