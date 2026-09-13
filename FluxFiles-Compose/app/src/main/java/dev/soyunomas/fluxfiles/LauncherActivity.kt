@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,11 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
@@ -27,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -45,14 +49,15 @@ class LauncherActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FluxThemeV5 {
-                val vm: BrowserViewModel = viewModel()
+                val vm: BrowserViewModelV53 = viewModel()
                 val state by vm.state.collectAsStateWithLifecycle()
+                val canWrite by vm.canWrite.collectAsStateWithLifecycle()
                 var about by remember { mutableStateOf(false) }
                 var inspector by remember { mutableStateOf<InspectorRequestV5?>(null) }
                 var zipSources by remember { mutableStateOf<List<StorageEntry>?>(null) }
 
                 when {
-                    zipSources != null && state.treeUri != null && state.currentLocation != null -> {
+                    zipSources != null && state.treeUri != null && state.currentLocation != null && canWrite -> {
                         ZipCreatorV52(
                             sources = zipSources!!,
                             treeUri = state.treeUri!!,
@@ -64,6 +69,7 @@ class LauncherActivity : ComponentActivity() {
                             },
                         )
                     }
+
                     inspector != null -> {
                         val request = inspector!!
                         val tree = state.treeUri
@@ -72,7 +78,8 @@ class LauncherActivity : ComponentActivity() {
                             request.tab == InspectorTabV5.PREVIEW &&
                             previewKindV5(request.entry) == PreviewKindV5.ZIP &&
                             tree != null &&
-                            destination != null
+                            destination != null &&
+                            canWrite
                         ) {
                             ZipInspectorV51(
                                 entry = request.entry,
@@ -89,44 +96,104 @@ class LauncherActivity : ComponentActivity() {
                             )
                         }
                     }
+
                     about -> {
                         AboutScreenV5 { about = false }
                     }
+
                     else -> {
-                        ZipSelectionOverlayV52(
-                            state = state,
-                            onCreateZip = { selected ->
-                                if (selected.isNotEmpty()) zipSources = selected
-                            },
-                        ) {
-                            BrowserScreenV5(
-                                state = state,
-                                onTreeSelected = vm::selectTree,
-                                onDirectoryClick = vm::openDirectory,
-                                onNavigateUp = { vm.navigateUp() },
-                                onRefresh = vm::refresh,
-                                onErrorConsumed = vm::consumeError,
-                                onMessageConsumed = vm::consumeMessage,
-                                onOpenAbout = { about = true },
-                                onInspect = { entry, tab -> inspector = InspectorRequestV5(entry, tab) },
-                                onCreateFolder = vm::createFolder,
-                                onRename = vm::rename,
-                                onDelete = vm::delete,
-                                onEnterSelection = vm::enterSelection,
-                                onStartSelection = vm::startSelection,
-                                onToggleSelection = vm::toggleSelection,
-                                onSelectAll = vm::selectAll,
-                                onClearSelection = vm::clearSelection,
-                                onBeginCopy = { vm.beginTransfer(TransferMode.COPY) },
-                                onBeginMove = { vm.beginTransfer(TransferMode.MOVE) },
-                                onCancelTransfer = vm::cancelTransfer,
-                                onPasteHere = vm::pasteHere,
-                                onResolveConflict = vm::resolveConflict,
-                            )
+                        Box(Modifier.fillMaxSize()) {
+                            if (canWrite) {
+                                ZipSelectionOverlayV52(
+                                    state = state,
+                                    onCreateZip = { selected ->
+                                        if (selected.isNotEmpty() && vm.requestWriteAction("crear un ZIP")) {
+                                            zipSources = selected
+                                        }
+                                    },
+                                ) {
+                                    BrowserContentV53(
+                                        state = state,
+                                        vm = vm,
+                                        onOpenAbout = { about = true },
+                                        onInspect = { entry, tab ->
+                                            inspector = InspectorRequestV5(entry, tab)
+                                        },
+                                    )
+                                }
+                            } else {
+                                BrowserContentV53(
+                                    state = state,
+                                    vm = vm,
+                                    onOpenAbout = { about = true },
+                                    onInspect = { entry, tab ->
+                                        inspector = InspectorRequestV5(entry, tab)
+                                    },
+                                )
+                                if (state.treeUri != null) {
+                                    ReadOnlyBadgeV53(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .padding(bottom = 88.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BrowserContentV53(
+    state: BrowserUiState,
+    vm: BrowserViewModelV53,
+    onOpenAbout: () -> Unit,
+    onInspect: (StorageEntry, InspectorTabV5) -> Unit,
+) {
+    BrowserScreenV5(
+        state = state,
+        onTreeSelected = vm::selectTree,
+        onDirectoryClick = vm::openDirectory,
+        onNavigateUp = { vm.navigateUp() },
+        onRefresh = vm::refresh,
+        onErrorConsumed = vm::consumeError,
+        onMessageConsumed = vm::consumeMessage,
+        onOpenAbout = onOpenAbout,
+        onInspect = onInspect,
+        onCreateFolder = vm::createFolder,
+        onRename = vm::rename,
+        onDelete = vm::delete,
+        onEnterSelection = vm::enterSelection,
+        onStartSelection = vm::startSelection,
+        onToggleSelection = vm::toggleSelection,
+        onSelectAll = vm::selectAll,
+        onClearSelection = vm::clearSelection,
+        onBeginCopy = { vm.beginTransfer(TransferMode.COPY) },
+        onBeginMove = { vm.beginTransfer(TransferMode.MOVE) },
+        onCancelTransfer = vm::cancelTransfer,
+        onPasteHere = vm::pasteHere,
+        onResolveConflict = vm::resolveConflict,
+    )
+}
+
+@Composable
+private fun ReadOnlyBadgeV53(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 6.dp,
+        shadowElevation = 3.dp,
+    ) {
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.Lock, contentDescription = null)
+            Spacer(Modifier.padding(horizontal = 4.dp))
+            Text("Solo lectura", fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -169,7 +236,7 @@ private fun AboutScreenV5(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                "Implementación propia en Kotlin y Jetpack Compose. Esta versión incorpora creación y extracción segura de ZIP, además de detalles y vistas previas internas de archivos."
+                "Implementación propia en Kotlin y Jetpack Compose. Esta versión estabiliza la navegación SAF, detecta ubicaciones de solo lectura y conserva las funciones de creación y extracción segura de ZIP."
             )
             Spacer(Modifier.height(16.dp))
             Text(
