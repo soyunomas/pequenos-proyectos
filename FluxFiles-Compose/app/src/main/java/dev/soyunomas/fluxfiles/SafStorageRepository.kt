@@ -13,6 +13,8 @@ import java.util.Locale
 import java.util.UUID
 
 class SafStorageRepository(context: Context) : StorageFileSystem {
+    override val backendId: StorageBackendId = SAF_BACKEND
+
     private val resolver: ContentResolver = context.contentResolver
     private val collator = Collator.getInstance(Locale.getDefault()).apply { strength = Collator.PRIMARY }
 
@@ -172,7 +174,7 @@ class SafStorageRepository(context: Context) : StorageFileSystem {
         }
     }
 
-    override fun persistRootPermission(root: StorageRootRef) {
+    override fun persistRootAccess(root: StorageRootRef) {
         require(root.backend == SAF_BACKEND) { "Backend no compatible con SAF" }
         val rootUri = Uri.parse(root.opaqueId)
         val both = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -180,10 +182,16 @@ class SafStorageRepository(context: Context) : StorageFileSystem {
             .getOrElse { resolver.takePersistableUriPermission(rootUri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
     }
 
-    override fun hasPersistedPermission(root: StorageRootRef): Boolean {
+    override fun hasRootAccess(root: StorageRootRef): Boolean {
         if (root.backend != SAF_BACKEND) return false
         val rootUri = Uri.parse(root.opaqueId)
         return resolver.persistedUriPermissions.any { it.uri == rootUri && it.isReadPermission }
+    }
+
+    override fun canWrite(root: StorageRootRef): Boolean {
+        if (root.backend != SAF_BACKEND) return false
+        val rootUri = Uri.parse(root.opaqueId)
+        return resolver.persistedUriPermissions.any { it.uri == rootUri && it.isWritePermission }
     }
 
     private fun copyEntryRecursive(
