@@ -4,6 +4,8 @@ import java.io.InputStream
 import java.io.OutputStream
 
 interface StorageRepository {
+    val backendId: StorageBackendId
+
     fun rootLocation(root: StorageRootRef): BrowserLocation
     fun listChildren(location: BrowserLocation): List<StorageEntry>
     fun createFolder(parent: BrowserLocation, name: String): StorageEntry
@@ -31,8 +33,14 @@ interface StorageRepository {
         move: Boolean,
     )
 
-    fun persistRootPermission(root: StorageRootRef)
-    fun hasPersistedPermission(root: StorageRootRef): Boolean
+    /** Persist whatever access/credentials this backend needs for a root, when applicable. */
+    fun persistRootAccess(root: StorageRootRef)
+
+    /** True when a previously stored root can still be opened by this backend. */
+    fun hasRootAccess(root: StorageRootRef): Boolean
+
+    /** True when the backend currently allows mutations below this root. */
+    fun canWrite(root: StorageRootRef): Boolean
 }
 
 /**
