@@ -1,5 +1,6 @@
 package dev.soyunomas.fluxfiles
 
+import android.content.Context
 import android.net.Uri
 
 interface StorageRepository {
@@ -35,4 +36,8 @@ interface StorageRepository {
 
     fun persistTreePermission(uri: Uri)
     fun hasPersistedPermission(uri: Uri): Boolean
+
+    companion object {
+        operator fun invoke(context: Context): StorageRepository = SafStorageRepository(context)
+    }
 }
