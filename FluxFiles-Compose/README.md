@@ -2,9 +2,9 @@
 
 Reescritura independiente de Flux Files en **Kotlin + Jetpack Compose**. Este árbol no reutiliza código, clases, recursos ni nombres internos de `FluxFiles-Android/source/`.
 
-## Estado actual — 0.5.6
+## Estado actual — 0.5.8
 
-Flux Files ya cubre el flujo local principal sobre Storage Access Framework (SAF):
+Flux Files cubre el flujo local principal sobre Storage Access Framework (SAF):
 
 - selección y persistencia de una ubicación autorizada por el usuario;
 - navegación por carpetas y detección de ubicaciones de solo lectura;
@@ -12,24 +12,30 @@ Flux Files ya cubre el flujo local principal sobre Storage Access Framework (SAF
 - selección múltiple;
 - copiar y mover con resolución de conflictos: reemplazar, omitir, conservar ambos o cancelar;
 - apertura e inspección interna de archivos;
-- previsualizaciones básicas;
+- previsualizaciones básicas de imágenes, texto y ZIP;
 - inspección y extracción segura de ZIP;
 - creación de ZIP desde la selección;
 - interfaz propia con Jetpack Compose y Material 3.
 
-### Arquitectura 0.5.6
+### Arquitectura 0.5.8
 
-La capa común deja de modelar archivos con `android.net.Uri` o `documentId` SAF:
+La capa común ya no modela archivos con `android.net.Uri` ni con `documentId` SAF:
 
 - `StorageBackendId`, `StorageRootRef` y `StorageRef` representan backend, raíz y entradas mediante identificadores opacos;
-- `StorageEntry` distingue archivo/directorio con `StorageEntryKind` y ya no contiene tipos Android;
+- `StorageEntry` distingue archivo/directorio con `StorageEntryKind` y no contiene tipos Android;
 - `BrowserLocation` y `BrowserUiState` usan referencias neutrales al backend;
-- `StorageRepository` ya no acepta `Uri` y expone operaciones de filesystem sobre referencias comunes;
+- `StorageRepository` expone operaciones de filesystem sobre referencias comunes;
+- `StorageContentAccess` añade creación de archivos y acceso mediante `InputStream`/`OutputStream`;
+- `StorageFileSystem` combina operaciones y acceso a contenido sin depender de Android;
 - `TransferOperationEngine` no importa Android y resuelve identidad/conflictos mediante `StorageRef`;
-- `SafStorageRepository` interpreta las referencias opacas y encapsula `DocumentsContract`/`ContentResolver`;
-- `SafInterop.kt` mantiene temporalmente la compatibilidad con previews y ZIP de la rama 0.5.x, convirtiendo refs SAF a `Uri` solo en la frontera Android.
+- `SafStorageRepository` implementa `StorageFileSystem` y encapsula `DocumentsContract`/`ContentResolver`;
+- `FileInspectorV5` consume streams del filesystem para imágenes, texto y lectura de ZIP;
+- `ZipCreatorV52` y `ZipInspectorV51` ya crean, leen, escriben y eliminan contenido únicamente mediante `StorageFileSystem`;
+- la creación/extracción ZIP conserva límites de entradas y tamaño, validación de rutas, progreso, cancelación y limpieza de resultados parciales.
 
-Esto todavía no es el backend remoto completo: SAF sigue siendo la única implementación conectada a la UI. El siguiente paso es separar capacidades de lectura/escritura de streams y eliminar el uso directo de `Uri` en inspector/ZIP antes de introducir SFTP, SMB, FTP y WebDAV.
+SAF sigue siendo la única implementación conectada a la UI. La separación actual permite que los futuros backends SFTP, SMB, FTP y WebDAV reutilicen el flujo de contenido y ZIP sin simular documentos SAF.
+
+`SafInterop.kt` continúa como frontera temporal para partes antiguas del navegador Compose que todavía requieren conversiones SAF. No forma parte del modelo de dominio ni de las operaciones ZIP nuevas.
 
 ## Principios del proyecto
 
@@ -40,9 +46,9 @@ Esto todavía no es el backend remoto completo: SAF sigue siendo la única imple
 
 ## Próximos pasos
 
-1. Definir capacidades de filesystem para abrir streams, exponer contenido y resolver acciones externas sin filtrar `Uri` a la capa común.
-2. Migrar inspector, previews y ZIP para consumir esas capacidades en lugar de `SafInterop`.
-3. Mover las operaciones largas a una cola propia con progreso, cancelación y ejecución independiente del ciclo de vida de pantalla.
+1. Eliminar las dependencias restantes de `SafInterop` en el navegador activo y representar favoritos mediante `StorageRef`.
+2. Mover copiar, mover y operaciones ZIP largas a una cola propia independiente del ciclo de vida de pantalla, con progreso y cancelación.
+3. Definir capacidades por backend y selección de filesystem sin cablear `SafStorageRepository` directamente en la UI.
 4. Completar la estabilización 0.5.x y comenzar 0.6.x con backends remotos separados: SFTP, SMB, FTP y WebDAV.
 
 ## Compilar
