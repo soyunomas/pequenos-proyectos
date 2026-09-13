@@ -82,3 +82,8 @@ private class AndroidExternalFileOpener(
         }
     }
 }
+
+/** Compatibility entry point for browser actions; SAF details stay behind the adapter. */
+fun openExternalV5(context: Context, entry: StorageEntry) {
+    AndroidStorageServices.externalFileOpener(context).open(entry)
+}
