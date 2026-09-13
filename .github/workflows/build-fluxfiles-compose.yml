@@ -10,6 +10,7 @@ on:
       - fluxfiles-compose-0.5.7
       - fluxfiles-compose-0.5.8
       - fluxfiles-compose-0.5.9
+      - fluxfiles-compose-0.5.10
     paths:
       - 'FluxFiles-Compose/**'
       - '.github/workflows/build-fluxfiles-compose.yml'
@@ -48,14 +49,14 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FluxFiles-Compose-0.5.9-debug
+          name: FluxFiles-Compose-0.5.10-debug
           path: FluxFiles-Compose/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
       - name: Upload source
         uses: actions/upload-artifact@v4
         with:
-          name: FluxFiles-Compose-0.5.9-source
+          name: FluxFiles-Compose-0.5.10-source
           path: |
             FluxFiles-Compose
             !FluxFiles-Compose/.gradle/**
