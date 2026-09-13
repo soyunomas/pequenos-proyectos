@@ -27,3 +27,29 @@ val BrowserLocation.documentId: String
         require(ref.backend == SafStorageRepository.SAF_BACKEND) { "La ubicación no pertenece al backend SAF" }
         return DocumentsContract.getDocumentId(Uri.parse(ref.opaqueId))
     }
+
+/**
+ * Temporary source-compatibility factory for legacy SAF-only helpers that still build
+ * StorageEntry values from a document Uri. It deliberately lives outside BrowserModels
+ * so Android types do not leak back into the domain model.
+ */
+@Suppress("FunctionName", "UNUSED_PARAMETER")
+fun StorageEntry(
+    documentId: String,
+    uri: Uri,
+    name: String,
+    mimeType: String,
+    sizeBytes: Long?,
+    modifiedAtMillis: Long?,
+): StorageEntry = StorageEntry(
+    ref = StorageRef(SafStorageRepository.SAF_BACKEND, uri.toString()),
+    name = name,
+    kind = if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+        StorageEntryKind.DIRECTORY
+    } else {
+        StorageEntryKind.FILE
+    },
+    mimeType = mimeType,
+    sizeBytes = sizeBytes,
+    modifiedAtMillis = modifiedAtMillis,
+)
