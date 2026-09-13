@@ -51,3 +51,14 @@ jobs:
           name: FluxFiles-Compose-0.5.9-debug
           path: FluxFiles-Compose/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Upload source
+        uses: actions/upload-artifact@v4
+        with:
+          name: FluxFiles-Compose-0.5.9-source
+          path: |
+            FluxFiles-Compose
+            !FluxFiles-Compose/.gradle/**
+            !FluxFiles-Compose/app/build/**
+            !FluxFiles-Compose/build/**
+          if-no-files-found: error
