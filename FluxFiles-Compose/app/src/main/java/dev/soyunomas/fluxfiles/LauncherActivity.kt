@@ -3,8 +3,10 @@ package dev.soyunomas.fluxfiles
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,9 +55,14 @@ class LauncherActivity : ComponentActivity() {
                 val state by vm.state.collectAsStateWithLifecycle()
                 val canWrite by vm.canWrite.collectAsStateWithLifecycle()
                 val fileSystem: StorageFileSystem = remember { SafStorageRepository(applicationContext) }
+                val rootPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+                    uri?.let(vm::selectTree)
+                }
                 var about by remember { mutableStateOf(false) }
                 var inspector by remember { mutableStateOf<InspectorRequestV5?>(null) }
                 var zipSources by remember { mutableStateOf<List<StorageEntry>?>(null) }
+
+                val chooseLocation = { rootPicker.launch(null) }
 
                 when {
                     zipSources != null && state.currentLocation != null && canWrite -> {
@@ -114,6 +121,7 @@ class LauncherActivity : ComponentActivity() {
                                     BrowserContentV53(
                                         state = state,
                                         vm = vm,
+                                        onChooseLocation = chooseLocation,
                                         onOpenAbout = { about = true },
                                         onInspect = { entry, tab ->
                                             inspector = InspectorRequestV5(entry, tab)
@@ -124,6 +132,7 @@ class LauncherActivity : ComponentActivity() {
                                 BrowserContentV53(
                                     state = state,
                                     vm = vm,
+                                    onChooseLocation = chooseLocation,
                                     onOpenAbout = { about = true },
                                     onInspect = { entry, tab ->
                                         inspector = InspectorRequestV5(entry, tab)
@@ -149,12 +158,13 @@ class LauncherActivity : ComponentActivity() {
 private fun BrowserContentV53(
     state: BrowserUiState,
     vm: BrowserViewModelV53,
+    onChooseLocation: () -> Unit,
     onOpenAbout: () -> Unit,
     onInspect: (StorageEntry, InspectorTabV5) -> Unit,
 ) {
     BrowserScreenV5(
         state = state,
-        onTreeSelected = vm::selectTree,
+        onChooseLocation = onChooseLocation,
         onDirectoryClick = vm::openDirectory,
         onNavigateUp = { vm.navigateUp() },
         onRefresh = vm::refresh,
@@ -235,11 +245,11 @@ private fun AboutScreenV5(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                "Implementación propia en Kotlin y Jetpack Compose. Las vistas previas y las operaciones ZIP trabajan sobre la abstracción de almacenamiento de Flux Files en lugar de depender directamente de SAF."
+                "Implementación propia en Kotlin y Jetpack Compose. El navegador, las vistas previas y las operaciones ZIP trabajan sobre referencias y operaciones de almacenamiento propias de Flux Files."
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                "El backend disponible en esta versión sigue siendo Storage Access Framework (SAF); la separación permite incorporar backends remotos sin rehacer las operaciones de contenido.",
+                "El backend disponible en esta versión sigue siendo Storage Access Framework (SAF). El selector de Android queda aislado en la actividad para permitir añadir otros proveedores sin acoplar la pantalla del navegador.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
