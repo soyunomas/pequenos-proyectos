@@ -1,27 +1,43 @@
 # Flux Files Compose
 
-Reescritura independiente de Flux Files en **Kotlin + Jetpack Compose**. Este árbol no reutiliza el código de `FluxFiles-Android/source/`.
+Reescritura independiente de Flux Files en **Kotlin + Jetpack Compose**. Este árbol no reutiliza código, clases, recursos ni nombres internos de `FluxFiles-Android/source/`.
 
-## 0.1.0: objetivo de validación UX
+## Estado actual — 0.5.4
 
-Esta primera versión está hecha para validar la experiencia básica antes de añadir operaciones destructivas.
+Flux Files ya cubre el flujo local principal sobre Storage Access Framework (SAF):
 
-- interfaz Material 3 propia;
-- selección de ubicación mediante Storage Access Framework (SAF), sin pedir acceso global al almacenamiento;
-- permiso persistente únicamente para la carpeta elegida por el usuario;
-- navegación por carpetas con botón Atrás y navegación del sistema;
-- carpetas antes que archivos y orden alfabético local;
-- tamaño y fecha de modificación en archivos;
-- apertura de archivos con aplicaciones Android compatibles;
-- estados explícitos de primera ejecución, carga, carpeta vacía y error;
-- tema claro/oscuro;
-- objetivos táctiles amplios y filas legibles.
+- selección y persistencia de una ubicación autorizada por el usuario;
+- navegación por carpetas y detección de ubicaciones de solo lectura;
+- creación de carpetas, renombrado y borrado;
+- selección múltiple;
+- copiar y mover con resolución de conflictos: reemplazar, omitir, conservar ambos o cancelar;
+- apertura e inspección interna de archivos;
+- previsualizaciones básicas;
+- inspección y extracción segura de ZIP;
+- creación de ZIP desde la selección;
+- interfaz propia con Jetpack Compose y Material 3.
 
-## Decisiones de UX
+### Cambio de arquitectura en 0.5.4
 
-La primera pantalla no solicita permisos invasivos. Explica qué acceso necesita la aplicación y deja al usuario escoger una ubicación mediante el selector del sistema. Flux Files recuerda esa autorización para no obligar a repetirla en cada inicio.
+La ejecución de copiar/mover y su política de conflictos se han extraído de `BrowserViewModelV53` a `TransferOperationEngine`. El ViewModel conserva únicamente la coordinación con el estado de pantalla y las respuestas del usuario.
 
-Las funciones de borrar, mover, copiar o renombrar quedan fuera de 0.1.0 de forma intencionada: primero se valida navegación, densidad de información, jerarquía visual y comprensión del modelo de acceso.
+Es el primer paso para separar operaciones, filesystem y UI antes de introducir almacenamiento remoto. La siguiente refactorización debe sacar de `MainActivity.kt` los modelos y `StorageRepository`, que aún proceden de la evolución incremental del prototipo, y convertir el backend SAF en una implementación explícita de un contrato de filesystem propio.
+
+No se añadirá SFTP, SMB, FTP o WebDAV directamente sobre las clases actuales: los backends remotos deberán entrar detrás de la misma abstracción que el almacenamiento local.
+
+## Principios del proyecto
+
+- Namespace y `applicationId`: `dev.soyunomas.fluxfiles`.
+- Implementación independiente; Material Files puede servir como referencia de comportamiento, no como fuente de código.
+- SAF por defecto: Flux Files solo trabaja con ubicaciones autorizadas por el usuario y no solicita acceso global al almacenamiento para el flujo normal.
+- Las operaciones largas deben quedar fuera de los ViewModels y evolucionar hacia una cola cancelable con progreso y trabajo en segundo plano.
+
+## Próximos pasos
+
+1. Extraer modelos y contrato de filesystem fuera de `MainActivity.kt` y eliminar la implementación antigua que ya no es launcher.
+2. Encapsular SAF como backend local independiente de Compose.
+3. Mover las operaciones largas a una capa/cola propia con progreso y cancelación.
+4. Completar la estabilización 0.5.x y, sobre esa base, comenzar 0.6.x con protocolos remotos por separado.
 
 ## Compilar
 
@@ -31,4 +47,4 @@ Requisitos: JDK 17+, Android SDK 35 y Gradle 8.9.
 gradle :app:assembleDebug
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`.
+APK de depuración: `app/build/outputs/apk/debug/app-debug.apk`.
