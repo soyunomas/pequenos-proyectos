@@ -12,8 +12,8 @@ android {
         applicationId = "dev.soyunomas.fluxfiles"
         minSdk = 23
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.5.8"
+        versionCode = 15
+        versionName = "0.5.9"
         vectorDrawables { useSupportLibrary = true }
     }
 
