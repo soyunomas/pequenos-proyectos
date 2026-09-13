@@ -1,9 +1,5 @@
 package dev.soyunomas.fluxfiles
 
-import android.content.ContentResolver
-import android.content.Context
-import android.net.Uri
-import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,7 +37,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -94,26 +89,26 @@ private sealed interface ZipCreateStateV52 {
 @Composable
 fun ZipCreatorV52(
     sources: List<StorageEntry>,
-    treeUri: Uri,
     destination: BrowserLocation,
+    fileSystem: StorageFileSystem,
     onBack: () -> Unit,
     onCreated: () -> Unit,
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val creator = remember(context) { SafZipCreatorV52(context) }
-    var archiveName by remember(sources.map { it.documentId }) {
+    val creator = remember(fileSystem) { StorageZipCreatorV52(fileSystem) }
+    val sourceRefs = remember(sources) { sources.map { it.ref } }
+    var archiveName by remember(sourceRefs) {
         mutableStateOf(defaultArchiveNameV52(sources))
     }
-    var state by remember(sources.map { it.documentId }) {
+    var state by remember(sourceRefs) {
         mutableStateOf<ZipCreateStateV52>(ZipCreateStateV52.Scanning)
     }
-    var creationJob by remember(sources.map { it.documentId }) { mutableStateOf<Job?>(null) }
+    var creationJob by remember(sourceRefs) { mutableStateOf<Job?>(null) }
 
     fun scan() {
         state = ZipCreateStateV52.Scanning
         scope.launch {
-            state = runCatching { creator.scan(treeUri, sources) }
+            state = runCatching { creator.scan(sources) }
                 .fold(
                     onSuccess = { ZipCreateStateV52.Ready(it) },
                     onFailure = {
@@ -134,7 +129,6 @@ fun ZipCreatorV52(
             )
             try {
                 val result = creator.create(
-                    treeUri = treeUri,
                     destination = destination,
                     sources = sources,
                     requestedName = archiveName,
@@ -156,7 +150,7 @@ fun ZipCreatorV52(
         }
     }
 
-    LaunchedEffect(sources.map { it.documentId }) { scan() }
+    LaunchedEffect(sourceRefs) { scan() }
 
     BackHandler {
         if (creationJob?.isActive == true) creationJob?.cancel() else onBack()
@@ -422,21 +416,20 @@ private fun CenterCreateStatusV52(
     }
 }
 
-private class SafZipCreatorV52(context: Context) {
-    private val resolver: ContentResolver = context.contentResolver
-
-    suspend fun scan(treeUri: Uri, sources: List<StorageEntry>): ZipCreateScanV52 = withContext(Dispatchers.IO) {
+private class StorageZipCreatorV52(
+    private val fileSystem: StorageFileSystem,
+) {
+    suspend fun scan(sources: List<StorageEntry>): ZipCreateScanV52 = withContext(Dispatchers.IO) {
         require(sources.isNotEmpty()) { "No hay elementos seleccionados" }
         val accumulator = ScanAccumulatorV52()
         val seenPaths = hashSetOf<String>()
         sources.forEach { source ->
-            scanEntry(treeUri, source, safeComponentV52(source.name), accumulator, seenPaths)
+            scanEntry(source, safeComponentV52(source.name), accumulator, seenPaths)
         }
         accumulator.toResult()
     }
 
     suspend fun create(
-        treeUri: Uri,
         destination: BrowserLocation,
         sources: List<StorageEntry>,
         requestedName: String,
@@ -444,32 +437,20 @@ private class SafZipCreatorV52(context: Context) {
     ): ZipCreateResultV52 = withContext(Dispatchers.IO) {
         require(sources.isNotEmpty()) { "No hay elementos seleccionados" }
         val normalized = requireNotNull(normalizeArchiveNameV52(requestedName)) { "Nombre de ZIP no válido" }
-        val outputName = uniqueArchiveName(treeUri, destination, normalized)
-        val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, destination.documentId)
-        val outputUri = checkNotNull(
-            DocumentsContract.createDocument(
-                resolver,
-                parentUri,
-                "application/zip",
-                outputName,
-            )
-        ) { "No se pudo crear “$outputName”" }
+        val outputName = uniqueArchiveName(destination, normalized)
+        val outputEntry = fileSystem.createFile(destination, outputName, "application/zip")
 
-        val scan = scan(treeUri, sources)
+        val scan = scan(sources)
         var completedEntries = 0
         var processedBytes = 0L
         val emittedPaths = hashSetOf<String>()
         var success = false
 
         try {
-            val rawOutput = checkNotNull(resolver.openOutputStream(outputUri, "w")) {
-                "No se pudo escribir “$outputName”"
-            }
-            ZipOutputStream(rawOutput.buffered()).use { zip ->
+            ZipOutputStream(fileSystem.openOutput(outputEntry).buffered()).use { zip ->
                 sources.forEach { source ->
                     val topPath = safeComponentV52(source.name)
                     writeEntry(
-                        treeUri = treeUri,
                         source = source,
                         path = topPath,
                         zip = zip,
@@ -497,14 +478,11 @@ private class SafZipCreatorV52(context: Context) {
             success = true
             ZipCreateResultV52(outputName, completedEntries, processedBytes)
         } finally {
-            if (!success) {
-                runCatching { DocumentsContract.deleteDocument(resolver, outputUri) }
-            }
+            if (!success) runCatching { fileSystem.delete(outputEntry) }
         }
     }
 
     private suspend fun scanEntry(
-        treeUri: Uri,
         source: StorageEntry,
         path: String,
         accumulator: ScanAccumulatorV52,
@@ -519,9 +497,8 @@ private class SafZipCreatorV52(context: Context) {
 
         if (source.isDirectory) {
             accumulator.directories++
-            listChildren(treeUri, source.documentId).forEach { child ->
+            fileSystem.listChildren(BrowserLocation(source.ref, source.name)).forEach { child ->
                 scanEntry(
-                    treeUri,
                     child,
                     "$path/${safeComponentV52(child.name)}",
                     accumulator,
@@ -543,7 +520,6 @@ private class SafZipCreatorV52(context: Context) {
     }
 
     private suspend fun writeEntry(
-        treeUri: Uri,
         source: StorageEntry,
         path: String,
         zip: ZipOutputStream,
@@ -562,10 +538,7 @@ private class SafZipCreatorV52(context: Context) {
         var bytes = 0L
         try {
             if (!source.isDirectory) {
-                val input = checkNotNull(resolver.openInputStream(source.uri)) {
-                    "No se pudo leer “${source.name}”"
-                }
-                input.use { stream ->
+                fileSystem.openInput(source).use { stream ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
                         currentCoroutineContext().ensureActive()
@@ -586,9 +559,8 @@ private class SafZipCreatorV52(context: Context) {
         onEntryComplete(path, bytes)
 
         if (source.isDirectory) {
-            listChildren(treeUri, source.documentId).forEach { child ->
+            fileSystem.listChildren(BrowserLocation(source.ref, source.name)).forEach { child ->
                 writeEntry(
-                    treeUri = treeUri,
                     source = child,
                     path = "$path/${safeComponentV52(child.name)}",
                     zip = zip,
@@ -599,38 +571,8 @@ private class SafZipCreatorV52(context: Context) {
         }
     }
 
-    private fun listChildren(treeUri: Uri, documentId: String): List<StorageEntry> {
-        val uri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
-        val projection = arrayOf(
-            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-            DocumentsContract.Document.COLUMN_MIME_TYPE,
-            DocumentsContract.Document.COLUMN_SIZE,
-            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
-        )
-        val result = mutableListOf<StorageEntry>()
-        resolver.query(uri, projection, null, null, null)?.use { cursor ->
-            while (cursor.moveToNext()) {
-                val id = cursor.getString(0)
-                result += StorageEntry(
-                    documentId = id,
-                    uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id),
-                    name = cursor.getString(1) ?: "Sin nombre",
-                    mimeType = cursor.getString(2) ?: "application/octet-stream",
-                    sizeBytes = if (cursor.isNull(3)) null else cursor.getLong(3),
-                    modifiedAtMillis = if (cursor.isNull(4)) null else cursor.getLong(4),
-                )
-            }
-        }
-        return result
-    }
-
-    private fun uniqueArchiveName(
-        treeUri: Uri,
-        destination: BrowserLocation,
-        requested: String,
-    ): String {
-        val names = childNames(treeUri, destination)
+    private fun uniqueArchiveName(destination: BrowserLocation, requested: String): String {
+        val names = fileSystem.listChildren(destination).mapTo(hashSetOf()) { it.name }
         if (requested !in names) return requested
         val stem = requested.dropLast(4)
         var index = 1
@@ -639,21 +581,6 @@ private class SafZipCreatorV52(context: Context) {
             if (candidate !in names) return candidate
             index++
         }
-    }
-
-    private fun childNames(treeUri: Uri, destination: BrowserLocation): Set<String> {
-        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, destination.documentId)
-        val result = hashSetOf<String>()
-        resolver.query(
-            childrenUri,
-            arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-            null,
-            null,
-            null,
-        )?.use { cursor ->
-            while (cursor.moveToNext()) cursor.getString(0)?.let(result::add)
-        }
-        return result
     }
 }
 
