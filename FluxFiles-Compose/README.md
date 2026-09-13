@@ -2,7 +2,7 @@
 
 Reescritura independiente de Flux Files en **Kotlin + Jetpack Compose**. Este árbol no reutiliza código, clases, recursos ni nombres internos de `FluxFiles-Android/source/`.
 
-## Estado actual — 0.5.9
+## Estado actual — 0.5.10
 
 Flux Files cubre el flujo local principal sobre Storage Access Framework (SAF):
 
@@ -18,29 +18,26 @@ Flux Files cubre el flujo local principal sobre Storage Access Framework (SAF):
 - búsqueda en la carpeta actual, ordenación, lista/cuadrícula y favoritos;
 - interfaz propia con Jetpack Compose y Material 3.
 
-### Arquitectura 0.5.9
+### Arquitectura 0.5.10
 
-La capa común no modela archivos con `android.net.Uri` ni con `documentId` SAF:
+La capa de navegación y operaciones trabaja con referencias neutrales al backend:
 
 - `StorageBackendId`, `StorageRootRef` y `StorageRef` representan backend, raíz y entradas mediante identificadores opacos;
-- `StorageEntry` distingue archivo/directorio con `StorageEntryKind` y no contiene tipos Android;
-- `BrowserLocation` y `BrowserUiState` usan referencias neutrales al backend;
-- `StorageRepository` expone operaciones de filesystem sobre referencias comunes;
-- `StorageContentAccess` añade creación de archivos y acceso mediante `InputStream`/`OutputStream`;
-- `StorageFileSystem` combina operaciones y acceso a contenido sin depender de Android;
-- `TransferOperationEngine` no importa Android y resuelve identidad/conflictos mediante `StorageRef`;
-- `SafStorageRepository` implementa `StorageFileSystem` y encapsula `DocumentsContract`/`ContentResolver`;
-- `FileInspectorV5` consume streams del filesystem para imágenes, texto y lectura de ZIP;
-- `ZipCreatorV52` y `ZipInspectorV51` crean, leen, escriben y eliminan contenido mediante `StorageFileSystem`;
-- el navegador activo `BrowserScreenV5` ya no usa `treeUri`, `documentId` ni `DocumentsContract` para navegación, selección o favoritos;
-- los favoritos se persisten con `StorageRef` completo (`backend + opaqueId`) y se abren sin reconstruir documentos SAF;
-- `OpenDocumentTree` vive en `LauncherActivity`, como frontera Android, y la pantalla solo solicita `onChooseLocation`.
+- `StorageEntry`, `BrowserLocation` y `BrowserUiState` no contienen `Uri`, `documentId` ni tipos Android;
+- `StorageRepository` declara ahora su `backendId` y modela el acceso a una raíz con `persistRootAccess`, `hasRootAccess` y `canWrite`, sin asumir permisos SAF;
+- `StorageContentAccess` expone creación de archivos y streams, y `StorageFileSystem` combina ambas capacidades;
+- `StorageBackendRegistry` resuelve cada `StorageRootRef`, `StorageRef`, `BrowserLocation` o `StorageEntry` al filesystem que lo posee;
+- `AndroidStorageServices` es el punto de composición Android: registra SAF hoy y podrá registrar backends adicionales sin modificar navegador, previews o ZIP;
+- `BrowserViewModelV53` ya no importa `Uri`, no instancia `SafStorageRepository` y selecciona el filesystem mediante el registro;
+- la raíz persistida guarda `backend + opaqueId`; la preferencia histórica `tree_uri` se migra una sola vez;
+- `FileInspectorV5` recibe el filesystem y un callback de apertura externa, sin construir SAF ni convertir referencias a `Uri`;
+- `AndroidExternalFileOpener` mantiene `ACTION_VIEW` y la conversión SAF en un adaptador de plataforma separado;
+- `BrowserScreenV5` delega la apertura externa a un helper de plataforma respaldado por adaptadores por backend y no contiene lógica SAF;
+- `BrowserScreenV4.kt` y `SafInterop.kt` se han eliminado al no tener consumidores activos.
 
-SAF sigue siendo la única implementación conectada a la aplicación. La separación actual permite que futuros backends SFTP, SMB, FTP y WebDAV reutilicen navegación, favoritos, contenido y ZIP sin simular documentos SAF.
+SAF sigue siendo el único backend real registrado en esta versión. El registro no implementa todavía SFTP, SMB, FTP o WebDAV, ni habilita transferencias entre backends; prepara el punto de extensión para hacerlo sin volver a acoplar la UI.
 
-`SafInterop.kt` continúa temporalmente para compatibilidad con código Compose antiguo y para acciones Android que necesitan un `Uri`, como `ACTION_VIEW`. Ya no participa en la identidad ni en los favoritos del navegador activo.
-
-> Nota de migración: los favoritos guardados por versiones anteriores usaban `documentId` SAF. 0.5.9 inicia el formato neutral de favoritos, por lo que esas entradas antiguas no se importan automáticamente.
+Los favoritos introducidos en 0.5.9 continúan usando el formato neutral `StorageRef` (`backend + opaqueId`).
 
 ## Principios del proyecto
 
@@ -51,10 +48,10 @@ SAF sigue siendo la única implementación conectada a la aplicación. La separa
 
 ## Próximos pasos
 
-1. Sustituir el adaptador SAF de apertura externa por una capacidad Android separada que pueda preparar también contenido remoto.
-2. Mover copiar, mover y operaciones ZIP largas a una cola propia independiente del ciclo de vida de pantalla, con progreso y cancelación.
-3. Introducir un registro/fábrica de backends para seleccionar `StorageFileSystem` sin instanciar SAF directamente en los puntos de composición.
-4. Completar la estabilización 0.5.x y comenzar 0.6.x con backends remotos separados: SFTP, SMB, FTP y WebDAV.
+1. Sacar copiar/mover del `viewModelScope` y ejecutar transferencias largas mediante una cola de operaciones independiente del ciclo de vida de pantalla.
+2. Llevar creación/extracción ZIP a la misma cola, con progreso y cancelación compartidos.
+3. Definir persistencia/reanudación y notificaciones para operaciones que continúen fuera de la pantalla.
+4. Tras estabilizar la cola, comenzar 0.6.x con backends remotos separados (SFTP, SMB, FTP y WebDAV) registrados mediante `StorageBackendRegistry`.
 
 ## Compilar
 
