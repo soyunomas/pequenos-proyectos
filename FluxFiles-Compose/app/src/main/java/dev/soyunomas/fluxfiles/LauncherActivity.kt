@@ -54,9 +54,12 @@ class LauncherActivity : ComponentActivity() {
                 val vm: BrowserViewModelV53 = viewModel()
                 val state by vm.state.collectAsStateWithLifecycle()
                 val canWrite by vm.canWrite.collectAsStateWithLifecycle()
-                val fileSystem: StorageFileSystem = remember { SafStorageRepository(applicationContext) }
+                val backends = remember { AndroidStorageServices.registry(applicationContext) }
+                val externalFileOpener = remember {
+                    AndroidStorageServices.externalFileOpener(this@LauncherActivity)
+                }
                 val rootPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-                    uri?.let { vm.selectTree(it) }
+                    uri?.let { vm.selectRoot(AndroidStorageServices.safRoot(it)) }
                 }
                 var about by remember { mutableStateOf(false) }
                 var inspector by remember { mutableStateOf<InspectorRequestV5?>(null) }
@@ -66,10 +69,11 @@ class LauncherActivity : ComponentActivity() {
 
                 when {
                     zipSources != null && state.currentLocation != null && canWrite -> {
+                        val destination = state.currentLocation!!
                         ZipCreatorV52(
                             sources = zipSources!!,
-                            destination = state.currentLocation!!,
-                            fileSystem = fileSystem,
+                            destination = destination,
+                            fileSystem = backends.fileSystemFor(destination),
                             onBack = { zipSources = null },
                             onCreated = {
                                 vm.clearSelection()
@@ -90,7 +94,7 @@ class LauncherActivity : ComponentActivity() {
                             ZipInspectorV51(
                                 entry = request.entry,
                                 destination = destination,
-                                fileSystem = fileSystem,
+                                fileSystem = backends.fileSystemFor(request.entry),
                                 onBack = { inspector = null },
                                 onExtracted = vm::refresh,
                             )
@@ -98,6 +102,8 @@ class LauncherActivity : ComponentActivity() {
                             FileInspectorV5(
                                 entry = request.entry,
                                 initialTab = request.tab,
+                                fileSystem = backends.fileSystemFor(request.entry),
+                                onOpenExternal = externalFileOpener::open,
                                 onBack = { inspector = null },
                             )
                         }
@@ -249,7 +255,7 @@ private fun AboutScreenV5(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                "El backend disponible en esta versión sigue siendo Storage Access Framework (SAF). El selector de Android queda aislado en la actividad para permitir añadir otros proveedores sin acoplar la pantalla del navegador.",
+                "El backend disponible en esta versión sigue siendo Storage Access Framework (SAF). La selección de filesystem y la apertura externa se resuelven mediante un registro de backends y adaptadores de plataforma, sin acoplar el navegador al proveedor concreto.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
