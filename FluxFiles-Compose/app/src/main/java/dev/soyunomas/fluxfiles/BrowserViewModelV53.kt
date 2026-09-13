@@ -2,7 +2,6 @@ package dev.soyunomas.fluxfiles
 
 import android.app.Application
 import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -16,10 +15,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
-    private val repo: StorageRepository = SafStorageRepository(app)
-    private val transferEngine = TransferOperationEngine(repo)
+    private val backends = AndroidStorageServices.registry(app)
     private val prefs = app.getSharedPreferences("flux_files", Context.MODE_PRIVATE)
-    private val resolver = app.contentResolver
 
     private val _state = MutableStateFlow(BrowserUiState())
     val state = _state.asStateFlow()
@@ -32,17 +29,15 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     private var loadGeneration = 0L
 
     init {
-        prefs.getString("tree_uri", null)
-            ?.let(::safRootRef)
-            ?.takeIf(repo::hasPersistedPermission)
+        restoreRoot()
+            ?.takeIf { root ->
+                backends.supports(root.backend) &&
+                    runCatching { backends.fileSystemFor(root).hasRootAccess(root) }.getOrDefault(false)
+            }
             ?.let { selectRoot(it, persist = false) }
     }
 
-    fun selectTree(uri: Uri, persist: Boolean = true) {
-        selectRoot(safRootRef(uri.toString()), persist)
-    }
-
-    private fun selectRoot(root: StorageRootRef, persist: Boolean) {
+    fun selectRoot(root: StorageRootRef, persist: Boolean = true) {
         if (_state.value.pendingTransfer != null || _state.value.isMutating) return
 
         val generation = ++loadGeneration
@@ -61,13 +56,14 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
 
         loadJob = viewModelScope.launch {
             try {
-                if (persist) withContext(Dispatchers.IO) { repo.persistRootPermission(root) }
-                val rootLocation = withContext(Dispatchers.IO) { repo.rootLocation(root) }
-                val entries = withContext(Dispatchers.IO) { repo.listChildren(rootLocation) }
+                val fileSystem = backends.fileSystemFor(root)
+                if (persist) withContext(Dispatchers.IO) { fileSystem.persistRootAccess(root) }
+                val rootLocation = withContext(Dispatchers.IO) { fileSystem.rootLocation(root) }
+                val entries = withContext(Dispatchers.IO) { fileSystem.listChildren(rootLocation) }
                 if (generation != loadGeneration) return@launch
 
-                prefs.edit().putString("tree_uri", root.opaqueId).apply()
-                _canWrite.value = hasPersistedWritePermission(root)
+                saveRoot(root)
+                _canWrite.value = withContext(Dispatchers.IO) { fileSystem.canWrite(root) }
                 _state.update {
                     it.copy(
                         storageRoot = root,
@@ -117,18 +113,20 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         if (stack.isNotEmpty()) loadLocation(stack, clearEntries = false)
     }
 
-    fun createFolder(name: String) = mutate("Carpeta creada") { snapshot ->
-        repo.createFolder(snapshot.currentLocation ?: error("No hay carpeta abierta"), validName(name))
+    fun createFolder(name: String) = mutate("Carpeta creada") { fileSystem, snapshot ->
+        fileSystem.createFolder(snapshot.currentLocation ?: error("No hay carpeta abierta"), validName(name))
     }
 
-    fun rename(entry: StorageEntry, name: String) = mutate("Renombrado correctamente") {
-        repo.rename(entry, validName(name))
+    fun rename(entry: StorageEntry, name: String) = mutate("Renombrado correctamente") { fileSystem, _ ->
+        require(entry.ref.backend == fileSystem.backendId) { "El elemento pertenece a otro backend" }
+        fileSystem.rename(entry, validName(name))
     }
 
     fun delete(entry: StorageEntry) = mutate(
         if (entry.isDirectory) "Carpeta eliminada" else "Archivo eliminado"
-    ) {
-        repo.delete(entry)
+    ) { fileSystem, _ ->
+        require(entry.ref.backend == fileSystem.backendId) { "El elemento pertenece a otro backend" }
+        fileSystem.delete(entry)
     }
 
     fun enterSelection() {
@@ -224,6 +222,10 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(isMutating = true, isLoading = false, errorMessage = null) }
 
             try {
+                require(transfer.entries.all { it.ref.backend == destination.ref.backend }) {
+                    "Las transferencias entre backends todavía no están habilitadas"
+                }
+                val transferEngine = TransferOperationEngine(backends.fileSystemFor(destination))
                 when (
                     val result = transferEngine.execute(
                         transfer = transfer,
@@ -332,7 +334,8 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
 
         loadJob = viewModelScope.launch {
             try {
-                val list = withContext(Dispatchers.IO) { repo.listChildren(location) }
+                val fileSystem = backends.fileSystemFor(location)
+                val list = withContext(Dispatchers.IO) { fileSystem.listChildren(location) }
                 if (generation != loadGeneration) return@launch
                 _state.update { current ->
                     current.copy(
@@ -368,15 +371,25 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun mutate(success: String, block: suspend (BrowserUiState) -> Unit) {
+    private fun mutate(
+        success: String,
+        block: suspend (StorageFileSystem, BrowserUiState) -> Unit,
+    ) {
         if (!requireWriteAccess("modificar esta ubicación")) return
         if (_state.value.isMutating || _state.value.isSelectionMode) return
         val snapshot = _state.value
+        val location = snapshot.currentLocation ?: return
         invalidateLoads()
 
         viewModelScope.launch {
             _state.update { it.copy(isMutating = true, isLoading = false, errorMessage = null) }
-            runCatching { withContext(Dispatchers.IO) { block(snapshot) } }
+            val fileSystem = runCatching { backends.fileSystemFor(location) }
+                .getOrElse {
+                    _state.update { it.copy(isMutating = false) }
+                    setError(it, "Backend no disponible")
+                    return@launch
+                }
+            runCatching { withContext(Dispatchers.IO) { block(fileSystem, snapshot) } }
                 .onSuccess {
                     _state.update { it.copy(isMutating = false, message = success) }
                     refresh()
@@ -401,12 +414,6 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         return false
     }
 
-    private fun hasPersistedWritePermission(root: StorageRootRef): Boolean {
-        if (root.backend != SafStorageRepository.SAF_BACKEND) return false
-        val uri = Uri.parse(root.opaqueId)
-        return resolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
-    }
-
     private fun validName(raw: String): String {
         val name = raw.trim()
         require(name.isNotEmpty()) { "Escribe un nombre" }
@@ -424,5 +431,30 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(errorMessage = message) }
     }
 
-    private fun safRootRef(uri: String) = StorageRootRef(SafStorageRepository.SAF_BACKEND, uri)
+    private fun restoreRoot(): StorageRootRef? {
+        val backend = prefs.getString(PREF_ROOT_BACKEND, null)
+        val opaqueId = prefs.getString(PREF_ROOT_ID, null)
+        if (!backend.isNullOrBlank() && !opaqueId.isNullOrBlank()) {
+            return StorageRootRef(StorageBackendId(backend), opaqueId)
+        }
+
+        // One-time migration from the pre-0.5.10 SAF-only preference.
+        return prefs.getString(LEGACY_TREE_URI, null)
+            ?.takeIf(String::isNotBlank)
+            ?.let { StorageRootRef(backends.defaultBackendId, it) }
+    }
+
+    private fun saveRoot(root: StorageRootRef) {
+        prefs.edit()
+            .putString(PREF_ROOT_BACKEND, root.backend.value)
+            .putString(PREF_ROOT_ID, root.opaqueId)
+            .remove(LEGACY_TREE_URI)
+            .apply()
+    }
+
+    companion object {
+        private const val PREF_ROOT_BACKEND = "storage_root_backend"
+        private const val PREF_ROOT_ID = "storage_root_id"
+        private const val LEGACY_TREE_URI = "tree_uri"
+    }
 }
