@@ -1,10 +1,5 @@
 package dev.soyunomas.fluxfiles
 
-import android.content.ContentResolver
-import android.content.Context
-import android.net.Uri
-import android.provider.DocumentsContract
-import android.webkit.MimeTypeMap
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -49,7 +44,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -107,21 +101,20 @@ private sealed interface ZipScreenStateV51 {
 @Composable
 fun ZipInspectorV51(
     entry: StorageEntry,
-    treeUri: Uri,
     destination: BrowserLocation,
+    fileSystem: StorageFileSystem,
     onBack: () -> Unit,
     onExtracted: () -> Unit,
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val extractor = remember(context) { SafZipExtractorV51(context) }
-    var state by remember(entry.documentId) { mutableStateOf<ZipScreenStateV51>(ZipScreenStateV51.Scanning) }
-    var extractionJob by remember(entry.documentId) { mutableStateOf<Job?>(null) }
+    val extractor = remember(fileSystem) { StorageZipExtractorV51(fileSystem) }
+    var state by remember(entry.ref) { mutableStateOf<ZipScreenStateV51>(ZipScreenStateV51.Scanning) }
+    var extractionJob by remember(entry.ref) { mutableStateOf<Job?>(null) }
 
     fun loadScan() {
         state = ZipScreenStateV51.Scanning
         scope.launch {
-            state = runCatching { extractor.scan(entry.uri) }
+            state = runCatching { extractor.scan(entry) }
                 .fold(
                     onSuccess = { ZipScreenStateV51.Ready(it) },
                     onFailure = {
@@ -142,8 +135,7 @@ fun ZipInspectorV51(
             )
             try {
                 val result = extractor.extract(
-                    zipUri = entry.uri,
-                    treeUri = treeUri,
+                    zipEntry = entry,
                     destination = destination,
                     archiveName = entry.name,
                 ) { progress ->
@@ -164,14 +156,10 @@ fun ZipInspectorV51(
         }
     }
 
-    LaunchedEffect(entry.documentId) { loadScan() }
+    LaunchedEffect(entry.ref) { loadScan() }
 
     BackHandler {
-        if (extractionJob?.isActive == true) {
-            extractionJob?.cancel()
-        } else {
-            onBack()
-        }
+        if (extractionJob?.isActive == true) extractionJob?.cancel() else onBack()
     }
 
     Scaffold(
@@ -242,9 +230,7 @@ fun ZipInspectorV51(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     message = current.message,
                     canRetryExtraction = current.scan != null,
-                    onRetry = {
-                        current.scan?.let(::startExtraction) ?: loadScan()
-                    },
+                    onRetry = { current.scan?.let(::startExtraction) ?: loadScan() },
                     onBack = onBack,
                 )
             }
@@ -454,17 +440,17 @@ private fun CenterZipStatusV51(
     }
 }
 
-private class SafZipExtractorV51(context: Context) {
-    private val resolver: ContentResolver = context.contentResolver
-
-    suspend fun scan(zipUri: Uri): ZipScanV51 = withContext(Dispatchers.IO) {
+private class StorageZipExtractorV51(
+    private val fileSystem: StorageFileSystem,
+) {
+    suspend fun scan(zipEntry: StorageEntry): ZipScanV51 = withContext(Dispatchers.IO) {
         var count = 0
         var knownBytes = 0L
         var unknownSizes = false
         val visible = mutableListOf<ZipScanEntryV51>()
         val seenPaths = hashSetOf<String>()
 
-        openZip(zipUri).use { zip ->
+        openZip(zipEntry).use { zip ->
             while (true) {
                 currentCoroutineContext().ensureActive()
                 val entry = zip.nextEntry ?: break
@@ -496,32 +482,24 @@ private class SafZipExtractorV51(context: Context) {
     }
 
     suspend fun extract(
-        zipUri: Uri,
-        treeUri: Uri,
+        zipEntry: StorageEntry,
         destination: BrowserLocation,
         archiveName: String,
         onProgress: suspend (ZipProgressV51) -> Unit,
     ): ZipExtractionResultV51 = withContext(Dispatchers.IO) {
-        val rootName = uniqueFolderName(treeUri, destination, archiveBaseNameV51(archiveName))
-        val destinationUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, destination.documentId)
-        val rootUri = checkNotNull(
-            DocumentsContract.createDocument(
-                resolver,
-                destinationUri,
-                DocumentsContract.Document.MIME_TYPE_DIR,
-                rootName,
-            )
-        ) { "No se pudo crear la carpeta de extracción" }
+        val rootName = uniqueFolderName(destination, archiveBaseNameV51(archiveName))
+        val rootEntry = fileSystem.createFolder(destination, rootName)
+        val rootLocation = BrowserLocation(rootEntry.ref, rootEntry.name)
 
         var completed = 0
         var extractedBytes = 0L
-        val directoryUris = mutableMapOf<String, Uri>("" to rootUri)
+        val directoryLocations = mutableMapOf<String, BrowserLocation>("" to rootLocation)
         val createdPaths = hashSetOf<String>()
         var success = false
 
         try {
-            val totalEntries = countEntries(zipUri)
-            openZip(zipUri).use { zip ->
+            val totalEntries = countEntries(zipEntry)
+            openZip(zipEntry).use { zip ->
                 while (true) {
                     currentCoroutineContext().ensureActive()
                     val entry = zip.nextEntry ?: break
@@ -530,25 +508,15 @@ private class SafZipExtractorV51(context: Context) {
                     val segments = safePath.split('/')
 
                     if (entry.isDirectory) {
-                        ensureDirectoryPath(directoryUris, segments, rootUri)
+                        ensureDirectoryPath(directoryLocations, segments, rootLocation)
                     } else {
                         val parentSegments = segments.dropLast(1)
-                        val parentUri = ensureDirectoryPath(directoryUris, parentSegments, rootUri)
+                        val parent = ensureDirectoryPath(directoryLocations, parentSegments, rootLocation)
                         val fileName = segments.last()
-                        val fileUri = checkNotNull(
-                            DocumentsContract.createDocument(
-                                resolver,
-                                parentUri,
-                                mimeTypeForNameV51(fileName),
-                                fileName,
-                            )
-                        ) { "No se pudo crear “$safePath”" }
+                        val createdFile = fileSystem.createFile(parent, fileName, mimeTypeForNameV51(fileName))
 
                         try {
-                            val output = checkNotNull(resolver.openOutputStream(fileUri, "w")) {
-                                "No se pudo escribir “$safePath”"
-                            }
-                            output.use { stream ->
+                            fileSystem.openOutput(createdFile).use { stream ->
                                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                                 while (true) {
                                     currentCoroutineContext().ensureActive()
@@ -562,7 +530,7 @@ private class SafZipExtractorV51(context: Context) {
                                 }
                             }
                         } catch (t: Throwable) {
-                            runCatching { DocumentsContract.deleteDocument(resolver, fileUri) }
+                            runCatching { fileSystem.delete(createdFile) }
                             throw t
                         }
                     }
@@ -584,15 +552,13 @@ private class SafZipExtractorV51(context: Context) {
             success = true
             ZipExtractionResultV51(rootName, completed, extractedBytes)
         } finally {
-            if (!success) {
-                runCatching { DocumentsContract.deleteDocument(resolver, rootUri) }
-            }
+            if (!success) runCatching { fileSystem.delete(rootEntry) }
         }
     }
 
-    private fun countEntries(zipUri: Uri): Int {
+    private fun countEntries(zipEntry: StorageEntry): Int {
         var count = 0
-        openZip(zipUri).use { zip ->
+        openZip(zipEntry).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 count++
@@ -607,40 +573,30 @@ private class SafZipExtractorV51(context: Context) {
     }
 
     private fun ensureDirectoryPath(
-        known: MutableMap<String, Uri>,
+        known: MutableMap<String, BrowserLocation>,
         segments: List<String>,
-        rootUri: Uri,
-    ): Uri {
-        if (segments.isEmpty()) return rootUri
-        var currentUri = rootUri
+        rootLocation: BrowserLocation,
+    ): BrowserLocation {
+        if (segments.isEmpty()) return rootLocation
+        var current = rootLocation
         val built = mutableListOf<String>()
         segments.forEach { segment ->
             built += segment
             val key = built.joinToString("/")
             val existing = known[key]
             if (existing != null) {
-                currentUri = existing
+                current = existing
             } else {
-                currentUri = checkNotNull(
-                    DocumentsContract.createDocument(
-                        resolver,
-                        currentUri,
-                        DocumentsContract.Document.MIME_TYPE_DIR,
-                        segment,
-                    )
-                ) { "No se pudo crear la carpeta “$key”" }
-                known[key] = currentUri
+                val created = fileSystem.createFolder(current, segment)
+                current = BrowserLocation(created.ref, created.name)
+                known[key] = current
             }
         }
-        return currentUri
+        return current
     }
 
-    private fun uniqueFolderName(
-        treeUri: Uri,
-        destination: BrowserLocation,
-        base: String,
-    ): String {
-        val names = childNames(treeUri, destination)
+    private fun uniqueFolderName(destination: BrowserLocation, base: String): String {
+        val names = fileSystem.listChildren(destination).mapTo(hashSetOf()) { it.name }
         val cleanBase = base.ifBlank { "ZIP extraído" }
         if (cleanBase !in names) return cleanBase
         var index = 1
@@ -651,27 +607,8 @@ private class SafZipExtractorV51(context: Context) {
         }
     }
 
-    private fun childNames(treeUri: Uri, destination: BrowserLocation): Set<String> {
-        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, destination.documentId)
-        val result = hashSetOf<String>()
-        resolver.query(
-            childrenUri,
-            arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-            null,
-            null,
-            null,
-        )?.use { cursor ->
-            while (cursor.moveToNext()) {
-                cursor.getString(0)?.let(result::add)
-            }
-        }
-        return result
-    }
-
-    private fun openZip(uri: Uri): ZipInputStream {
-        val input = checkNotNull(resolver.openInputStream(uri)) { "No se pudo leer el ZIP" }
-        return ZipInputStream(input.buffered())
-    }
+    private fun openZip(entry: StorageEntry): ZipInputStream =
+        ZipInputStream(fileSystem.openInput(entry).buffered())
 }
 
 private fun safeZipPathV51(rawName: String): String {
@@ -700,8 +637,27 @@ private fun archiveBaseNameV51(name: String): String {
 }
 
 private fun mimeTypeForNameV51(name: String): String {
-    val extension = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
-    return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"
+    return when (name.substringAfterLast('.', "").lowercase(Locale.ROOT)) {
+        "txt", "log", "ini", "properties" -> "text/plain"
+        "md" -> "text/markdown"
+        "csv" -> "text/csv"
+        "html", "htm" -> "text/html"
+        "css" -> "text/css"
+        "xml" -> "application/xml"
+        "json" -> "application/json"
+        "pdf" -> "application/pdf"
+        "zip" -> "application/zip"
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "gif" -> "image/gif"
+        "webp" -> "image/webp"
+        "svg" -> "image/svg+xml"
+        "mp3" -> "audio/mpeg"
+        "wav" -> "audio/wav"
+        "mp4" -> "video/mp4"
+        "webm" -> "video/webm"
+        else -> "application/octet-stream"
+    }
 }
 
 private fun formatBytesZipV51(bytes: Long): String {
