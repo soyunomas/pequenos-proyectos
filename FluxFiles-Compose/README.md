@@ -2,7 +2,7 @@
 
 Reescritura independiente de Flux Files en **Kotlin + Jetpack Compose**. Este árbol no reutiliza código, clases, recursos ni nombres internos de `FluxFiles-Android/source/`.
 
-## Estado actual — 0.5.8
+## Estado actual — 0.5.9
 
 Flux Files cubre el flujo local principal sobre Storage Access Framework (SAF):
 
@@ -15,11 +15,12 @@ Flux Files cubre el flujo local principal sobre Storage Access Framework (SAF):
 - previsualizaciones básicas de imágenes, texto y ZIP;
 - inspección y extracción segura de ZIP;
 - creación de ZIP desde la selección;
+- búsqueda en la carpeta actual, ordenación, lista/cuadrícula y favoritos;
 - interfaz propia con Jetpack Compose y Material 3.
 
-### Arquitectura 0.5.8
+### Arquitectura 0.5.9
 
-La capa común ya no modela archivos con `android.net.Uri` ni con `documentId` SAF:
+La capa común no modela archivos con `android.net.Uri` ni con `documentId` SAF:
 
 - `StorageBackendId`, `StorageRootRef` y `StorageRef` representan backend, raíz y entradas mediante identificadores opacos;
 - `StorageEntry` distingue archivo/directorio con `StorageEntryKind` y no contiene tipos Android;
@@ -30,12 +31,16 @@ La capa común ya no modela archivos con `android.net.Uri` ni con `documentId` S
 - `TransferOperationEngine` no importa Android y resuelve identidad/conflictos mediante `StorageRef`;
 - `SafStorageRepository` implementa `StorageFileSystem` y encapsula `DocumentsContract`/`ContentResolver`;
 - `FileInspectorV5` consume streams del filesystem para imágenes, texto y lectura de ZIP;
-- `ZipCreatorV52` y `ZipInspectorV51` ya crean, leen, escriben y eliminan contenido únicamente mediante `StorageFileSystem`;
-- la creación/extracción ZIP conserva límites de entradas y tamaño, validación de rutas, progreso, cancelación y limpieza de resultados parciales.
+- `ZipCreatorV52` y `ZipInspectorV51` crean, leen, escriben y eliminan contenido mediante `StorageFileSystem`;
+- el navegador activo `BrowserScreenV5` ya no usa `treeUri`, `documentId` ni `DocumentsContract` para navegación, selección o favoritos;
+- los favoritos se persisten con `StorageRef` completo (`backend + opaqueId`) y se abren sin reconstruir documentos SAF;
+- `OpenDocumentTree` vive en `LauncherActivity`, como frontera Android, y la pantalla solo solicita `onChooseLocation`.
 
-SAF sigue siendo la única implementación conectada a la UI. La separación actual permite que los futuros backends SFTP, SMB, FTP y WebDAV reutilicen el flujo de contenido y ZIP sin simular documentos SAF.
+SAF sigue siendo la única implementación conectada a la aplicación. La separación actual permite que futuros backends SFTP, SMB, FTP y WebDAV reutilicen navegación, favoritos, contenido y ZIP sin simular documentos SAF.
 
-`SafInterop.kt` continúa como frontera temporal para partes antiguas del navegador Compose que todavía requieren conversiones SAF. No forma parte del modelo de dominio ni de las operaciones ZIP nuevas.
+`SafInterop.kt` continúa temporalmente para compatibilidad con código Compose antiguo y para acciones Android que necesitan un `Uri`, como `ACTION_VIEW`. Ya no participa en la identidad ni en los favoritos del navegador activo.
+
+> Nota de migración: los favoritos guardados por versiones anteriores usaban `documentId` SAF. 0.5.9 inicia el formato neutral de favoritos, por lo que esas entradas antiguas no se importan automáticamente.
 
 ## Principios del proyecto
 
@@ -46,9 +51,9 @@ SAF sigue siendo la única implementación conectada a la UI. La separación act
 
 ## Próximos pasos
 
-1. Eliminar las dependencias restantes de `SafInterop` en el navegador activo y representar favoritos mediante `StorageRef`.
+1. Sustituir el adaptador SAF de apertura externa por una capacidad Android separada que pueda preparar también contenido remoto.
 2. Mover copiar, mover y operaciones ZIP largas a una cola propia independiente del ciclo de vida de pantalla, con progreso y cancelación.
-3. Definir capacidades por backend y selección de filesystem sin cablear `SafStorageRepository` directamente en la UI.
+3. Introducir un registro/fábrica de backends para seleccionar `StorageFileSystem` sin instanciar SAF directamente en los puntos de composición.
 4. Completar la estabilización 0.5.x y comenzar 0.6.x con backends remotos separados: SFTP, SMB, FTP y WebDAV.
 
 ## Compilar
