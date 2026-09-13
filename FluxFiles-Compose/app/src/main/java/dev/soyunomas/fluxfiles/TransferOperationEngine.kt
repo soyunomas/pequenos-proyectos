@@ -1,6 +1,5 @@
 package dev.soyunomas.fluxfiles
 
-import android.net.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,19 +35,10 @@ class TransferExecutionException(
     cause: Throwable,
 ) : Exception(cause.message, cause)
 
-/**
- * Ejecuta una transferencia sin depender de Compose ni de un ViewModel.
- *
- * La UI conserva la responsabilidad de preguntar al usuario cómo resolver un conflicto;
- * el motor conserva la política de copia/movimiento, nombres alternativos y "aplicar a todos".
- * Esta separación permite sustituir el backend SAF en una fase posterior sin duplicar la
- * lógica de operaciones en cada pantalla.
- */
 class TransferOperationEngine(
     private val repository: StorageRepository,
 ) {
     suspend fun execute(
-        treeUri: Uri,
         transfer: PendingTransfer,
         destination: BrowserLocation,
         onProgress: suspend (TransferProgress) -> Unit,
@@ -60,34 +50,22 @@ class TransferOperationEngine(
 
         try {
             for ((index, entry) in transfer.entries.withIndex()) {
-                onProgress(
-                    TransferProgress(
-                        current = index + 1,
-                        total = transfer.entries.size,
-                        mode = transfer.mode,
-                    )
-                )
+                onProgress(TransferProgress(index + 1, transfer.entries.size, transfer.mode))
 
                 val existing = withContext(Dispatchers.IO) {
-                    findConflict(treeUri, destination, entry.name)
+                    findConflict(destination, entry.name)
                 }
 
                 var resolution: ConflictResolution? = null
                 if (existing != null) {
                     resolution = rememberedResolution
-                    if (
-                        resolution == null ||
-                        (resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
-                    ) {
+                    if (resolution == null || (resolution == ConflictResolution.REPLACE && existing.ref == entry.ref)) {
                         val answer = onConflict(TransferConflict(entry, existing))
                         if (answer.resolution == ConflictResolution.CANCEL) {
                             return TransferExecutionResult.Cancelled(transferred, skipped)
                         }
                         resolution = answer.resolution
-                        if (
-                            answer.applyToAll &&
-                            !(answer.resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)
-                        ) {
+                        if (answer.applyToAll && !(answer.resolution == ConflictResolution.REPLACE && existing.ref == entry.ref)) {
                             rememberedResolution = answer.resolution
                         }
                     }
@@ -98,28 +76,19 @@ class TransferOperationEngine(
 
                     ConflictResolution.KEEP_BOTH -> {
                         val uniqueName = withContext(Dispatchers.IO) {
-                            uniqueNameCaseAware(treeUri, destination, entry.name)
+                            uniqueNameCaseAware(destination, entry.name)
                         }
                         withContext(Dispatchers.IO) {
-                            transferEntry(
-                                treeUri = treeUri,
-                                transfer = transfer,
-                                destination = destination,
-                                entry = entry,
-                                targetName = uniqueName,
-                            )
+                            transferEntry(transfer, destination, entry, uniqueName)
                         }
                         transferred++
                     }
 
                     ConflictResolution.REPLACE -> {
                         val target = checkNotNull(existing)
-                        require(target.documentId != entry.documentId) {
-                            "No se puede reemplazar un elemento consigo mismo"
-                        }
+                        require(target.ref != entry.ref) { "No se puede reemplazar un elemento consigo mismo" }
                         withContext(Dispatchers.IO) {
                             repository.replaceEntry(
-                                treeUri = treeUri,
                                 source = entry,
                                 existing = target,
                                 sourceParent = transfer.sourceParent,
@@ -130,19 +99,11 @@ class TransferOperationEngine(
                         transferred++
                     }
 
-                    ConflictResolution.CANCEL -> {
-                        return TransferExecutionResult.Cancelled(transferred, skipped)
-                    }
+                    ConflictResolution.CANCEL -> return TransferExecutionResult.Cancelled(transferred, skipped)
 
                     null -> {
                         withContext(Dispatchers.IO) {
-                            transferEntry(
-                                treeUri = treeUri,
-                                transfer = transfer,
-                                destination = destination,
-                                entry = entry,
-                                targetName = entry.name,
-                            )
+                            transferEntry(transfer, destination, entry, entry.name)
                         }
                         transferred++
                     }
@@ -160,17 +121,15 @@ class TransferOperationEngine(
     }
 
     private fun transferEntry(
-        treeUri: Uri,
         transfer: PendingTransfer,
         destination: BrowserLocation,
         entry: StorageEntry,
         targetName: String,
     ) {
         if (transfer.mode == TransferMode.COPY) {
-            repository.copyEntry(treeUri, entry, destination, targetName)
+            repository.copyEntry(entry, destination, targetName)
         } else {
             repository.moveEntry(
-                treeUri = treeUri,
                 source = entry,
                 sourceParent = transfer.sourceParent,
                 destination = destination,
@@ -179,23 +138,15 @@ class TransferOperationEngine(
         }
     }
 
-    private fun findConflict(
-        treeUri: Uri,
-        destination: BrowserLocation,
-        name: String,
-    ): StorageEntry? {
-        val children = repository.listChildren(treeUri, destination)
+    private fun findConflict(destination: BrowserLocation, name: String): StorageEntry? {
+        val children = repository.listChildren(destination)
         children.firstOrNull { it.name == name }?.let { return it }
         val folded = name.lowercase(Locale.ROOT)
         return children.firstOrNull { it.name.lowercase(Locale.ROOT) == folded }
     }
 
-    private fun uniqueNameCaseAware(
-        treeUri: Uri,
-        destination: BrowserLocation,
-        originalName: String,
-    ): String {
-        val existing = repository.listChildren(treeUri, destination)
+    private fun uniqueNameCaseAware(destination: BrowserLocation, originalName: String): String {
+        val existing = repository.listChildren(destination)
             .mapTo(hashSetOf()) { it.name.lowercase(Locale.ROOT) }
         if (originalName.lowercase(Locale.ROOT) !in existing) return originalName
 
