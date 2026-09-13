@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
-    private val repo = StorageRepository(app)
+    private val repo: StorageRepository = SafStorageRepository(app)
     private val transferEngine = TransferOperationEngine(repo)
     private val prefs = app.getSharedPreferences("flux_files", Context.MODE_PRIVATE)
     private val resolver = app.contentResolver
@@ -33,19 +33,23 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
 
     init {
         prefs.getString("tree_uri", null)
-            ?.let(Uri::parse)
+            ?.let(::safRootRef)
             ?.takeIf(repo::hasPersistedPermission)
-            ?.let { selectTree(it, false) }
+            ?.let { selectRoot(it, persist = false) }
     }
 
     fun selectTree(uri: Uri, persist: Boolean = true) {
+        selectRoot(safRootRef(uri.toString()), persist)
+    }
+
+    private fun selectRoot(root: StorageRootRef, persist: Boolean) {
         if (_state.value.pendingTransfer != null || _state.value.isMutating) return
 
         val generation = ++loadGeneration
         loadJob?.cancel()
         _state.update {
             it.copy(
-                treeUri = uri,
+                storageRoot = root,
                 navigationStack = emptyList(),
                 entries = emptyList(),
                 selectedIds = emptySet(),
@@ -57,19 +61,17 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
 
         loadJob = viewModelScope.launch {
             try {
-                if (persist) {
-                    withContext(Dispatchers.IO) { repo.persistTreePermission(uri) }
-                }
-                val root = withContext(Dispatchers.IO) { repo.rootLocation(uri) }
-                val entries = withContext(Dispatchers.IO) { repo.listChildren(uri, root) }
+                if (persist) withContext(Dispatchers.IO) { repo.persistRootPermission(root) }
+                val rootLocation = withContext(Dispatchers.IO) { repo.rootLocation(root) }
+                val entries = withContext(Dispatchers.IO) { repo.listChildren(rootLocation) }
                 if (generation != loadGeneration) return@launch
 
-                prefs.edit().putString("tree_uri", uri.toString()).apply()
-                _canWrite.value = hasPersistedWritePermission(uri)
+                prefs.edit().putString("tree_uri", root.opaqueId).apply()
+                _canWrite.value = hasPersistedWritePermission(root)
                 _state.update {
                     it.copy(
-                        treeUri = uri,
-                        navigationStack = listOf(root),
+                        storageRoot = root,
+                        navigationStack = listOf(rootLocation),
                         entries = entries,
                         isLoading = false,
                         selectedIds = emptySet(),
@@ -98,7 +100,7 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         val snapshot = _state.value
         if (!entry.isDirectory || snapshot.isMutating || snapshot.isSelectionMode) return
         loadLocation(
-            stack = snapshot.navigationStack + BrowserLocation(entry.documentId, entry.name),
+            stack = snapshot.navigationStack + BrowserLocation(entry.ref, entry.name),
             clearEntries = true,
         )
     }
@@ -116,11 +118,7 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     }
 
     fun createFolder(name: String) = mutate("Carpeta creada") { snapshot ->
-        repo.createFolder(
-            snapshot.treeUri ?: error("No hay ubicación abierta"),
-            snapshot.currentLocation ?: error("No hay carpeta abierta"),
-            validName(name),
-        )
+        repo.createFolder(snapshot.currentLocation ?: error("No hay carpeta abierta"), validName(name))
     }
 
     fun rename(entry: StorageEntry, name: String) = mutate("Renombrado correctamente") {
@@ -141,18 +139,15 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     fun startSelection(entry: StorageEntry) {
         if (_state.value.pendingTransfer != null || _state.value.isMutating) return
         _state.update {
-            it.copy(isSelectionMode = true, selectedIds = it.selectedIds + entry.documentId)
+            it.copy(isSelectionMode = true, selectedIds = it.selectedIds + entry.ref.opaqueId)
         }
     }
 
     fun toggleSelection(entry: StorageEntry) {
         if (!_state.value.isSelectionMode || _state.value.isMutating) return
         _state.update {
-            val next = if (entry.documentId in it.selectedIds) {
-                it.selectedIds - entry.documentId
-            } else {
-                it.selectedIds + entry.documentId
-            }
+            val id = entry.ref.opaqueId
+            val next = if (id in it.selectedIds) it.selectedIds - id else it.selectedIds + id
             it.copy(selectedIds = next)
         }
     }
@@ -160,7 +155,7 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     fun selectAll() {
         if (!_state.value.isSelectionMode || _state.value.isMutating) return
         _state.update {
-            it.copy(selectedIds = it.entries.mapTo(hashSetOf()) { entry -> entry.documentId })
+            it.copy(selectedIds = it.entries.mapTo(hashSetOf()) { entry -> entry.ref.opaqueId })
         }
     }
 
@@ -184,10 +179,7 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
                 isSelectionMode = false,
                 selectedIds = emptySet(),
                 pendingTransfer = PendingTransfer(selected, sourceParent, mode),
-                message = if (
-                    mode == TransferMode.COPY &&
-                    sourceParent.documentId == it.currentLocation?.documentId
-                ) {
+                message = if (mode == TransferMode.COPY && sourceParent.ref == it.currentLocation?.ref) {
                     "Puedes elegir otra carpeta o copiar aquí para crear duplicados"
                 } else {
                     "Elige la carpeta de destino"
@@ -221,7 +213,6 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
         if (!requireWriteAccess("pegar elementos")) return
         val snapshot = _state.value
         val transfer = snapshot.pendingTransfer ?: return
-        val tree = snapshot.treeUri ?: return
         val destination = snapshot.currentLocation ?: return
         if (!snapshot.canPasteHere || snapshot.isMutating) {
             setErrorMessage("Ese destino no es válido")
@@ -235,7 +226,6 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
             try {
                 when (
                     val result = transferEngine.execute(
-                        treeUri = tree,
                         transfer = transfer,
                         destination = destination,
                         onProgress = { progress ->
@@ -325,7 +315,6 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     fun consumeMessage() = _state.update { it.copy(message = null) }
 
     private fun loadLocation(stack: List<BrowserLocation>, clearEntries: Boolean) {
-        val tree = _state.value.treeUri ?: return
         val location = stack.lastOrNull() ?: return
         val generation = ++loadGeneration
         loadJob?.cancel()
@@ -343,7 +332,7 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
 
         loadJob = viewModelScope.launch {
             try {
-                val list = withContext(Dispatchers.IO) { repo.listChildren(tree, location) }
+                val list = withContext(Dispatchers.IO) { repo.listChildren(location) }
                 if (generation != loadGeneration) return@launch
                 _state.update { current ->
                     current.copy(
@@ -406,21 +395,22 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     }
 
     private fun requireWriteAccess(action: String): Boolean {
-        if (_state.value.treeUri == null) return false
+        if (_state.value.storageRoot == null) return false
         if (_canWrite.value) return true
         setErrorMessage("Ubicación de solo lectura: no se puede $action")
         return false
     }
 
-    private fun hasPersistedWritePermission(uri: Uri): Boolean =
-        resolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
+    private fun hasPersistedWritePermission(root: StorageRootRef): Boolean {
+        if (root.backend != SafStorageRepository.SAF_BACKEND) return false
+        val uri = Uri.parse(root.opaqueId)
+        return resolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
+    }
 
     private fun validName(raw: String): String {
         val name = raw.trim()
         require(name.isNotEmpty()) { "Escribe un nombre" }
-        require(name != "." && name != ".." && !name.contains('/')) {
-            "Ese nombre no es válido"
-        }
+        require(name != "." && name != ".." && !name.contains('/')) { "Ese nombre no es válido" }
         return name
     }
 
@@ -433,4 +423,6 @@ class BrowserViewModelV53(app: Application) : AndroidViewModel(app) {
     private fun setErrorMessage(message: String) {
         _state.update { it.copy(errorMessage = message) }
     }
+
+    private fun safRootRef(uri: String) = StorageRootRef(SafStorageRepository.SAF_BACKEND, uri)
 }
