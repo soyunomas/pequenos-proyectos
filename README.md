@@ -114,6 +114,9 @@ Herramientas para entender lógica de datos y programación.
 
 Utilidades para manipulación de archivos directamente en el navegador.
 
+*   **[🕶️ PrivaPrompt](https://soyunomas.github.io/pequenos-proyectos/PrivaPrompt/)**
+    *   Anonimiza nombres, empresas, lugares y datos sensibles antes de copiar un texto a una IA, y restaura después la respuesta. Funciona íntegramente en el navegador y sin dependencias externas.
+    *   **Fuente y documentación:** [PrivaPrompt](./PrivaPrompt/)
 *   **[✂️ Recortador de Imágenes](https://soyunomas.github.io/pequenos-proyectos/recortador-imagenes.html)**
     *   Extrae múltiples elementos de una imagen y genera *Sprite Sheets* ordenados automáticamente.
 *   **[📂 Concatenador de Archivos](https://soyunomas.github.io/pequenos-proyectos/OTROS/concatenador.html)**
