@@ -7,6 +7,7 @@ on:
       - fluxfiles-compose-0.5.4
       - fluxfiles-compose-0.5.5
       - fluxfiles-compose-0.5.6
+      - fluxfiles-compose-0.5.7
     paths:
       - 'FluxFiles-Compose/**'
       - '.github/workflows/build-fluxfiles-compose.yml'
@@ -45,6 +46,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FluxFiles-Compose-0.5.6-debug
+          name: FluxFiles-Compose-0.5.7-debug
           path: FluxFiles-Compose/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
