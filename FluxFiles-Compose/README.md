@@ -2,7 +2,7 @@
 
 Reescritura independiente de Flux Files en **Kotlin + Jetpack Compose**. Este árbol no reutiliza código, clases, recursos ni nombres internos de `FluxFiles-Android/source/`.
 
-## Estado actual — 0.5.4
+## Estado actual — 0.5.5
 
 Flux Files ya cubre el flujo local principal sobre Storage Access Framework (SAF):
 
@@ -17,13 +17,19 @@ Flux Files ya cubre el flujo local principal sobre Storage Access Framework (SAF
 - creación de ZIP desde la selección;
 - interfaz propia con Jetpack Compose y Material 3.
 
-### Cambio de arquitectura en 0.5.4
+### Arquitectura 0.5.5
 
-La ejecución de copiar/mover y su política de conflictos se han extraído de `BrowserViewModelV53` a `TransferOperationEngine`. El ViewModel conserva únicamente la coordinación con el estado de pantalla y las respuestas del usuario.
+La estabilización iniciada en 0.5.4 continúa separando UI, operaciones y almacenamiento:
 
-Es el primer paso para separar operaciones, filesystem y UI antes de introducir almacenamiento remoto. La siguiente refactorización debe sacar de `MainActivity.kt` los modelos y `StorageRepository`, que aún proceden de la evolución incremental del prototipo, y convertir el backend SAF en una implementación explícita de un contrato de filesystem propio.
+- `BrowserModels.kt` contiene los modelos compartidos del navegador y de las transferencias;
+- `StorageRepository` es ahora un contrato que consume `TransferOperationEngine` y el ViewModel;
+- `SafStorageRepository` contiene la implementación local basada en `DocumentsContract` y `ContentResolver`;
+- la antigua `MainActivity.kt`, que ya no era launcher y mezclaba modelos, almacenamiento, ViewModel y UI del prototipo, se ha eliminado;
+- `LauncherActivity` sigue siendo el único punto de entrada de la aplicación.
 
-No se añadirá SFTP, SMB, FTP o WebDAV directamente sobre las clases actuales: los backends remotos deberán entrar detrás de la misma abstracción que el almacenamiento local.
+Los modelos todavía conservan identificadores y `Uri` propios del flujo SAF. Esta versión separa responsabilidades sin alterar el comportamiento público; el siguiente paso es introducir modelos de filesystem neutrales al backend y adaptadores de capacidades para apertura/streams Android.
+
+No se añadirá SFTP, SMB, FTP o WebDAV directamente sobre las clases SAF: los backends remotos deberán entrar detrás de la misma abstracción de filesystem.
 
 ## Principios del proyecto
 
@@ -34,10 +40,10 @@ No se añadirá SFTP, SMB, FTP o WebDAV directamente sobre las clases actuales: 
 
 ## Próximos pasos
 
-1. Extraer modelos y contrato de filesystem fuera de `MainActivity.kt` y eliminar la implementación antigua que ya no es launcher.
-2. Encapsular SAF como backend local independiente de Compose.
-3. Mover las operaciones largas a una capa/cola propia con progreso y cancelación.
-4. Completar la estabilización 0.5.x y, sobre esa base, comenzar 0.6.x con protocolos remotos por separado.
+1. Sustituir los modelos SAF-específicos por identificadores de ubicación/entrada neutrales al backend.
+2. Definir capacidades de filesystem para listar, mutar y abrir streams sin filtrar `Uri` a la capa común.
+3. Mover las operaciones largas a una cola propia con progreso, cancelación y ejecución independiente del ciclo de vida de pantalla.
+4. Completar la estabilización 0.5.x y comenzar 0.6.x con backends remotos separados: SFTP, SMB, FTP y WebDAV.
 
 ## Compilar
 
