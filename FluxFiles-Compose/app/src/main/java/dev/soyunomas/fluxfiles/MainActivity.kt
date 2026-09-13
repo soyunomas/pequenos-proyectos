@@ -38,6 +38,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +49,7 @@ import java.text.Collator
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
                         onBeginMove = { vm.beginTransfer(TransferMode.MOVE) },
                         onCancelTransfer = vm::cancelTransfer,
                         onPasteHere = vm::pasteHere,
+                        onResolveConflict = vm::resolveConflict,
                     )
                 }
             }
@@ -105,6 +108,19 @@ data class StorageEntry(
 data class BrowserLocation(val documentId: String, val name: String)
 
 enum class TransferMode { COPY, MOVE }
+enum class ConflictResolution { KEEP_BOTH, SKIP, REPLACE, CANCEL }
+
+data class ConflictAnswer(
+    val resolution: ConflictResolution,
+    val applyToAll: Boolean,
+)
+
+data class TransferConflict(
+    val source: StorageEntry,
+    val existing: StorageEntry,
+) {
+    val isSameDocument: Boolean get() = source.documentId == existing.documentId
+}
 
 data class PendingTransfer(
     val entries: List<StorageEntry>,
@@ -121,6 +137,7 @@ data class BrowserUiState(
     val isSelectionMode: Boolean = false,
     val selectedIds: Set<String> = emptySet(),
     val pendingTransfer: PendingTransfer? = null,
+    val transferConflict: TransferConflict? = null,
     val operationLabel: String? = null,
     val errorMessage: String? = null,
     val message: String? = null,
@@ -132,7 +149,9 @@ data class BrowserUiState(
         get() {
             val transfer = pendingTransfer ?: return false
             val current = currentLocation ?: return false
-            if (current.documentId == transfer.sourceParent.documentId) return false
+            if (transfer.mode == TransferMode.MOVE && current.documentId == transfer.sourceParent.documentId) {
+                return false
+            }
             val pathIds = navigationStack.mapTo(hashSetOf()) { it.documentId }
             return transfer.entries.none { it.isDirectory && it.documentId in pathIds }
         }
@@ -140,7 +159,9 @@ data class BrowserUiState(
 
 class StorageRepository(private val context: Context) {
     private val resolver: ContentResolver = context.contentResolver
-    private val collator = Collator.getInstance(Locale.getDefault()).apply { strength = Collator.PRIMARY }
+    private val collator = Collator.getInstance(Locale.getDefault()).apply {
+        strength = Collator.PRIMARY
+    }
 
     fun rootLocation(treeUri: Uri): BrowserLocation {
         val id = DocumentsContract.getTreeDocumentId(treeUri)
@@ -179,6 +200,12 @@ class StorageRepository(private val context: Context) {
         }
     }
 
+    fun findChildByName(
+        treeUri: Uri,
+        parent: BrowserLocation,
+        name: String,
+    ): StorageEntry? = listChildren(treeUri, parent).firstOrNull { it.name == name }
+
     fun createFolder(treeUri: Uri, parent: BrowserLocation, name: String) {
         checkNotNull(
             DocumentsContract.createDocument(
@@ -202,20 +229,13 @@ class StorageRepository(private val context: Context) {
         }
     }
 
-    fun ensureNoTopLevelConflicts(
+    fun copyEntry(
         treeUri: Uri,
+        source: StorageEntry,
         destination: BrowserLocation,
-        sources: List<StorageEntry>,
+        targetName: String = source.name,
     ) {
-        val existing = listChildren(treeUri, destination).mapTo(hashSetOf()) { it.name }
-        val conflict = sources.firstOrNull { it.name in existing }
-        require(conflict == null) {
-            "Ya existe “${conflict?.name}” en la carpeta de destino"
-        }
-    }
-
-    fun copyEntry(treeUri: Uri, source: StorageEntry, destination: BrowserLocation) {
-        copyEntryRecursive(treeUri, source, destination)
+        copyEntryRecursive(treeUri, source, destination, targetName)
     }
 
     fun moveEntry(
@@ -223,8 +243,9 @@ class StorageRepository(private val context: Context) {
         source: StorageEntry,
         sourceParent: BrowserLocation,
         destination: BrowserLocation,
+        targetName: String = source.name,
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (targetName == source.name && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             val moved = runCatching {
                 DocumentsContract.moveDocument(
                     resolver,
@@ -236,16 +257,75 @@ class StorageRepository(private val context: Context) {
             if (moved != null) return
         }
 
-        copyEntryRecursive(treeUri, source, destination)
+        copyEntryRecursive(treeUri, source, destination, targetName)
         check(DocumentsContract.deleteDocument(resolver, source.uri)) {
-            "Se copió “${source.name}”, pero no se pudo eliminar el original"
+            "Se copió “$targetName”, pero no se pudo eliminar el original"
+        }
+    }
+
+    fun replaceEntry(
+        treeUri: Uri,
+        source: StorageEntry,
+        existing: StorageEntry,
+        sourceParent: BrowserLocation,
+        destination: BrowserLocation,
+        move: Boolean,
+    ) {
+        require(source.documentId != existing.documentId) {
+            "No se puede reemplazar un elemento consigo mismo"
+        }
+
+        val temporaryName = "Flux temporal ${UUID.randomUUID().toString().take(8)} - ${source.name}"
+        val stagedUri = copyEntryRecursive(treeUri, source, destination, temporaryName)
+
+        val deleted = runCatching {
+            DocumentsContract.deleteDocument(resolver, existing.uri)
+        }.getOrDefault(false)
+        if (!deleted) {
+            runCatching { DocumentsContract.deleteDocument(resolver, stagedUri) }
+            error("No se pudo eliminar el elemento existente; no se modificó el original")
+        }
+
+        val renamed = runCatching {
+            DocumentsContract.renameDocument(resolver, stagedUri, source.name)
+        }.getOrNull()
+        if (renamed == null) {
+            error("El contenido nuevo quedó guardado como “$temporaryName”, pero Android no permitió completar el reemplazo")
+        }
+
+        if (move) {
+            check(DocumentsContract.deleteDocument(resolver, source.uri)) {
+                "El destino se actualizó, pero no se pudo eliminar el original"
+            }
+        }
+    }
+
+    fun uniqueName(
+        treeUri: Uri,
+        destination: BrowserLocation,
+        originalName: String,
+    ): String {
+        val existingNames = listChildren(treeUri, destination).mapTo(hashSetOf()) { it.name }
+        if (originalName !in existingNames) return originalName
+
+        val lastDot = originalName.lastIndexOf('.')
+        val hasExtension = lastDot > 0 && lastDot < originalName.lastIndex
+        val stem = if (hasExtension) originalName.substring(0, lastDot) else originalName
+        val extension = if (hasExtension) originalName.substring(lastDot) else ""
+        var number = 1
+        while (true) {
+            val candidate = "$stem ($number)$extension"
+            if (candidate !in existingNames) return candidate
+            number++
         }
     }
 
     fun persistTreePermission(uri: Uri) {
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         runCatching { resolver.takePersistableUriPermission(uri, flags) }
-            .getOrElse { resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            .getOrElse {
+                resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
     }
 
     fun hasPersistedPermission(uri: Uri): Boolean =
@@ -255,28 +335,34 @@ class StorageRepository(private val context: Context) {
         treeUri: Uri,
         source: StorageEntry,
         destination: BrowserLocation,
+        targetName: String = source.name,
     ): Uri {
         val created = checkNotNull(
             DocumentsContract.createDocument(
                 resolver,
                 documentUri(treeUri, destination.documentId),
                 source.mimeType,
-                source.name,
+                targetName,
             )
-        ) { "No se pudo crear “${source.name}” en el destino" }
+        ) { "No se pudo crear “$targetName” en el destino" }
 
         try {
             if (source.isDirectory) {
                 val createdId = DocumentsContract.getDocumentId(created)
-                val createdLocation = BrowserLocation(createdId, source.name)
-                val children = listChildren(treeUri, BrowserLocation(source.documentId, source.name))
-                children.forEach { child -> copyEntryRecursive(treeUri, child, createdLocation) }
+                val createdLocation = BrowserLocation(createdId, targetName)
+                val children = listChildren(
+                    treeUri,
+                    BrowserLocation(source.documentId, source.name),
+                )
+                children.forEach { child ->
+                    copyEntryRecursive(treeUri, child, createdLocation)
+                }
             } else {
                 val input = checkNotNull(resolver.openInputStream(source.uri)) {
                     "No se pudo leer “${source.name}”"
                 }
                 val output = checkNotNull(resolver.openOutputStream(created, "w")) {
-                    "No se pudo escribir “${source.name}”"
+                    "No se pudo escribir “$targetName”"
                 }
                 input.use { sourceStream ->
                     output.use { targetStream -> sourceStream.copyTo(targetStream) }
@@ -307,6 +393,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("flux_files", Context.MODE_PRIVATE)
     private val _state = MutableStateFlow(BrowserUiState())
     val state = _state.asStateFlow()
+    private var conflictAnswer: CompletableDeferred<ConflictAnswer>? = null
 
     init {
         prefs.getString("tree_uri", null)
@@ -418,7 +505,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectAll() {
         if (!_state.value.isSelectionMode || _state.value.isMutating) return
-        _state.update { it.copy(selectedIds = it.entries.mapTo(hashSetOf()) { entry -> entry.documentId }) }
+        _state.update {
+            it.copy(selectedIds = it.entries.mapTo(hashSetOf()) { entry -> entry.documentId })
+        }
     }
 
     fun clearSelection() {
@@ -431,7 +520,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         if (!snapshot.isSelectionMode || snapshot.isMutating) return
         val selected = snapshot.selectedEntries
         if (selected.isEmpty()) {
-            setError(IllegalArgumentException("Selecciona al menos un elemento"), "Selecciona al menos un elemento")
+            setError(
+                IllegalArgumentException("Selecciona al menos un elemento"),
+                "Selecciona al menos un elemento",
+            )
             return
         }
         val sourceParent = snapshot.currentLocation ?: return
@@ -440,14 +532,36 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 isSelectionMode = false,
                 selectedIds = emptySet(),
                 pendingTransfer = PendingTransfer(selected, sourceParent, mode),
-                message = "Elige la carpeta de destino",
+                message = if (mode == TransferMode.COPY && sourceParent.documentId == it.currentLocation?.documentId) {
+                    "Puedes elegir otra carpeta o copiar aquí para crear duplicados"
+                } else {
+                    "Elige la carpeta de destino"
+                },
             )
         }
     }
 
     fun cancelTransfer() {
-        if (_state.value.isMutating) return
-        _state.update { it.copy(pendingTransfer = null, operationLabel = null) }
+        if (_state.value.isMutating && _state.value.transferConflict == null) return
+        conflictAnswer?.takeIf { !it.isCompleted }?.complete(
+            ConflictAnswer(ConflictResolution.CANCEL, false)
+        )
+        conflictAnswer = null
+        _state.update {
+            it.copy(
+                pendingTransfer = null,
+                transferConflict = null,
+                operationLabel = null,
+                isMutating = false,
+            )
+        }
+    }
+
+    fun resolveConflict(resolution: ConflictResolution, applyToAll: Boolean) {
+        val deferred = conflictAnswer ?: return
+        if (!deferred.isCompleted) {
+            deferred.complete(ConflictAnswer(resolution, applyToAll))
+        }
     }
 
     fun pasteHere() {
@@ -457,71 +571,165 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         val destination = snapshot.currentLocation ?: return
         if (!snapshot.canPasteHere || snapshot.isMutating) {
             setError(
-                IllegalArgumentException("Elige una carpeta distinta y que no esté dentro de una carpeta seleccionada"),
+                IllegalArgumentException("Elige una carpeta válida como destino"),
                 "Ese destino no es válido",
             )
             return
         }
 
         viewModelScope.launch {
-            var completed = 0
+            var transferred = 0
+            var skipped = 0
+            var rememberedResolution: ConflictResolution? = null
             _state.update { it.copy(isMutating = true, errorMessage = null) }
+
             try {
-                withContext(Dispatchers.IO) {
-                    repo.ensureNoTopLevelConflicts(tree, destination, transfer.entries)
-                }
                 transfer.entries.forEachIndexed { index, entry ->
                     val verb = if (transfer.mode == TransferMode.COPY) "Copiando" else "Moviendo"
                     _state.update {
                         it.copy(operationLabel = "$verb ${index + 1} de ${transfer.entries.size}…")
                     }
-                    withContext(Dispatchers.IO) {
-                        when (transfer.mode) {
-                            TransferMode.COPY -> repo.copyEntry(tree, entry, destination)
-                            TransferMode.MOVE -> repo.moveEntry(
-                                tree,
-                                entry,
-                                transfer.sourceParent,
-                                destination,
-                            )
+
+                    val existing = withContext(Dispatchers.IO) {
+                        repo.findChildByName(tree, destination, entry.name)
+                    }
+
+                    var resolution: ConflictResolution? = null
+                    if (existing != null) {
+                        resolution = rememberedResolution
+                        if (resolution == null || (resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)) {
+                            val answer = awaitConflict(TransferConflict(entry, existing))
+                            if (answer.resolution == ConflictResolution.CANCEL) {
+                                throw TransferCancelledException()
+                            }
+                            resolution = answer.resolution
+                            if (answer.applyToAll && !(answer.resolution == ConflictResolution.REPLACE && existing.documentId == entry.documentId)) {
+                                rememberedResolution = answer.resolution
+                            }
                         }
                     }
-                    completed++
+
+                    when (resolution) {
+                        ConflictResolution.SKIP -> skipped++
+                        ConflictResolution.KEEP_BOTH -> {
+                            val unique = withContext(Dispatchers.IO) {
+                                repo.uniqueName(tree, destination, entry.name)
+                            }
+                            withContext(Dispatchers.IO) {
+                                if (transfer.mode == TransferMode.COPY) {
+                                    repo.copyEntry(tree, entry, destination, unique)
+                                } else {
+                                    repo.moveEntry(
+                                        tree,
+                                        entry,
+                                        transfer.sourceParent,
+                                        destination,
+                                        unique,
+                                    )
+                                }
+                            }
+                            transferred++
+                        }
+                        ConflictResolution.REPLACE -> {
+                            val target = checkNotNull(existing)
+                            require(target.documentId != entry.documentId) {
+                                "No se puede reemplazar un elemento consigo mismo"
+                            }
+                            withContext(Dispatchers.IO) {
+                                repo.replaceEntry(
+                                    treeUri = tree,
+                                    source = entry,
+                                    existing = target,
+                                    sourceParent = transfer.sourceParent,
+                                    destination = destination,
+                                    move = transfer.mode == TransferMode.MOVE,
+                                )
+                            }
+                            transferred++
+                        }
+                        ConflictResolution.CANCEL -> throw TransferCancelledException()
+                        null -> {
+                            withContext(Dispatchers.IO) {
+                                if (transfer.mode == TransferMode.COPY) {
+                                    repo.copyEntry(tree, entry, destination)
+                                } else {
+                                    repo.moveEntry(
+                                        tree,
+                                        entry,
+                                        transfer.sourceParent,
+                                        destination,
+                                    )
+                                }
+                            }
+                            transferred++
+                        }
+                    }
                 }
 
-                val count = transfer.entries.size
                 val action = if (transfer.mode == TransferMode.COPY) "copiados" else "movidos"
+                val summary = buildString {
+                    append("$transferred ${if (transferred == 1) "elemento" else "elementos"} $action")
+                    if (skipped > 0) append(" · $skipped omitidos")
+                }
                 _state.update {
                     it.copy(
                         isMutating = false,
                         operationLabel = null,
                         pendingTransfer = null,
-                        message = "$count ${if (count == 1) "elemento" else "elementos"} $action",
+                        transferConflict = null,
+                        message = summary,
+                    )
+                }
+                refresh()
+            } catch (_: TransferCancelledException) {
+                _state.update {
+                    it.copy(
+                        isMutating = false,
+                        operationLabel = null,
+                        pendingTransfer = null,
+                        transferConflict = null,
+                        message = if (transferred > 0 || skipped > 0) {
+                            "Operación cancelada · $transferred completados · $skipped omitidos"
+                        } else {
+                            "Operación cancelada"
+                        },
                     )
                 }
                 refresh()
             } catch (t: Throwable) {
-                val prefix = if (completed > 0) {
-                    "La operación se detuvo después de $completed de ${transfer.entries.size}. "
-                } else {
-                    ""
-                }
                 _state.update {
                     it.copy(
                         isMutating = false,
                         operationLabel = null,
                         pendingTransfer = null,
-                        errorMessage = prefix + (t.message?.takeIf(String::isNotBlank)
-                            ?: "No se pudo completar la operación"),
+                        transferConflict = null,
+                        errorMessage = buildString {
+                            if (transferred > 0 || skipped > 0) {
+                                append("La operación se detuvo: $transferred completados, $skipped omitidos. ")
+                            }
+                            append(t.message?.takeIf(String::isNotBlank) ?: "No se pudo completar la operación")
+                        },
                     )
                 }
                 refresh()
+            } finally {
+                conflictAnswer = null
             }
         }
     }
 
     fun consumeError() = _state.update { it.copy(errorMessage = null) }
     fun consumeMessage() = _state.update { it.copy(message = null) }
+
+    private suspend fun awaitConflict(conflict: TransferConflict): ConflictAnswer {
+        val deferred = CompletableDeferred<ConflictAnswer>()
+        conflictAnswer = deferred
+        _state.update { it.copy(transferConflict = conflict) }
+        return deferred.await().also {
+            conflictAnswer = null
+            _state.update { state -> state.copy(transferConflict = null) }
+        }
+    }
 
     private fun mutate(success: String, block: suspend (BrowserUiState) -> Unit) {
         if (_state.value.isMutating || _state.value.isSelectionMode) return
@@ -543,7 +751,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     private fun validName(raw: String): String {
         val name = raw.trim()
         require(name.isNotEmpty()) { "Escribe un nombre" }
-        require(name != "." && name != ".." && !name.contains('/')) { "Ese nombre no es válido" }
+        require(name != "." && name != ".." && !name.contains('/')) {
+            "Ese nombre no es válido"
+        }
         return name
     }
 
@@ -553,6 +763,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 }
+
+private class TransferCancelledException : Exception()
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -577,6 +789,7 @@ fun BrowserScreen(
     onBeginMove: () -> Unit,
     onCancelTransfer: () -> Unit,
     onPasteHere: () -> Unit,
+    onResolveConflict: (ConflictResolution, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
@@ -590,7 +803,8 @@ fun BrowserScreen(
     }
 
     BackHandler(
-        enabled = state.isSelectionMode || state.pendingTransfer != null || state.canNavigateUp
+        enabled = state.transferConflict == null &&
+            (state.isSelectionMode || state.pendingTransfer != null || state.canNavigateUp)
     ) {
         when {
             state.isSelectionMode -> onClearSelection()
@@ -631,6 +845,7 @@ fun BrowserScreen(
                     transfer = transfer,
                     canPasteHere = state.canPasteHere,
                     isMutating = state.isMutating,
+                    waitingForConflict = state.transferConflict != null,
                     operationLabel = state.operationLabel,
                     onCancel = onCancelTransfer,
                     onPasteHere = onPasteHere,
@@ -642,7 +857,8 @@ fun BrowserScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            if (state.selectedIds.isEmpty()) "Seleccionar" else "${state.selectedIds.size} seleccionados"
+                            if (state.selectedIds.isEmpty()) "Seleccionar"
+                            else "${state.selectedIds.size} seleccionados"
                         )
                     },
                     navigationIcon = {
@@ -703,7 +919,10 @@ fun BrowserScreen(
                             }
                         }
                         if (state.pendingTransfer == null) {
-                            IconButton(onClick = { appMenu = true }, enabled = !state.isMutating) {
+                            IconButton(
+                                onClick = { appMenu = true },
+                                enabled = !state.isMutating,
+                            ) {
                                 Icon(Icons.Default.MoreVert, "Más opciones")
                             }
                             DropdownMenu(
@@ -722,7 +941,10 @@ fun BrowserScreen(
                                 }
                                 DropdownMenuItem(
                                     text = {
-                                        Text(if (state.treeUri == null) "Elegir ubicación" else "Cambiar ubicación")
+                                        Text(
+                                            if (state.treeUri == null) "Elegir ubicación"
+                                            else "Cambiar ubicación"
+                                        )
                                     },
                                     onClick = {
                                         appMenu = false
@@ -890,7 +1112,9 @@ fun BrowserScreen(
         AlertDialog(
             onDismissRequest = { delete = null },
             icon = { Icon(Icons.Default.Delete, null) },
-            title = { Text(if (entry.isDirectory) "¿Eliminar carpeta?" else "¿Eliminar archivo?") },
+            title = {
+                Text(if (entry.isDirectory) "¿Eliminar carpeta?" else "¿Eliminar archivo?")
+            },
             text = {
                 Text(
                     if (entry.isDirectory) {
@@ -911,6 +1135,101 @@ fun BrowserScreen(
             },
         )
     }
+
+    state.transferConflict?.let { conflict ->
+        ConflictDialog(
+            conflict = conflict,
+            mode = state.pendingTransfer?.mode ?: TransferMode.COPY,
+            onResolve = onResolveConflict,
+        )
+    }
+}
+
+@Composable
+private fun ConflictDialog(
+    conflict: TransferConflict,
+    mode: TransferMode,
+    onResolve: (ConflictResolution, Boolean) -> Unit,
+) {
+    var applyToAll by remember(conflict.source.documentId, conflict.existing.documentId) {
+        mutableStateOf(false)
+    }
+    val verb = if (mode == TransferMode.COPY) "copiar" else "mover"
+
+    AlertDialog(
+        onDismissRequest = {},
+        icon = { Icon(Icons.Default.WarningAmber, null) },
+        title = { Text("Ya existe “${conflict.source.name}”") },
+        text = {
+            Column {
+                Text(
+                    if (conflict.isSameDocument) {
+                        "Estás intentando $verb el elemento en la misma carpeta. Puedes conservar ambos para crear una copia con otro nombre u omitirlo."
+                    } else if (conflict.existing.isDirectory) {
+                        "En el destino ya hay una carpeta con ese nombre. Reemplazar eliminará primero esa carpeta y todo su contenido; Flux Files prepara antes una copia temporal del contenido nuevo."
+                    } else {
+                        "En el destino ya hay un archivo con ese nombre. Elige qué debe hacer Flux Files."
+                    }
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Checkbox(
+                        checked = applyToAll,
+                        onCheckedChange = { applyToAll = it },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Aplicar esta decisión a los siguientes conflictos",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End,
+            ) {
+                Button(
+                    onClick = {
+                        onResolve(ConflictResolution.KEEP_BOTH, applyToAll)
+                    },
+                ) {
+                    Icon(Icons.Default.ContentCopy, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Conservar ambos")
+                }
+                Spacer(Modifier.height(4.dp))
+                Row {
+                    TextButton(
+                        onClick = {
+                            onResolve(ConflictResolution.SKIP, applyToAll)
+                        },
+                    ) { Text("Omitir") }
+                    if (!conflict.isSameDocument) {
+                        TextButton(
+                            onClick = {
+                                onResolve(ConflictResolution.REPLACE, applyToAll)
+                            },
+                        ) {
+                            Text(
+                                "Reemplazar",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                }
+                TextButton(
+                    onClick = {
+                        onResolve(ConflictResolution.CANCEL, false)
+                    },
+                ) { Text("Cancelar operación") }
+            }
+        },
+    )
 }
 
 @Composable
@@ -918,6 +1237,7 @@ private fun TransferDestinationBar(
     transfer: PendingTransfer,
     canPasteHere: Boolean,
     isMutating: Boolean,
+    waitingForConflict: Boolean,
     operationLabel: String?,
     onCancel: () -> Unit,
     onPasteHere: () -> Unit,
@@ -946,13 +1266,24 @@ private fun TransferDestinationBar(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (waitingForConflict) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "Esperando tu decisión sobre un conflicto.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onCancel, enabled = !isMutating) {
+                TextButton(
+                    onClick = onCancel,
+                    enabled = !isMutating || waitingForConflict,
+                ) {
                     Text("Cancelar")
                 }
                 Spacer(Modifier.width(8.dp))
@@ -961,11 +1292,15 @@ private fun TransferDestinationBar(
                     enabled = canPasteHere && !isMutating,
                 ) {
                     Icon(
-                        if (transfer.mode == TransferMode.COPY) Icons.Default.ContentCopy else Icons.Default.DriveFileMove,
+                        if (transfer.mode == TransferMode.COPY) Icons.Default.ContentCopy
+                        else Icons.Default.DriveFileMove,
                         null,
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(if (transfer.mode == TransferMode.COPY) "Copiar aquí" else "Mover aquí")
+                    Text(
+                        if (transfer.mode == TransferMode.COPY) "Copiar aquí"
+                        else "Mover aquí"
+                    )
                 }
             }
         }
@@ -1164,6 +1499,10 @@ private fun openFile(context: Context, entry: StorageEntry) {
     try {
         context.startActivity(intent)
     } catch (_: ActivityNotFoundException) {
-        Toast.makeText(context, "No hay una aplicación para abrir este archivo", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            "No hay una aplicación para abrir este archivo",
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 }
