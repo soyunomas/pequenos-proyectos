@@ -2,6 +2,7 @@ package dev.soyunomas.fluxfiles
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -52,11 +53,28 @@ class LauncherActivity : ComponentActivity() {
                 when {
                     inspector != null -> {
                         val request = inspector!!
-                        FileInspectorV5(
-                            entry = request.entry,
-                            initialTab = request.tab,
-                            onBack = { inspector = null },
-                        )
+                        val tree = state.treeUri
+                        val destination = state.currentLocation
+                        if (
+                            request.tab == InspectorTabV5.PREVIEW &&
+                            previewKindV5(request.entry) == PreviewKindV5.ZIP &&
+                            tree != null &&
+                            destination != null
+                        ) {
+                            ZipInspectorV51(
+                                entry = request.entry,
+                                treeUri = tree,
+                                destination = destination,
+                                onBack = { inspector = null },
+                                onExtracted = vm::refresh,
+                            )
+                        } else {
+                            FileInspectorV5(
+                                entry = request.entry,
+                                initialTab = request.tab,
+                                onBack = { inspector = null },
+                            )
+                        }
                     }
                     about -> {
                         AboutScreenV5 { about = false }
@@ -106,6 +124,7 @@ private fun FluxThemeV5(content: @Composable () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AboutScreenV5(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -130,7 +149,7 @@ private fun AboutScreenV5(onBack: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                "Implementación propia en Kotlin y Jetpack Compose. Esta versión incorpora detalles de archivos, vistas previas internas de imagen y texto, e inspección de ZIP en modo lectura."
+                "Implementación propia en Kotlin y Jetpack Compose. Esta versión incorpora extracción segura de ZIP, además de detalles y vistas previas internas de archivos."
             )
             Spacer(Modifier.height(16.dp))
             Text(
