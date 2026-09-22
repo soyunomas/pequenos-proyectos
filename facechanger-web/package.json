@@ -1,1 +1,29 @@
-{"name":"facechanger-web","private":true,"version":"0.1.0","type":"module","scripts":{"postinstall":"node scripts/prepare-assets.mjs","dev":"vite --host 0.0.0.0","build":"tsc -b && vite build","preview":"vite preview --host 0.0.0.0","test":"vitest run","test:e2e":"playwright test"},"dependencies":{"@mediapipe/tasks-vision":"^0.10.35","react":"^19.1.0","react-dom":"^19.1.0"},"devDependencies":{"@playwright/test":"^1.55.0","@types/react":"^19.1.0","@types/react-dom":"^19.1.0","@vitejs/plugin-react":"^4.7.0","typescript":"~5.9.2","vite":"^6.3.5","vitest":"^3.2.4"}}
+{
+  "name": "facechanger-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/prepare-assets.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.35",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "~5.9.2",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4",
+    "@types/node": "^22.15.0"
+  }
+}
