@@ -7,7 +7,7 @@ Espejo digital con deformación real de píxeles: webcam → MediaPipe Face Land
 Requisitos: Node.js 22 o superior, npm, webcam y WebGL2 con aceleración gráfica.
 
 ```powershell
-git clone https://github.com/soyunomas/pequenos-proyectos.git
+git clone --branch feat/facechanger-web https://github.com/soyunomas/pequenos-proyectos.git
 cd pequenos-proyectos\facechanger-web
 npm install
 npm run dev
