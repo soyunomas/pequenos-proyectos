@@ -40,7 +40,7 @@ try {
     await page.getByRole('button',{name:'Restablecer encuadre · 100 %'}).click();
     const reset = await canvas.boundingBox();
     assert.ok(Math.abs(reset.width-before.width)<2,target.name+' reset');
-    await page.getByRole('button',{name:'Cerrar ajustes'}).click();
+    await page.getByRole('button',{name:'Cerrar ajustes',exact:true}).click();
     await panel.waitFor({state:'hidden',timeout:3000});
     assert.equal(await panel.getAttribute('inert'),'');
     assert.ok(!(await panel.isVisible()), target.name+' panel closed');
