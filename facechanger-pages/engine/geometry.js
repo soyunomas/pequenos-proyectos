@@ -1,135 +1,247 @@
-/** MediaPipe Face Landmarker, coordenadas top-left invertidas como espejo.
- * Índices contrastados con FACE_LANDMARKS_NOSE/EYES/LIPS/FACE_OVAL oficiales.
- * Los puntos 468/473 son iris; no se usan como centro del ojo porque se mueven al mirar.
- */
+/** Mirror-space, top-left coordinates. IDs follow MediaPipe Face Landmarker topology. */
 export const MAX_CONTROLS = 32;
 export const LANDMARK = Object.freeze({
-  noseTip: 1, noseLowerBridge: 4, noseBase: 2, nostrilA: 98, nostrilB: 327,
-  eyeAOuter: 33, eyeAInner: 133, eyeATop: 159, eyeABottom: 145,
-  eyeBOuter: 263, eyeBInner: 362, eyeBTop: 386, eyeBBottom: 374,
-  mouthA: 61, mouthB: 291, mouthTopOuter: 0, mouthBottomOuter: 17,
-  mouthTopInner: 13, mouthBottomInner: 14, chin: 152, forehead: 10, cheekA: 234, cheekB: 454
+  noseTip:1, noseBridge:4, noseLowerBridge:4, noseBase:2, noseA:98, noseB:327, nostrilA:98, nostrilB:327,
+  eyeAOuter:33, eyeAInner:133, eyeATop:159, eyeABottom:145,
+  eyeBOuter:263, eyeBInner:362, eyeBTop:386, eyeBBottom:374,
+  browAOuter:70, browAInner:107, browAMiddle:105,
+  browBOuter:300, browBInner:336, browBMiddle:334,
+  mouthA:61, mouthB:291, mouthTop:0, mouthBottom:17, mouthTopOuter:0, mouthBottomOuter:17,
+  mouthTopInner:13, mouthBottomInner:14,
+  cheekA:234, cheekB:454, cheekAInner:205, cheekBInner:425,
+  jawA:172, jawB:397, jawAHigh:136, jawBHigh:365,
+  templeA:127, templeB:356, forehead:10, foreheadA:109, foreheadB:338,
+  chin:152
 });
-export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-export function faceFromLandmarks(landmarks) {
-  if (!landmarks || landmarks.length < 455) return null;
-  const l = landmarks.map(p => ({ x: 1 - p.x, y: p.y }));
-  const a = l[LANDMARK.cheekA], b = l[LANDMARK.cheekB];
-  const width = distance(a, b);
-  if (!Number.isFinite(width) || width < .04) return null;
-  const eyeA = l[LANDMARK.eyeAOuter], eyeB = l[LANDMARK.eyeBOuter];
-  return { landmarks: l, frame: { width,
-    angle: Math.atan2(eyeA.y - eyeB.y, eyeA.x - eyeB.x) } };
+export const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+export const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+export function faceFromLandmarks(raw) {
+  if (!raw || raw.length < 455) return null;
+  const landmarks=raw.map(p=>({x:1-p.x,y:p.y}));
+  const {cheekA,cheekB,eyeAOuter,eyeBOuter}=LANDMARK;
+  const width=distance(landmarks[cheekA],landmarks[cheekB]);
+  if(!Number.isFinite(width)||width<.04)return null;
+  const a=landmarks[eyeAOuter],b=landmarks[eyeBOuter];
+  const left=a.x<=b.x?a:b,right=a.x<=b.x?b:a;
+  // Always +X = screen-right: a mirrored camera must never turn local DOWN into UP.
+  return {landmarks,frame:{width,angle:Math.atan2(right.y-left.y,right.x-left.x)}};
 }
-export function toLocal(v, face) {
-  const { angle, width } = face.frame, c = Math.cos(angle), s = Math.sin(angle);
-  return { x: (v.x * c + v.y * s) / width, y: (v.y * c - v.x * s) / width };
+export function toLocal(v,face) {
+  const {angle,width}=face.frame,c=Math.cos(angle),s=Math.sin(angle);
+  return {x:(v.x*c+v.y*s)/width,y:(v.y*c-v.x*s)/width};
 }
-export function toWorld(v, face) {
-  const { angle, width } = face.frame, c = Math.cos(angle), s = Math.sin(angle);
-  return { x: (v.x * c - v.y * s) * width, y: (v.x * s + v.y * c) * width };
+export function toWorld(v,face) {
+  const {angle,width}=face.frame,c=Math.cos(angle),s=Math.sin(angle);
+  return {x:(v.x*c-v.y*s)*width,y:(v.x*s+v.y*c)*width};
 }
-export function controlFromStroke(s, face) {
-  const landmark = face.landmarks[s.landmark];
-  if (!landmark) return null;
-  const offset = toWorld(s.offset, face), delta = toWorld(s.delta, face);
-  return { x: landmark.x + offset.x, y: landmark.y + offset.y,
-    dx: delta.x, dy: delta.y, radius: s.radius * face.frame.width,
-    shapeY: 1, scale: s.scale || 0 };
-}
-const midpoint = (face, indices) => {
-  const points = indices.map(i => face.landmarks[i]).filter(Boolean);
-  return { x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-    y: points.reduce((sum, p) => sum + p.y, 0) / points.length };
+const midpoint=(face,indices)=>{
+  const pts=(Array.isArray(indices)?indices:[indices]).map(i=>face.landmarks[i]);
+  return {x:pts.reduce((sum,p)=>sum+p.x,0)/pts.length,y:pts.reduce((sum,p)=>sum+p.y,0)/pts.length};
 };
-/** Radio en fracción de ancho facial; shapeY < 1 evita invadir ojos/boca. */
-const at = (face, indices, radius, dx = 0, dy = 0, scale = 0, shapeY = 1) => {
-  const p = midpoint(face, Array.isArray(indices) ? indices : [indices]);
-  const d = toWorld({ x: dx, y: dy }, face);
-  return { x: p.x, y: p.y, dx: d.x, dy: d.y,
-    radius: radius * face.frame.width, shapeY, scale };
+const l=(face,idx,dx,dy)=>({center:midpoint(face,idx),offset:toWorld({x:dx,y:dy},face)});
+const ctl=(face,idx,radius,dx=0,dy=0,scale=0,shapeY=1,scaleY=scale)=>{
+  const p=l(face,idx,dx,dy);
+  return {x:p.center.x,y:p.center.y,dx:p.offset.x,dy:p.offset.y,
+    radius:radius*face.frame.width,shapeY,scale,scaleY};
 };
-export const FILTERS = [
-  ['normal', 'Normal'], ['nose-big', 'Nariz grande'], ['nose-twisted', 'Nariz torcida'],
-  ['nose-long', 'Nariz larga'], ['eyes-big', 'Ojos grandes'], ['eye-droop', 'Ojo caído'],
-  ['mouth-big', 'Boca grande'], ['mouth-twisted', 'Boca torcida'], ['face-long', 'Cara alargada']
+const eyeA=[33,133,159,145],eyeB=[263,362,386,374];
+const browsA=[70,105,107],browsB=[300,334,336];
+const lips=[0,17,13,14];
+const midX=(face)=>midpoint(face,[LANDMARK.cheekA,LANDMARK.cheekB]).x;
+const signX=(face,id)=>Math.sign(midpoint(face,id).x-midX(face))||1;
+const symmetric=(face,ids,r,dx,dy=0,scale=0,shapeY=1,scaleY=scale)=>
+  ids.map(id=>ctl(face,id,r,dx*signX(face,id),dy,scale,shapeY,scaleY));
+export const FILTER_GROUPS=[
+  ['Básico', [['normal','Normal']]],
+  ['Ojos y cejas', [
+    ['eyes-big','Ojos grandes'],['eyes-small','Ojos pequeños'],
+    ['eyes-apart','Ojos separados'],['eyes-together','Ojos juntos'],
+    ['eyes-alien','Ojos de alienígena'],['eye-droop','Ojo caído'],
+    ['brows-up','Cejas levantadas'],['brows-angry','Cejas enfadadas']
+  ]],
+  ['Nariz', [
+    ['nose-big','Nariz grande'],['nose-small','Nariz pequeña'],
+    ['nose-twisted','Nariz torcida'],['nose-long','Nariz larga'],
+    ['nose-pinocchio','Nariz de Pinocho'],['nose-pig','Nariz de cerdito'],
+    ['nose-thin','Nariz fina']
+  ]],
+  ['Boca', [
+    ['mouth-big','Boca grande'],['mouth-small','Boca pequeña'],
+    ['mouth-twisted','Boca torcida'],['mouth-smile','Sonrisa gigante'],
+    ['mouth-sad','Boca triste'],['lips-big','Labios grandes'],
+    ['mouth-fish','Boca de pez']
+  ]],
+  ['Rostro', [
+    ['face-long','Cara alargada'],['face-round','Cara redonda'],
+    ['face-thin','Cara estrecha'],['face-egg','Cabeza de huevo'],
+    ['chin-big','Barbilla gigante'],['forehead-big','Frente gigante'],
+    ['face-square','Cara cuadrada'],['cheeks-hamster','Mejillas de hámster'],
+    ['face-alien','Cara de alienígena']
+  ]]
 ];
-export function presetControls(face, name) {
-  const L = LANDMARK;
-  switch (name) {
-    // Base + alas de nariz, soportes COMPACTOS separados del ojo y la boca.
-    case 'nose-big': return [
-      at(face, [L.noseTip, L.noseBase], .135, 0, 0, .34, .72),
-      at(face, L.nostrilA, .105, 0, 0, .22, .68),
-      at(face, L.nostrilB, .105, 0, 0, .22, .68)
+export const FILTERS=FILTER_GROUPS.flatMap(([,items])=>items);
+export const FILTER_IDS=new Set(FILTERS.map(([id])=>id));
+export function presetControls(face,name) {
+  if (!face || !FILTER_IDS.has(name)) return [];
+  const L=LANDMARK;
+  const eyes=(r,scale,shapeY=.78,scaleY=scale)=>[
+    ctl(face,eyeA,r,0,0,scale,shapeY,scaleY),
+    ctl(face,eyeB,r,0,0,scale,shapeY,scaleY)
+  ];
+  const mouth=()=>midpoint(face,lips);
+  const corners=(r,dx,dy=0,s=0,y=.84)=>
+    symmetric(face,[L.mouthA,L.mouthB],r,dx,dy,s,y);
+  switch(name) {
+    case 'normal':return [];
+    case 'eyes-big':return eyes(.29,.95,.72);
+    case 'eyes-small':return eyes(.32,-.5,.77);
+    case 'eyes-apart':return symmetric(face,[eyeA,eyeB],.32,.095,0,0,.86);
+    case 'eyes-together':return symmetric(face,[eyeA,eyeB],.32,-.09,0,0,.86);
+    case 'eyes-alien':return eyes(.34,.52,.92,1.13);
+    // Eye DROP moves the whole source-eye patch with an invertible field:
+    // gentle displacement / broad region, NOT a duplicate of the original eye.
+    case 'eye-droop':return [ctl(face,eyeA,.32,0,.105,0,.83)];
+    case 'brows-up':return [ctl(face,browsA,.19,0,-.065,0,.69),
+      ctl(face,browsB,.19,0,-.065,0,.69)];
+    case 'brows-angry':return [
+      ctl(face,L.browAInner,.155,0,.065),ctl(face,L.browBInner,.155,0,.065),
+      ctl(face,L.browAOuter,.15,0,-.025),ctl(face,L.browBOuter,.15,0,-.025)
     ];
-    case 'nose-twisted': return [at(face, [L.noseTip, L.noseLowerBridge], .18, .14, 0, 0, .78)];
-    case 'nose-long': return [at(face, [L.noseTip, L.noseBase], .17, 0, .15, 0, .82)];
-    // La máscara anterior (.175/.43) casi no agrandaba los bordes del ojo.
-    // Nuevo radio elíptico: mayor expansión del párpado sin llegar a la nariz.
-    case 'eyes-big': return [
-      at(face, [L.eyeAOuter, L.eyeAInner, L.eyeATop, L.eyeABottom], .29, 0, 0, .95, .72),
-      at(face, [L.eyeBOuter, L.eyeBInner, L.eyeBTop, L.eyeBBottom], .29, 0, 0, .95, .72)
+    case 'nose-big':return [
+      ctl(face,[L.noseTip,L.noseBase],.135,0,0,.34,.72),
+      ctl(face,L.noseA,.105,0,0,.22,.68),ctl(face,L.noseB,.105,0,0,.22,.68)
     ];
-    case 'eye-droop': return [at(face, [L.eyeAOuter, L.eyeAInner, L.eyeATop, L.eyeABottom], .185, 0, .15, 0, .82)];
-    case 'mouth-big': {
-      // Labios exteriores 0/17 e interiores 13/14; las comisuras se separan.
-      const middle = midpoint(face, [L.mouthTopOuter, L.mouthBottomOuter,
-        L.mouthTopInner, L.mouthBottomInner]);
-      const left = face.landmarks[L.mouthA], right = face.landmarks[L.mouthB];
-      const away = p => p.x < middle.x ? -.065 : .065;
-      return [
-        at(face, [L.mouthTopOuter, L.mouthBottomOuter, L.mouthTopInner, L.mouthBottomInner],
-          .35, 0, 0, .86, .64),
-        at(face, L.mouthA, .16, away(left), 0, 0, .66),
-        at(face, L.mouthB, .16, away(right), 0, 0, .66)
-      ];
-    }
-    case 'mouth-twisted': return [at(face, L.mouthA, .14, .15, .04, 0, .78)];
-    case 'face-long': return [at(face, L.chin, .32, 0, .21), at(face, L.forehead, .29, 0, -.085)];
-    default: return [];
+    case 'nose-small':return [ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.22,0,0,-.52,.85)];
+    case 'nose-twisted':return [ctl(face,[L.noseTip,L.noseBridge],.29,.11,0,0,.82)];
+    case 'nose-long':return [ctl(face,[L.noseTip,L.noseBase],.28,0,.105,0,.82)];
+    case 'nose-pinocchio':return [ctl(face,[L.noseTip,L.noseBase],.36,0,.165,0,.85)];
+    case 'nose-pig':return [
+      ctl(face,L.noseTip,.21,0,-.055,0,.8),
+      ...symmetric(face,[L.noseA,L.noseB],.15,.047,-.035,.12,.85)
+    ];
+    case 'nose-thin':return symmetric(face,[L.noseA,L.noseB],.18,-.045,0,-.12,.85);
+    case 'mouth-big':return [
+      ctl(face,lips,.35,0,0,.86,.64),...corners(.16,.065)
+    ];
+    case 'mouth-small':return [ctl(face,lips.concat([L.mouthA,L.mouthB]),.34,0,0,-.55,.71)];
+    case 'mouth-twisted':return [ctl(face,L.mouthA,.28,.095,.028,0,.82)];
+    case 'mouth-smile':return [...corners(.28,.11,-.065),ctl(face,L.mouthTop,.20,0,-.02,0,.85)];
+    case 'mouth-sad':return corners(.25,0,.082);
+    case 'lips-big':return [
+      ctl(face,lips,.23,0,0,.48,.74,.95),
+      ctl(face,L.mouthTop,.12,0,-.015,.18,.76),
+      ctl(face,L.mouthBottom,.12,0,.015,.18,.76)
+    ];
+    case 'mouth-fish':return [
+      ...corners(.27,-.075,0),
+      ctl(face,lips,.23,0,0,.42,.76,.75)
+    ];
+    case 'face-long':return [ctl(face,L.chin,.43,0,.16),ctl(face,L.forehead,.38,0,-.07)];
+    case 'face-round':return [
+      ...symmetric(face,[L.cheekAInner,L.cheekBInner],.34,.085,0,.18),
+      ctl(face,L.chin,.3,0,-.05)
+    ];
+    case 'face-thin':return symmetric(face,[L.cheekAInner,L.cheekBInner],.38,-.085,0,-.08);
+    case 'face-egg':return [
+      ...symmetric(face,[L.templeA,L.templeB],.38,.095,0,.12),
+      ...symmetric(face,[L.jawA,L.jawB],.37,-.085,0,-.08)
+    ];
+    case 'chin-big':return [ctl(face,L.chin,.41,0,.15, .36)];
+    case 'forehead-big':return [
+      ctl(face,L.forehead,.38,0,-.115,.22),
+      ...symmetric(face,[L.foreheadA,L.foreheadB],.28,.055,-.03,.12)
+    ];
+    case 'face-square':return [
+      ...symmetric(face,[L.jawAHigh,L.jawBHigh],.34,.095,0,.15),
+      ...symmetric(face,[L.jawA,L.jawB],.29,.07,0,.08)
+    ];
+    case 'cheeks-hamster':return [
+      ...symmetric(face,[L.cheekAInner,L.cheekBInner],.29,.055,0,.62)
+    ];
+    case 'face-alien':return [
+      ...eyes(.3,.52,.83,.8),
+      ...symmetric(face,[L.templeA,L.templeB],.36,.075),
+      ...symmetric(face,[L.jawA,L.jawB],.34,-.065),
+      ctl(face,L.chin,.26,0,-.055)
+    ];
+    default:return [];
   }
 }
-export function compose(face, preset, strokes, intensity = 100) {
-  if (!face || intensity <= 0) return [];
-  const factor = clamp(intensity / 100, 0, 1);
-  return [...presetControls(face, preset), ...strokes.map(s => controlFromStroke(s, face)).filter(Boolean)]
-    .slice(-MAX_CONTROLS).map(c => ({ ...c, dx: c.dx * factor, dy: c.dy * factor, scale: c.scale * factor }));
+/** Up to four independently adjustable supplementary presets. */
+export function normalizeEffects(effects) {
+  if (!Array.isArray(effects)) return [];
+  const seen=new Set();
+  return effects.filter(e=>{
+    if(!e || !FILTER_IDS.has(e.preset) || e.preset==='normal' ||
+       !Number.isFinite(e.intensity) || e.intensity<0 || e.intensity>100 ||
+       seen.has(e.preset))return false;
+    seen.add(e.preset);return true;
+  }).slice(0,4).map(e=>({preset:e.preset,intensity:e.intensity}));
 }
-/** Misma función compacta que GLSL, con distancia corregida por relación de aspecto. */
-export function influenceAt(point, c, aspect = 16 / 9, destination = false) {
-  const cx = c.x + (destination ? c.dx : 0);
-  const cy = c.y + (destination ? c.dy : 0);
-  const radius = Math.max(1e-5, c.radius * aspect);
-  const dx = (point.x - cx) * aspect / radius;
-  const dy = (point.y - cy) / (radius * (c.shapeY || 1));
-  const d2 = dx * dx + dy * dy;
-  return d2 < 1 ? (1 - d2) ** 3 : 0;
+export function controlFromStroke(stroke,face) {
+  const p=face.landmarks[stroke.landmark];
+  if(!p)return null;
+  const offset=toWorld(stroke.offset,face),delta=toWorld(stroke.delta,face);
+  // A very long drag used to exceed the field support and leave a second eye.
+  // Grow its support, then clamp translation to keep the warp one-to-one.
+  const r=Math.min(.5,Math.max(stroke.radius,Math.hypot(stroke.delta.x,stroke.delta.y)*2.55));
+  const radius=r*face.frame.width;
+  const max=.38*radius;
+  return {x:p.x+offset.x,y:p.y+offset.y,
+    dx:clamp(delta.x,-max,max),
+    dy:clamp(delta.y,-max,max*1.45),
+    radius,shapeY:1,scale:stroke.scale||0,scaleY:stroke.scale||0};
 }
-/** Inversa aproximada de shader: hit-testing sobre la imagen YA deformada. */
-export function inverseWarp(p, controls, aspect = 16 / 9) {
-  let x = p.x, y = p.y;
-  for (let i = controls.length - 1; i >= 0; i--) {
-    const c = controls[i];
-    const w = influenceAt({ x, y }, c, aspect, true);
-    x -= c.dx * w; y -= c.dy * w;
-    const swell = influenceAt({ x, y }, c, aspect);
-    const s = Math.max(.55, 1 + c.scale * swell);
-    x = c.x + (x - c.x) / s; y = c.y + (y - c.y) / s;
+export function compose(face,preset,strokes=[],intensity=100,effects=[]) {
+  if(!face || intensity<=0)return [];
+  const factor=clamp(intensity/100,0,1);
+  const extra=normalizeEffects(effects).flatMap(e=>presetControls(face,e.preset)
+    .map(c=>({...c,dx:c.dx*e.intensity/100,dy:c.dy*e.intensity/100,
+      scale:c.scale*e.intensity/100,scaleY:c.scaleY*e.intensity/100})));
+  return [...presetControls(face,preset),...extra,
+    ...strokes.map(s=>controlFromStroke(s,face)).filter(Boolean)]
+    .slice(-MAX_CONTROLS).map(c=>({...c,dx:c.dx*factor,dy:c.dy*factor,
+      scale:c.scale*factor,scaleY:c.scaleY*factor}));
+}
+/** Finite support identical to GLSL, with corrected video aspect ratio. */
+export function influenceAt(p,c,aspect=16/9) {
+  const r=Math.max(1e-5,c.radius*aspect);
+  const dx=(p.x-c.x)*aspect/r,dy=(p.y-c.y)/(r*(c.shapeY||1));
+  const d2=dx*dx+dy*dy;
+  return d2<1?(1-d2)**3:0;
+}
+export function forwardOne(p,c,aspect=16/9) {
+  const w=influenceAt(p,c,aspect),sx=1+(c.scale||0)*w,sy=1+(c.scaleY??c.scale??0)*w;
+  return {x:c.x+(p.x-c.x)*sx+c.dx*w,
+    y:c.y+(p.y-c.y)*sy+c.dy*w};
+}
+/** Inverts SOURCE-anchored forward field: the original feature is moved, not overlaid. */
+export function inverseOne(destination,c,aspect=16/9) {
+  const w=influenceAt(destination,c,aspect);
+  let x=c.x+(destination.x-c.x)/(1+(c.scale||0)*w)-c.dx*w;
+  let y=c.y+(destination.y-c.y)/(1+(c.scaleY??c.scale??0)*w)-c.dy*w;
+  for(let j=0;j<7;j++){
+    const f=forwardOne({x,y},c,aspect);
+    x+=.72*(destination.x-f.x);
+    y+=.72*(destination.y-f.y);
   }
-  return { x, y };
+  return {x,y};
 }
-export function makeStroke(face, visiblePoint, radius, controls = [], aspect = 16 / 9) {
-  if (!face) return null;
-  const point = inverseWarp(visiblePoint, controls, aspect);
-  let closest = -1, best = Infinity;
-  face.landmarks.forEach((p, i) => {
-    const dist = Math.hypot((p.x - point.x) * aspect, p.y - point.y);
-    if (dist < best) { best = dist; closest = i; }
+export function inverseWarp(p,controls,aspect=16/9) {
+  let out=p;
+  for(let i=controls.length-1;i>=0;i--)out=inverseOne(out,controls[i],aspect);
+  return out;
+}
+export function makeStroke(face,visiblePoint,radius,controls=[],aspect=16/9) {
+  if(!face)return null;
+  const p=inverseWarp(visiblePoint,controls,aspect);
+  let closest=-1,best=Infinity;
+  face.landmarks.forEach((candidate,i)=>{
+    const d=Math.hypot((candidate.x-p.x)*aspect,candidate.y-p.y);
+    if(d<best){closest=i;best=d;}
   });
-  if (closest < 0 || best > face.frame.width * aspect * .27) return null;
-  const p = face.landmarks[closest];
-  return { landmark: closest, offset: toLocal({ x: point.x - p.x, y: point.y - p.y }, face),
-    delta: { x: 0, y: 0 }, radius: clamp(radius, .06, .38), scale: 0 };
+  if(closest<0||best>face.frame.width*aspect*.27)return null;
+  const landmark=face.landmarks[closest];
+  return {landmark:closest,offset:toLocal({x:p.x-landmark.x,y:p.y-landmark.y},face),
+    delta:{x:0,y:0},radius:clamp(radius,.06,.38),scale:0};
 }

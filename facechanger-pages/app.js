@@ -1,4 +1,4 @@
-import { FILTERS, MAX_CONTROLS, compose, faceFromLandmarks } from './engine/geometry.js';
+import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks } from './engine/geometry.js';
 import { PointerDeformer, mapPointer } from './engine/pointer.js';
 import { Renderer } from './engine/renderer.js';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const gesture = new PointerDeformer();
 const state = {
-  preset: 'normal', strokes: [], undone: [], intensity: 100, radius: .19, editable: true,
+  preset: 'normal', effects: [], strokes: [], undone: [], intensity: 100, radius: .19, editable: true, zoom: 100,
   face: null, live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
   mirror: false, settingsOpen: false, exitTimer: 0, running: false,
@@ -22,21 +22,50 @@ function status(message, good = false) {
 }
 function controls() {
   return compose(state.face, state.preset,
-    [...state.strokes, ...(state.live ? [state.live] : [])], state.intensity);
+    [...state.strokes, ...(state.live ? [state.live] : [])], state.intensity, state.effects);
 }
 function refreshButtons() {
   $('undo').disabled = state.strokes.length === 0;
   $('redo').disabled = state.undone.length === 0;
 }
+const filterName = id => FILTERS.find(([key])=>key===id)?.[1] ?? id;
+function makeGroups(select, placeholder=false) {
+  const groups=FILTER_GROUPS.map(([group,items])=>{
+    const opt=document.createElement('optgroup');opt.label=group;
+    for(const [id,label] of items){
+      if(placeholder && id==='normal')continue;
+      opt.append(new Option(label,id));
+    }
+    return opt;
+  });
+  select.replaceChildren(...(placeholder?[new Option('Seleccionar efecto…','')]:[]),...groups);
+}
 function refreshFilters() {
-  $('filters').replaceChildren(...FILTERS.map(([id, label]) => {
-    const button = document.createElement('button');
-    button.type = 'button'; button.textContent = label;
-    button.classList.toggle('selected', state.preset === id);
-    button.setAttribute('aria-pressed', String(state.preset === id));
-    button.addEventListener('click', () => { state.preset = id; refreshFilters(); });
-    return button;
-  }));
+  $('filters').value = state.preset;
+}
+function refreshEffects() {
+  const host=$('effects');host.replaceChildren();
+  for(const effect of state.effects){
+    const row=document.createElement('div');row.className='effect-row';
+    const title=document.createElement('span');title.className='effect-title';
+    title.textContent=filterName(effect.preset);
+    const value=document.createElement('output');value.textContent=effect.intensity+' %';
+    const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='100';
+    slider.value=effect.intensity;slider.setAttribute('aria-label','Intensidad de '+filterName(effect.preset));
+    slider.addEventListener('input',()=>{effect.intensity=+slider.value;value.textContent=slider.value+' %'});
+    const remove=document.createElement('button');remove.type='button';remove.className='remove-effect';
+    remove.textContent='×';remove.setAttribute('aria-label','Quitar '+filterName(effect.preset));
+    remove.addEventListener('click',()=>{state.effects=state.effects.filter(e=>e!==effect);refreshEffects()});
+    row.append(title,value,slider,remove);host.append(row);
+  }
+  $('add-effect').disabled=state.effects.length>=4;
+}
+function setZoom(value) {
+  state.zoom=Math.max(100,Math.min(200,Number(value)||100));
+  $('view-zoom').value=String(state.zoom);
+  $('view-zoom-value').textContent=state.zoom+' %';
+  // BoundingClientRect includes transform; mapPointer compensates the crop and scaling.
+  canvas.style.transform='scale('+state.zoom/100+')';
 }
 function refreshSaved() {
   const filters = listFilters(); const host = $('saved'); host.replaceChildren();
@@ -49,9 +78,9 @@ function refreshSaved() {
     const load = document.createElement('button'); load.textContent = filter.name;
     load.addEventListener('click', () => {
       state.strokes = structuredClone(filter.strokes); state.undone = [];
-      state.preset = filter.preset; state.intensity = filter.intensity; state.radius = filter.radius;
+      state.preset = filter.preset; state.effects = normalizeEffects(filter.effects); state.intensity = filter.intensity; state.radius = filter.radius;
       $('intensity').value = state.intensity; $('radius').value = Math.round(state.radius * 100);
-      refreshNumbers(); refreshButtons(); refreshFilters();
+      refreshNumbers(); refreshButtons(); refreshFilters(); refreshEffects();
     });
     const del = document.createElement('button'); del.textContent = '×';
     del.setAttribute('aria-label', 'Eliminar ' + filter.name);
@@ -199,6 +228,17 @@ canvas.addEventListener('pointercancel', event => pointerEnd(event, false));
 canvas.addEventListener('lostpointercapture', () => { gesture.cancel(); state.live = null; });
 $('start-camera').addEventListener('click', () => startCamera($('cameras').value));
 $('cameras').addEventListener('change', e => startCamera(e.target.value));
+makeGroups($('filters'));
+makeGroups($('extra-filter'),true);
+$('filters').addEventListener('change',event=>{state.preset=event.target.value;refreshFilters()});
+$('add-effect').addEventListener('click',()=>{
+  const preset=$('extra-filter').value;
+  if(!preset || state.effects.length>=4 || state.effects.some(e=>e.preset===preset))return;
+  state.effects.push({preset,intensity:100});$('extra-filter').value='';
+  refreshEffects();
+});
+$('view-zoom').addEventListener('input',event=>setZoom(event.target.value));
+$('view-reset').addEventListener('click',()=>setZoom(100));
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });
 $('intensity').addEventListener('input', e => { state.intensity = +e.target.value; refreshNumbers(); });
 $('radius').addEventListener('input', e => { state.radius = +e.target.value / 100; refreshNumbers(); });
@@ -210,13 +250,13 @@ $('redo').addEventListener('click', () => {
 });
 $('reset').addEventListener('click', () => {
   state.strokes = []; state.undone = []; state.live = null; gesture.cancel();
-  state.preset = 'normal'; state.intensity = 100; $('intensity').value = '100';
-  refreshFilters(); refreshNumbers(); refreshButtons();
+  state.preset = 'normal'; state.effects = []; state.intensity = 100; $('intensity').value = '100';
+  refreshFilters(); refreshEffects(); refreshNumbers(); refreshButtons();
 });
 $('save').addEventListener('click', () => {
   const name = prompt('Nombre del filtro personalizado:')?.trim(); if (!name) return;
   try {
-    saveFilter({ version: 1, name, preset: state.preset, intensity: state.intensity,
+    saveFilter({ version: 1, name, preset: state.preset, effects: state.effects, intensity: state.intensity,
       radius: state.radius, strokes: structuredClone(state.strokes) }); refreshSaved();
   } catch (err) { alert(errorText(err)); }
 });
@@ -284,5 +324,5 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { cancelAnimationFrame(state.raf); state.raf = 0; }
   else if (state.running && !state.raf) state.raf = requestAnimationFrame(render);
 });
-refreshFilters(); refreshSaved(); refreshButtons(); refreshNumbers();
+refreshFilters(); refreshEffects(); refreshSaved(); refreshButtons(); refreshNumbers(); setZoom(100);
 if (!window.isSecureContext) showError('Para acceder a la webcam abre esta página con HTTPS (GitHub Pages) o localhost.');

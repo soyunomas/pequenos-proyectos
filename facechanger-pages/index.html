@@ -23,11 +23,22 @@
     <aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1" inert>
       <div class="panel-top"><span class="panel-caption">CONTROLES DEL ESPEJO</span><button class="settings-close" id="settings-close" type="button" aria-label="Cerrar ajustes">×</button></div>
       <div class="panel-intro"><small>ESTUDIO FACIAL</small><h1 id="settings-title">Deforma tu reflejo</h1><p>Arrastra la nariz, los ojos o la boca directamente sobre la imagen.</p></div>
-      <section><h2>Filtros</h2><div id="filters" class="filters" aria-label="Filtros faciales"></div></section>
+      <section class="filter-section"><h2>Elige un filtro</h2>
+        <label class="field-label" for="filters">Efecto facial</label>
+        <select id="filters" aria-label="Filtro facial"><option value="normal">Normal · sin filtro</option></select>
+        <p class="help compact">Los filtros se aplican al instante. El control de intensidad regula el efecto.</p>
+      </section>
+      <section><h2>Combinar efectos</h2><label class="field-label" for="extra-filter">Añadir otro filtro</label>
+        <select id="extra-filter" aria-label="Añadir efecto combinado"><option value="">Seleccionar efecto…</option></select>
+        <button class="add-effect" id="add-effect" type="button">Añadir a la mezcla</button>
+        <div id="effects" class="effect-list" aria-live="polite"></div>
+        <p class="help compact">Hasta cuatro efectos adicionales, cada uno con su intensidad. El regulador general afecta al resultado completo.</p>
+      </section>
       <section><h2>Editor</h2><label class="check"><input id="manual" type="checkbox" checked> Deformación manual</label>
-        <label class="slider">Intensidad <output id="intensity-value">100 %</output><input type="range" id="intensity" min="0" max="100" value="100"></label>
+        <label class="slider">Intensidad general <output id="intensity-value">100 %</output><input type="range" id="intensity" min="0" max="100" value="100"></label>
         <label class="slider">Radio de influencia <output id="radius-value">19 %</output><input type="range" id="radius" min="6" max="38" value="19"></label>
       </section>
+      <section><h2>Encuadre</h2><label class="slider">Tamaño de imagen <output id="view-zoom-value">100 %</output><input type="range" id="view-zoom" min="100" max="200" value="100" step="5"></label><button id="view-reset" class="reset-view" type="button">Restablecer encuadre · 100 %</button><p class="help compact">Este zoom afecta solo a la imagen; no cambia la cámara ni tus filtros.</p></section>
       <section><h2>Cámara</h2><select id="cameras" aria-label="Elegir cámara"><option value="">Cámara predeterminada</option></select></section>
       <section><h2>Mis filtros</h2><div id="saved" class="saved"><p class="help">Aún no tienes filtros guardados.</p></div></section>
       <div class="actions">
@@ -35,7 +46,7 @@
         <button id="reset">Restablecer</button><button id="save">Guardar filtro</button>
         <button id="fullscreen">Pantalla completa</button><button id="mirror-mode" class="primary">Modo espejo ↗</button>
       </div>
-      <p class="help">Modo espejo: mueve el puntero para ver «Salir», pulsa Esc o toca la esquina superior derecha.</p>
+      <p class="help">Para volver a ver toda la cara, pulsa «Restablecer encuadre». Modo espejo: toca «Salir» o pulsa Esc.</p>
       <p class="help">Esta versión no necesita Node.js, npm ni compilación. Requiere Internet para descargar MediaPipe en el primer acceso.</p>
     </aside>
   </main>

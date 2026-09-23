@@ -75,5 +75,29 @@ await test('Boca grande disponible y persistente en JSON',()=>{
   saveFilter(preset,storage);assert(listFilters(storage)[0].preset==='mouth-big');
 });
 
+
+
+await test('Catálogo completo: 32 filtros disponibles',()=>{
+  assert(FILTERS.length===32);
+  const f=face();
+  FILTERS.forEach(([id])=>{
+    const cs=presetControls(f,id);
+    assert(id==='normal'||cs.length>0,id);
+    cs.forEach(c=>assert(Object.values(c).every(Number.isFinite),id+' NaN'));
+  });
+});
+await test('Ojo caído inverso: el origen y el destino no duplican el ojo',()=>{
+  const f=face(),c=presetControls(f,'eye-droop')[0];
+  const original={x:c.x,y:c.y},destination=forwardOne(original,c);
+  const sourceAtMovedEye=inverseWarp(destination,[c]);
+  const sourceAtOldEye=inverseWarp(original,[c]);
+  assert(Math.hypot(sourceAtMovedEye.x-original.x,sourceAtMovedEye.y-original.y)<.001);
+  assert(Math.hypot(sourceAtOldEye.x-original.x,sourceAtOldEye.y-original.y)>.008);
+});
+await test('Mezclas y filtros antiguos conservan compatibilidad',()=>{
+  const extras=normalizeEffects([{preset:'mouth-smile',intensity:80},{preset:'nose-small',intensity:40}]);
+  assert(extras.length===2);
+  assert(compose(face(),'normal',[],100,extras).length===4);
+});
 document.getElementById('summary').textContent = `${pass} correctas · ${fail} fallidas`;
 document.title = fail ? 'Error en pruebas · FaceChanger' : 'Pruebas correctas · FaceChanger';

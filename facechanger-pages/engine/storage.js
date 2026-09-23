@@ -1,4 +1,4 @@
-import { FILTERS, MAX_CONTROLS } from './geometry.js';
+import { FILTERS, MAX_CONTROLS, normalizeEffects } from './geometry.js';
 const KEY = 'facechanger-pages:filters:v1';
 const finite = n => typeof n === 'number' && Number.isFinite(n);
 export const validStroke = s => s && Number.isInteger(s.landmark) && s.landmark >= 0 && s.landmark < 478 &&
@@ -7,7 +7,8 @@ export const validStroke = s => s && Number.isInteger(s.landmark) && s.landmark 
   s.delta && finite(s.delta.x) && finite(s.delta.y) && Math.abs(s.delta.x) <= .48 && Math.abs(s.delta.y) <= .48;
 export const validFilter = f => f && f.version === 1 && typeof f.name === 'string' && !!f.name.trim() && f.name.length <= 64 &&
   FILTERS.some(([id]) => id === f.preset) && finite(f.intensity) && f.intensity >= 0 && f.intensity <= 100 &&
-  finite(f.radius) && f.radius >= .06 && f.radius <= .38 && Array.isArray(f.strokes) &&
+  finite(f.radius) && f.radius >= .06 && f.radius <= .38 && (f.effects === undefined || (Array.isArray(f.effects) && f.effects.length <= 4 &&
+    normalizeEffects(f.effects).length === f.effects.length)) && Array.isArray(f.strokes) &&
   f.strokes.length <= MAX_CONTROLS && f.strokes.every(validStroke);
 export function listFilters(store = localStorage) {
   try { const filters = JSON.parse(store.getItem(KEY) ?? '[]');

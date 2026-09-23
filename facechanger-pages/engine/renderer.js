@@ -12,28 +12,34 @@ uniform int uCount;
 uniform vec4 uControl[${MAX_CONTROLS}];
 uniform vec2 uDelta[${MAX_CONTROLS}];
 uniform float uShape[${MAX_CONTROLS}];
+uniform float uScaleY[${MAX_CONTROLS}];
 uniform float uAspect;
+float influence(vec2 p,vec4 ctl,float shapeY){
+  float r=max(.00001,ctl.z*uAspect);
+  vec2 m=(p-ctl.xy)*vec2(uAspect,1./max(.1,shapeY))/r;
+  float d2=dot(m,m);
+  return d2<1. ? pow(1.-d2,3.) : 0.;
+}
+vec2 forwardOne(vec2 p,vec4 ctl,vec2 delta,float shapeY,float scaleY){
+  float w=influence(p,ctl,shapeY);
+  return ctl.xy+(p-ctl.xy)*vec2(1.+ctl.w*w,1.+scaleY*w)+delta*w;
+}
 void main(){
-  // p: espejo top-left; textura original top-left se convierte a WebGL bottom-left.
-  vec2 p = vec2(vUV.x, 1. - vUV.y);
-  for (int i = 0; i < ${MAX_CONTROLS}; i++) {
-    int k = uCount - 1 - i;
-    if (k < 0) break;
-    vec4 ctl = uControl[k]; vec2 delta = uDelta[k];
-    vec2 dest = ctl.xy + delta;
-    float r = max(.00001, ctl.z * uAspect);
-    float shapeY = max(.1, uShape[k]);
-    vec2 metric = (p - dest) * vec2(uAspect, 1. / shapeY) / r;
-    float d2 = dot(metric, metric);
-    float influence = d2 < 1. ? pow(1. - d2, 3.) : 0.;
-    p -= delta * influence;
-    vec2 fromCenter = (p - ctl.xy) * vec2(uAspect, 1. / shapeY) / r;
-    float q2 = dot(fromCenter, fromCenter);
-    float swell = q2 < 1. ? pow(1. - q2, 3.) : 0.;
-    p = ctl.xy + (p - ctl.xy) / max(.55, 1. + ctl.w * swell);
+  vec2 p=vec2(vUV.x,1.-vUV.y);
+  // Solve inverse of SOURCE-anchored displacement. Never overlay original eye.
+  for(int i=0;i<${MAX_CONTROLS};i++){
+    int k=uCount-1-i;
+    if(k<0)break;
+    vec4 ctl=uControl[k];vec2 delta=uDelta[k];float sh=uShape[k],sy=uScaleY[k];
+    float w=influence(p,ctl,sh);
+    vec2 source=ctl.xy+(p-ctl.xy)/vec2(1.+ctl.w*w,1.+sy*w)-delta*w;
+    for(int j=0;j<7;j++){
+      vec2 found=forwardOne(source,ctl,delta,sh,sy);
+      source+=.72*(p-found);
+    }
+    p=source;
   }
-  // UNPACK_FLIP_Y_WEBGL=true: UV y=1 corresponde al borde superior de la cámara.
-  outColor = texture(uVideo, vec2(1. - p.x, 1. - p.y));
+  outColor=texture(uVideo,vec2(1.-p.x,1.-p.y));
 }`;
 function compile(gl, kind, source) {
   const shader = gl.createShader(kind);
@@ -73,9 +79,11 @@ export class Renderer {
     this.uDelta = gl.getUniformLocation(program, 'uDelta[0]');
     this.uAspect = gl.getUniformLocation(program, 'uAspect');
     this.uShape = gl.getUniformLocation(program, 'uShape[0]');
+    this.uScaleY = gl.getUniformLocation(program, 'uScaleY[0]');
     this.bufferControls = new Float32Array(MAX_CONTROLS * 4);
     this.bufferDeltas = new Float32Array(MAX_CONTROLS * 2);
     this.bufferShapes = new Float32Array(MAX_CONTROLS);
+    this.bufferScaleY = new Float32Array(MAX_CONTROLS);
   }
   draw(video, controls) {
     if (!video.videoWidth || video.readyState < 2) return;
@@ -84,12 +92,13 @@ export class Renderer {
       canvas.width = video.videoWidth; canvas.height = video.videoHeight;
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
-    this.bufferControls.fill(0); this.bufferDeltas.fill(0); this.bufferShapes.fill(1);
+    this.bufferControls.fill(0); this.bufferDeltas.fill(0); this.bufferShapes.fill(1); this.bufferScaleY.fill(0);
     for (let i = 0; i < Math.min(controls.length, MAX_CONTROLS); i++) {
       const c = controls[i];
       this.bufferControls.set([c.x, c.y, c.radius, c.scale], i * 4);
       this.bufferDeltas.set([c.dx, c.dy], i * 2);
       this.bufferShapes[i] = c.shapeY || 1;
+      this.bufferScaleY[i] = c.scaleY ?? c.scale;
     }
     gl.useProgram(this.program);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -98,6 +107,7 @@ export class Renderer {
     gl.uniform4fv(this.uControl, this.bufferControls);
     gl.uniform2fv(this.uDelta, this.bufferDeltas);
     gl.uniform1fv(this.uShape, this.bufferShapes);
+    gl.uniform1fv(this.uScaleY, this.bufferScaleY);
     gl.uniform1f(this.uAspect, video.videoWidth / video.videoHeight);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }

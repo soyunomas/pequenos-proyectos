@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, influenceAt, presetControls } from '../engine/geometry.js';
+import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne } from '../engine/geometry.js';
 import { PointerDeformer, mapPointer } from '../engine/pointer.js';
 import { listFilters, saveFilter, removeFilter } from '../engine/storage.js';
 const raw = Array.from({length:478},()=>({x:.5,y:.5}));
@@ -79,13 +79,16 @@ test('nariz grande NO afecta a ningún párpado ni comisura',()=>{
     assert.equal(c.reduce((sum,ctl)=>sum+influenceAt(f.landmarks[i],ctl),0),0,'punto contaminado '+i);
   assert.ok(c.some(ctl=>influenceAt(f.landmarks[L.noseTip],ctl)>.01));
 });
-test('ojos grandes centrados en párpados y no en iris móvil',()=>{
-  const f=anatomy(),cs=presetControls(f,'eyes-big').map(c=>c.x).sort((a,b)=>a-b);
-  assert.ok(Math.abs(cs[0]-.405)<.01&&Math.abs(cs[1]-.595)<.01);
-  assert.deepEqual(presetControls({...f,landmarks:f.landmarks.slice(0,468)},'eyes-big'),presetControls(f,'eyes-big'));
+test('ojos grandes centrados en párpados estables y no en iris',()=>{
+  const f=anatomy(),cs=presetControls(f,'eyes-big');
+  const L=LANDMARK;
+  const average=indices=>indices.reduce((sum,i)=>sum+f.landmarks[i].x,0)/indices.length;
+  assert.ok(Math.abs(cs[0].x-average([L.eyeAOuter,L.eyeAInner,L.eyeATop,L.eyeABottom]))<1e-8);
+  assert.ok(Math.abs(cs[1].x-average([L.eyeBOuter,L.eyeBInner,L.eyeBTop,L.eyeBBottom]))<1e-8);
+  assert.deepEqual(presetControls({...f,landmarks:f.landmarks.slice(0,468)},'eyes-big'),cs);
 });
 test('todos los presets producen controles finitos dentro de la malla',()=>{
-  for(const [name] of [['normal'],['nose-big'],['nose-twisted'],['nose-long'],['eyes-big'],['eye-droop'],['mouth-big'],['mouth-twisted'],['face-long']])
+  for(const [name] of [...FILTERS.map(([id])=>[id])])
     for(const c of presetControls(anatomy(),name)) {
       for(const key of ['x','y','dx','dy','radius','shapeY','scale'])assert.ok(Number.isFinite(c[key]),name+' '+key);
       assert.ok(c.radius>0&&c.shapeY>0);
@@ -121,4 +124,60 @@ test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>
   const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
   const filter={version:1,name:'Labios',preset:'mouth-big',intensity:80,radius:.19,strokes:[]};
   saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
+});
+
+test('todos los filtros tienen identidad única y 31 efectos distintos de Normal',()=>{
+  const ids=FILTERS.map(([id])=>id);
+  assert.equal(ids.length,32);
+  assert.equal(new Set(ids).size,ids.length);
+  assert.equal(ids[0],'normal');
+  for(const id of ids.slice(1))assert.ok(presetControls(anatomy(),id).length>0,id);
+});
+test('ojo caído: el ojo fuente solo ocupa su destino, no queda duplicado',()=>{
+  const f=anatomy(),c=presetControls(f,'eye-droop')[0];
+  const origin={x:c.x,y:c.y},destination=forwardOne(origin,c);
+  assert.ok(Math.hypot(destination.x-origin.x,destination.y-origin.y)>.025*f.frame.width);
+  const sourceAtDestination=inverseWarp(destination,[c]);
+  const sourceAtOrigin=inverseWarp(origin,[c]);
+  assert.ok(Math.hypot(sourceAtDestination.x-origin.x,sourceAtDestination.y-origin.y)<.0006,
+    'el ojo desplazado no muestra el ojo fuente');
+  assert.ok(Math.hypot(sourceAtOrigin.x-origin.x,sourceAtOrigin.y-origin.y)>.012,
+    'el ojo original sigue visible sin rellenarse');
+  assert.ok(Math.abs(c.dy)<c.radius*.4,'el desplazamiento rompe la máscara');
+});
+test('mapeo del dedo conserva coordenadas cuando el canvas tiene zoom 2x',()=>{
+  const normal=mapPointer({clientX:200,clientY:300},
+    {left:0,top:100,width:400,height:400},1280,720);
+  const zoom=mapPointer({clientX:200,clientY:300},
+    {left:-200,top:-100,width:800,height:800},1280,720);
+  assert.ok(Math.abs(normal.x-.5)<1e-8&&Math.abs(zoom.x-.5)<1e-8);
+  assert.ok(Math.abs(normal.y-.5)<1e-8&&Math.abs(zoom.y-.5)<1e-8);
+});
+test('mezclas limitadas a cuatro, con intensidades independientes',()=>{
+  const f=anatomy();
+  const extra=[{preset:'nose-small',intensity:20},{preset:'eyes-big',intensity:80}];
+  assert.equal(normalizeEffects([...extra,...extra]).length,2);
+  const a=compose(f,'normal',[],100,extra);
+  const b=compose(f,'normal',[],50,extra);
+  assert.ok(a.length===3);
+  assert.ok(a[0].scale<0 && a[1].scale>0);
+  assert.ok(Math.abs(b[0].scale-a[0].scale*.5)<1e-8);
+});
+test('guardar y recuperar mezcla; compatibilidad con filtros antiguos',()=>{
+  const data=new Map(),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+  const old={version:1,name:'Anterior',preset:'normal',intensity:60,radius:.19,strokes:[]};
+  const newer={...old,name:'Combinado',effects:[{preset:'eyes-small',intensity:75}]};
+  saveFilter(old,store);saveFilter(newer,store);
+  assert.equal(listFilters(store).length,2);
+  assert.deepEqual(listFilters(store)[1].effects,newer.effects);
+});
+
+test('ojo caído siempre desciende, también con orden especular de landmarks',()=>{
+  const f=anatomy(),c=presetControls(f,'eye-droop')[0];
+  assert.ok(c.dy>0,'el desplazamiento debe ir hacia abajo');
+  const raw=Array.from({length:478},()=>({x:.5,y:.5}));
+  raw[234]={x:.7,y:.5};raw[454]={x:.3,y:.5};
+  raw[33]={x:.35,y:.4};raw[263]={x:.65,y:.4};
+  const mirrored=faceFromLandmarks(raw);
+  assert.ok(presetControls(mirrored,'eye-droop')[0].dy>0);
 });

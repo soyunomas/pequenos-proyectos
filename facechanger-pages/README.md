@@ -60,3 +60,17 @@ Se emplean punta/base de nariz 1/2, alas nasales 98/327, párpados 33/133/159/14
 Se ha aumentado la intensidad visual de «Ojos grandes» con controles elípticos más amplios y un factor de escala máximo mayor, manteniendo la máscara fuera de la nariz. El nuevo preset «Boca grande» agranda los labios respecto a los puntos MediaPipe 0, 17, 13 y 14, y separa suavemente las comisuras 61 y 291. El regulador global de intensidad controla ambos. Los filtros JSON siguen siendo compatibles; los guardados nuevos pueden utilizar `mouth-big`.
 
 Las pruebas geométricas con una cara sintética verifican la ampliación ocular en los bordes, la ausencia de influencia sobre la nariz y la persistencia del preset de boca. Los resultados visuales definitivos requieren probar una webcam real; no existe una garantía universal del aspecto sobre todas las caras.
+
+## Versión 1.3 — todos los filtros, selector táctil y corrección de ojo caído
+
+El listado pasa a **32 opciones** (Normal y 31 efectos), organizadas en categorías dentro de un `select` nativo de tamaño cómodo en móvil. Se conservan los efectos antiguos y se incorporan: ojos pequeños/separados/juntos/de alienígena; cejas levantadas/enfadadas; nariz pequeña/de Pinocho/de cerdito/fina; boca pequeña/sonrisa gigante/boca triste/labios grandes/boca de pez; cara redonda/estrecha/de huevo/cuadrada/de alienígena; barbilla gigante, frente gigante y mejillas de hámster. **Ojo caído** usa desplazamiento acotado y muestreo inverso del campo anclado en la imagen de origen para impedir la apariencia del ojo original duplicado. Los trazos manuales demasiado largos aumentan automáticamente su área y limitan el desplazamiento en vez de crear un recorte disjunto.
+
+El panel del engranaje usa tipografía de formularios de 16–17 px para evitar tener que ampliar la página del móvil. Hay un control independiente de **Tamaño de imagen (100–200 %)** y **Restablecer encuadre**, que vuelve a mostrar el vídeo completo sin tocar la deformación ni la configuración del navegador. El navegador conserva el zoom de accesibilidad habitual: restablecer el encuadre de la cámara no altera el zoom de las páginas web.
+
+**Combinar efectos** permite añadir hasta cuatro filtros adicionales con intensidades independientes; la intensidad general afecta a todo el conjunto, incluido el filtro principal y los gestos. Los formatos JSON antiguos siguen cargándose sin cambios y los nuevos pueden almacenar opcionalmente `effects: [{preset, intensity}]` (versión 1). La GPU procesa un máximo de 32 controles espaciales en el mismo cuadro.
+
+**Pruebas de lógica de esta edición:** 22 comprobaciones pasadas, incluidos todos los filtros, la inversión en origen y destino del ojo desplazado, las mezclas y la persistencia. Requiere todavía comprobar personalmente la estética y velocidad reales en una webcam, especialmente con combinaciones grandes; no se garantiza ausencia de artefactos con deformaciones extremas ni 30 FPS en móviles de gama baja.
+
+### Validaciones pendientes sobre un móvil físico
+
+Las pruebas de lógica y la inspección de la interfaz no sustituyen la prueba de una webcam real. Hay que verificar el rendimiento a 720p, deformaciones combinadas intensas, ojo caído con un rostro real de frente y perfil, permiso de cámara y zoom táctil en Chrome y Safari móviles. El selector y los controles no requieren descargar, instalar ni compilar nada.
