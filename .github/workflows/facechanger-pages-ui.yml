@@ -1,0 +1,35 @@
+name: FaceChanger Pages · pruebas de usabilidad
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'facechanger-pages/**'
+      - '.github/workflows/facechanger-pages-ui.yml'
+  pull_request:
+    paths:
+      - 'facechanger-pages/**'
+      - '.github/workflows/facechanger-pages-ui.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar sintaxis
+        run: |
+          for f in facechanger-pages/app.js facechanger-pages/engine/*.js facechanger-pages/tests/*.js facechanger-pages/tests/*.mjs; do node --check "$f"; done
+      - name: Comprobar geometría y almacenamiento
+        run: node --test facechanger-pages/tests/logic.mjs
+      - name: Preparar Playwright solo para las pruebas
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.1
+          npx playwright install chromium --with-deps
+      - name: Verificar pantalla completa de ajustes en móvil y escritorio
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory facechanger-pages >/tmp/facechanger-server.log 2>&1 &
+          sleep 2
+          node facechanger-pages/tests/ui.mjs
