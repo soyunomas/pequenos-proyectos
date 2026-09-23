@@ -130,3 +130,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 @media(max-width:370px){.topbar .muted,.topbar .privacy{display:none}.panel-top h1,.picker-top h2{font-size:22px}.selected-filter-title{font-size:26px}}
 @media(hover:hover){.filter-option:hover,.selected-filter:hover,.settings-close:hover,.picker-back:hover{filter:brightness(.96)}}
 @media(prefers-reduced-motion:reduce){.panel,.filter-picker,.panel .check input::after{transition:none}}
+
+/* Android toolbar: navigation icon, then title. Never overlap at 320 CSS px. */
+.panel-top,.picker-top{display:flex;justify-content:flex-start;align-items:center;gap:6px}
+.panel-top h1,.picker-top h2{text-align:left;min-width:0}
+.panel-top-spacer{display:none}
+.settings-close,.picker-back{flex:none;min-width:52px;width:52px;justify-content:center;padding:0}
+.settings-close span,.picker-back span{font-size:29px}

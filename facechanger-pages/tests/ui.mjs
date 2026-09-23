@@ -32,6 +32,9 @@ try {
     assert.equal(panel.maxWidth,'none','No desktop max-width on phone');
     assert.equal(panel.background,device.colorScheme==='dark'?'rgb(21, 19, 25)':'rgb(250, 248, 255)');
     assert.equal(await page.locator('.panel-lead').count(),0,'No hero text that wastes phone space');
+    const back=await rect('.settings-close'),title=await rect('.panel-top h1');
+    assert.ok(back.x+back.width<=title.x+1&&title.x+title.width<=w+1,
+      device.name+' toolbar must not overlap: '+JSON.stringify({back,title}));
     const main=await rect('.filter-section'),row=await rect('.selected-filter');
     assert.ok(Math.abs(main.x)<1&&Math.abs(main.width-w)<1,device.name+' full width filter section');
     assert.ok(Math.abs(row.x)<1&&Math.abs(row.width-w)<1,device.name+' full width filter row');
@@ -51,6 +54,9 @@ try {
     const picker=page.locator('#filter-picker');
     await picker.waitFor({state:'visible'});
     await page.waitForTimeout(230);
+    const pickerBack=await rect('.picker-back'),pickerTitle=await rect('.picker-top h2');
+    assert.ok(pickerBack.x+pickerBack.width<=pickerTitle.x+1&&pickerTitle.x+pickerTitle.width<=w+1,
+      device.name+' filter toolbar must not overlap');
     const list=await rect('.filter-option');
     assert.ok(Math.abs(list.x)<1&&Math.abs(list.width-w)<1,device.name+' full width filter list');
     assert.ok(list.height>=64&&list.font>=19);
