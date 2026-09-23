@@ -62,7 +62,7 @@ function anatomy() {
     [L.noseLowerBridge,.5,.51],[L.nostrilA,.47,.60],[L.nostrilB,.53,.60],
     [L.eyeAOuter,.35,.4],[L.eyeAInner,.46,.4],[L.eyeATop,.405,.38],[L.eyeABottom,.405,.42],
     [L.eyeBOuter,.65,.4],[L.eyeBInner,.54,.4],[L.eyeBTop,.595,.38],[L.eyeBBottom,.595,.42],
-    [L.mouthA,.43,.73],[L.mouthB,.57,.73],[L.chin,.5,.86],[L.forehead,.5,.16]
+    [L.mouthA,.43,.74],[L.mouthB,.57,.74],[L.mouthTopOuter,.5,.72],[L.mouthBottomOuter,.5,.76],[L.mouthTopInner,.5,.73],[L.mouthBottomInner,.5,.75],[L.chin,.5,.86],[L.forehead,.5,.16]
   ])set(i,x,y);
   return faceFromLandmarks(raw);
 }
@@ -85,7 +85,7 @@ test('ojos grandes centrados en párpados y no en iris móvil',()=>{
   assert.deepEqual(presetControls({...f,landmarks:f.landmarks.slice(0,468)},'eyes-big'),presetControls(f,'eyes-big'));
 });
 test('todos los presets producen controles finitos dentro de la malla',()=>{
-  for(const [name] of [['normal'],['nose-big'],['nose-twisted'],['nose-long'],['eyes-big'],['eye-droop'],['mouth-twisted'],['face-long']])
+  for(const [name] of [['normal'],['nose-big'],['nose-twisted'],['nose-long'],['eyes-big'],['eye-droop'],['mouth-big'],['mouth-twisted'],['face-long']])
     for(const c of presetControls(anatomy(),name)) {
       for(const key of ['x','y','dx','dy','radius','shapeY','scale'])assert.ok(Number.isFinite(c[key]),name+' '+key);
       assert.ok(c.radius>0&&c.shapeY>0);
@@ -96,4 +96,29 @@ test('caída compacta: píxeles lejanos intactos',()=>{
   assert.equal(influenceAt({x:.8,y:.5},c),0);
   assert.equal(influenceAt({x:.5,y:.7},c),0);
   assert.deepEqual(inverseWarp({x:.8,y:.5},[c]),{x:.8,y:.5});
+});
+
+test('ojos grandes: intensidad visible también en el contorno, sin modificar nariz',()=>{
+  const f=anatomy(),L=LANDMARK,eyes=presetControls(f,'eyes-big');
+  assert.equal(eyes.length,2);
+  const edge=f.landmarks[L.eyeAOuter],nose=f.landmarks[L.noseTip];
+  const expansion=1+eyes[0].scale*influenceAt(edge,eyes[0]);
+  assert.ok(expansion>1.35,'expansión insuficiente en comisura ocular: '+expansion);
+  assert.ok(eyes.every(c=>influenceAt(nose,c)===0));
+  assert.ok(compose(f,'eyes-big',[],50)[0].scale<compose(f,'eyes-big',[],100)[0].scale);
+});
+test('boca grande agranda labios y separa comisuras sin alterar la nariz',()=>{
+  const f=anatomy(),L=LANDMARK,cs=presetControls(f,'mouth-big');
+  assert.equal(cs.length,3);
+  const lip=f.landmarks[L.mouthTopOuter];
+  assert.ok(1+cs[0].scale*influenceAt(lip,cs[0])>1.5);
+  assert.ok(cs[1].dx*cs[2].dx<0);
+  for(const c of cs)assert.equal(influenceAt(f.landmarks[L.noseTip],c),0);
+  assert.equal(compose(f,'mouth-big',[],0).length,0);
+  assert.equal(compose(f,'mouth-big',[],100).length,3);
+});
+test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>{
+  const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+  const filter={version:1,name:'Labios',preset:'mouth-big',intensity:80,radius:.19,strokes:[]};
+  saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
 });

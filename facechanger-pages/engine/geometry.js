@@ -7,7 +7,8 @@ export const LANDMARK = Object.freeze({
   noseTip: 1, noseLowerBridge: 4, noseBase: 2, nostrilA: 98, nostrilB: 327,
   eyeAOuter: 33, eyeAInner: 133, eyeATop: 159, eyeABottom: 145,
   eyeBOuter: 263, eyeBInner: 362, eyeBTop: 386, eyeBBottom: 374,
-  mouthA: 61, mouthB: 291, chin: 152, forehead: 10, cheekA: 234, cheekB: 454
+  mouthA: 61, mouthB: 291, mouthTopOuter: 0, mouthBottomOuter: 17,
+  mouthTopInner: 13, mouthBottomInner: 14, chin: 152, forehead: 10, cheekA: 234, cheekB: 454
 });
 export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -52,7 +53,7 @@ const at = (face, indices, radius, dx = 0, dy = 0, scale = 0, shapeY = 1) => {
 export const FILTERS = [
   ['normal', 'Normal'], ['nose-big', 'Nariz grande'], ['nose-twisted', 'Nariz torcida'],
   ['nose-long', 'Nariz larga'], ['eyes-big', 'Ojos grandes'], ['eye-droop', 'Ojo caído'],
-  ['mouth-twisted', 'Boca torcida'], ['face-long', 'Cara alargada']
+  ['mouth-big', 'Boca grande'], ['mouth-twisted', 'Boca torcida'], ['face-long', 'Cara alargada']
 ];
 export function presetControls(face, name) {
   const L = LANDMARK;
@@ -65,12 +66,26 @@ export function presetControls(face, name) {
     ];
     case 'nose-twisted': return [at(face, [L.noseTip, L.noseLowerBridge], .18, .14, 0, 0, .78)];
     case 'nose-long': return [at(face, [L.noseTip, L.noseBase], .17, 0, .15, 0, .82)];
-    // Centro del párpado, no iris 468/473: estable aunque cambie la mirada.
+    // La máscara anterior (.175/.43) casi no agrandaba los bordes del ojo.
+    // Nuevo radio elíptico: mayor expansión del párpado sin llegar a la nariz.
     case 'eyes-big': return [
-      at(face, [L.eyeAOuter, L.eyeAInner, L.eyeATop, L.eyeABottom], .175, 0, 0, .43, .75),
-      at(face, [L.eyeBOuter, L.eyeBInner, L.eyeBTop, L.eyeBBottom], .175, 0, 0, .43, .75)
+      at(face, [L.eyeAOuter, L.eyeAInner, L.eyeATop, L.eyeABottom], .29, 0, 0, .95, .72),
+      at(face, [L.eyeBOuter, L.eyeBInner, L.eyeBTop, L.eyeBBottom], .29, 0, 0, .95, .72)
     ];
     case 'eye-droop': return [at(face, [L.eyeAOuter, L.eyeAInner, L.eyeATop, L.eyeABottom], .185, 0, .15, 0, .82)];
+    case 'mouth-big': {
+      // Labios exteriores 0/17 e interiores 13/14; las comisuras se separan.
+      const middle = midpoint(face, [L.mouthTopOuter, L.mouthBottomOuter,
+        L.mouthTopInner, L.mouthBottomInner]);
+      const left = face.landmarks[L.mouthA], right = face.landmarks[L.mouthB];
+      const away = p => p.x < middle.x ? -.065 : .065;
+      return [
+        at(face, [L.mouthTopOuter, L.mouthBottomOuter, L.mouthTopInner, L.mouthBottomInner],
+          .35, 0, 0, .86, .64),
+        at(face, L.mouthA, .16, away(left), 0, 0, .66),
+        at(face, L.mouthB, .16, away(right), 0, 0, .66)
+      ];
+    }
     case 'mouth-twisted': return [at(face, L.mouthA, .14, .15, .04, 0, .78)];
     case 'face-long': return [at(face, L.chin, .32, 0, .21), at(face, L.forehead, .29, 0, -.085)];
     default: return [];

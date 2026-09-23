@@ -1,4 +1,4 @@
-import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp } from '../engine/geometry.js';
+import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, LANDMARK, presetControls, influenceAt } from '../engine/geometry.js';
 import { PointerDeformer, mapPointer } from '../engine/pointer.js';
 import { listFilters, saveFilter } from '../engine/storage.js';
 import { Renderer } from '../engine/renderer.js';
@@ -15,6 +15,11 @@ const raw = Array.from({ length: 478 }, () => ({ x: .5, y: .5 }));
 raw[234] = { x: .7, y: .52 }; raw[454] = { x: .3, y: .52 };
 raw[33] = { x: .35, y: .4 }; raw[263] = { x: .65, y: .4 };
 raw[1] = { x: .5, y: .53 }; raw[4] = { x: .5, y: .6 };
+for (const i of [0, 13]) raw[i] = { x: .5, y: .72 };
+for (const i of [17, 14]) raw[i] = { x: .5, y: .76 };
+raw[61] = { x: .57, y: .74 }; raw[291] = { x: .43, y: .74 };
+raw[33] = { x: .65, y: .4 }; raw[133] = { x: .54, y: .4 }; raw[159] = { x: .595, y: .38 }; raw[145] = { x: .595, y: .42 };
+raw[263] = { x: .35, y: .4 }; raw[362] = { x: .46, y: .4 }; raw[386] = { x: .405, y: .38 }; raw[374] = { x: .405, y: .42 };
 const face = () => faceFromLandmarks(raw);
 await test('Espejo: invierte los landmarks', () => assert(close(face().landmarks[234].x, .3)));
 await test('Mapea object-fit cover con CSS desplazado', () => {
@@ -55,5 +60,20 @@ await test('Almacena y recupera JSON versionado sin servidor', () => {
 await test('El shader WebGL2 compila y enlaza', () => {
   const r = new Renderer(document.createElement('canvas')); r.dispose();
 });
+
+
+await test('Ojos grandes agranda el contorno con intensidad máxima',()=>{
+  const f=face(),c=presetControls(f,'eyes-big');
+  const edge=f.landmarks[LANDMARK.eyeAOuter];
+  assert(1+c[0].scale*influenceAt(edge,c[0])>1.35);
+});
+await test('Boca grande disponible y persistente en JSON',()=>{
+  const f=face(),c=presetControls(f,'mouth-big');
+  assert(c.length===3&&c[1].dx*c[2].dx<0);
+  const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+  const preset={version:1,name:'Labios',preset:'mouth-big',intensity:80,radius:.19,strokes:[]};
+  saveFilter(preset,storage);assert(listFilters(storage)[0].preset==='mouth-big');
+});
+
 document.getElementById('summary').textContent = `${pass} correctas · ${fail} fallidas`;
 document.title = fail ? 'Error en pruebas · FaceChanger' : 'Pruebas correctas · FaceChanger';
