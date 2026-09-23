@@ -33,3 +33,11 @@ jobs:
           python3 -m http.server 8765 --bind 127.0.0.1 --directory facechanger-pages >/tmp/facechanger-server.log 2>&1 &
           sleep 2
           node facechanger-pages/tests/ui.mjs
+      - name: Capturas reales de Chromium para revisión visual
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facechanger-material3-edge-to-edge
+          path: facechanger-pages/test-results/*.png
+          if-no-files-found: ignore
+          retention-days: 14
