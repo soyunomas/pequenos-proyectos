@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#faf8ff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#151319" media="(prefers-color-scheme: dark)">
   <title>FaceChanger · espejo táctil</title>
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=2-0-large-type">
 </head>
 <body>
 <div id="app" class="app">
@@ -17,7 +17,7 @@
       <canvas id="mirror" aria-label="Espejo facial deformable con ratón o pantalla táctil"></canvas>
       <div class="status" id="status" role="status" aria-live="polite"><i id="led"></i><span id="status-text">Pulsa «Activar cámara» para comenzar</span></div>
       <div class="start" id="start"><h2>Tu reflejo, a tu manera.</h2><p>Activa tu cámara para deformar tu rostro en directo. Las imágenes no se suben a nuestro servidor.</p><button id="start-camera" class="primary">Activar cámara</button><p id="start-error" class="error" role="alert"></p></div>
-      <button id="settings-open" class="settings-toggle" type="button" aria-label="Abrir ajustes" aria-controls="panel" aria-expanded="false" title="Abrir ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5h3l.6 2.3 2.1 1.1 2.2-1 2.1 2.1-1 2.2 1.1 2.1 2.3.6v3l-2.3.6-1.1 2.1 1 2.2-2.1 2.1-2.2-1-2.1 1.1-.6 2.3h-3l-.6-2.3-2.1-1.1-2.2 1-2.1-2.1 1-2.2-1.1-2.1-2.3-.6v-3l2.3-.6 1.1-2.1-1-2.2 2.1-2.1 2.2 1 2.1-1.1z"/><circle cx="12" cy="12" r="3.2"/></svg></button>
+      <button id="settings-open" class="settings-toggle" type="button" aria-label="Abrir menú" aria-controls="panel" aria-expanded="false" title="Abrir menú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
       <button class="exit-mirror" id="exit-mirror" aria-label="Salir del modo espejo">Salir del espejo ×</button>
     </div>
     <aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1" inert>
@@ -41,7 +41,7 @@
         <label class="slider" for="radius">Radio de influencia <output id="radius-value" for="radius">19 %</output></label>
         <input class="main-range" type="range" id="radius" min="6" max="38" value="19" aria-label="Radio de influencia">
       </section>
-      <details class="advanced"><summary>Combinar efectos <span class="summary-help">Opcional</span></summary><div class="details-inner">
+      <details class="advanced"><summary>Combinar efectos </summary><div class="details-inner">
       <section><h2>Añadir efectos</h2><label class="field-label" for="extra-filter">Añadir otro filtro</label>
         <select id="extra-filter" aria-label="Añadir efecto combinado"><option value="">Seleccionar efecto…</option></select>
         <button class="add-effect" id="add-effect" type="button">Añadir a la mezcla</button>
