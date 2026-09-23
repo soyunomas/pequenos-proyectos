@@ -13,7 +13,7 @@ const state = {
   preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 100, radius: .19, editable: true,
   face: null, live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
-  mirror: false, settingsOpen: false, exitTimer: 0, running: false,
+  mirror: false, settingsOpen: false, filterPickerOpen: false, exitTimer: 0, running: false,
 };
 
 function status(message, good = false) {
@@ -42,7 +42,62 @@ function makeGroups(select, placeholder=false) {
 }
 function refreshFilters() {
   $('filters').value = state.preset;
+  $('selected-filter-title').textContent = filterName(state.preset);
+  $('selected-filter-category').textContent =
+    FILTER_GROUPS.find(([,items])=>items.some(([id])=>id===state.preset))?.[0] || 'Efectos';
+  for (const button of $('filter-list').querySelectorAll('button[data-filter-id]')) {
+    const selected = button.dataset.filterId === state.preset;
+    button.setAttribute('aria-pressed', String(selected));
+    button.classList.toggle('active', selected);
+    const mark = button.querySelector('.filter-check');
+    if (mark) mark.textContent = selected ? '✓' : '';
+  }
 }
+const fold = value => value.toLocaleLowerCase('es')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function renderFilterList(query = '') {
+  const q = fold(query.trim());
+  const container = $('filter-list');
+  const fragment = document.createDocumentFragment();
+  let found = 0;
+  for (const [group, items] of FILTER_GROUPS) {
+    const matches = items.filter(([,name]) =>
+      fold(name).includes(q) || fold(group).includes(q));
+    if (!matches.length) continue;
+    found += matches.length;
+    const section = document.createElement('section');
+    section.className = 'picker-group';
+    const heading = document.createElement('h3');
+    heading.textContent = group;
+    section.append(heading);
+    for (const [id, label] of matches) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.filterId = id;
+      button.className = 'filter-option';
+      button.setAttribute('aria-pressed', String(id === state.preset));
+      if (id === state.preset) button.classList.add('active');
+      const title = document.createElement('span');
+      title.className = 'filter-option-title';
+      title.textContent = label;
+      const mark = document.createElement('span');
+      mark.className = 'filter-check';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = id === state.preset ? '✓' : '';
+      button.append(title, mark);
+      button.addEventListener('click', () => {
+        state.preset = id;
+        refreshFilters();
+        closeFilterPicker();
+      });
+      section.append(button);
+    }
+    fragment.append(section);
+  }
+  container.replaceChildren(fragment);
+  $('filter-empty').hidden = found > 0;
+}
+
 function refreshEffects() {
   const host=$('effects');host.replaceChildren();
   for(const effect of state.effects){
@@ -258,6 +313,41 @@ $('fullscreen').addEventListener('click', async () => {
 const panel = $('panel');
 const gear = $('settings-open');
 const closeSettingsButton = $('settings-close');
+const picker = $('filter-picker');
+const pickerButton = $('filter-picker-open');
+function openFilterPicker() {
+  if (!state.settingsOpen || state.filterPickerOpen) return;
+  state.filterPickerOpen = true;
+  $('filter-search').value = '';
+  renderFilterList();
+  panel.inert = true;
+  picker.inert = false;
+  $('app').classList.add('picker-open');
+  picker.scrollTop = 0;
+  $('filter-picker-back').focus({ preventScroll: true });
+}
+function closeFilterPicker(restoreFocus = true) {
+  if (!state.filterPickerOpen) return;
+  state.filterPickerOpen = false;
+  $('app').classList.remove('picker-open');
+  picker.inert = true;
+  panel.inert = false;
+  if (restoreFocus) pickerButton.focus({ preventScroll: true });
+}
+pickerButton.addEventListener('click', openFilterPicker);
+$('filter-picker-back').addEventListener('click', () => closeFilterPicker());
+$('filter-search').addEventListener('input', e => renderFilterList(e.target.value));
+picker.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const focusable = [...picker.querySelectorAll('button:not(:disabled), input:not(:disabled)')]
+    .filter(el => el.getClientRects().length > 0);
+  if (!focusable.length) return;
+  if (event.shiftKey && document.activeElement === focusable[0]) {
+    event.preventDefault(); focusable.at(-1).focus();
+  } else if (!event.shiftKey && document.activeElement === focusable.at(-1)) {
+    event.preventDefault(); focusable[0].focus();
+  }
+});
 function openSettings() {
   if (state.mirror || state.settingsOpen) return;
   state.settingsOpen = true;
@@ -270,6 +360,7 @@ function openSettings() {
 }
 function closeSettings() {
   if (!state.settingsOpen) return;
+  closeFilterPicker(false);
   state.settingsOpen = false;
   $('app').classList.remove('settings-open');
   panel.inert = true;
@@ -307,7 +398,11 @@ $('exit-mirror').addEventListener('click', leaveMirror);
 stage.addEventListener('pointermove', () => { if (state.mirror) revealExit(); });
 stage.addEventListener('pointerdown', e => { if (state.mirror && e.clientX > stage.getBoundingClientRect().right - 90 && e.clientY < stage.getBoundingClientRect().top + 85) revealExit(); });
 stage.addEventListener('dblclick', () => { if (state.mirror) leaveMirror(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (state.settingsOpen) closeSettings(); else if (state.mirror) leaveMirror(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') {
+  if (state.filterPickerOpen) closeFilterPicker();
+  else if (state.settingsOpen) closeSettings();
+  else if (state.mirror) leaveMirror();
+} });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && state.mirror) leaveMirror(); });
 window.addEventListener('pagehide', () => { stopCamera(); state.tracker?.close(); state.tracker = null; state.renderer?.dispose(); state.renderer = null; });
 document.addEventListener('visibilitychange', () => {

@@ -25,14 +25,22 @@
         <h1 id="settings-title">Ajustes</h1>
         <span class="panel-top-spacer" aria-hidden="true"></span>
       </div>
-      <p class="panel-lead">Elige cómo quieres verte.</p>
-      <section class="filter-section"><h2>Tu efecto</h2>
-        <label class="field-label" for="filters">Filtro facial</label>
-        <select id="filters" aria-label="Filtro facial"><option value="eyes-big" selected>Ojos grandes</option></select>
-        <label class="slider">Intensidad <output id="intensity-value">100 %</output><input type="range" id="intensity" min="0" max="100" value="100"></label>
+      <p class="panel-lead">Tu cara. Tus reglas.</p>
+      <section class="filter-section" aria-labelledby="effect-heading">
+        <h2 id="effect-heading">Filtro principal</h2>
+        <select id="filters" aria-label="Filtro facial" hidden tabindex="-1"><option value="eyes-big" selected>Ojos grandes</option></select>
+        <button id="filter-picker-open" class="selected-filter" type="button" aria-haspopup="dialog" aria-controls="filter-picker">
+          <span class="selected-filter-caption">FILTRO SELECCIONADO</span>
+          <span id="selected-filter-title" class="selected-filter-title">Ojos grandes</span>
+          <span id="selected-filter-category" class="selected-filter-category">Ojos y cejas</span>
+          <span class="selected-filter-chevron" aria-hidden="true">›</span>
+        </button>
+        <label class="slider" for="intensity">Intensidad del efecto <output id="intensity-value" for="intensity">100 %</output></label>
+        <input class="main-range" type="range" id="intensity" min="0" max="100" value="100" aria-label="Intensidad general del efecto">
       </section>
       <section class="manual-section"><h2>Deformar con el dedo</h2><label class="check"><input id="manual" type="checkbox" checked> Permitir arrastrar la cara</label>
-        <label class="slider">Radio de influencia <output id="radius-value">19 %</output><input type="range" id="radius" min="6" max="38" value="19"></label>
+        <label class="slider" for="radius">Radio de influencia <output id="radius-value" for="radius">19 %</output></label>
+        <input class="main-range" type="range" id="radius" min="6" max="38" value="19" aria-label="Radio de influencia">
       </section>
       <details class="advanced"><summary>Combinar efectos <span class="summary-help">Opcional</span></summary><div class="details-inner">
       <section><h2>Añadir efectos</h2><label class="field-label" for="extra-filter">Añadir otro filtro</label>
@@ -53,6 +61,19 @@
       </div></details>
       <button id="settings-done" type="button" class="settings-done primary">Ver mi reflejo</button>
     </aside>
+    <section id="filter-picker" class="filter-picker" role="dialog" aria-modal="true" aria-labelledby="filter-picker-title" tabindex="-1" inert>
+      <header class="picker-top">
+        <button id="filter-picker-back" class="picker-back" type="button" aria-label="Volver a ajustes"><span aria-hidden="true">←</span> Volver</button>
+        <h2 id="filter-picker-title">Elige un filtro</h2>
+      </header>
+      <div class="picker-body">
+        <label for="filter-search" class="picker-search-label">Buscar entre los efectos</label>
+        <input id="filter-search" type="search" autocomplete="off" inputmode="search" placeholder="Buscar filtro…" aria-label="Buscar filtro">
+        <p class="picker-intro">Toca un filtro para aplicarlo.</p>
+        <div id="filter-list" class="filter-list"></div>
+        <p id="filter-empty" class="filter-empty" hidden>No hay filtros con ese nombre.</p>
+      </div>
+    </section>
   </main>
 </div>
 <script type="module" src="./app.js"></script>
