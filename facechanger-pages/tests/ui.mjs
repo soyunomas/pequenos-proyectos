@@ -21,6 +21,7 @@ try {
     await page.getByRole('button', {name:'Abrir ajustes'}).click();
     const panel = page.locator('#panel');
     await panel.waitFor({state:'visible',timeout:3000});
+    await page.waitForTimeout(320);
     assert.ok(await panel.isVisible(), target.name+' panel');
     assert.equal(await panel.getAttribute('inert'),null);
     assert.equal(await page.locator('#filters').evaluate(el=>getComputedStyle(el).fontSize),'17px');
