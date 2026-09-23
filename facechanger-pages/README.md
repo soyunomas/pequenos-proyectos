@@ -47,7 +47,7 @@ Se han pasado 13 tests de lógica en Node (uso **únicamente durante el desarrol
 
 ## Versión 1.1: precisión facial y experiencia móvil
 
-La cámara ahora ocupa toda la pantalla tanto en móvil como escritorio. El engranaje superior abre un panel superpuesto, con zona exterior para cerrarlo, botón «Cerrar ajustes», tecla Esc, foco accesible y controles táctiles de al menos 48 px. El canvas mantiene `touch-action: none` y no cambia de tamaño al abrir el panel, de modo que el dedo no pierde alineación con la imagen.
+La cámara ocupa toda la pantalla en móvil y escritorio. Actualmente, el engranaje abre una **pantalla completa de ajustes**, con botón de regreso al espejo y controles grandes. El canvas mantiene `touch-action: none` y no cambia de tamaño al abrir el panel, de modo que el dedo no pierde alineación con la imagen.
 
 Los presets se revisaron con las conexiones anatómicas oficiales de Face Landmarker:
 [face_landmarks_connections.ts](https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/tasks/web/vision/face_landmarker/face_landmarks_connections.ts).
@@ -65,7 +65,7 @@ Las pruebas geométricas con una cara sintética verifican la ampliación ocular
 
 El listado pasa a **32 opciones** (Normal y 31 efectos), organizadas en categorías dentro de un `select` nativo de tamaño cómodo en móvil. Se conservan los efectos antiguos y se incorporan: ojos pequeños/separados/juntos/de alienígena; cejas levantadas/enfadadas; nariz pequeña/de Pinocho/de cerdito/fina; boca pequeña/sonrisa gigante/boca triste/labios grandes/boca de pez; cara redonda/estrecha/de huevo/cuadrada/de alienígena; barbilla gigante, frente gigante y mejillas de hámster. **Ojo caído** usa desplazamiento acotado y muestreo inverso del campo anclado en la imagen de origen para impedir la apariencia del ojo original duplicado. Los trazos manuales demasiado largos aumentan automáticamente su área y limitan el desplazamiento en vez de crear un recorte disjunto.
 
-El panel del engranaje usa tipografía de formularios de 16–17 px para evitar tener que ampliar la página del móvil. Hay un control independiente de **Tamaño de imagen (100–200 %)** y **Restablecer encuadre**, que vuelve a mostrar el vídeo completo sin tocar la deformación ni la configuración del navegador. El navegador conserva el zoom de accesibilidad habitual: restablecer el encuadre de la cámara no altera el zoom de las páginas web.
+La pantalla de ajustes usa controles nativos y tipografía de lectura móvil. El zoom interno de la cámara fue retirado en la versión 1.4; no hace falta ampliar el navegador para manejar los controles.
 
 **Combinar efectos** permite añadir hasta cuatro filtros adicionales con intensidades independientes; la intensidad general afecta a todo el conjunto, incluido el filtro principal y los gestos. Los formatos JSON antiguos siguen cargándose sin cambios y los nuevos pueden almacenar opcionalmente `effects: [{preset, intensity}]` (versión 1). La GPU procesa un máximo de 32 controles espaciales en el mismo cuadro.
 
@@ -74,3 +74,11 @@ El panel del engranaje usa tipografía de formularios de 16–17 px para evitar 
 ### Validaciones pendientes sobre un móvil físico
 
 Las pruebas de lógica y la inspección de la interfaz no sustituyen la prueba de una webcam real. Hay que verificar el rendimiento a 720p, deformaciones combinadas intensas, ojo caído con un rostro real de frente y perfil, permiso de cámara y zoom táctil en Chrome y Safari móviles. El selector y los controles no requieren descargar, instalar ni compilar nada.
+
+## Versión 1.4 — ajustes como pantalla completa de móvil
+
+La interfaz ya no abre un panel lateral. Al tocar el engranaje se presenta **una pantalla completa, a todo el ancho y alto del teléfono**, independiente de la vista de cámara. La cabecera fija «← Espejo · Ajustes» y el botón «Ver mi reflejo» devuelven la cámara en un solo toque. La sección inicial muestra el filtro en un selector nativo de tipografía grande (19 px) y el control de intensidad. Debajo está el ajuste de arrastre; los filtros combinados y el almacenamiento/cámara/modo espejo están en secciones desplegables para que no estorben. La pantalla tiene desplazamiento vertical propio cuando hace falta. Ya no hay un control de zoom de la imagen: se ha eliminado para evitar una interfaz que obligue a ampliar y restablecer. No se ha deshabilitado el zoom de accesibilidad del navegador.
+
+El preset seleccionado **al abrir por primera vez** es «Ojos grandes» (100 %). «Restablecer» sigue permitiendo quitarlo y recuperar la imagen sin filtros; las configuraciones guardadas pueden aplicar cualquier otro preset.
+
+**Verificación:** suite de lógica, sintaxis y Playwright en GitHub Actions, incluido el menú completo, legibilidad del selector, desplazamiento a opciones avanzadas y vuelta al espejo a 320 × 640, 390 × 844 y 1440 × 900. La comprobación del aspecto facial con webcam física requiere un dispositivo real.

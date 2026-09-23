@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const gesture = new PointerDeformer();
 const state = {
-  preset: 'normal', effects: [], strokes: [], undone: [], intensity: 100, radius: .19, editable: true, zoom: 100,
+  preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 100, radius: .19, editable: true,
   face: null, live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
   mirror: false, settingsOpen: false, exitTimer: 0, running: false,
@@ -59,13 +59,6 @@ function refreshEffects() {
     row.append(title,value,slider,remove);host.append(row);
   }
   $('add-effect').disabled=state.effects.length>=4;
-}
-function setZoom(value) {
-  state.zoom=Math.max(100,Math.min(200,Number(value)||100));
-  $('view-zoom').value=String(state.zoom);
-  $('view-zoom-value').textContent=state.zoom+' %';
-  // BoundingClientRect includes transform; mapPointer compensates the crop and scaling.
-  canvas.style.transform='scale('+state.zoom/100+')';
 }
 function refreshSaved() {
   const filters = listFilters(); const host = $('saved'); host.replaceChildren();
@@ -237,8 +230,6 @@ $('add-effect').addEventListener('click',()=>{
   state.effects.push({preset,intensity:100});$('extra-filter').value='';
   refreshEffects();
 });
-$('view-zoom').addEventListener('input',event=>setZoom(event.target.value));
-$('view-reset').addEventListener('click',()=>setZoom(100));
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });
 $('intensity').addEventListener('input', e => { state.intensity = +e.target.value; refreshNumbers(); });
 $('radius').addEventListener('input', e => { state.radius = +e.target.value / 100; refreshNumbers(); });
@@ -266,7 +257,6 @@ $('fullscreen').addEventListener('click', async () => {
 });
 const panel = $('panel');
 const gear = $('settings-open');
-const scrim = $('settings-scrim');
 const closeSettingsButton = $('settings-close');
 function openSettings() {
   if (state.mirror || state.settingsOpen) return;
@@ -288,7 +278,7 @@ function closeSettings() {
 }
 gear.addEventListener('click', openSettings);
 closeSettingsButton.addEventListener('click', closeSettings);
-scrim.addEventListener('click', closeSettings);
+$('settings-done').addEventListener('click', closeSettings);
 panel.addEventListener('keydown', event => {
   if (event.key !== 'Tab') return;
   const focusable = [...panel.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')]
@@ -324,5 +314,5 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { cancelAnimationFrame(state.raf); state.raf = 0; }
   else if (state.running && !state.raf) state.raf = requestAnimationFrame(render);
 });
-refreshFilters(); refreshEffects(); refreshSaved(); refreshButtons(); refreshNumbers(); setZoom(100);
+refreshFilters(); refreshEffects(); refreshSaved(); refreshButtons(); refreshNumbers();
 if (!window.isSecureContext) showError('Para acceder a la webcam abre esta página con HTTPS (GitHub Pages) o localhost.');
