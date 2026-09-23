@@ -11,6 +11,7 @@ uniform sampler2D uVideo;
 uniform int uCount;
 uniform vec4 uControl[${MAX_CONTROLS}];
 uniform vec2 uDelta[${MAX_CONTROLS}];
+uniform float uShape[${MAX_CONTROLS}];
 uniform float uAspect;
 void main(){
   // p: espejo top-left; textura original top-left se convierte a WebGL bottom-left.
@@ -20,12 +21,15 @@ void main(){
     if (k < 0) break;
     vec4 ctl = uControl[k]; vec2 delta = uDelta[k];
     vec2 dest = ctl.xy + delta;
-    vec2 metric = (p - dest) * vec2(uAspect, 1.);
-    float r2 = max(.00000001, ctl.z * ctl.z * uAspect * uAspect);
-    float influence = exp(-2.7 * dot(metric, metric) / r2);
+    float r = max(.00001, ctl.z * uAspect);
+    float shapeY = max(.1, uShape[k]);
+    vec2 metric = (p - dest) * vec2(uAspect, 1. / shapeY) / r;
+    float d2 = dot(metric, metric);
+    float influence = d2 < 1. ? pow(1. - d2, 3.) : 0.;
     p -= delta * influence;
-    vec2 fromCenter = (p - ctl.xy) * vec2(uAspect, 1.);
-    float swell = exp(-2.7 * dot(fromCenter, fromCenter) / r2);
+    vec2 fromCenter = (p - ctl.xy) * vec2(uAspect, 1. / shapeY) / r;
+    float q2 = dot(fromCenter, fromCenter);
+    float swell = q2 < 1. ? pow(1. - q2, 3.) : 0.;
     p = ctl.xy + (p - ctl.xy) / max(.55, 1. + ctl.w * swell);
   }
   // UNPACK_FLIP_Y_WEBGL=true: UV y=1 corresponde al borde superior de la cámara.
@@ -68,8 +72,10 @@ export class Renderer {
     this.uControl = gl.getUniformLocation(program, 'uControl[0]');
     this.uDelta = gl.getUniformLocation(program, 'uDelta[0]');
     this.uAspect = gl.getUniformLocation(program, 'uAspect');
+    this.uShape = gl.getUniformLocation(program, 'uShape[0]');
     this.bufferControls = new Float32Array(MAX_CONTROLS * 4);
     this.bufferDeltas = new Float32Array(MAX_CONTROLS * 2);
+    this.bufferShapes = new Float32Array(MAX_CONTROLS);
   }
   draw(video, controls) {
     if (!video.videoWidth || video.readyState < 2) return;
@@ -78,11 +84,12 @@ export class Renderer {
       canvas.width = video.videoWidth; canvas.height = video.videoHeight;
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
-    this.bufferControls.fill(0); this.bufferDeltas.fill(0);
+    this.bufferControls.fill(0); this.bufferDeltas.fill(0); this.bufferShapes.fill(1);
     for (let i = 0; i < Math.min(controls.length, MAX_CONTROLS); i++) {
       const c = controls[i];
       this.bufferControls.set([c.x, c.y, c.radius, c.scale], i * 4);
       this.bufferDeltas.set([c.dx, c.dy], i * 2);
+      this.bufferShapes[i] = c.shapeY || 1;
     }
     gl.useProgram(this.program);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -90,6 +97,7 @@ export class Renderer {
     gl.uniform1i(this.uCount, Math.min(controls.length, MAX_CONTROLS));
     gl.uniform4fv(this.uControl, this.bufferControls);
     gl.uniform2fv(this.uDelta, this.bufferDeltas);
+    gl.uniform1fv(this.uShape, this.bufferShapes);
     gl.uniform1f(this.uAspect, video.videoWidth / video.videoHeight);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }

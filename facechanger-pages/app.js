@@ -13,7 +13,7 @@ const state = {
   preset: 'normal', strokes: [], undone: [], intensity: 100, radius: .19, editable: true,
   face: null, live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
-  mirror: false, exitTimer: 0, running: false,
+  mirror: false, settingsOpen: false, exitTimer: 0, running: false,
 };
 
 function status(message, good = false) {
@@ -174,7 +174,7 @@ function point(event) {
   return mapPointer(event, canvas.getBoundingClientRect(), video.videoWidth, video.videoHeight);
 }
 canvas.addEventListener('pointerdown', event => {
-  if (!state.editable || state.mirror || !state.face) return;
+  if (!state.editable || state.mirror || state.settingsOpen || !state.face) return;
   const p = point(event);
   if (gesture.begin(event.pointerId, p, state.face, state.radius, controls(), video.videoWidth / video.videoHeight)) {
     canvas.setPointerCapture(event.pointerId); event.preventDefault();
@@ -224,11 +224,46 @@ $('fullscreen').addEventListener('click', async () => {
   try { await stage.requestFullscreen(); }
   catch { status('El navegador no permite la pantalla completa.'); }
 });
+const panel = $('panel');
+const gear = $('settings-open');
+const scrim = $('settings-scrim');
+const closeSettingsButton = $('settings-close');
+function openSettings() {
+  if (state.mirror || state.settingsOpen) return;
+  state.settingsOpen = true;
+  gesture.cancel(); state.live = null;
+  panel.inert = false;
+  $('app').classList.add('settings-open');
+  gear.setAttribute('aria-expanded', 'true');
+  panel.scrollTop = 0;
+  closeSettingsButton.focus({ preventScroll: true });
+}
+function closeSettings() {
+  if (!state.settingsOpen) return;
+  state.settingsOpen = false;
+  $('app').classList.remove('settings-open');
+  panel.inert = true;
+  gear.setAttribute('aria-expanded', 'false');
+  gear.focus({ preventScroll: true });
+}
+gear.addEventListener('click', openSettings);
+closeSettingsButton.addEventListener('click', closeSettings);
+scrim.addEventListener('click', closeSettings);
+panel.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const focusable = [...panel.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')]
+    .filter(el => el.getClientRects().length > 0);
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
 function revealExit() {
   $('exit-mirror').classList.add('visible'); clearTimeout(state.exitTimer);
   state.exitTimer = setTimeout(() => $('exit-mirror').classList.remove('visible'), 3500);
 }
 async function enterMirror() {
+  closeSettings();
   state.mirror = true; $('app').classList.add('is-mirror'); revealExit();
   try { await stage.requestFullscreen(); } catch { /* vista espejo sigue sin fullscreen */ }
 }
@@ -242,7 +277,7 @@ $('exit-mirror').addEventListener('click', leaveMirror);
 stage.addEventListener('pointermove', () => { if (state.mirror) revealExit(); });
 stage.addEventListener('pointerdown', e => { if (state.mirror && e.clientX > stage.getBoundingClientRect().right - 90 && e.clientY < stage.getBoundingClientRect().top + 85) revealExit(); });
 stage.addEventListener('dblclick', () => { if (state.mirror) leaveMirror(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.mirror) leaveMirror(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (state.settingsOpen) closeSettings(); else if (state.mirror) leaveMirror(); } });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && state.mirror) leaveMirror(); });
 window.addEventListener('pagehide', () => { stopCamera(); state.tracker?.close(); state.tracker = null; state.renderer?.dispose(); state.renderer = null; });
 document.addEventListener('visibilitychange', () => {

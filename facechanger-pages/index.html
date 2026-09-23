@@ -16,10 +16,13 @@
       <canvas id="mirror" aria-label="Espejo facial deformable con ratón o pantalla táctil"></canvas>
       <div class="status" id="status" role="status" aria-live="polite"><i id="led"></i><span id="status-text">Pulsa «Activar cámara» para comenzar</span></div>
       <div class="start" id="start"><h2>Tu reflejo, a tu manera.</h2><p>Activa tu cámara para deformar tu rostro en directo. Las imágenes no se suben a nuestro servidor.</p><button id="start-camera" class="primary">Activar cámara</button><p id="start-error" class="error" role="alert"></p></div>
+      <button id="settings-open" class="settings-toggle" type="button" aria-label="Abrir ajustes" aria-controls="panel" aria-expanded="false" title="Abrir ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5h3l.6 2.3 2.1 1.1 2.2-1 2.1 2.1-1 2.2 1.1 2.1 2.3.6v3l-2.3.6-1.1 2.1 1 2.2-2.1 2.1-2.2-1-2.1 1.1-.6 2.3h-3l-.6-2.3-2.1-1.1-2.2 1-2.1-2.1 1-2.2-1.1-2.1-2.3-.6v-3l2.3-.6 1.1-2.1-1-2.2 2.1-2.1 2.2 1 2.1-1.1z"/><circle cx="12" cy="12" r="3.2"/></svg></button>
       <button class="exit-mirror" id="exit-mirror" aria-label="Salir del modo espejo">Salir del espejo ×</button>
     </div>
-    <aside class="panel" id="panel">
-      <div class="panel-intro"><small>ESTUDIO FACIAL</small><h1>Deforma tu reflejo</h1><p>Arrastra la nariz, los ojos o la boca directamente sobre la imagen.</p></div>
+    <button id="settings-scrim" class="settings-scrim" type="button" aria-label="Cerrar ajustes tocando fuera" tabindex="-1"></button>
+    <aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1" inert>
+      <div class="panel-top"><span class="panel-caption">CONTROLES DEL ESPEJO</span><button class="settings-close" id="settings-close" type="button" aria-label="Cerrar ajustes">×</button></div>
+      <div class="panel-intro"><small>ESTUDIO FACIAL</small><h1 id="settings-title">Deforma tu reflejo</h1><p>Arrastra la nariz, los ojos o la boca directamente sobre la imagen.</p></div>
       <section><h2>Filtros</h2><div id="filters" class="filters" aria-label="Filtros faciales"></div></section>
       <section><h2>Editor</h2><label class="check"><input id="manual" type="checkbox" checked> Deformación manual</label>
         <label class="slider">Intensidad <output id="intensity-value">100 %</output><input type="range" id="intensity" min="0" max="100" value="100"></label>

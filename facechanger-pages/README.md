@@ -4,9 +4,9 @@ Versión independiente para **GitHub Pages**, realizada solo con HTML, CSS, Java
 
 ## Abrirlo en GitHub Pages
 
-Esta carpeta se llama `facechanger-pages/` y está incluida en la rama `feat/facechanger-web` del repositorio `soyunomas/pequenos-proyectos`. Una vez integrados los cambios en `main`:
+Esta carpeta se llama `facechanger-pages/` y está publicada en la rama `main` del repositorio `soyunomas/pequenos-proyectos`:
 
-1. Abre **Settings → Pages** del repositorio, si no está ya configurado.
+1. Abre **Settings → Pages** del repositorio, si necesitas revisar la configuración.
 2. En **Build and deployment → Source** selecciona **Deploy from a branch**; usa la rama **main** y la carpeta **/(root)**. Guarda.
 3. Cuando GitHub publique el repositorio, abre **https://soyunomas.github.io/pequenos-proyectos/facechanger-pages/**.
 
@@ -43,4 +43,14 @@ Código de esta versión: implementación original reutilizando la arquitectura 
 
 ## Verificaciones
 
-Se han pasado 8 tests de lógica en Node (uso **únicamente durante el desarrollo**) con mapeo, filtrado, persistencia, cancelación, anclaje y gestos. Se ha comprobado `node --check` sobre los módulos; no hay compilación necesaria para publicar. La prueba con navegador automatizado en este entorno no ha podido abrir páginas por la política del ejecutable Chromium (`ERR_BLOCKED_BY_ADMINISTRATOR`). Quedan por validar en un dispositivo real la inicialización del modelo remoto, webcam física, deformación visual WebGL2 y precisión de pantalla táctil. No se afirma que esas pruebas se hayan superado.
+Se han pasado 13 tests de lógica en Node (uso **únicamente durante el desarrollo**) con mapeo, filtrado, persistencia, cancelación, anclaje y gestos. Se ha comprobado `node --check` sobre los módulos; no hay compilación necesaria para publicar. La prueba con navegador automatizado en este entorno no ha podido abrir páginas por la política del ejecutable Chromium (`ERR_BLOCKED_BY_ADMINISTRATOR`). Quedan por validar en un dispositivo real la inicialización del modelo remoto, webcam física, deformación visual WebGL2 y precisión de pantalla táctil. No se afirma que esas pruebas se hayan superado.
+
+## Versión 1.1: precisión facial y experiencia móvil
+
+La cámara ahora ocupa toda la pantalla tanto en móvil como escritorio. El engranaje superior abre un panel superpuesto, con zona exterior para cerrarlo, botón «Cerrar ajustes», tecla Esc, foco accesible y controles táctiles de al menos 48 px. El canvas mantiene `touch-action: none` y no cambia de tamaño al abrir el panel, de modo que el dedo no pierde alineación con la imagen.
+
+Los presets se revisaron con las conexiones anatómicas oficiales de Face Landmarker:
+[face_landmarks_connections.ts](https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/tasks/web/vision/face_landmarker/face_landmarks_connections.ts).
+Se emplean punta/base de nariz 1/2, alas nasales 98/327, párpados 33/133/159/145 y 263/362/386/374, comisuras 61/291, barbilla 152 y frente 10. Los centros de los ojos ya no usan iris 468/473, que se desplaza al mirar a los lados. Además, el shader usa una máscara elíptica de soporte compacto (influencia exactamente cero fuera de su radio) para evitar que el filtro de nariz modifique también un ojo. Las máscaras del shader y del sistema de toque utilizan la misma fórmula.
+
+**Validación de esta revisión:** 13/13 pruebas de geometría, gestos, persistencia y contaminación ojo/nariz; comprobación de sintaxis en los módulos; automatización de interacción y dimensiones de interfaz en Chromium emulado a 390×844, 320×640 y 1440×900, sin excepciones JavaScript (la automatización inyectó archivos ya disponibles en vez de navegar por la red, bloqueada en este entorno). La GPU de ese Chromium no dispone de WebGL2; por ello, la nueva apariencia de la deformación visual aún necesita comprobación real en tu móvil y webcam. No se afirma que haya sido comprobada una cámara física ni que todos los rostros tengan proporciones idénticas.
