@@ -1,4 +1,4 @@
-import { spiderRoute,spiderPosition,spiderConfig } from '../engine/spider.js';
+import { spiderRoute,spiderPosition,spiderConfig,spiderHeading } from '../engine/spider.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne, forwardWarp } from '../engine/geometry.js';
@@ -217,9 +217,9 @@ test('araña recorre y cierra el rostro con orientación variable',()=>{
  assert.ok(new Set([.05,.28,.53,.77].map(t=>Math.round(direction(t)*10))).size>2);
 });
 test('araña guarda reguladores y respeta filtros antiguos',()=>{
- assert.deepEqual(spiderConfig(),{speed:100,size:100});
+ assert.deepEqual(spiderConfig(),{speed:100,size:125});
  assert.deepEqual(spiderConfig({speed:175,size:140}),{speed:175,size:140});
- assert.deepEqual(spiderConfig({speed:999,size:-1}),{speed:100,size:100});
+ assert.deepEqual(spiderConfig({speed:999,size:-1}),{speed:100,size:125});
  const base={version:1,name:'Araña',preset:'spider',intensity:100,radius:.19,strokes:[]};
  assert.ok(validFilter(base));
  const saved={...base,spider:{speed:175,size:140}};
@@ -227,4 +227,10 @@ test('araña guarda reguladores y respeta filtros antiguos',()=>{
  assert.ok(!validFilter({...base,spider:{speed:251,size:140}}));
  const data=new Map(),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
  saveFilter(saved,store);assert.deepEqual(listFilters(store),[saved]);
+});
+
+test('araña gira para avanzar con la cabeza por delante',()=>{
+ assert.ok(Math.abs(spiderHeading(0,-1)+Math.PI)<1e-9,'hacia arriba');
+ assert.ok(Math.abs(spiderHeading(0,1))<1e-9,'hacia abajo');
+ assert.ok(Math.abs(spiderHeading(1,0)+Math.PI/2)<1e-9,'hacia derecha');
 });
