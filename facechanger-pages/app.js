@@ -2,7 +2,7 @@ import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFr
 import { PointerDeformer, mapPointer } from './engine/pointer.js';
 import { Renderer } from './engine/renderer.js';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
-import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js';
+import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
 
 // Sin Node ni bundle. El módulo, WASM y modelo se descargan; la imagen se procesa en el equipo.
 const MEDIAPIPE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35';
