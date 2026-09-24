@@ -270,50 +270,50 @@ function render(now) {
   state.raf = requestAnimationFrame(render);
 }
 function clearSpider() {
-  if (spiderVisible) creatureContext.clearRect(0,0,creatureLayer.width,creatureLayer.height);
-  spiderStart = 0; spiderVisible = false;
+  if(spiderVisible)creatureContext.clearRect(0,0,creatureLayer.width,creatureLayer.height);
+  spiderVisible=false;spiderElapsed=0;spiderLastTick=0;spiderFrame=-1;
 }
-function drawSpider(now, applied) {
-  const added = state.effects.find(effect => effect.preset === 'spider');
-  const amount = state.intensity / 100 * (state.preset === 'spider' ? 100 : added?.intensity ?? 0) / 100;
-  if (!amount || !state.face || !spiderImage.complete || !spiderImage.naturalWidth) {
-    clearSpider(); return;
+function drawSpider(now,applied) {
+  const added=state.effects.find(effect=>effect.preset==='spider');
+  const amount=state.intensity/100*(state.preset==='spider'?100:added?.intensity??0)/100;
+  if(!amount||!state.face||!spiderImage.complete||!spiderImage.naturalWidth){
+    clearSpider();return;
   }
-  if (creatureLayer.width !== video.videoWidth || creatureLayer.height !== video.videoHeight) {
-    creatureLayer.width = video.videoWidth; creatureLayer.height = video.videoHeight;
+  if(creatureLayer.width!==video.videoWidth||creatureLayer.height!==video.videoHeight){
+    creatureLayer.width=video.videoWidth;creatureLayer.height=video.videoHeight;
   }
-  if (!spiderStart) spiderStart = now;
-  const face = state.face, points = face.landmarks;
-  const cheek = points[205], outer = points[234];
-  if (!cheek || !outer) { clearSpider(); return; }
-  // Seguir la mejilla deformada, no solo los landmarks originales de la cámara.
-  const phase = reduceMotion ? 0 : (now - spiderStart) / 5800;
-  const travel = (Math.sin(phase * Math.PI * 2 - Math.PI / 2) + 1) / 2;
-  const anchor = forwardWarp({
-    x: cheek.x * (1 - travel * .65) + outer.x * travel * .65,
-    y: cheek.y * (1 - travel * .65) + outer.y * travel * .65 +
-      (reduceMotion ? 0 : .012 * Math.sin(phase * 5))
-  }, applied, video.videoWidth / video.videoHeight);
-  const x = anchor.x * creatureLayer.width, y = anchor.y * creatureLayer.height;
-  const size = Math.max(16, face.frame.width * creatureLayer.width * .19);
-  const ctx = creatureContext;
-  ctx.clearRect(0, 0, creatureLayer.width, creatureLayer.height);
-  spiderVisible = true;
-  ctx.save(); ctx.translate(x,y);
-  ctx.rotate(face.frame.angle + (reduceMotion ? 0 : Math.sin(phase * 6) * .13));
-  const step = reduceMotion ? 0 : Math.sin(now / 84) * .035;
-  ctx.scale(1 + step, 1 - step);
-  // Dos sombras rasterizadas: volumen suave y contacto por cada pata.
-  ctx.save();
-  ctx.globalAlpha = amount * .18; ctx.filter = 'blur(5px)'; ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.ellipse(3, size * .08, size * .27, size * .11, 0, 0, Math.PI * 2);
-  ctx.fill(); ctx.restore();
-  ctx.save(); ctx.globalAlpha = amount * .34; ctx.filter = 'brightness(0) blur(3px)';
-  ctx.drawImage(spiderImage, -size / 2 + 3, -size * .42 + 4, size,
-    size * spiderImage.naturalHeight / spiderImage.naturalWidth);
-  ctx.restore(); ctx.globalAlpha = amount;
-  ctx.drawImage(spiderImage, -size / 2, -size * .42, size,
-    size * spiderImage.naturalHeight / spiderImage.naturalWidth);
+  const route=spiderRoute(state.face),aspect=video.videoWidth/video.videoHeight;
+  if(!route.length){clearSpider();return;}
+  if(!spiderLastTick)spiderLastTick=now;
+  const delta=Math.max(0,Math.min(50,now-spiderLastTick));
+  spiderLastTick=now;
+  if(!reduceMotion)spiderElapsed+=delta*state.spiderSpeed/100;
+  const progress=(spiderElapsed/16000)%1;
+  const source=spiderPosition(route,progress,aspect);
+  const next=spiderPosition(route,(progress+.0015)%1,aspect);
+  if(!source||!next){clearSpider();return;}
+  const anchor=forwardWarp(source,applied,aspect),ahead=forwardWarp(next,applied,aspect);
+  const angle=Math.atan2((ahead.y-anchor.y)*creatureLayer.height,
+    (ahead.x-anchor.x)*creatureLayer.width)+Math.PI/2;
+  const tick=reduceMotion?0:Math.floor(spiderElapsed/95);
+  if(spiderFrame!==tick){
+    spiderGaitFrame(spiderImage,spiderSprite,tick*Math.PI/2);
+    spiderFrame=tick;
+  }
+  const x=anchor.x*creatureLayer.width,y=anchor.y*creatureLayer.height;
+  const size=Math.max(12,state.face.frame.width*creatureLayer.width*.19*state.spiderSize/100);
+  const ctx=creatureContext;
+  ctx.clearRect(0,0,creatureLayer.width,creatureLayer.height);
+  spiderVisible=true;
+  ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+  const bob=reduceMotion?0:Math.sin(spiderElapsed/95*Math.PI/2)*size*.012;
+  ctx.translate(0,bob);
+  ctx.save();ctx.globalAlpha=amount*.18;ctx.filter='blur(5px)';ctx.fillStyle='#000';
+  ctx.beginPath();ctx.ellipse(3,size*.08,size*.27,size*.12,0,0,Math.PI*2);
+  ctx.fill();ctx.restore();
+  ctx.save();ctx.globalAlpha=amount*.34;ctx.filter='brightness(0) blur(3px)';
+  ctx.drawImage(spiderSprite,-size/2+3,-size/2+4,size,size);ctx.restore();
+  ctx.globalAlpha=amount;ctx.drawImage(spiderSprite,-size/2,-size/2,size,size);
   ctx.restore();
 }
 function point(event) {
