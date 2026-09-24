@@ -54,7 +54,7 @@ try {
     assert.equal(await page.locator('#filters').inputValue(),'eyes-big');
     assert.equal(await page.locator('#intensity').inputValue(),'75');
     assert.equal(await page.locator('#spider-speed').inputValue(),'100');
-    assert.equal(await page.locator('#spider-size').inputValue(),'100');
+    assert.equal(await page.locator('#spider-size').inputValue(),'125');
     await page.locator('#spider-speed').evaluate(el=>{el.value='175';el.dispatchEvent(new Event('input',{bubbles:true}));});
     await page.locator('#spider-size').evaluate(el=>{el.value='140';el.dispatchEvent(new Event('input',{bubbles:true}));});
     assert.equal(await page.locator('#spider-speed-value').textContent(),'175 %');
@@ -94,6 +94,11 @@ try {
     assert.equal(await page.locator('#intensity').inputValue(),'40','Combinado empieza al 40 %');
     await page.locator('#filter-picker-open').click();
     await picker.waitFor({state:'visible'});
+    await page.locator('#filter-search').fill('ojos grandes');
+    await page.locator('button[data-filter-id="eyes-big"]').click();
+    assert.equal(await page.locator('#intensity').inputValue(),'75','Ojos grandes se vuelve a seleccionar al 75 %');
+    await page.locator('#filter-picker-open').click();
+    await picker.waitFor({state:'visible'});
     await page.locator('#filter-search').fill('hamster');
     assert.equal(await page.locator('.filter-option').count(),1);
     await page.getByRole('button',{name:'Mejillas de hámster'}).click();
@@ -107,7 +112,7 @@ try {
     await page.getByRole('button',{name:'Restablecer los efectos'}).click();
     assert.equal(await page.locator('#filters').inputValue(),'normal');
     assert.equal(await page.locator('#spider-speed').inputValue(),'100');
-    assert.equal(await page.locator('#spider-size').inputValue(),'100');
+    assert.equal(await page.locator('#spider-size').inputValue(),'125');
     assert.deepEqual(errors,[],device.name+' JS errors');
     console.log('Interfaz Android texto grande y menú de tres líneas correcta:',device.name);
     await context.close();
