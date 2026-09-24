@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne } from '../engine/geometry.js';
+import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne, forwardWarp } from '../engine/geometry.js';
 import { PointerDeformer, mapPointer } from '../engine/pointer.js';
 import { listFilters, saveFilter, removeFilter } from '../engine/storage.js';
 const raw = Array.from({length:478},()=>({x:.5,y:.5}));
@@ -126,9 +126,9 @@ test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>
   saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
 });
 
-test('todos los filtros tienen identidad única y 38 filtros contando Normal y Araña',()=>{
+test('todos los filtros tienen identidad única y 46 opciones contando Normal y Araña',()=>{
   const ids=FILTERS.map(([id])=>id);
-  assert.equal(ids.length,39);
+  assert.equal(ids.length,46);
   assert.equal(new Set(ids).size,ids.length);
   assert.equal(ids[0],'normal');
   for(const id of ids.slice(1).filter(id=>id!=='spider'))assert.ok(presetControls(anatomy(),id).length>0,id);
@@ -189,4 +189,16 @@ test('presets inquietantes combinan caída ocular y boca sin exceso a 40 %',()=>
  assert.ok(controls.every(c=>c.dy < .06*f.frame.width));
  assert.equal(compose(f,'spider',[],100).length,0);
  assert.ok(FILTERS.some(([id])=>id==='spider'));
+});
+
+test('los nuevos filtros discretos y combinados conservan controles finitos',()=>{
+ const f=anatomy();
+ for (const id of ['eyes-squint','brows-uneven','brows-down','cheeks-hollow','chin-small','uncanny-tired','uncanny-skeptic']) {
+   const controls=compose(f,id,[],40);
+   assert.ok(controls.length>0,id);
+   assert.ok(controls.every(c=>[c.x,c.y,c.dx,c.dy,c.scale,c.scaleY].every(Number.isFinite)),id);
+ }
+ const controls=compose(f,'uncanny-droop',[],40);
+ const point=f.landmarks[205], expected=controls.reduce((p,c)=>forwardOne(p,c),point);
+ assert.deepEqual(forwardWarp(point,controls),expected,'la araña sigue la misma deformación que la textura');
 });

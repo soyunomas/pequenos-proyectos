@@ -1,4 +1,4 @@
-import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks } from './engine/geometry.js';
+import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js';
 import { PointerDeformer, mapPointer } from './engine/pointer.js';
 import { Renderer } from './engine/renderer.js';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
@@ -10,7 +10,8 @@ const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
 const spiderImage = new Image(); spiderImage.decoding = 'async'; spiderImage.src = './assets/spider.webp';
-let spiderStart = 0;
+let spiderStart = 0, spiderVisible = false;
+const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const gesture = new PointerDeformer();
 const state = {
   preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 75, radius: .19, editable: true,
@@ -56,6 +57,14 @@ function refreshFilters() {
     if (mark) mark.textContent = selected ? '✓' : '';
   }
 }
+function selectPreset(id) {
+  if (!FILTERS.some(([key]) => key === id)) return;
+  state.preset = id;
+  if (id.startsWith('uncanny-')) {
+    state.intensity = 40; $('intensity').value = '40'; refreshNumbers();
+  }
+  refreshFilters();
+}
 const fold = value => value.toLocaleLowerCase('es')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 function renderFilterList(query = '') {
@@ -89,11 +98,7 @@ function renderFilterList(query = '') {
       mark.textContent = id === state.preset ? '✓' : '';
       button.append(title, mark);
       button.addEventListener('click', () => {
-        state.preset = id;
-        if (id === 'uncanny-droop' || id === 'uncanny-uneven') {
-          state.intensity = 40; $('intensity').value = '40'; refreshNumbers();
-        }
-        refreshFilters();
+        selectPreset(id);
         closeFilterPicker();
       });
       section.append(button);
@@ -170,6 +175,7 @@ function stopCamera() {
   state.lastVideoTime = -1; state.lastDetectAt = -Infinity;
   state.stream?.getTracks().forEach(track => track.stop()); state.stream = null;
   video.pause(); video.srcObject = null;
+  clearSpider();
 }
 async function startCamera(deviceId = '') {
   stopCamera(); const token = state.startupToken;
@@ -248,39 +254,58 @@ function render(now) {
           state.face = null;
         }
       }
-      state.renderer.draw(video, controls());
-      drawSpider(now);
+      const applied = controls();
+      state.renderer.draw(video, applied);
+      drawSpider(now, applied);
     }
   } catch (err) { stopCamera(); showError('Error de procesamiento: ' + errorText(err)); return; }
   state.raf = requestAnimationFrame(render);
 }
-function drawSpider(now) {
+function clearSpider() {
+  if (spiderVisible) creatureContext.clearRect(0,0,creatureLayer.width,creatureLayer.height);
+  spiderStart = 0; spiderVisible = false;
+}
+function drawSpider(now, applied) {
+  const added = state.effects.find(effect => effect.preset === 'spider');
+  const amount = state.intensity / 100 * (state.preset === 'spider' ? 100 : added?.intensity ?? 0) / 100;
+  if (!amount || !state.face || !spiderImage.complete || !spiderImage.naturalWidth) {
+    clearSpider(); return;
+  }
   if (creatureLayer.width !== video.videoWidth || creatureLayer.height !== video.videoHeight) {
     creatureLayer.width = video.videoWidth; creatureLayer.height = video.videoHeight;
   }
-  const ctx = creatureContext;
-  ctx.clearRect(0, 0, creatureLayer.width, creatureLayer.height);
-  const added = state.effects.find(effect => effect.preset === 'spider');
-  const amount = state.intensity / 100 * (state.preset === 'spider' ? 100 : added?.intensity ?? 0) / 100;
-  if (!amount || !state.face || !spiderImage.complete || !spiderImage.naturalWidth) { spiderStart = 0; return; }
   if (!spiderStart) spiderStart = now;
   const face = state.face, points = face.landmarks;
-  const cheek = points[205], outer = points[234], nose = points[1];
-  if (!cheek || !outer || !nose) return;
-  // La araña sigue la mejilla en coordenadas especulares, sobre el vídeo ya deformado.
-  const phase = (now - spiderStart) / 5800;
+  const cheek = points[205], outer = points[234];
+  if (!cheek || !outer) { clearSpider(); return; }
+  // Seguir la mejilla deformada, no solo los landmarks originales de la cámara.
+  const phase = reduceMotion ? 0 : (now - spiderStart) / 5800;
   const travel = (Math.sin(phase * Math.PI * 2 - Math.PI / 2) + 1) / 2;
-  const x = (cheek.x * (1 - travel * .65) + outer.x * travel * .65) * creatureLayer.width;
-  const y = (cheek.y * (1 - travel * .65) + outer.y * travel * .65 + .012 * Math.sin(phase * 5)) * creatureLayer.height;
+  const anchor = forwardWarp({
+    x: cheek.x * (1 - travel * .65) + outer.x * travel * .65,
+    y: cheek.y * (1 - travel * .65) + outer.y * travel * .65 +
+      (reduceMotion ? 0 : .012 * Math.sin(phase * 5))
+  }, applied, video.videoWidth / video.videoHeight);
+  const x = anchor.x * creatureLayer.width, y = anchor.y * creatureLayer.height;
   const size = Math.max(16, face.frame.width * creatureLayer.width * .19);
-  ctx.save();ctx.translate(x,y);ctx.rotate(face.frame.angle + Math.sin(phase * 6) * .13);
-  const step = Math.sin(now / 84) * .035;
+  const ctx = creatureContext;
+  ctx.clearRect(0, 0, creatureLayer.width, creatureLayer.height);
+  spiderVisible = true;
+  ctx.save(); ctx.translate(x,y);
+  ctx.rotate(face.frame.angle + (reduceMotion ? 0 : Math.sin(phase * 6) * .13));
+  const step = reduceMotion ? 0 : Math.sin(now / 84) * .035;
   ctx.scale(1 + step, 1 - step);
-  // Sombra de contacto ligeramente desplazada: se dibuja por debajo del recorte alfa.
-  ctx.save();ctx.globalAlpha = amount * .32;ctx.filter = 'brightness(0) blur(3px)';
-  ctx.drawImage(spiderImage, -size / 2 + 3, -size * .42 + 4, size, size * spiderImage.naturalHeight / spiderImage.naturalWidth);
-  ctx.restore();ctx.globalAlpha = amount;
-  ctx.drawImage(spiderImage, -size / 2, -size * .42, size, size * spiderImage.naturalHeight / spiderImage.naturalWidth);
+  // Dos sombras rasterizadas: volumen suave y contacto por cada pata.
+  ctx.save();
+  ctx.globalAlpha = amount * .18; ctx.filter = 'blur(5px)'; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(3, size * .08, size * .27, size * .11, 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.restore();
+  ctx.save(); ctx.globalAlpha = amount * .34; ctx.filter = 'brightness(0) blur(3px)';
+  ctx.drawImage(spiderImage, -size / 2 + 3, -size * .42 + 4, size,
+    size * spiderImage.naturalHeight / spiderImage.naturalWidth);
+  ctx.restore(); ctx.globalAlpha = amount;
+  ctx.drawImage(spiderImage, -size / 2, -size * .42, size,
+    size * spiderImage.naturalHeight / spiderImage.naturalWidth);
   ctx.restore();
 }
 function point(event) {
@@ -314,10 +339,10 @@ $('start-camera').addEventListener('click', () => startCamera($('cameras').value
 $('cameras').addEventListener('change', e => startCamera(e.target.value));
 makeGroups($('filters'));
 makeGroups($('extra-filter'),true);
-$('filters').addEventListener('change',event=>{state.preset=event.target.value;refreshFilters()});
+$('filters').addEventListener('change',event=>selectPreset(event.target.value));
 $('add-effect').addEventListener('click',()=>{
   const preset=$('extra-filter').value;
-  if(!preset || state.effects.length>=4 || state.effects.some(e=>e.preset===preset))return;
+  if(!preset || state.effects.length>=4 || state.preset===preset || state.effects.some(e=>e.preset===preset))return;
   state.effects.push({preset,intensity:preset==='spider'?100:40});$('extra-filter').value='';
   refreshEffects();
 });
@@ -333,7 +358,7 @@ $('redo').addEventListener('click', () => {
 function resetEffects() {
   state.strokes = []; state.undone = []; state.live = null; gesture.cancel();
   state.preset = 'normal'; state.effects = []; state.intensity = 100; $('intensity').value = '100';
-  spiderStart = 0; creatureContext.clearRect(0,0,creatureLayer.width,creatureLayer.height);
+  clearSpider();
   refreshFilters(); refreshEffects(); refreshNumbers(); refreshButtons();
 }
 $('reset').addEventListener('click', resetEffects);

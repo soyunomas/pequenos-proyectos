@@ -118,3 +118,11 @@ La pantalla de cámara también tiene un botón de menú de 70 × 70 px con icon
 - Inicio con **Ojos grandes al 75 %**. «Restablecer», junto al menú del espejo, limpia la mezcla y los trazos y vuelve a Normal.
 - **Extrañeza sutil** combina el ojo caído y la boca caída; al seleccionarlo comienza al 40 %, ajustable con el deslizador principal. La variante asimétrica combina mirada y media sonrisa.
 - **Araña en la mejilla**: recorte fotorealista WebP con transparencia generado para esta aplicación (no SVG), superpuesto sobre el espejo con seguimiento de landmarks, desplazamiento animado y sombra de contacto. Es un movimiento de la imagen completa, no una animación articulada de cada pata. Se oculta cuando desaparece la cara y puede combinarse con deformaciones desde «Combinar efectos».
+
+## Revisión de filtros y araña sobre la mejilla
+
+Se añaden «Mirada entrecerrada», «Cejas asimétricas», «Cejas bajas», «Mejillas hundidas» y «Barbilla pequeña», junto a «Cansancio inquietante» y «Escepticismo sutil». Los presets «Extrañeza…», «Cansancio inquietante» y «Escepticismo sutil» se abren al **40 %**, aunque el regulador permite ajustar la mezcla. El inicio sigue siendo «Ojos grandes» al **75 %** y el botón discreto «Restablecer» permanece disponible directamente sobre el espejo.
+
+La superposición WebP de la araña conserva su transparencia, añade sombras difusas y de contacto, y ahora reproyecta su posición sobre el campo de deformación de píxeles: permanece pegada a la mejilla incluso al mezclar efectos faciales. Se limpia al perder el rostro o desconectar la cámara; con «reducir movimiento» activado en el sistema permanece quieta. El recurso existente es pequeño (88 × 74 px): el aspecto fotográfico definitivo y una animación articulada de las patas siguen siendo mejoras visuales pendientes, no se presentan como resultados comprobados.
+
+Las pruebas de lógica cubren los presets nuevos y la reproyección. Las pruebas de interfaz comprueban el arranque al 75 %, la selección de «Extrañeza sutil» al 40 % y el restablecimiento directo, a ejecutar en el workflow del repositorio. La webcam real y WebGL2 deben verificarse en un dispositivo físico.

@@ -58,7 +58,9 @@ export const FILTER_GROUPS=[
     ['eyes-apart','Ojos separados'],['eyes-together','Ojos juntos'],
     ['eyes-alien','Ojos de alienígena'],['eye-droop','Ojo caído'],
     ['brows-up','Cejas levantadas'],['brows-angry','Cejas enfadadas'],
-    ['eyes-droop','Ambos ojos caídos'],['eyes-uneven','Mirada asimétrica']
+    ['eyes-droop','Ambos ojos caídos'],['eyes-uneven','Mirada asimétrica'],
+    ['eyes-squint','Mirada entrecerrada'],['brows-uneven','Cejas asimétricas'],
+    ['brows-down','Cejas bajas']
   ]],
   ['Nariz', [
     ['nose-big','Nariz grande'],['nose-small','Nariz pequeña'],
@@ -77,11 +79,14 @@ export const FILTER_GROUPS=[
     ['face-thin','Cara estrecha'],['face-egg','Cabeza de huevo'],
     ['chin-big','Barbilla gigante'],['forehead-big','Frente gigante'],
     ['face-square','Cara cuadrada'],['cheeks-hamster','Mejillas de hámster'],
-    ['face-alien','Cara de alienígena']
+    ['face-alien','Cara de alienígena'],['cheeks-hollow','Mejillas hundidas'],
+    ['chin-small','Barbilla pequeña']
   ]],
   ['Efectos combinados', [
     ['uncanny-droop','Extrañeza sutil · ojo y boca caídos'],
     ['uncanny-uneven','Extrañeza asimétrica · mirada y sonrisa'],
+    ['uncanny-tired','Cansancio inquietante · ojos y expresión'],
+    ['uncanny-skeptic','Escepticismo sutil · cejas y boca'],
     ['spider','Araña en la mejilla']
   ]]
 ];
@@ -109,6 +114,9 @@ export function presetControls(face,name) {
     case 'eye-droop':return [ctl(face,eyeA,.32,0,.105,0,.83)];
     case 'eyes-droop':return [ctl(face,eyeA,.32,0,.078,0,.83),ctl(face,eyeB,.32,0,.078,0,.83)];
     case 'eyes-uneven':return [ctl(face,eyeA,.29,0,.05,0,.83),ctl(face,eyeB,.29,0,-.025,0,.83)];
+    case 'eyes-squint':return eyes(.31,-.055,.69,-.32);
+    case 'brows-uneven':return [ctl(face,browsA,.20,0,-.055,0,.7),ctl(face,browsB,.20,0,.025,0,.7)];
+    case 'brows-down':return [ctl(face,browsA,.20,0,.045,0,.72),ctl(face,browsB,.20,0,.045,0,.72)];
     case 'brows-up':return [ctl(face,browsA,.19,0,-.065,0,.69),
       ctl(face,browsB,.19,0,-.065,0,.69)];
     case 'brows-angry':return [
@@ -171,6 +179,10 @@ export function presetControls(face,name) {
     case 'uncanny-droop':return [...presetControls(face,'eye-droop'),...presetControls(face,'mouth-droop')];
     case 'uncanny-uneven':return [...presetControls(face,'eyes-uneven'),...presetControls(face,'mouth-uneven')];
     case 'spider':return [];
+    case 'cheeks-hollow':return symmetric(face,[L.cheekAInner,L.cheekBInner],.32,-.05,0,-.12);
+    case 'chin-small':return [ctl(face,L.chin,.34,0,-.04,-.2)];
+    case 'uncanny-tired':return [...presetControls(face,'eyes-squint'),...presetControls(face,'brows-down'),...presetControls(face,'mouth-droop')];
+    case 'uncanny-skeptic':return [...presetControls(face,'brows-uneven'),...presetControls(face,'mouth-uneven')];
     case 'face-alien':return [
       ...eyes(.3,.52,.83,.8),
       ...symmetric(face,[L.templeA,L.templeB],.36,.075),
@@ -227,6 +239,10 @@ export function forwardOne(p,c,aspect=16/9) {
   const w=influenceAt(p,c,aspect),sx=1+(c.scale||0)*w,sy=1+(c.scaleY??c.scale??0)*w;
   return {x:c.x+(p.x-c.x)*sx+c.dx*w,
     y:c.y+(p.y-c.y)*sy+c.dy*w};
+}
+/** Apply the same forward controls to face-anchored overlays as to video pixels. */
+export function forwardWarp(point,controls=[],aspect=16/9) {
+  return controls.reduce((p,c)=>forwardOne(p,c,aspect),point);
 }
 /** Inverts SOURCE-anchored forward field: the original feature is moved, not overlaid. */
 export function inverseOne(destination,c,aspect=16/9) {

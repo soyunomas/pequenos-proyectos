@@ -71,7 +71,7 @@ try {
     const list=await rect('.filter-option');
     assert.ok(Math.abs(list.x)<1&&Math.abs(list.width-w)<1,device.name+' full width filter list');
     assert.ok(list.height>=98&&list.font>=39,device.name+' oversized filter choices');
-    assert.equal(await page.locator('.filter-option').count(),39);
+    assert.equal(await page.locator('.filter-option').count(),46);
     assert.ok((await rect('.picker-search-label')).font>=34,device.name+' search instructions');
     assert.ok((await rect('#filter-search')).font>=35,device.name+' search entry');
     assert.ok((await rect('.picker-group h3')).font>=36,device.name+' category heading');
@@ -80,8 +80,14 @@ try {
     await page.screenshot({path:'facechanger-pages/test-results/'+device.name+'-filtros.png'});
     await page.locator('button[data-filter-id="face-alien"]').scrollIntoViewIfNeeded();
     assert.ok(await page.locator('button[data-filter-id="face-alien"]').isVisible(),
-      device.name+' last of 39 filters can be reached by scrolling');
+      device.name+' face-alien reachable after adding more filters');
     await page.locator('button[data-filter-id="normal"]').scrollIntoViewIfNeeded();
+    await page.locator('#filter-search').fill('extrañeza sutil');
+    assert.equal(await page.locator('.filter-option').count(),1);
+    await page.locator('button[data-filter-id="uncanny-droop"]').click();
+    assert.equal(await page.locator('#intensity').inputValue(),'40','Combinado empieza al 40 %');
+    await page.locator('#filter-picker-open').click();
+    await picker.waitFor({state:'visible'});
     await page.locator('#filter-search').fill('hamster');
     assert.equal(await page.locator('.filter-option').count(),1);
     await page.getByRole('button',{name:'Mejillas de hámster'}).click();
@@ -90,6 +96,8 @@ try {
     await page.getByRole('button',{name:'Ver mi reflejo'}).click();
     await page.locator('#panel').waitFor({state:'hidden'});
     assert.equal(await page.locator('#panel').getAttribute('inert'),'');
+    const quick=await rect('#quick-reset');
+    assert.ok(quick.width>=44&&quick.height>=42,device.name+' reset táctil discreto');
     await page.getByRole('button',{name:'Restablecer los efectos'}).click();
     assert.equal(await page.locator('#filters').inputValue(),'normal');
     assert.deepEqual(errors,[],device.name+' JS errors');
