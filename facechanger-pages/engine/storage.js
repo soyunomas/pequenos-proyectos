@@ -1,5 +1,6 @@
 import { FILTERS, MAX_CONTROLS, normalizeEffects } from './geometry.js';
 import { SPIDER_LIMITS } from './spider.js';
+import { MAX_CREATURES } from './creatures.js';
 const KEY = 'facechanger-pages:filters:v1';
 const finite = n => typeof n === 'number' && Number.isFinite(n);
 export const validStroke = s => s && Number.isInteger(s.landmark) && s.landmark >= 0 && s.landmark < 478 &&
@@ -9,6 +10,11 @@ export const validStroke = s => s && Number.isInteger(s.landmark) && s.landmark 
 export const validFilter = f => f && f.version === 1 && typeof f.name === 'string' && !!f.name.trim() && f.name.length <= 64 &&
   FILTERS.some(([id]) => id === f.preset) && finite(f.intensity) && f.intensity >= 0 && f.intensity <= 100 &&
   finite(f.radius) && f.radius >= .06 && f.radius <= .38 &&
+  (f.creatures === undefined || (f.creatures && finite(f.creatures.speed) &&
+    f.creatures.speed>=25 && f.creatures.speed<=250 &&
+    finite(f.creatures.size) && f.creatures.size>=40 && f.creatures.size<=220 &&
+    Number.isInteger(f.creatures.count) && f.creatures.count>=1 &&
+    f.creatures.count<=MAX_CREATURES)) &&
   (f.spider === undefined || (f.spider && finite(f.spider.speed) &&
     f.spider.speed >= SPIDER_LIMITS.speed[0] && f.spider.speed <= SPIDER_LIMITS.speed[1] &&
     finite(f.spider.size) && f.spider.size >= SPIDER_LIMITS.size[0] &&
