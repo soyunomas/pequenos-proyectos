@@ -54,11 +54,17 @@ try {
     assert.equal(await page.locator('#filters').inputValue(),'eyes-big');
     assert.equal(await page.locator('#intensity').inputValue(),'75');
     assert.equal(await page.locator('#spider-speed').inputValue(),'100');
-    assert.equal(await page.locator('#spider-size').inputValue(),'125');
+    assert.equal(await page.locator('#creature-count').inputValue(),'1');
+    assert.equal(await page.locator('#spider-size').inputValue(),'175');
     await page.locator('#spider-speed').evaluate(el=>{el.value='175';el.dispatchEvent(new Event('input',{bubbles:true}));});
     await page.locator('#spider-size').evaluate(el=>{el.value='140';el.dispatchEvent(new Event('input',{bubbles:true}));});
     assert.equal(await page.locator('#spider-speed-value').textContent(),'175 %');
     assert.equal(await page.locator('#spider-size-value').textContent(),'140 %');
+    await page.locator('#creature-count').evaluate(el=>{
+      el.value='5';el.dispatchEvent(new Event('input',{bubbles:true}));
+    });
+    assert.equal(await page.locator('#creature-count-value').textContent(),'5');
+
     const button=await rect('#settings-done');
     assert.ok(Math.abs(button.x)<1&&Math.abs(button.width-w)<1,device.name+' footer edge to edge');
     assert.ok(button.height>=95&&button.font>=36,device.name+' oversized fixed footer');
@@ -77,13 +83,17 @@ try {
     const list=await rect('.filter-option');
     assert.ok(Math.abs(list.x)<1&&Math.abs(list.width-w)<1,device.name+' full width filter list');
     assert.ok(list.height>=98&&list.font>=39,device.name+' oversized filter choices');
-    assert.equal(await page.locator('.filter-option').count(),56);
+    assert.equal(await page.locator('.filter-option').count(),58);
     assert.ok((await rect('.picker-search-label')).font>=34,device.name+' search instructions');
     assert.ok((await rect('#filter-search')).font>=35,device.name+' search entry');
     assert.ok((await rect('.picker-group h3')).font>=36,device.name+' category heading');
     const pickerOverflow=await picker.evaluate(el=>el.scrollWidth-el.clientWidth);
     assert.ok(pickerOverflow<=1,device.name+' no horizontal picker overflow');
     await page.screenshot({path:'facechanger-pages/test-results/'+device.name+'-filtros.png'});
+    await page.locator('button[data-filter-id="cockroach"]').scrollIntoViewIfNeeded();
+    assert.ok(await page.locator('button[data-filter-id="cockroach"]').isVisible());
+    await page.locator('button[data-filter-id="wasp"]').scrollIntoViewIfNeeded();
+    assert.ok(await page.locator('button[data-filter-id="wasp"]').isVisible());
     await page.locator('button[data-filter-id="trend-squash"]').scrollIntoViewIfNeeded();
     assert.ok(await page.locator('button[data-filter-id="trend-squash"]').isVisible(),
       device.name+' new TikTok-inspired filters reachable');
@@ -123,7 +133,8 @@ try {
     await page.getByRole('button',{name:'Restablecer los efectos'}).click();
     assert.equal(await page.locator('#filters').inputValue(),'normal');
     assert.equal(await page.locator('#spider-speed').inputValue(),'100');
-    assert.equal(await page.locator('#spider-size').inputValue(),'125');
+    assert.equal(await page.locator('#creature-count').inputValue(),'1');
+    assert.equal(await page.locator('#spider-size').inputValue(),'175');
     assert.deepEqual(errors,[],device.name+' JS errors');
     console.log('Interfaz Android texto grande y menú de tres líneas correcta:',device.name);
     await context.close();
