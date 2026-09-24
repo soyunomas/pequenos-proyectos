@@ -8,9 +8,12 @@ const MEDIAPIPE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35'
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
+const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
+const spiderImage = new Image(); spiderImage.decoding = 'async'; spiderImage.src = './assets/spider.webp';
+let spiderStart = 0;
 const gesture = new PointerDeformer();
 const state = {
-  preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 100, radius: .19, editable: true,
+  preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 75, radius: .19, editable: true,
   face: null, live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
   mirror: false, settingsOpen: false, filterPickerOpen: false, exitTimer: 0, running: false,
@@ -87,6 +90,9 @@ function renderFilterList(query = '') {
       button.append(title, mark);
       button.addEventListener('click', () => {
         state.preset = id;
+        if (id === 'uncanny-droop' || id === 'uncanny-uneven') {
+          state.intensity = 40; $('intensity').value = '40'; refreshNumbers();
+        }
         refreshFilters();
         closeFilterPicker();
       });
@@ -243,9 +249,39 @@ function render(now) {
         }
       }
       state.renderer.draw(video, controls());
+      drawSpider(now);
     }
   } catch (err) { stopCamera(); showError('Error de procesamiento: ' + errorText(err)); return; }
   state.raf = requestAnimationFrame(render);
+}
+function drawSpider(now) {
+  if (creatureLayer.width !== video.videoWidth || creatureLayer.height !== video.videoHeight) {
+    creatureLayer.width = video.videoWidth; creatureLayer.height = video.videoHeight;
+  }
+  const ctx = creatureContext;
+  ctx.clearRect(0, 0, creatureLayer.width, creatureLayer.height);
+  const added = state.effects.find(effect => effect.preset === 'spider');
+  const amount = state.intensity / 100 * (state.preset === 'spider' ? 100 : added?.intensity ?? 0) / 100;
+  if (!amount || !state.face || !spiderImage.complete || !spiderImage.naturalWidth) { spiderStart = 0; return; }
+  if (!spiderStart) spiderStart = now;
+  const face = state.face, points = face.landmarks;
+  const cheek = points[205], outer = points[234], nose = points[1];
+  if (!cheek || !outer || !nose) return;
+  // La araña sigue la mejilla en coordenadas especulares, sobre el vídeo ya deformado.
+  const phase = (now - spiderStart) / 5800;
+  const travel = (Math.sin(phase * Math.PI * 2 - Math.PI / 2) + 1) / 2;
+  const x = (cheek.x * (1 - travel * .65) + outer.x * travel * .65) * creatureLayer.width;
+  const y = (cheek.y * (1 - travel * .65) + outer.y * travel * .65 + .012 * Math.sin(phase * 5)) * creatureLayer.height;
+  const size = Math.max(16, face.frame.width * creatureLayer.width * .19);
+  ctx.save();ctx.translate(x,y);ctx.rotate(face.frame.angle + Math.sin(phase * 6) * .13);
+  const step = Math.sin(now / 84) * .035;
+  ctx.scale(1 + step, 1 - step);
+  // Sombra de contacto ligeramente desplazada: se dibuja por debajo del recorte alfa.
+  ctx.save();ctx.globalAlpha = amount * .32;ctx.filter = 'brightness(0) blur(3px)';
+  ctx.drawImage(spiderImage, -size / 2 + 3, -size * .42 + 4, size, size * spiderImage.naturalHeight / spiderImage.naturalWidth);
+  ctx.restore();ctx.globalAlpha = amount;
+  ctx.drawImage(spiderImage, -size / 2, -size * .42, size, size * spiderImage.naturalHeight / spiderImage.naturalWidth);
+  ctx.restore();
 }
 function point(event) {
   return mapPointer(event, canvas.getBoundingClientRect(), video.videoWidth, video.videoHeight);
@@ -282,7 +318,7 @@ $('filters').addEventListener('change',event=>{state.preset=event.target.value;r
 $('add-effect').addEventListener('click',()=>{
   const preset=$('extra-filter').value;
   if(!preset || state.effects.length>=4 || state.effects.some(e=>e.preset===preset))return;
-  state.effects.push({preset,intensity:100});$('extra-filter').value='';
+  state.effects.push({preset,intensity:preset==='spider'?100:40});$('extra-filter').value='';
   refreshEffects();
 });
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });
@@ -294,11 +330,14 @@ $('undo').addEventListener('click', () => {
 $('redo').addEventListener('click', () => {
   if (state.undone.length) state.strokes.push(state.undone.pop()); refreshButtons();
 });
-$('reset').addEventListener('click', () => {
+function resetEffects() {
   state.strokes = []; state.undone = []; state.live = null; gesture.cancel();
   state.preset = 'normal'; state.effects = []; state.intensity = 100; $('intensity').value = '100';
+  spiderStart = 0; creatureContext.clearRect(0,0,creatureLayer.width,creatureLayer.height);
   refreshFilters(); refreshEffects(); refreshNumbers(); refreshButtons();
-});
+}
+$('reset').addEventListener('click', resetEffects);
+$('quick-reset').addEventListener('click', resetEffects);
 $('save').addEventListener('click', () => {
   const name = prompt('Nombre del filtro personalizado:')?.trim(); if (!name) return;
   try {

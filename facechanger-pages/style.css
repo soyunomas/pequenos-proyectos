@@ -137,3 +137,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .panel-top-spacer{display:none}
 .settings-close,.picker-back{flex:none;min-width:52px;width:52px;justify-content:center;padding:0}
 .settings-close span,.picker-back span{font-size:29px}
+
+/* Superposición independiente del shader: misma transformación cover que el espejo. */
+#creature-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:2}
+.quick-reset{position:absolute;z-index:9;right:max(16px,env(safe-area-inset-right,0px));top:calc(94px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:5px;min-height:42px;padding:8px 12px;border:1px solid #ffffff55;border-radius:99px;background:#171c26a8;color:#fff;font-size:13px;font-weight:550;box-shadow:0 2px 8px #0003;backdrop-filter:blur(8px)}
+.quick-reset:hover{background:#171c26df}.quick-reset:focus-visible{outline:3px solid #d1bcff}
+.settings-open .quick-reset,.is-mirror .quick-reset{display:none}
+@media(max-width:370px){.quick-reset span{display:none}.quick-reset{min-width:44px;justify-content:center;font-size:21px}}

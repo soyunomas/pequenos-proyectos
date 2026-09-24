@@ -52,6 +52,7 @@ try {
     assert.ok((await rect('.panel .check')).font>=34,device.name+' enlarged manual control');
     assert.ok((await rect('.panel .advanced>summary')).font>=37,device.name+' enlarged advanced rows');
     assert.equal(await page.locator('#filters').inputValue(),'eyes-big');
+    assert.equal(await page.locator('#intensity').inputValue(),'75');
     const button=await rect('#settings-done');
     assert.ok(Math.abs(button.x)<1&&Math.abs(button.width-w)<1,device.name+' footer edge to edge');
     assert.ok(button.height>=95&&button.font>=36,device.name+' oversized fixed footer');
@@ -70,7 +71,7 @@ try {
     const list=await rect('.filter-option');
     assert.ok(Math.abs(list.x)<1&&Math.abs(list.width-w)<1,device.name+' full width filter list');
     assert.ok(list.height>=98&&list.font>=39,device.name+' oversized filter choices');
-    assert.equal(await page.locator('.filter-option').count(),32);
+    assert.equal(await page.locator('.filter-option').count(),39);
     assert.ok((await rect('.picker-search-label')).font>=34,device.name+' search instructions');
     assert.ok((await rect('#filter-search')).font>=35,device.name+' search entry');
     assert.ok((await rect('.picker-group h3')).font>=36,device.name+' category heading');
@@ -79,7 +80,7 @@ try {
     await page.screenshot({path:'facechanger-pages/test-results/'+device.name+'-filtros.png'});
     await page.locator('button[data-filter-id="face-alien"]').scrollIntoViewIfNeeded();
     assert.ok(await page.locator('button[data-filter-id="face-alien"]').isVisible(),
-      device.name+' last of 32 filters can be reached by scrolling');
+      device.name+' last of 39 filters can be reached by scrolling');
     await page.locator('button[data-filter-id="normal"]').scrollIntoViewIfNeeded();
     await page.locator('#filter-search').fill('hamster');
     assert.equal(await page.locator('.filter-option').count(),1);
@@ -89,6 +90,8 @@ try {
     await page.getByRole('button',{name:'Ver mi reflejo'}).click();
     await page.locator('#panel').waitFor({state:'hidden'});
     assert.equal(await page.locator('#panel').getAttribute('inert'),'');
+    await page.getByRole('button',{name:'Restablecer los efectos'}).click();
+    assert.equal(await page.locator('#filters').inputValue(),'normal');
     assert.deepEqual(errors,[],device.name+' JS errors');
     console.log('Interfaz Android texto grande y menú de tres líneas correcta:',device.name);
     await context.close();

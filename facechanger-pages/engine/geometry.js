@@ -57,7 +57,8 @@ export const FILTER_GROUPS=[
     ['eyes-big','Ojos grandes'],['eyes-small','Ojos pequeños'],
     ['eyes-apart','Ojos separados'],['eyes-together','Ojos juntos'],
     ['eyes-alien','Ojos de alienígena'],['eye-droop','Ojo caído'],
-    ['brows-up','Cejas levantadas'],['brows-angry','Cejas enfadadas']
+    ['brows-up','Cejas levantadas'],['brows-angry','Cejas enfadadas'],
+    ['eyes-droop','Ambos ojos caídos'],['eyes-uneven','Mirada asimétrica']
   ]],
   ['Nariz', [
     ['nose-big','Nariz grande'],['nose-small','Nariz pequeña'],
@@ -69,7 +70,7 @@ export const FILTER_GROUPS=[
     ['mouth-big','Boca grande'],['mouth-small','Boca pequeña'],
     ['mouth-twisted','Boca torcida'],['mouth-smile','Sonrisa gigante'],
     ['mouth-sad','Boca triste'],['lips-big','Labios grandes'],
-    ['mouth-fish','Boca de pez']
+    ['mouth-fish','Boca de pez'],['mouth-droop','Boca caída'],['mouth-uneven','Media sonrisa']
   ]],
   ['Rostro', [
     ['face-long','Cara alargada'],['face-round','Cara redonda'],
@@ -77,6 +78,11 @@ export const FILTER_GROUPS=[
     ['chin-big','Barbilla gigante'],['forehead-big','Frente gigante'],
     ['face-square','Cara cuadrada'],['cheeks-hamster','Mejillas de hámster'],
     ['face-alien','Cara de alienígena']
+  ]],
+  ['Efectos combinados', [
+    ['uncanny-droop','Extrañeza sutil · ojo y boca caídos'],
+    ['uncanny-uneven','Extrañeza asimétrica · mirada y sonrisa'],
+    ['spider','Araña en la mejilla']
   ]]
 ];
 export const FILTERS=FILTER_GROUPS.flatMap(([,items])=>items);
@@ -101,6 +107,8 @@ export function presetControls(face,name) {
     // Eye DROP moves the whole source-eye patch with an invertible field:
     // gentle displacement / broad region, NOT a duplicate of the original eye.
     case 'eye-droop':return [ctl(face,eyeA,.32,0,.105,0,.83)];
+    case 'eyes-droop':return [ctl(face,eyeA,.32,0,.078,0,.83),ctl(face,eyeB,.32,0,.078,0,.83)];
+    case 'eyes-uneven':return [ctl(face,eyeA,.29,0,.05,0,.83),ctl(face,eyeB,.29,0,-.025,0,.83)];
     case 'brows-up':return [ctl(face,browsA,.19,0,-.065,0,.69),
       ctl(face,browsB,.19,0,-.065,0,.69)];
     case 'brows-angry':return [
@@ -127,6 +135,8 @@ export function presetControls(face,name) {
     case 'mouth-twisted':return [ctl(face,L.mouthA,.28,.095,.028,0,.82)];
     case 'mouth-smile':return [...corners(.28,.11,-.065),ctl(face,L.mouthTop,.20,0,-.02,0,.85)];
     case 'mouth-sad':return corners(.25,0,.082);
+    case 'mouth-droop':return [...corners(.25,0,.055),ctl(face,lips,.26,0,.042,0,.79)];
+    case 'mouth-uneven':return [ctl(face,L.mouthA,.23,0,-.05,0,.8),ctl(face,L.mouthB,.23,0,.018,0,.8)];
     case 'lips-big':return [
       ctl(face,lips,.23,0,0,.48,.74,.95),
       ctl(face,L.mouthTop,.12,0,-.015,.18,.76),
@@ -158,6 +168,9 @@ export function presetControls(face,name) {
     case 'cheeks-hamster':return [
       ...symmetric(face,[L.cheekAInner,L.cheekBInner],.29,.055,0,.62)
     ];
+    case 'uncanny-droop':return [...presetControls(face,'eye-droop'),...presetControls(face,'mouth-droop')];
+    case 'uncanny-uneven':return [...presetControls(face,'eyes-uneven'),...presetControls(face,'mouth-uneven')];
+    case 'spider':return [];
     case 'face-alien':return [
       ...eyes(.3,.52,.83,.8),
       ...symmetric(face,[L.templeA,L.templeB],.36,.075),

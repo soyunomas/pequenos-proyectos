@@ -126,12 +126,12 @@ test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>
   saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
 });
 
-test('todos los filtros tienen identidad única y 31 efectos distintos de Normal',()=>{
+test('todos los filtros tienen identidad única y 38 filtros contando Normal y Araña',()=>{
   const ids=FILTERS.map(([id])=>id);
-  assert.equal(ids.length,32);
+  assert.equal(ids.length,39);
   assert.equal(new Set(ids).size,ids.length);
   assert.equal(ids[0],'normal');
-  for(const id of ids.slice(1))assert.ok(presetControls(anatomy(),id).length>0,id);
+  for(const id of ids.slice(1).filter(id=>id!=='spider'))assert.ok(presetControls(anatomy(),id).length>0,id);
 });
 test('ojo caído: el ojo fuente solo ocupa su destino, no queda duplicado',()=>{
   const f=anatomy(),c=presetControls(f,'eye-droop')[0];
@@ -180,4 +180,13 @@ test('ojo caído siempre desciende, también con orden especular de landmarks',(
   raw[33]={x:.35,y:.4};raw[263]={x:.65,y:.4};
   const mirrored=faceFromLandmarks(raw);
   assert.ok(presetControls(mirrored,'eye-droop')[0].dy>0);
+});
+
+test('presets inquietantes combinan caída ocular y boca sin exceso a 40 %',()=>{
+ const f=anatomy(), controls=compose(f,'uncanny-droop',[],39);
+ assert.equal(controls.length,4);
+ assert.ok(controls[0].dy>0 && controls[1].dy>0);
+ assert.ok(controls.every(c=>c.dy < .06*f.frame.width));
+ assert.equal(compose(f,'spider',[],100).length,0);
+ assert.ok(FILTERS.some(([id])=>id==='spider'));
 });

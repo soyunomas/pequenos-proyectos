@@ -15,8 +15,10 @@
     <div class="stage" id="stage">
       <video id="webcam" autoplay muted playsinline aria-hidden="true"></video>
       <canvas id="mirror" aria-label="Espejo facial deformable con ratón o pantalla táctil"></canvas>
+      <canvas id="creature-layer" aria-hidden="true"></canvas>
       <div class="status" id="status" role="status" aria-live="polite"><i id="led"></i><span id="status-text">Pulsa «Activar cámara» para comenzar</span></div>
       <div class="start" id="start"><h2>Tu reflejo, a tu manera.</h2><p>Activa tu cámara para deformar tu rostro en directo. Las imágenes no se suben a nuestro servidor.</p><button id="start-camera" class="primary">Activar cámara</button><p id="start-error" class="error" role="alert"></p></div>
+      <button id="quick-reset" class="quick-reset" type="button" aria-label="Restablecer los efectos" title="Restablecer los efectos">↶ <span>Restablecer</span></button>
       <button id="settings-open" class="settings-toggle" type="button" aria-label="Abrir menú" aria-controls="panel" aria-expanded="false" title="Abrir menú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
       <button class="exit-mirror" id="exit-mirror" aria-label="Salir del modo espejo">Salir del espejo ×</button>
     </div>
@@ -34,8 +36,8 @@
           <span id="selected-filter-category" class="selected-filter-category">Ojos y cejas</span>
           <span class="selected-filter-chevron" aria-hidden="true">›</span>
         </button>
-        <label class="slider" for="intensity">Intensidad <output id="intensity-value" for="intensity">100 %</output></label>
-        <input class="main-range" type="range" id="intensity" min="0" max="100" value="100" aria-label="Intensidad general del efecto">
+        <label class="slider" for="intensity">Intensidad <output id="intensity-value" for="intensity">75 %</output></label>
+        <input class="main-range" type="range" id="intensity" min="0" max="100" value="75" aria-label="Intensidad general del efecto">
       </section>
       <section class="manual-section"><h2>Deformar con el dedo</h2><label class="check"><input id="manual" type="checkbox" checked> Permitir arrastrar la cara</label>
         <label class="slider" for="radius">Radio de influencia <output id="radius-value" for="radius">19 %</output></label>
@@ -46,7 +48,7 @@
         <select id="extra-filter" aria-label="Añadir efecto combinado"><option value="">Seleccionar efecto…</option></select>
         <button class="add-effect" id="add-effect" type="button">Añadir a la mezcla</button>
         <div id="effects" class="effect-list" aria-live="polite"></div>
-        <p class="help compact">Hasta cuatro efectos más, con intensidad individual.</p>
+        <p class="help compact">Hasta cuatro efectos más, con intensidad individual. La araña se puede combinar con deformaciones.</p>
       </section></div></details>
       <details class="advanced"><summary>Más opciones</summary><div class="details-inner">
       <section><h2>Cámara</h2><select id="cameras" aria-label="Elegir cámara"><option value="">Cámara predeterminada</option></select></section>
