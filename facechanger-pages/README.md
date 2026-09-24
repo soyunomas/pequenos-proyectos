@@ -134,3 +134,9 @@ La araña recorre un circuito cerrado por mejillas, sienes, frente, nariz, boca 
 En Ajustes aparecen **Velocidad de la araña** (25–250 %) y **Tamaño de la araña** (40–220 %), ambos al 100 % inicialmente. Se guardan junto a los filtros personalizados y «Restablecer» los devuelve al 100 %. Los filtros antiguos sin esos campos siguen siendo válidos. Si el usuario ha activado «reducir movimiento» en su sistema, la araña permanece quieta.
 
 Se amplían las pruebas de lógica y UI del recorrido, persistencia, valores de los deslizadores y restablecimiento. El acabado visual final y el rendimiento en webcam deben comprobarse sobre dispositivos reales.
+
+## Ajuste de la araña y valor inicial de ojos (revisión)
+
+La fotografía original de la araña tenía el frente orientado en dirección opuesta al giro aplicado por el renderer: se corrige la rotación 180° para que avance con la cabeza en la dirección del desplazamiento, conservando las patas rasterizadas y sombras. El tamaño inicial pasa al **125 %** (ajustable entre 40 y 220 %) y se oscurece el sprite mediante brillo y contraste sobre el canvas, sin reemplazar el recurso fotográfico. Velocidad inicial: **100 %**.
+
+«Ojos grandes» continúa al **75 %** al cargar la aplicación y ahora vuelve a fijar el regulador en 75 % cuando se selecciona expresamente desde el catálogo, incluso si antes se había usado otra intensidad. Los filtros guardados mantienen su propia intensidad cuando se cargan. Las pruebas de lógica incluyen la orientación y los valores iniciales; las de interfaz incluyen la reselección de «Ojos grandes» y el restablecimiento del tamaño.
