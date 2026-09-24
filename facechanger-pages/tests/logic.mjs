@@ -127,9 +127,9 @@ test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>
   saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
 });
 
-test('todos los filtros tienen identidad única y 46 opciones contando Normal y Araña',()=>{
+test('catálogo con 56 opciones y filtros de tendencia únicos',()=>{
   const ids=FILTERS.map(([id])=>id);
-  assert.equal(ids.length,46);
+  assert.equal(ids.length,56);
   assert.equal(new Set(ids).size,ids.length);
   assert.equal(ids[0],'normal');
   for(const id of ids.slice(1).filter(id=>id!=='spider'))assert.ok(presetControls(anatomy(),id).length>0,id);
@@ -233,4 +233,27 @@ test('araña gira para avanzar con la cabeza por delante',()=>{
  assert.ok(Math.abs(spiderHeading(0,-1)+Math.PI)<1e-9,'hacia arriba');
  assert.ok(Math.abs(spiderHeading(0,1))<1e-9,'hacia abajo');
  assert.ok(Math.abs(spiderHeading(1,0)+Math.PI/2)<1e-9,'hacia derecha');
+});
+
+test('tendencias: controles finitos, intensidad proporcional y mezclas compatibles',()=>{
+ const f=anatomy();
+ const ids=FILTERS.map(([id])=>id).filter(id=>id.startsWith('trend-'));
+ assert.equal(ids.length,10);
+ for(const id of ids){
+   const full=presetControls(f,id),lower=compose(f,id,[],35);
+   assert.ok(full.length>0&&full.length<=MAX_CONTROLS,id);
+   assert.equal(lower.length,full.length,id);
+   for(let k=0;k<full.length;k++){
+     assert.ok(Object.values(full[k]).every(Number.isFinite),id+' finitud');
+     for(const key of ['dx','dy','scale','scaleY'])
+       assert.ok(Math.abs(lower[k][key]-full[k][key]*.35)<1e-8,id+' '+key);
+   }
+ }
+ const mixed=compose(f,'trend-baby',[],75,[{preset:'trend-pout',intensity:40}]);
+ assert.equal(mixed.length,presetControls(f,'trend-baby').length+presetControls(f,'trend-pout').length);
+ const storeData=new Map(),store={getItem:k=>storeData.get(k)??null,setItem:(k,v)=>storeData.set(k,v)};
+ const preset={version:1,name:'Tendencia',preset:'trend-surprise',intensity:55,radius:.19,strokes:[],
+   effects:[{preset:'trend-hero',intensity:30}]};
+ saveFilter(preset,store);
+ assert.deepEqual(listFilters(store),[preset]);
 });
