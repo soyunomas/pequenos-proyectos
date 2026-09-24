@@ -77,13 +77,24 @@ try {
     const list=await rect('.filter-option');
     assert.ok(Math.abs(list.x)<1&&Math.abs(list.width-w)<1,device.name+' full width filter list');
     assert.ok(list.height>=98&&list.font>=39,device.name+' oversized filter choices');
-    assert.equal(await page.locator('.filter-option').count(),46);
+    assert.equal(await page.locator('.filter-option').count(),56);
     assert.ok((await rect('.picker-search-label')).font>=34,device.name+' search instructions');
     assert.ok((await rect('#filter-search')).font>=35,device.name+' search entry');
     assert.ok((await rect('.picker-group h3')).font>=36,device.name+' category heading');
     const pickerOverflow=await picker.evaluate(el=>el.scrollWidth-el.clientWidth);
     assert.ok(pickerOverflow<=1,device.name+' no horizontal picker overflow');
     await page.screenshot({path:'facechanger-pages/test-results/'+device.name+'-filtros.png'});
+    await page.locator('button[data-filter-id="trend-squash"]').scrollIntoViewIfNeeded();
+    assert.ok(await page.locator('button[data-filter-id="trend-squash"]').isVisible(),
+      device.name+' new TikTok-inspired filters reachable');
+    await page.locator('#filter-search').fill('carita de bebe');
+    assert.equal(await page.locator('.filter-option').count(),1);
+    await page.locator('button[data-filter-id="trend-baby"]').click();
+    assert.equal(await page.locator('#filters').inputValue(),'trend-baby');
+    assert.equal(await page.locator('#selected-filter-category').textContent(),'Inspirados en tendencias');
+    await page.locator('#filter-picker-open').click();
+    await picker.waitFor({state:'visible'});
+    await page.locator('#filter-search').fill('');
     await page.locator('button[data-filter-id="face-alien"]').scrollIntoViewIfNeeded();
     assert.ok(await page.locator('button[data-filter-id="face-alien"]').isVisible(),
       device.name+' face-alien reachable after adding more filters');
