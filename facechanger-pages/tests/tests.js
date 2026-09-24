@@ -77,12 +77,15 @@ await test('Boca grande disponible y persistente en JSON',()=>{
 
 
 
-await test('Catálogo completo: 32 filtros disponibles',()=>{
-  assert(FILTERS.length===32);
+await test('Catálogo completo: 56 filtros con 10 tendencias',()=>{
+  assert(FILTERS.length===56);
+  const ids=FILTERS.map(([id])=>id);
+  assert(new Set(ids).size===ids.length);
+  assert(ids.filter(id=>id.startsWith('trend-')).length===10);
   const f=face();
   FILTERS.forEach(([id])=>{
     const cs=presetControls(f,id);
-    assert(id==='normal'||cs.length>0,id);
+    assert(id==='normal'||id==='spider'||cs.length>0,id);
     cs.forEach(c=>assert(Object.values(c).every(Number.isFinite),id+' NaN'));
   });
 });
