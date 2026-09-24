@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#faf8ff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#151319" media="(prefers-color-scheme: dark)">
   <title>FaceChanger · espejo táctil</title>
-  <link rel="stylesheet" href="./style.css?v=2-0-large-type">
+  <link rel="stylesheet" href="./style.css?v=spider-walk-1">
 </head>
 <body>
 <div id="app" class="app">
@@ -38,6 +38,14 @@
         </button>
         <label class="slider" for="intensity">Intensidad <output id="intensity-value" for="intensity">75 %</output></label>
         <input class="main-range" type="range" id="intensity" min="0" max="100" value="75" aria-label="Intensidad general del efecto">
+      </section>
+      <section class="spider-section" aria-labelledby="spider-heading">
+        <h2 id="spider-heading">Araña</h2>
+        <label class="slider" for="spider-speed">Velocidad <output id="spider-speed-value" for="spider-speed">100 %</output></label>
+        <input class="main-range" type="range" id="spider-speed" min="25" max="250" value="100" aria-label="Velocidad de la araña">
+        <label class="slider" for="spider-size">Tamaño <output id="spider-size-value" for="spider-size">100 %</output></label>
+        <input class="main-range" type="range" id="spider-size" min="40" max="220" value="100" aria-label="Tamaño de la araña">
+        <p class="help compact">Se aplican cuando el filtro Araña está activo. La araña recorre frente, mejillas, nariz y barbilla.</p>
       </section>
       <section class="manual-section"><h2>Deformar con el dedo</h2><label class="check"><input id="manual" type="checkbox" checked> Permitir arrastrar la cara</label>
         <label class="slider" for="radius">Radio de influencia <output id="radius-value" for="radius">19 %</output></label>
@@ -77,6 +85,6 @@
     </section>
   </main>
 </div>
-<script type="module" src="./app.js"></script>
+<script type="module" src="./app.js?v=spider-walk-1"></script>
 </body>
 </html>
