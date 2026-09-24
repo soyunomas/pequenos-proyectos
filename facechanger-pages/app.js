@@ -2,7 +2,7 @@ import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFr
 import { PointerDeformer, mapPointer } from './engine/pointer.js';
 import { Renderer } from './engine/renderer.js';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
-import { SPIDER_DEFAULTS, spiderConfig, spiderRoute, spiderPosition, spiderHeading, spiderGaitFrame } from './engine/spider.js';
+import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js';
 
 // Sin Node ni bundle. El módulo, WASM y modelo se descargan; la imagen se procesa en el equipo.
 const MEDIAPIPE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35';
@@ -10,14 +10,21 @@ const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/f
 const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
-const spiderImage = new Image(); spiderImage.decoding = 'async'; spiderImage.src = './assets/spider.webp';
-const spiderSprite = document.createElement('canvas');
-let spiderVisible = false, spiderElapsed = 0, spiderLastTick = 0, spiderFrame = -1;
+const creatureImages=Object.fromEntries(CREATURE_IDS.map(id=>{
+  const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp';return [id,img];
+}));
+const creatureSprites=Object.fromEntries(CREATURE_IDS.map(id=>[id,document.createElement('canvas')]));
+const creatureFrames={spider:-1,cockroach:-1,wasp:-1};
+const lightCanvas=document.createElement('canvas'),lightContext=lightCanvas.getContext('2d',{willReadFrequently:true});
+lightCanvas.width=96;lightCanvas.height=54;
+let lightPixels=null,lightSampleAt=-Infinity;
+let creaturesVisible=false,creatureElapsed=0,creatureLastTick=0;
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const gesture = new PointerDeformer();
 const state = {
   preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 75, radius: .19, editable: true,
-  spiderSpeed: SPIDER_DEFAULTS.speed, spiderSize: SPIDER_DEFAULTS.size,
+  spiderSpeed: CREATURE_DEFAULTS.speed, spiderSize: CREATURE_DEFAULTS.size,
+  creatureCount: CREATURE_DEFAULTS.count,
   face: null, live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
   mirror: false, settingsOpen: false, filterPickerOpen: false, exitTimer: 0, running: false,
@@ -143,9 +150,10 @@ function refreshSaved() {
     load.addEventListener('click', () => {
       state.strokes = structuredClone(filter.strokes); state.undone = [];
       state.preset = filter.preset; state.effects = normalizeEffects(filter.effects); state.intensity = filter.intensity; state.radius = filter.radius;
-      const spider=spiderConfig(filter.spider);
-      state.spiderSpeed=spider.speed;state.spiderSize=spider.size;
-      $('spider-speed').value=String(spider.speed);$('spider-size').value=String(spider.size);
+      const creature=creatureConfig(filter.creatures,filter.spider);
+      state.spiderSpeed=creature.speed;state.spiderSize=creature.size;state.creatureCount=creature.count;
+      $('spider-speed').value=String(creature.speed);$('spider-size').value=String(creature.size);
+      $('creature-count').value=String(creature.count);
       $('intensity').value = state.intensity; $('radius').value = Math.round(state.radius * 100);
       refreshNumbers(); refreshButtons(); refreshFilters(); refreshEffects();
     });
@@ -160,6 +168,7 @@ function refreshNumbers() {
   $('radius-value').textContent = Math.round(state.radius * 100) + ' %';
   $('spider-speed-value').textContent=state.spiderSpeed+' %';
   $('spider-size-value').textContent=state.spiderSize+' %';
+  $('creature-count-value').textContent=String(state.creatureCount);
 }
 function errorText(err) {
   if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError')
@@ -185,7 +194,7 @@ function stopCamera() {
   state.lastVideoTime = -1; state.lastDetectAt = -Infinity;
   state.stream?.getTracks().forEach(track => track.stop()); state.stream = null;
   video.pause(); video.srcObject = null;
-  clearSpider();
+  clearCreatures();
 }
 async function startCamera(deviceId = '') {
   stopCamera(); const token = state.startupToken;
@@ -266,60 +275,88 @@ function render(now) {
       }
       const applied = controls();
       state.renderer.draw(video, applied);
-      drawSpider(now, applied);
+      drawCreatures(now, applied);
     }
   } catch (err) { stopCamera(); showError('Error de procesamiento: ' + errorText(err)); return; }
   state.raf = requestAnimationFrame(render);
 }
-function clearSpider() {
-  if(spiderVisible)creatureContext.clearRect(0,0,creatureLayer.width,creatureLayer.height);
-  spiderVisible=false;spiderElapsed=0;spiderLastTick=0;spiderFrame=-1;
+function clearCreatures() {
+  if(creaturesVisible)creatureContext.clearRect(0,0,creatureLayer.width,creatureLayer.height);
+  creaturesVisible=false;creatureElapsed=0;creatureLastTick=0;
+  for(const id of CREATURE_IDS)creatureFrames[id]=-1;
 }
-function drawSpider(now,applied) {
-  const added=state.effects.find(effect=>effect.preset==='spider');
-  const amount=state.intensity/100*(state.preset==='spider'?100:added?.intensity??0)/100;
-  if(!amount||!state.face||!spiderImage.complete||!spiderImage.naturalWidth){
-    clearSpider();return;
+function sampleLighting(now) {
+  // Unfiltered local webcam, downsampled and read at most five times per second.
+  if(now-lightSampleAt<190 && lightPixels)return;
+  lightSampleAt=now;
+  try {
+    lightContext.drawImage(video,0,0,lightCanvas.width,lightCanvas.height);
+    lightPixels=lightContext.getImageData(0,0,lightCanvas.width,lightCanvas.height).data;
+  } catch {lightPixels=null;}
+}
+function colorBelow(anchor) {
+  if(!lightPixels)return null;
+  const w=lightCanvas.width,h=lightCanvas.height;
+  // Mirrored landmarks -> unmirrored camera video.
+  const x=Math.max(1,Math.min(w-2,Math.round((1-anchor.x)*w)));
+  const y=Math.max(1,Math.min(h-2,Math.round(anchor.y*h)));
+  const values=[0,0,0];
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    const at=((y+dy)*w+x+dx)*4;
+    for(let channel=0;channel<3;channel++)values[channel]+=lightPixels[at+channel];
   }
+  return values.map(v=>v/9);
+}
+function drawCreatures(now,applied) {
+  const entries=activeCreatures(state.preset,state.effects,state.intensity,state.creatureCount)
+    .filter(entry=>creatureImages[entry.id].complete&&creatureImages[entry.id].naturalWidth);
+  if(!state.face||!entries.length){clearCreatures();return;}
   if(creatureLayer.width!==video.videoWidth||creatureLayer.height!==video.videoHeight){
     creatureLayer.width=video.videoWidth;creatureLayer.height=video.videoHeight;
+    lightSampleAt=-Infinity;
   }
-  const route=spiderRoute(state.face),aspect=video.videoWidth/video.videoHeight;
-  if(!route.length){clearSpider();return;}
-  if(!spiderLastTick)spiderLastTick=now;
-  const delta=Math.max(0,Math.min(50,now-spiderLastTick));
-  spiderLastTick=now;
-  if(!reduceMotion)spiderElapsed+=delta*state.spiderSpeed/100;
-  const progress=(spiderElapsed/16000)%1;
-  const source=spiderPosition(route,progress,aspect);
-  const next=spiderPosition(route,(progress+.0015)%1,aspect);
-  if(!source||!next){clearSpider();return;}
-  const anchor=forwardWarp(source,applied,aspect),ahead=forwardWarp(next,applied,aspect);
-  // El recorte fotográfico mira hacia abajo: girar su cabeza hacia el avance.
-  const angle=spiderHeading((ahead.x-anchor.x)*creatureLayer.width,
-    (ahead.y-anchor.y)*creatureLayer.height);
-  const tick=reduceMotion?0:Math.floor(spiderElapsed/95);
-  if(spiderFrame!==tick){
-    spiderGaitFrame(spiderImage,spiderSprite,tick*Math.PI/2);
-    spiderFrame=tick;
-  }
-  const x=anchor.x*creatureLayer.width,y=anchor.y*creatureLayer.height;
-  const size=Math.max(12,state.face.frame.width*creatureLayer.width*.19*state.spiderSize/100);
+  const aspect=video.videoWidth/video.videoHeight;
+  if(!creatureLastTick)creatureLastTick=now;
+  const delta=Math.max(0,Math.min(50,now-creatureLastTick));
+  creatureLastTick=now;
+  if(!reduceMotion)creatureElapsed+=delta*state.spiderSpeed/100;
+  sampleLighting(now);
   const ctx=creatureContext;
   ctx.clearRect(0,0,creatureLayer.width,creatureLayer.height);
-  spiderVisible=true;
-  ctx.save();ctx.translate(x,y);ctx.rotate(angle);
-  const bob=reduceMotion?0:Math.sin(spiderElapsed/95*Math.PI/2)*size*.012;
-  ctx.translate(0,bob);
-  ctx.save();ctx.globalAlpha=amount*.18;ctx.filter='blur(5px)';ctx.fillStyle='#000';
-  ctx.beginPath();ctx.ellipse(3,size*.08,size*.27,size*.12,0,0,Math.PI*2);
-  ctx.fill();ctx.restore();
-  ctx.save();ctx.globalAlpha=amount*.34;ctx.filter='brightness(0) blur(3px)';
-  ctx.drawImage(spiderSprite,-size/2+3,-size/2+4,size,size);ctx.restore();
-  ctx.globalAlpha=amount;
-  ctx.filter='brightness(.69) contrast(1.14)';
-  ctx.drawImage(spiderSprite,-size/2,-size/2,size,size);
-  ctx.restore();
+  creaturesVisible=true;
+  for(const entry of entries){
+    const id=entry.id,image=creatureImages[id],sprite=creatureSprites[id];
+    const elapsed=reduceMotion?0:creatureElapsed*entry.speed;
+    const progress=(elapsed/16000+entry.phase)%1;
+    const source=creaturePosition(state.face,progress,aspect);
+    const aheadSource=creaturePosition(state.face,(progress+.0015)%1,aspect);
+    if(!source||!aheadSource)continue;
+    const anchor=forwardWarp(source,applied,aspect),ahead=forwardWarp(aheadSource,applied,aspect);
+    const heading=creatureHeading(id,(ahead.x-anchor.x)*creatureLayer.width,
+      (ahead.y-anchor.y)*creatureLayer.height);
+    const tick=reduceMotion?0:Math.floor(elapsed/110);
+    if(creatureFrames[id]!==tick){
+      creatureGaitFrame(image,sprite,tick*Math.PI/2,id);
+      creatureFrames[id]=tick;
+    }
+    const x=anchor.x*creatureLayer.width,y=anchor.y*creatureLayer.height;
+    const size=Math.max(12,state.face.frame.width*creatureLayer.width*.19*
+      state.spiderSize/100*entry.scale*(id==='wasp'?.82:id==='cockroach'?1.04:1));
+    const light=localLighting(colorBelow(source),id);
+    ctx.save();ctx.translate(x,y);ctx.rotate(heading);
+    ctx.translate(0,reduceMotion?0:Math.sin(elapsed/110)*size*.012);
+    ctx.save();ctx.globalAlpha=entry.intensity*light.shadow*.55;
+    ctx.filter='blur(5px)';ctx.fillStyle='#000';
+    ctx.beginPath();ctx.ellipse(3,size*.08,size*.27,size*.12,0,0,Math.PI*2);
+    ctx.fill();ctx.restore();
+    ctx.save();ctx.globalAlpha=entry.intensity*light.shadow;
+    ctx.filter='brightness(0) blur(2.5px)';
+    ctx.drawImage(sprite,-size/2+2,-size/2+3,size,size);ctx.restore();
+    ctx.globalAlpha=entry.intensity;
+    ctx.filter='brightness('+light.brightness+') contrast(1.08)';
+    ctx.drawImage(sprite,-size/2,-size/2,size,size);
+    ctx.restore();
+  }
 }
 function point(event) {
   return mapPointer(event, canvas.getBoundingClientRect(), video.videoWidth, video.videoHeight);
@@ -356,7 +393,7 @@ $('filters').addEventListener('change',event=>selectPreset(event.target.value));
 $('add-effect').addEventListener('click',()=>{
   const preset=$('extra-filter').value;
   if(!preset || state.effects.length>=4 || state.preset===preset || state.effects.some(e=>e.preset===preset))return;
-  state.effects.push({preset,intensity:preset==='spider'?100:40});$('extra-filter').value='';
+  state.effects.push({preset,intensity:CREATURE_IDS.includes(preset)?100:40});$('extra-filter').value='';
   refreshEffects();
 });
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });
@@ -364,6 +401,7 @@ $('intensity').addEventListener('input', e => { state.intensity = +e.target.valu
 $('radius').addEventListener('input', e => { state.radius = +e.target.value / 100; refreshNumbers(); });
 $('spider-speed').addEventListener('input',e=>{state.spiderSpeed=+e.target.value;refreshNumbers();});
 $('spider-size').addEventListener('input',e=>{state.spiderSize=+e.target.value;refreshNumbers();});
+$('creature-count').addEventListener('input',e=>{state.creatureCount=+e.target.value;refreshNumbers();});
 $('undo').addEventListener('click', () => {
   if (state.strokes.length) state.undone.push(state.strokes.pop()); refreshButtons();
 });
@@ -373,10 +411,12 @@ $('redo').addEventListener('click', () => {
 function resetEffects() {
   state.strokes = []; state.undone = []; state.live = null; gesture.cancel();
   state.preset = 'normal'; state.effects = []; state.intensity = 100; $('intensity').value = '100';
-  state.spiderSpeed=SPIDER_DEFAULTS.speed;state.spiderSize=SPIDER_DEFAULTS.size;
-  $('spider-speed').value=String(SPIDER_DEFAULTS.speed);
-  $('spider-size').value=String(SPIDER_DEFAULTS.size);
-  clearSpider();
+  state.spiderSpeed=CREATURE_DEFAULTS.speed;state.spiderSize=CREATURE_DEFAULTS.size;
+  state.creatureCount=CREATURE_DEFAULTS.count;
+  $('spider-speed').value=String(CREATURE_DEFAULTS.speed);
+  $('spider-size').value=String(CREATURE_DEFAULTS.size);
+  $('creature-count').value=String(CREATURE_DEFAULTS.count);
+  clearCreatures();
   refreshFilters(); refreshEffects(); refreshNumbers(); refreshButtons();
 }
 $('reset').addEventListener('click', resetEffects);
@@ -386,7 +426,7 @@ $('save').addEventListener('click', () => {
   try {
     saveFilter({ version: 1, name, preset: state.preset, effects: state.effects, intensity: state.intensity,
       radius: state.radius, strokes: structuredClone(state.strokes),
-      spider:{speed:state.spiderSpeed,size:state.spiderSize} }); refreshSaved();
+      creatures:{speed:state.spiderSpeed,size:state.spiderSize,count:state.creatureCount} }); refreshSaved();
   } catch (err) { alert(errorText(err)); }
 });
 $('fullscreen').addEventListener('click', async () => {
