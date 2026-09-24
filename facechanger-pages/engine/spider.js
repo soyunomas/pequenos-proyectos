@@ -1,10 +1,10 @@
 /** Recorrido facial y patas rasterizadas: la fuente es la fotografía WebP, no SVG. */
-export const SPIDER_DEFAULTS=Object.freeze({speed:100,size:100});
+export const SPIDER_DEFAULTS=Object.freeze({speed:100,size:125});
 export const SPIDER_LIMITS=Object.freeze({speed:[25,250],size:[40,220]});
 export function spiderConfig(value) {
   return {
     speed: Number.isFinite(value?.speed) && value.speed>=25 && value.speed<=250 ? value.speed : 100,
-    size: Number.isFinite(value?.size) && value.size>=40 && value.size<=220 ? value.size : 100
+    size: Number.isFinite(value?.size) && value.size>=40 && value.size<=220 ? value.size : SPIDER_DEFAULTS.size
   };
 }
 const ROUTE=[205,234,127,109,10,338,356,454,425,291,152,61,205,1];
@@ -35,6 +35,10 @@ export function spiderPosition(route,progress,aspect=16/9) {
     remaining-=distances[i];
   }
   return route[0];
+}
+/** La fotografía fuente mira hacia abajo: su frente es el vector local (0,1). */
+export function spiderHeading(dx,dy) {
+  return Math.atan2(dy,dx)-Math.PI/2;
 }
 /** Articula ocho sectores periféricos del propio recorte fotográfico. */
 export function spiderGaitFrame(image,canvas,phase) {
