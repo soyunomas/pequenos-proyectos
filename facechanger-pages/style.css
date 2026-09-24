@@ -144,3 +144,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .quick-reset:hover{background:#171c26df}.quick-reset:focus-visible{outline:3px solid #d1bcff}
 .settings-open .quick-reset,.is-mirror .quick-reset{display:none}
 @media(max-width:370px){.quick-reset span{display:none}.quick-reset{min-width:44px;justify-content:center;font-size:21px}}
+
+/* Reguladores de la araña, a todo el ancho y sin desbordamiento horizontal. */
+.spider-section{width:100%;min-width:0;padding:18px max(16px,env(safe-area-inset-right,0px)) 25px max(16px,env(safe-area-inset-left,0px));background:var(--surface-low);border-bottom:1px solid var(--line)}
+.spider-section h2{margin:0 0 12px}
+.spider-section .slider{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.spider-section .main-range{width:100%;min-width:0}
+.spider-section .help{margin:16px 0 0}
