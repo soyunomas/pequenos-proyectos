@@ -300,3 +300,12 @@ test('nuevo guardado de criaturas y compatibilidad con spider guardado',()=>{
  saveFilter(saved,store);
  assert.deepEqual(listFilters(store),[saved]);
 });
+
+test('cucaracha y avispa verticales avanzan cabeza por delante',()=>{
+ for(const id of ['cockroach','wasp']){
+   assert.ok(Math.abs(creatureHeading(id,0,-1))<1e-9,id+' al subir');
+   assert.ok(Math.abs(creatureHeading(id,1,0)-Math.PI/2)<1e-9,id+' al ir a la derecha');
+   assert.ok(Math.abs(creatureHeading(id,0,1)-Math.PI)<1e-9,id+' al bajar');
+ }
+ assert.ok(Math.abs(creatureHeading('spider',0,1))<1e-9,'araña sin regresión');
+});
