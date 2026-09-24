@@ -55,8 +55,8 @@ try {
     assert.equal(await page.locator('#intensity').inputValue(),'75');
     assert.equal(await page.locator('#spider-speed').inputValue(),'100');
     assert.equal(await page.locator('#spider-size').inputValue(),'100');
-    await page.locator('#spider-speed').fill('175');
-    await page.locator('#spider-size').fill('140');
+    await page.locator('#spider-speed').evaluate(el=>{el.value='175';el.dispatchEvent(new Event('input',{bubbles:true}));});
+    await page.locator('#spider-size').evaluate(el=>{el.value='140';el.dispatchEvent(new Event('input',{bubbles:true}));});
     assert.equal(await page.locator('#spider-speed-value').textContent(),'175 %');
     assert.equal(await page.locator('#spider-size-value').textContent(),'140 %');
     const button=await rect('#settings-done');
