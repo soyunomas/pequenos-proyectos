@@ -16,6 +16,33 @@ try {
     const page=await context.newPage(),errors=[];
     page.on('pageerror',error=>errors.push(error.message));
     await page.goto('http://127.0.0.1:8765/',{waitUntil:'networkidle'});
+    const assets=await page.evaluate(async()=>{
+      const checks=[];
+      for(const species of ['cockroach','wasp']){
+        const img=new Image();
+        img.src='./assets/'+species+'.webp?v=clean-topdown-2';
+        await img.decode();
+        const canvas=document.createElement('canvas');
+        canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});
+        ctx.drawImage(img,0,0);
+        const {data}=ctx.getImageData(0,0,canvas.width,canvas.height);
+        const getAlpha=(x,y)=>data[(y*canvas.width+x)*4+3];
+        let difference=0;
+        if(species==='wasp')for(let y=0;y<canvas.height;y++)
+          for(let x=0;x<canvas.width;x++)difference+=
+            Math.abs(getAlpha(x,y)-getAlpha(canvas.width-1-x,y));
+        checks.push({species,width:img.naturalWidth,height:img.naturalHeight,
+          corners:[getAlpha(0,0),getAlpha(canvas.width-1,0),
+            getAlpha(0,canvas.height-1),getAlpha(canvas.width-1,canvas.height-1)],
+          symmetry: difference/(canvas.width*canvas.height)});
+      }
+      return checks;
+    });
+    assert.ok(assets.every(a=>a.width>=80&&a.height>=80),'Imágenes nítidas de insectos');
+    assert.ok(assets.every(a=>a.corners.every(v=>v<12)),'Recortes sin bordes incrustados');
+    assert.ok(assets.find(a=>a.species==='wasp').symmetry<3,
+      'Silueta de la avispa bilateral y sin inclinación');
     const w=device.viewport.width,h=device.viewport.height;
     const rect=async selector=>page.locator(selector).first().evaluate(el=>{
       const r=el.getBoundingClientRect(),s=getComputedStyle(el);
