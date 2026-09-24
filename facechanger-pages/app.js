@@ -11,7 +11,7 @@ const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
 const creatureImages=Object.fromEntries(CREATURE_IDS.map(id=>{
-  const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp';return [id,img];
+  const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp'+(id==='spider'?'':'?v=clean-topdown-2');return [id,img];
 }));
 const creatureSprites=Object.fromEntries(CREATURE_IDS.map(id=>[id,document.createElement('canvas')]));
 const creatureFrames={spider:-1,cockroach:-1,wasp:-1};
