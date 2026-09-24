@@ -2,6 +2,7 @@ import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFr
 import { PointerDeformer, mapPointer } from './engine/pointer.js';
 import { Renderer } from './engine/renderer.js';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
+import { SPIDER_DEFAULTS, spiderConfig, spiderRoute, spiderPosition, spiderGaitFrame } from './engine/spider.js';
 
 // Sin Node ni bundle. El módulo, WASM y modelo se descargan; la imagen se procesa en el equipo.
 const MEDIAPIPE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35';
@@ -10,11 +11,13 @@ const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
 const spiderImage = new Image(); spiderImage.decoding = 'async'; spiderImage.src = './assets/spider.webp';
-let spiderStart = 0, spiderVisible = false;
+const spiderSprite = document.createElement('canvas');
+let spiderVisible = false, spiderElapsed = 0, spiderLastTick = 0, spiderFrame = -1;
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const gesture = new PointerDeformer();
 const state = {
   preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 75, radius: .19, editable: true,
+  spiderSpeed: SPIDER_DEFAULTS.speed, spiderSize: SPIDER_DEFAULTS.size,
   face: null, live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
   mirror: false, settingsOpen: false, filterPickerOpen: false, exitTimer: 0, running: false,
@@ -138,6 +141,9 @@ function refreshSaved() {
     load.addEventListener('click', () => {
       state.strokes = structuredClone(filter.strokes); state.undone = [];
       state.preset = filter.preset; state.effects = normalizeEffects(filter.effects); state.intensity = filter.intensity; state.radius = filter.radius;
+      const spider=spiderConfig(filter.spider);
+      state.spiderSpeed=spider.speed;state.spiderSize=spider.size;
+      $('spider-speed').value=String(spider.speed);$('spider-size').value=String(spider.size);
       $('intensity').value = state.intensity; $('radius').value = Math.round(state.radius * 100);
       refreshNumbers(); refreshButtons(); refreshFilters(); refreshEffects();
     });
@@ -150,6 +156,8 @@ function refreshSaved() {
 function refreshNumbers() {
   $('intensity-value').textContent = state.intensity + ' %';
   $('radius-value').textContent = Math.round(state.radius * 100) + ' %';
+  $('spider-speed-value').textContent=state.spiderSpeed+' %';
+  $('spider-size-value').textContent=state.spiderSize+' %';
 }
 function errorText(err) {
   if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError')
@@ -349,6 +357,8 @@ $('add-effect').addEventListener('click',()=>{
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });
 $('intensity').addEventListener('input', e => { state.intensity = +e.target.value; refreshNumbers(); });
 $('radius').addEventListener('input', e => { state.radius = +e.target.value / 100; refreshNumbers(); });
+$('spider-speed').addEventListener('input',e=>{state.spiderSpeed=+e.target.value;refreshNumbers();});
+$('spider-size').addEventListener('input',e=>{state.spiderSize=+e.target.value;refreshNumbers();});
 $('undo').addEventListener('click', () => {
   if (state.strokes.length) state.undone.push(state.strokes.pop()); refreshButtons();
 });
@@ -358,6 +368,8 @@ $('redo').addEventListener('click', () => {
 function resetEffects() {
   state.strokes = []; state.undone = []; state.live = null; gesture.cancel();
   state.preset = 'normal'; state.effects = []; state.intensity = 100; $('intensity').value = '100';
+  state.spiderSpeed=SPIDER_DEFAULTS.speed;state.spiderSize=SPIDER_DEFAULTS.size;
+  $('spider-speed').value='100';$('spider-size').value='100';
   clearSpider();
   refreshFilters(); refreshEffects(); refreshNumbers(); refreshButtons();
 }
@@ -367,7 +379,8 @@ $('save').addEventListener('click', () => {
   const name = prompt('Nombre del filtro personalizado:')?.trim(); if (!name) return;
   try {
     saveFilter({ version: 1, name, preset: state.preset, effects: state.effects, intensity: state.intensity,
-      radius: state.radius, strokes: structuredClone(state.strokes) }); refreshSaved();
+      radius: state.radius, strokes: structuredClone(state.strokes),
+      spider:{speed:state.spiderSpeed,size:state.spiderSize} }); refreshSaved();
   } catch (err) { alert(errorText(err)); }
 });
 $('fullscreen').addEventListener('click', async () => {
