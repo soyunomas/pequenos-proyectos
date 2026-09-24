@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#faf8ff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#151319" media="(prefers-color-scheme: dark)">
   <title>FaceChanger · espejo táctil</title>
-  <link rel="stylesheet" href="./style.css?v=spider-walk-2">
+  <link rel="stylesheet" href="./style.css?v=creatures-1">
 </head>
 <body>
 <div id="app" class="app">
@@ -40,12 +40,14 @@
         <input class="main-range" type="range" id="intensity" min="0" max="100" value="75" aria-label="Intensidad general del efecto">
       </section>
       <section class="spider-section" aria-labelledby="spider-heading">
-        <h2 id="spider-heading">Araña</h2>
+        <h2 id="spider-heading">Bichos en la cara</h2>
         <label class="slider" for="spider-speed">Velocidad <output id="spider-speed-value" for="spider-speed">100 %</output></label>
-        <input class="main-range" type="range" id="spider-speed" min="25" max="250" value="100" aria-label="Velocidad de la araña">
-        <label class="slider" for="spider-size">Tamaño <output id="spider-size-value" for="spider-size">125 %</output></label>
-        <input class="main-range" type="range" id="spider-size" min="40" max="220" value="125" aria-label="Tamaño de la araña">
-        <p class="help compact">Se aplican cuando el filtro Araña está activo. La araña recorre frente, mejillas, nariz y barbilla.</p>
+        <input class="main-range" type="range" id="spider-speed" min="25" max="250" value="100" aria-label="Velocidad de los bichos">
+        <label class="slider" for="spider-size">Tamaño <output id="spider-size-value" for="spider-size">175 %</output></label>
+        <input class="main-range" type="range" id="spider-size" min="40" max="220" value="175" aria-label="Tamaño de los bichos">
+        <label class="slider" for="creature-count">Número de bichos <output id="creature-count-value" for="creature-count">1</output></label>
+        <input class="main-range" type="range" id="creature-count" min="1" max="5" step="1" value="1" aria-label="Número de bichos sobre la cara">
+        <p class="help compact">Hasta cinco entre todas las especies activas. Arañas, cucarachas y avispas se pueden combinar; el brillo se adapta a la luz local.</p>
       </section>
       <section class="manual-section"><h2>Deformar con el dedo</h2><label class="check"><input id="manual" type="checkbox" checked> Permitir arrastrar la cara</label>
         <label class="slider" for="radius">Radio de influencia <output id="radius-value" for="radius">19 %</output></label>
@@ -56,7 +58,7 @@
         <select id="extra-filter" aria-label="Añadir efecto combinado"><option value="">Seleccionar efecto…</option></select>
         <button class="add-effect" id="add-effect" type="button">Añadir a la mezcla</button>
         <div id="effects" class="effect-list" aria-live="polite"></div>
-        <p class="help compact">Hasta cuatro efectos más, con intensidad individual. La araña se puede combinar con deformaciones.</p>
+        <p class="help compact">Hasta cuatro efectos más, con intensidad individual. Las especies se pueden combinar entre sí y con deformaciones; máximo cinco bichos visibles.</p>
       </section></div></details>
       <details class="advanced"><summary>Más opciones</summary><div class="details-inner">
       <section><h2>Cámara</h2><select id="cameras" aria-label="Elegir cámara"><option value="">Cámara predeterminada</option></select></section>
@@ -85,6 +87,6 @@
     </section>
   </main>
 </div>
-<script type="module" src="./app.js?v=spider-walk-2"></script>
+<script type="module" src="./app.js?v=creatures-1"></script>
 </body>
 </html>
