@@ -82,6 +82,13 @@ export const FILTER_GROUPS=[
     ['face-alien','Cara de alienígena'],['cheeks-hollow','Mejillas hundidas'],
     ['chin-small','Barbilla pequeña']
   ]],
+  ['Inspirados en tendencias', [
+    ['trend-baby','Carita de bebé'],['trend-cry','Llanto dramático'],
+    ['trend-surprise','Sorpresa total'],['trend-doll','Mirada de muñeca'],
+    ['trend-soft','Rasgos suaves'],['trend-cartoon','Caricatura disparatada'],
+    ['trend-hero','Mandíbula de cómic'],['trend-pout','Puchero exagerado'],
+    ['trend-bighead','Cabezón de caricatura'],['trend-squash','Cara aplastada']
+  ]],
   ['Efectos combinados', [
     ['uncanny-droop','Extrañeza sutil · ojo y boca caídos'],
     ['uncanny-uneven','Extrañeza asimétrica · mirada y sonrisa'],
@@ -178,6 +185,78 @@ export function presetControls(face,name) {
     ];
     case 'uncanny-droop':return [...presetControls(face,'eye-droop'),...presetControls(face,'mouth-droop')];
     case 'uncanny-uneven':return [...presetControls(face,'eyes-uneven'),...presetControls(face,'mouth-uneven')];
+    // Presets originales basados en tendencias de deformación y expresiones faciales.
+    // Todos usan píxeles de webcam, sin assets/modelos de TikTok.
+    case 'trend-baby':return [
+      ...eyes(.29,.36,.78,.44),
+      ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.20,0,0,-.28,.83),
+      ...symmetric(face,[L.cheekAInner,L.cheekBInner],.30,.035,0,.13),
+      ctl(face,L.chin,.32,0,-.045,-.12),
+      ctl(face,lips.concat([L.mouthA,L.mouthB]),.26,0,0,-.16,.82)
+    ];
+    case 'trend-cry':return [
+      ...eyes(.28,.12,.77,.20),
+      ctl(face,L.browAInner,.16,0,-.055,0,.70),
+      ctl(face,L.browBInner,.16,0,-.055,0,.70),
+      ctl(face,L.browAOuter,.15,0,.022,0,.71),
+      ctl(face,L.browBOuter,.15,0,.022,0,.71),
+      ...corners(.27,0,.092),
+      ctl(face,lips,.24,0,.037,0,.86)
+    ];
+    case 'trend-surprise':return [
+      ...eyes(.30,.22,.78,.47),
+      ...presetControls(face,'brows-up'),
+      ctl(face,lips.concat([L.mouthA,L.mouthB]),.30,0,0,-.22,.85,.73),
+      ctl(face,L.mouthBottom,.17,0,.034,0,.78)
+    ];
+    case 'trend-doll':return [
+      ...eyes(.31,.44,.79,.51),
+      ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.20,0,0,-.32,.85),
+      ctl(face,lips,.21,0,0,-.16,.78,.20),
+      ctl(face,L.chin,.30,0,-.035,-.10)
+    ];
+    case 'trend-soft':return [
+      ...eyes(.29,.16,.78,.18),
+      ...symmetric(face,[L.cheekAInner,L.cheekBInner],.31,-.023,0,-.035),
+      ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.18,0,0,-.20,.85),
+      ctl(face,lips,.20,0,0,.12,.77,.24),
+      ctl(face,browsA,.19,0,-.022,0,.74),
+      ctl(face,browsB,.19,0,-.022,0,.74)
+    ];
+    case 'trend-cartoon':return [
+      ...eyes(.30,.68,.77,.82),
+      ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.22,0,0,-.46,.85),
+      ctl(face,lips,.31,0,0,.63,.75,.58),
+      ...corners(.20,.052,-.025),
+      ctl(face,L.chin,.33,0,-.048,-.11)
+    ];
+    case 'trend-hero':return [
+      ...symmetric(face,[L.jawAHigh,L.jawBHigh],.34,.073,0,.11),
+      ...symmetric(face,[L.jawA,L.jawB],.32,.066,0,.08),
+      ...symmetric(face,[L.cheekAInner,L.cheekBInner],.32,-.036,0,-.055),
+      ctl(face,L.chin,.36,0,.089,.18),
+      ...presetControls(face,'brows-down')
+    ];
+    case 'trend-pout':return [
+      ctl(face,lips,.23,0,0,-.16,.79,.42),
+      ...corners(.24,-.042,.043),
+      ctl(face,L.mouthBottom,.17,0,.027,.08,.79),
+      ctl(face,L.browAInner,.14,0,-.03,0,.74),
+      ctl(face,L.browBInner,.14,0,-.03,0,.74)
+    ];
+    case 'trend-bighead':return [
+      ctl(face,L.forehead,.39,0,-.102,.29),
+      ...symmetric(face,[L.foreheadA,L.foreheadB],.31,.073,-.023,.13),
+      ...symmetric(face,[L.jawA,L.jawB],.34,-.055,0,-.06),
+      ...presetControls(face,'brows-angry')
+    ];
+    case 'trend-squash':return [
+      ctl(face,L.forehead,.36,0,.074,0,.89),
+      ctl(face,L.chin,.36,0,-.078,0,.88),
+      ...symmetric(face,[L.cheekAInner,L.cheekBInner],.33,.035,0,.08),
+      ...eyes(.28,.18,.76,.14),
+      ctl(face,lips,.27,0,0,.17,.79,-.13)
+    ];
     case 'spider':return [];
     case 'cheeks-hollow':return symmetric(face,[L.cheekAInner,L.cheekBInner],.32,-.05,0,-.12);
     case 'chin-small':return [ctl(face,L.chin,.34,0,-.04,-.2)];
