@@ -1,3 +1,4 @@
+import { creatureConfig,activeCreatures,localLighting,creatureHeading,CREATURE_DEFAULTS } from '../engine/creatures.js';
 import { spiderRoute,spiderPosition,spiderConfig,spiderHeading } from '../engine/spider.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -127,12 +128,12 @@ test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>
   saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
 });
 
-test('catálogo con 56 opciones y filtros de tendencia únicos',()=>{
+test('catálogo con 58 opciones y filtros de tendencia únicos',()=>{
   const ids=FILTERS.map(([id])=>id);
-  assert.equal(ids.length,56);
+  assert.equal(ids.length,58);
   assert.equal(new Set(ids).size,ids.length);
   assert.equal(ids[0],'normal');
-  for(const id of ids.slice(1).filter(id=>id!=='spider'))assert.ok(presetControls(anatomy(),id).length>0,id);
+  for(const id of ids.slice(1).filter(id=>!['spider','cockroach','wasp'].includes(id)))assert.ok(presetControls(anatomy(),id).length>0,id);
 });
 test('ojo caído: el ojo fuente solo ocupa su destino, no queda duplicado',()=>{
   const f=anatomy(),c=presetControls(f,'eye-droop')[0];
@@ -217,9 +218,9 @@ test('araña recorre y cierra el rostro con orientación variable',()=>{
  assert.ok(new Set([.05,.28,.53,.77].map(t=>Math.round(direction(t)*10))).size>2);
 });
 test('araña guarda reguladores y respeta filtros antiguos',()=>{
- assert.deepEqual(spiderConfig(),{speed:100,size:125});
+ assert.deepEqual(spiderConfig(),{speed:100,size:175});
  assert.deepEqual(spiderConfig({speed:175,size:140}),{speed:175,size:140});
- assert.deepEqual(spiderConfig({speed:999,size:-1}),{speed:100,size:125});
+ assert.deepEqual(spiderConfig({speed:999,size:-1}),{speed:100,size:175});
  const base={version:1,name:'Araña',preset:'spider',intensity:100,radius:.19,strokes:[]};
  assert.ok(validFilter(base));
  const saved={...base,spider:{speed:175,size:140}};
@@ -256,4 +257,46 @@ test('tendencias: controles finitos, intensidad proporcional y mezclas compatibl
    effects:[{preset:'trend-hero',intensity:30}]};
  saveFilter(preset,store);
  assert.deepEqual(listFilters(store),[preset]);
+});
+
+test('tres especies y cinco bichos máximo incluso en mezcla',()=>{
+ assert.deepEqual(CREATURE_DEFAULTS,{speed:100,size:175,count:1});
+ const effects=[{preset:'cockroach',intensity:60},{preset:'wasp',intensity:80}];
+ const mixed=activeCreatures('spider',effects,75,5);
+ assert.equal(mixed.length,5);
+ assert.deepEqual(mixed.map(c=>c.id),['spider','cockroach','wasp','spider','cockroach']);
+ assert.equal(mixed[0].intensity,.75);
+ assert.ok(Math.abs(mixed[1].intensity-.45)<1e-9);
+ assert.equal(activeCreatures('normal',effects,100,5).length,5);
+ assert.equal(activeCreatures('normal',[],100,5).length,0);
+ assert.equal(activeCreatures('spider',effects,0,5).length,0);
+ assert.equal(activeCreatures('cockroach',[],100,100).length,5);
+ assert.equal(activeCreatures('wasp',[],100,1)[0].id,'wasp');
+ assert.equal(presetControls(anatomy(),'cockroach').length,0);
+ assert.equal(presetControls(anatomy(),'wasp').length,0);
+});
+test('luz de piel clara aclara los bichos y reduce sombras',()=>{
+ for(const id of ['spider','cockroach','wasp']){
+  const dark=localLighting([34,31,29],id);
+  const bright=localLighting([240,226,221],id);
+  assert.ok(bright.brightness>dark.brightness,id);
+  assert.ok(bright.shadow<dark.shadow,id);
+  assert.ok(bright.brightness<=1.52 && dark.brightness>=.48,id);
+  assert.ok(Number.isFinite(creatureHeading(id,1,1)));
+ }
+});
+test('nuevo guardado de criaturas y compatibilidad con spider guardado',()=>{
+ assert.deepEqual(creatureConfig(),{speed:100,size:175,count:1});
+ assert.deepEqual(creatureConfig(undefined,{speed:80,size:125}),{speed:80,size:125,count:1});
+ assert.deepEqual(creatureConfig({speed:120,size:175,count:5}),{speed:120,size:175,count:5});
+ const base={version:1,name:'Bichos',preset:'cockroach',intensity:100,radius:.19,strokes:[]};
+ const settings={speed:120,size:175,count:5};
+ assert.ok(validFilter({...base,creatures:settings}));
+ assert.ok(!validFilter({...base,creatures:{...settings,count:6}}));
+ assert.ok(!validFilter({...base,creatures:{...settings,count:0}}));
+ assert.ok(!validFilter({...base,creatures:{...settings,count:1.3}}));
+ const data=new Map(),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+ const saved={...base,creatures:settings,effects:[{preset:'wasp',intensity:45}]};
+ saveFilter(saved,store);
+ assert.deepEqual(listFilters(store),[saved]);
 });
