@@ -1,3 +1,4 @@
+import { spiderRoute,spiderPosition,spiderConfig } from '../engine/spider.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne, forwardWarp } from '../engine/geometry.js';
@@ -201,4 +202,29 @@ test('los nuevos filtros discretos y combinados conservan controles finitos',()=
  const controls=compose(f,'uncanny-droop',[],40);
  const point=f.landmarks[205], expected=controls.reduce((p,c)=>forwardOne(p,c),point);
  assert.deepEqual(forwardWarp(point,controls),expected,'la araña sigue la misma deformación que la textura');
+});
+
+test('araña recorre y cierra el rostro con orientación variable',()=>{
+ const route=spiderRoute(anatomy());
+ assert.ok(route.length>=12);
+ const a=spiderPosition(route,0),b=spiderPosition(route,1),near=spiderPosition(route,.9999);
+ assert.ok(Math.hypot(a.x-b.x,a.y-b.y)<1e-9);
+ assert.ok(Math.hypot(a.x-near.x,a.y-near.y)<.01);
+ const direction=t=>{
+  const p=spiderPosition(route,t),q=spiderPosition(route,t+.001);
+  return Math.atan2(q.y-p.y,q.x-p.x);
+ };
+ assert.ok(new Set([.05,.28,.53,.77].map(t=>Math.round(direction(t)*10))).size>2);
+});
+test('araña guarda reguladores y respeta filtros antiguos',()=>{
+ assert.deepEqual(spiderConfig(),{speed:100,size:100});
+ assert.deepEqual(spiderConfig({speed:175,size:140}),{speed:175,size:140});
+ assert.deepEqual(spiderConfig({speed:999,size:-1}),{speed:100,size:100});
+ const base={version:1,name:'Araña',preset:'spider',intensity:100,radius:.19,strokes:[]};
+ assert.ok(validFilter(base));
+ const saved={...base,spider:{speed:175,size:140}};
+ assert.ok(validFilter(saved));
+ assert.ok(!validFilter({...base,spider:{speed:251,size:140}}));
+ const data=new Map(),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+ saveFilter(saved,store);assert.deepEqual(listFilters(store),[saved]);
 });
