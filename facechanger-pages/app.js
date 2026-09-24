@@ -2,7 +2,7 @@ import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFr
 import { PointerDeformer, mapPointer } from './engine/pointer.js';
 import { Renderer } from './engine/renderer.js';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
-import { SPIDER_DEFAULTS, spiderConfig, spiderRoute, spiderPosition, spiderGaitFrame } from './engine/spider.js';
+import { SPIDER_DEFAULTS, spiderConfig, spiderRoute, spiderPosition, spiderHeading, spiderGaitFrame } from './engine/spider.js';
 
 // Sin Node ni bundle. El módulo, WASM y modelo se descargan; la imagen se procesa en el equipo.
 const MEDIAPIPE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35';
@@ -63,8 +63,10 @@ function refreshFilters() {
 function selectPreset(id) {
   if (!FILTERS.some(([key]) => key === id)) return;
   state.preset = id;
-  if (id.startsWith('uncanny-')) {
-    state.intensity = 40; $('intensity').value = '40'; refreshNumbers();
+  if (id.startsWith('uncanny-') || id === 'eyes-big') {
+    state.intensity = id === 'eyes-big' ? 75 : 40;
+    $('intensity').value = String(state.intensity);
+    refreshNumbers();
   }
   refreshFilters();
 }
@@ -293,8 +295,9 @@ function drawSpider(now,applied) {
   const next=spiderPosition(route,(progress+.0015)%1,aspect);
   if(!source||!next){clearSpider();return;}
   const anchor=forwardWarp(source,applied,aspect),ahead=forwardWarp(next,applied,aspect);
-  const angle=Math.atan2((ahead.y-anchor.y)*creatureLayer.height,
-    (ahead.x-anchor.x)*creatureLayer.width)+Math.PI/2;
+  // El recorte fotográfico mira hacia abajo: girar su cabeza hacia el avance.
+  const angle=spiderHeading((ahead.x-anchor.x)*creatureLayer.width,
+    (ahead.y-anchor.y)*creatureLayer.height);
   const tick=reduceMotion?0:Math.floor(spiderElapsed/95);
   if(spiderFrame!==tick){
     spiderGaitFrame(spiderImage,spiderSprite,tick*Math.PI/2);
@@ -313,7 +316,9 @@ function drawSpider(now,applied) {
   ctx.fill();ctx.restore();
   ctx.save();ctx.globalAlpha=amount*.34;ctx.filter='brightness(0) blur(3px)';
   ctx.drawImage(spiderSprite,-size/2+3,-size/2+4,size,size);ctx.restore();
-  ctx.globalAlpha=amount;ctx.drawImage(spiderSprite,-size/2,-size/2,size,size);
+  ctx.globalAlpha=amount;
+  ctx.filter='brightness(.69) contrast(1.14)';
+  ctx.drawImage(spiderSprite,-size/2,-size/2,size,size);
   ctx.restore();
 }
 function point(event) {
@@ -369,7 +374,8 @@ function resetEffects() {
   state.strokes = []; state.undone = []; state.live = null; gesture.cancel();
   state.preset = 'normal'; state.effects = []; state.intensity = 100; $('intensity').value = '100';
   state.spiderSpeed=SPIDER_DEFAULTS.speed;state.spiderSize=SPIDER_DEFAULTS.size;
-  $('spider-speed').value='100';$('spider-size').value='100';
+  $('spider-speed').value=String(SPIDER_DEFAULTS.speed);
+  $('spider-size').value=String(SPIDER_DEFAULTS.size);
   clearSpider();
   refreshFilters(); refreshEffects(); refreshNumbers(); refreshButtons();
 }
