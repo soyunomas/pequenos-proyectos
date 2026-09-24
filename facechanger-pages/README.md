@@ -126,3 +126,11 @@ Se añaden «Mirada entrecerrada», «Cejas asimétricas», «Cejas bajas», «M
 La superposición WebP de la araña conserva su transparencia, añade sombras difusas y de contacto, y ahora reproyecta su posición sobre el campo de deformación de píxeles: permanece pegada a la mejilla incluso al mezclar efectos faciales. Se limpia al perder el rostro o desconectar la cámara; con «reducir movimiento» activado en el sistema permanece quieta. El recurso existente es pequeño (88 × 74 px): el aspecto fotográfico definitivo y una animación articulada de las patas siguen siendo mejoras visuales pendientes, no se presentan como resultados comprobados.
 
 Las pruebas de lógica cubren los presets nuevos y la reproyección. Las pruebas de interfaz comprueban el arranque al 75 %, la selección de «Extrañeza sutil» al 40 % y el restablecimiento directo, a ejecutar en el workflow del repositorio. La webcam real y WebGL2 deben verificarse en un dispositivo físico.
+
+## Araña caminante y reguladores (actualización)
+
+La araña recorre un circuito cerrado por mejillas, sienes, frente, nariz, boca y barbilla. La posición se interpola suavemente entre landmarks y su orientación sigue la dirección de marcha, también cuando los píxeles están deformados. El nuevo módulo `engine/spider.js` anima ocho sectores de patas usando exclusivamente los píxeles de la imagen WebP existente (no SVG); conserva el cuerpo central y las sombras. Es una aproximación de movimiento por sectores, no una simulación física de articulaciones ni una secuencia de imágenes fotográficas nuevas.
+
+En Ajustes aparecen **Velocidad de la araña** (25–250 %) y **Tamaño de la araña** (40–220 %), ambos al 100 % inicialmente. Se guardan junto a los filtros personalizados y «Restablecer» los devuelve al 100 %. Los filtros antiguos sin esos campos siguen siendo válidos. Si el usuario ha activado «reducir movimiento» en su sistema, la araña permanece quieta.
+
+Se amplían las pruebas de lógica y UI del recorrido, persistencia, valores de los deslizadores y restablecimiento. El acabado visual final y el rendimiento en webcam deben comprobarse sobre dispositivos reales.
