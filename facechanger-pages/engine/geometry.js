@@ -94,7 +94,8 @@ export const FILTER_GROUPS=[
     ['uncanny-uneven','Extrañeza asimétrica · mirada y sonrisa'],
     ['uncanny-tired','Cansancio inquietante · ojos y expresión'],
     ['uncanny-skeptic','Escepticismo sutil · cejas y boca'],
-    ['spider','Araña en la mejilla']
+    ['spider','Arañas por la cara'],['cockroach','Cucarachas por la cara'],
+    ['wasp','Avispas por la cara']
   ]]
 ];
 export const FILTERS=FILTER_GROUPS.flatMap(([,items])=>items);
@@ -257,7 +258,7 @@ export function presetControls(face,name) {
       ...eyes(.28,.18,.76,.14),
       ctl(face,lips,.27,0,0,.17,.79,-.13)
     ];
-    case 'spider':return [];
+    case 'spider':case 'cockroach':case 'wasp':return [];
     case 'cheeks-hollow':return symmetric(face,[L.cheekAInner,L.cheekBInner],.32,-.05,0,-.12);
     case 'chin-small':return [ctl(face,L.chin,.34,0,-.04,-.2)];
     case 'uncanny-tired':return [...presetControls(face,'eyes-squint'),...presetControls(face,'brows-down'),...presetControls(face,'mouth-droop')];
