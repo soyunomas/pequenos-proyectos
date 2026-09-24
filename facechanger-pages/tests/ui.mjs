@@ -53,6 +53,12 @@ try {
     assert.ok((await rect('.panel .advanced>summary')).font>=37,device.name+' enlarged advanced rows');
     assert.equal(await page.locator('#filters').inputValue(),'eyes-big');
     assert.equal(await page.locator('#intensity').inputValue(),'75');
+    assert.equal(await page.locator('#spider-speed').inputValue(),'100');
+    assert.equal(await page.locator('#spider-size').inputValue(),'100');
+    await page.locator('#spider-speed').fill('175');
+    await page.locator('#spider-size').fill('140');
+    assert.equal(await page.locator('#spider-speed-value').textContent(),'175 %');
+    assert.equal(await page.locator('#spider-size-value').textContent(),'140 %');
     const button=await rect('#settings-done');
     assert.ok(Math.abs(button.x)<1&&Math.abs(button.width-w)<1,device.name+' footer edge to edge');
     assert.ok(button.height>=95&&button.font>=36,device.name+' oversized fixed footer');
@@ -100,6 +106,8 @@ try {
     assert.ok(quick.width>=44&&quick.height>=42,device.name+' reset táctil discreto');
     await page.getByRole('button',{name:'Restablecer los efectos'}).click();
     assert.equal(await page.locator('#filters').inputValue(),'normal');
+    assert.equal(await page.locator('#spider-speed').inputValue(),'100');
+    assert.equal(await page.locator('#spider-size').inputValue(),'100');
     assert.deepEqual(errors,[],device.name+' JS errors');
     console.log('Interfaz Android texto grande y menú de tres líneas correcta:',device.name);
     await context.close();
