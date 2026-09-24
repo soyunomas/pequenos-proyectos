@@ -1,5 +1,5 @@
 /** Recorrido facial y patas rasterizadas: la fuente es la fotografía WebP, no SVG. */
-export const SPIDER_DEFAULTS=Object.freeze({speed:100,size:125});
+export const SPIDER_DEFAULTS=Object.freeze({speed:100,size:175});
 export const SPIDER_LIMITS=Object.freeze({speed:[25,250],size:[40,220]});
 export function spiderConfig(value) {
   return {
