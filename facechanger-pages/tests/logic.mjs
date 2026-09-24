@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne, forwardWarp } from '../engine/geometry.js';
 import { PointerDeformer, mapPointer } from '../engine/pointer.js';
-import { listFilters, saveFilter, removeFilter } from '../engine/storage.js';
+import { listFilters, saveFilter, removeFilter, validFilter } from '../engine/storage.js';
 const raw = Array.from({length:478},()=>({x:.5,y:.5}));
 raw[234]={x:.7,y:.52};raw[454]={x:.3,y:.52};raw[33]={x:.35,y:.4};raw[263]={x:.65,y:.4};raw[1]={x:.5,y:.53};raw[4]={x:.5,y:.6};
 const face=()=>faceFromLandmarks(raw);
