@@ -33,8 +33,8 @@ export function creaturePosition(face,progress,aspect=16/9) {
 }
 export function creatureHeading(id,dx,dy) {
   if(id==='spider')return spiderHeading(dx,dy);
-  // The generated cockroach / wasp photographs point toward top-right.
-  return Math.atan2(dy,dx)-Math.atan2(-.91,.42);
+  // Corrected raster crops both face image-up; align their heads with forward motion.
+  return Math.atan2(dy,dx)+Math.PI/2;
 }
 export function localLighting(color,id='spider') {
   if(!color || color.length<3)return {brightness:id==='spider'?.69:.85,shadow:.30,tint:null};
@@ -68,7 +68,7 @@ export function creatureGaitFrame(image,canvas,phase,id) {
     ctx.restore();
   }
   ctx.save();ctx.beginPath();
-  ctx.ellipse(x,y,d*.17,d*.28,-.28,0,Math.PI*2);
+  ctx.ellipse(x,y,d*.17,d*.28,0,0,Math.PI*2);
   ctx.clip();ctx.drawImage(image,(d-w*fit)/2,(d-h*fit)/2,w*fit,h*fit);
   ctx.restore();
   return true;
