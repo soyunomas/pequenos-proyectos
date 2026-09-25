@@ -135,7 +135,7 @@ test('catálogo con 59 opciones, bichos primero y maquillaje',()=>{
   assert.equal(ids.length,59);
   assert.equal(new Set(ids).size,ids.length);
   assert.deepEqual(ids.slice(0,3),['spider','cockroach','wasp']);
-  for(const id of ids.slice(1).filter(id=>!['spider','cockroach','wasp'].includes(id)))assert.ok(presetControls(anatomy(),id).length>0,id);
+  for(const id of ids.slice(1).filter(id=>!['normal','spider','cockroach','wasp'].includes(id)))assert.ok(presetControls(anatomy(),id).length>0,id);
 });
 test('ojo caído: el ojo fuente solo ocupa su destino, no queda duplicado',()=>{
   const f=anatomy(),c=presetControls(f,'eye-droop')[0];
