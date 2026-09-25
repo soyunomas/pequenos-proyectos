@@ -60,6 +60,12 @@ export const FILTER_GROUPS=[
   ['Maquillaje', [
     ['makeup-green','Maquillaje verde · ojos, pestañas y labios']
   ]],
+  ['Accesorios realistas IA', [
+    ['glasses-classic','Gafas clásicas'],['eyepatch-black','Parche ocular de cuero'],
+    ['nose-strip','Tira nasal'],['mask-lace','Máscara veneciana'],
+    ['mustache-handlebar','Bigote realista'],['beard-full','Barba completa'],
+    ['grillz-gold','Grillz dorados']
+  ]],
   ['Ojos y cejas', [
     ['eyes-big','Ojos grandes'],['eyes-small','Ojos pequeños'],
     ['eyes-apart','Ojos separados'],['eyes-together','Ojos juntos'],

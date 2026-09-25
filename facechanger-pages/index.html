@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#faf8ff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#151319" media="(prefers-color-scheme: dark)">
   <title>FaceChanger · espejo táctil</title>
-  <link rel="stylesheet" href="./style.css?v=multiface-makeup-1">
+  <link rel="stylesheet" href="./style.css?v=realistic-ai-1">
 </head>
 <body>
 <div id="app" class="app">
@@ -16,6 +16,7 @@
       <video id="webcam" autoplay muted playsinline aria-hidden="true"></video>
       <canvas id="mirror" aria-label="Espejo facial deformable con ratón o pantalla táctil"></canvas>
       <canvas id="makeup-layer" aria-hidden="true"></canvas>
+      <canvas id="overlay-layer" aria-hidden="true"></canvas>
       <canvas id="creature-layer" aria-hidden="true"></canvas>
       <div class="status" id="status" role="status" aria-live="polite"><i id="led"></i><span id="status-text">Pulsa «Activar cámara» para comenzar</span></div>
       <div class="start" id="start"><h2>Tu reflejo, a tu manera.</h2><p>Activa tu cámara para deformar tu rostro en directo. Las imágenes no se suben a nuestro servidor.</p><button id="start-camera" class="primary">Activar cámara</button><p id="start-error" class="error" role="alert"></p></div>
@@ -88,6 +89,6 @@
     </section>
   </main>
 </div>
-<script type="module" src="./app.js?v=multiface-makeup-2"></script>
+<script type="module" src="./app.js?v=realistic-ai-1"></script>
 </body>
 </html>

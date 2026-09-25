@@ -2,6 +2,7 @@ import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFr
 import { PointerDeformer, mapPointer } from './engine/pointer.js?v=multiface-makeup-2';
 import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js?v=multiface-makeup-2';
 import { drawMakeup, makeupStrength } from './engine/makeup.js?v=multiface-makeup-2';
+import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-1';
 import { Renderer } from './engine/renderer.js?v=multiface-makeup-2';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js?v=multiface-makeup-2';
 import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
@@ -13,6 +14,7 @@ const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
 const makeupLayer = $('makeup-layer'), makeupContext = makeupLayer.getContext('2d');
+const overlayLayer = $('overlay-layer'), overlayContext = overlayLayer.getContext('2d');
 const creatureImages=Object.fromEntries(CREATURE_IDS.map(id=>{
   const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp'+(id==='spider'?'':'?v=clean-topdown-2');return [id,img];
 }));
@@ -199,6 +201,7 @@ function stopCamera() {
   video.pause(); video.srcObject = null;
   clearCreatures();
   makeupContext.clearRect(0,0,makeupLayer.width,makeupLayer.height);
+  overlayContext.clearRect(0,0,overlayLayer.width,overlayLayer.height);
 }
 async function startCamera(deviceId = '') {
   stopCamera(); const token = state.startupToken;
@@ -272,6 +275,7 @@ function render(now) {
       const applied=state.faces.map(face=>controls(face));
       state.renderer.draw(video,applied);
       drawMakeups(applied);
+      drawAIAssets(applied);
       drawCreatures(now,applied);
     }
   } catch (err) { stopCamera(); showError('Error de procesamiento: ' + errorText(err)); return; }
@@ -313,6 +317,15 @@ function drawMakeups(applied){
   const strength=makeupStrength(state.preset,state.effects,state.intensity);
   if(!strength)return;
   state.faces.forEach((face,i)=>drawMakeup(makeupContext,face,applied[i],strength,w,h));
+}
+function drawAIAssets(applied) {
+  const w=video.videoWidth,h=video.videoHeight;
+  if(!w||!h)return;
+  if(overlayLayer.width!==w||overlayLayer.height!==h){overlayLayer.width=w;overlayLayer.height=h;}
+  overlayContext.clearRect(0,0,w,h);
+  const active=activeAIOverlays(state.preset,state.effects,state.intensity);
+  if(!active.length)return;
+  state.faces.forEach((face,i)=>drawAIOverlays(overlayContext,face,applied[i],w,h,active));
 }
 function drawCreatures(now,applied) {
   const entries=activeCreatures(state.preset,state.effects,state.intensity,state.creatureCount)
