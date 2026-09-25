@@ -1,9 +1,9 @@
-import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js';
-import { PointerDeformer, mapPointer } from './engine/pointer.js';
-import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js';
-import { drawMakeup, makeupStrength } from './engine/makeup.js';
-import { Renderer } from './engine/renderer.js';
-import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
+import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js?v=multiface-makeup-2';
+import { PointerDeformer, mapPointer } from './engine/pointer.js?v=multiface-makeup-2';
+import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js?v=multiface-makeup-2';
+import { drawMakeup, makeupStrength } from './engine/makeup.js?v=multiface-makeup-2';
+import { Renderer } from './engine/renderer.js?v=multiface-makeup-2';
+import { listFilters, removeFilter, saveFilter } from './engine/storage.js?v=multiface-makeup-2';
 import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
 
 // Sin Node ni bundle. El módulo, WASM y modelo se descargan; la imagen se procesa en el equipo.
