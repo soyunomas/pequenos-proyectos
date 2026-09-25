@@ -1,5 +1,7 @@
 import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js';
 import { PointerDeformer, mapPointer } from './engine/pointer.js';
+import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js';
+import { drawMakeup, makeupStrength } from './engine/makeup.js';
 import { Renderer } from './engine/renderer.js';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js';
 import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
@@ -10,6 +12,7 @@ const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/f
 const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
+const makeupLayer = $('makeup-layer'), makeupContext = makeupLayer.getContext('2d');
 const creatureImages=Object.fromEntries(CREATURE_IDS.map(id=>{
   const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp'+(id==='spider'?'':'?v=clean-topdown-2');return [id,img];
 }));
@@ -22,10 +25,10 @@ let creaturesVisible=false,creatureElapsed=0,creatureLastTick=0;
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const gesture = new PointerDeformer();
 const state = {
-  preset: 'eyes-big', effects: [], strokes: [], undone: [], intensity: 75, radius: .19, editable: true,
+  preset: 'spider', effects: [], strokes: [], undone: [], intensity: 100, radius: .19, editable: true,
   spiderSpeed: CREATURE_DEFAULTS.speed, spiderSize: CREATURE_DEFAULTS.size,
   creatureCount: CREATURE_DEFAULTS.count,
-  face: null, live: null, stream: null, tracker: null, renderer: null,
+  face: null, faces: [], live: null, stream: null, tracker: null, renderer: null,
   raf: 0, startupToken: 0, lastDetectAt: -Infinity, lastVideoTime: -1,
   mirror: false, settingsOpen: false, filterPickerOpen: false, exitTimer: 0, running: false,
 };
@@ -34,8 +37,8 @@ function status(message, good = false) {
   $('status-text').textContent = message;
   $('led').classList.toggle('good', good);
 }
-function controls() {
-  return compose(state.face, state.preset,
+function controls(face=state.face) {
+  return compose(face, state.preset,
     [...state.strokes, ...(state.live ? [state.live] : [])], state.intensity, state.effects);
 }
 function refreshButtons() {
@@ -70,8 +73,8 @@ function refreshFilters() {
 function selectPreset(id) {
   if (!FILTERS.some(([key]) => key === id)) return;
   state.preset = id;
-  if (id.startsWith('uncanny-') || id === 'eyes-big') {
-    state.intensity = id === 'eyes-big' ? 75 : 40;
+  if (id.startsWith('uncanny-') || id === 'eyes-big' || CREATURE_IDS.includes(id) || id === 'makeup-green') {
+    state.intensity = id === 'eyes-big' ? 75 : id.startsWith('uncanny-') ? 40 : 100;
     $('intensity').value = String(state.intensity);
     refreshNumbers();
   }
@@ -190,11 +193,12 @@ async function refreshDevices() {
 function stopCamera() {
   state.startupToken++;
   cancelAnimationFrame(state.raf); state.raf = 0; state.running = false;
-  gesture.cancel(); state.live = null; state.face = null;
+  gesture.cancel(); state.live = null; state.face = null; state.faces = [];
   state.lastVideoTime = -1; state.lastDetectAt = -Infinity;
   state.stream?.getTracks().forEach(track => track.stop()); state.stream = null;
   video.pause(); video.srcObject = null;
   clearCreatures();
+  makeupContext.clearRect(0,0,makeupLayer.width,makeupLayer.height);
 }
 async function startCamera(deviceId = '') {
   stopCamera(); const token = state.startupToken;
@@ -222,13 +226,13 @@ async function startCamera(deviceId = '') {
       if (token !== state.startupToken) return;
       state.tracker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: { modelAssetPath: MODEL, delegate: 'CPU' },
-        runningMode: 'VIDEO', numFaces: 1,
+        runningMode: 'VIDEO', numFaces: MAX_FACES,
         minFaceDetectionConfidence: .5, minFacePresenceConfidence: .5, minTrackingConfidence: .5
       });
     }
     if (token !== state.startupToken) return;
     start.hidden = true; state.running = true;
-    status('Buscando tu rostro…');
+    status('Buscando hasta cinco rostros…');
     await refreshDevices();
     video.addEventListener('ended', () => { if (token === state.startupToken) { stopCamera(); showError('Cámara desconectada. Conecta una webcam y pulsa Activar cámara.'); } }, { once: true });
     state.raf = requestAnimationFrame(render);
@@ -255,27 +259,20 @@ function render(now) {
     if (video.readyState >= 2) {
       if (now - state.lastDetectAt >= 65 && video.currentTime !== state.lastVideoTime) {
         state.lastDetectAt = now; state.lastVideoTime = video.currentTime;
-        const landmarks = state.tracker.detectForVideo(video, now).faceLandmarks[0];
-        if (landmarks) {
-          const next = faceFromLandmarks(landmarks);
-          // Suavizado temporal para reducir el jitter sin retener datos al perder el rostro.
-          if (next && state.face && next.landmarks.length === state.face.landmarks.length) {
-            next.landmarks = next.landmarks.map((p, i) => ({
-              x: state.face.landmarks[i].x * .56 + p.x * .44,
-              y: state.face.landmarks[i].y * .56 + p.y * .44
-            }));
-            next.frame = faceFromLandmarks(next.landmarks.map(p => ({ x: 1 - p.x, y: p.y }))).frame;
-          }
-          if (!state.face) status('Rostro detectado · proceso local', true);
-          state.face = next;
-        } else {
-          if (state.face) status('No se detecta rostro. Se muestra vídeo sin deformar.');
-          state.face = null;
+        const detected=state.tracker.detectForVideo(video,now).faceLandmarks;
+        const before=state.faces.length;
+        state.faces=trackFaces(state.faces,detected);
+        state.face=state.faces[0]||null;
+        if(before!==state.faces.length){
+          const n=state.faces.length;
+          status(n===0?'No se detectan caras. Se muestra vídeo sin deformar.':
+            n+' '+(n===1?'rostro detectado':'rostros detectados')+' · proceso local',n>0);
         }
       }
-      const applied = controls();
-      state.renderer.draw(video, applied);
-      drawCreatures(now, applied);
+      const applied=state.faces.map(face=>controls(face));
+      state.renderer.draw(video,applied);
+      drawMakeups(applied);
+      drawCreatures(now,applied);
     }
   } catch (err) { stopCamera(); showError('Error de procesamiento: ' + errorText(err)); return; }
   state.raf = requestAnimationFrame(render);
@@ -307,10 +304,20 @@ function colorBelow(anchor) {
   }
   return values.map(v=>v/9);
 }
+function drawMakeups(applied){
+  const w=video.videoWidth,h=video.videoHeight;
+  if(makeupLayer.width!==w||makeupLayer.height!==h){
+    makeupLayer.width=w;makeupLayer.height=h;
+  }
+  makeupContext.clearRect(0,0,w,h);
+  const strength=makeupStrength(state.preset,state.effects,state.intensity);
+  if(!strength)return;
+  state.faces.forEach((face,i)=>drawMakeup(makeupContext,face,applied[i],strength,w,h));
+}
 function drawCreatures(now,applied) {
   const entries=activeCreatures(state.preset,state.effects,state.intensity,state.creatureCount)
     .filter(entry=>creatureImages[entry.id].complete&&creatureImages[entry.id].naturalWidth);
-  if(!state.face||!entries.length){clearCreatures();return;}
+  if(!state.faces.length||!entries.length){clearCreatures();return;}
   if(creatureLayer.width!==video.videoWidth||creatureLayer.height!==video.videoHeight){
     creatureLayer.width=video.videoWidth;creatureLayer.height=video.videoHeight;
     lightSampleAt=-Infinity;
@@ -324,47 +331,51 @@ function drawCreatures(now,applied) {
   const ctx=creatureContext;
   ctx.clearRect(0,0,creatureLayer.width,creatureLayer.height);
   creaturesVisible=true;
-  for(const entry of entries){
-    const id=entry.id,image=creatureImages[id],sprite=creatureSprites[id];
-    const elapsed=reduceMotion?0:creatureElapsed*entry.speed;
-    const progress=(elapsed/16000+entry.phase)%1;
-    const source=creaturePosition(state.face,progress,aspect);
-    const aheadSource=creaturePosition(state.face,(progress+.0015)%1,aspect);
-    if(!source||!aheadSource)continue;
-    const anchor=forwardWarp(source,applied,aspect),ahead=forwardWarp(aheadSource,applied,aspect);
-    const heading=creatureHeading(id,(ahead.x-anchor.x)*creatureLayer.width,
-      (ahead.y-anchor.y)*creatureLayer.height);
-    const tick=reduceMotion?0:Math.floor(elapsed/110);
-    if(creatureFrames[id]!==tick){
-      creatureGaitFrame(image,sprite,tick*Math.PI/2,id);
-      creatureFrames[id]=tick;
+  state.faces.forEach((face,faceIndex)=>{
+    for(const entry of entries){
+      const id=entry.id,image=creatureImages[id],sprite=creatureSprites[id];
+      const elapsed=reduceMotion?0:creatureElapsed*entry.speed;
+      const progress=(elapsed/16000+entry.phase+faceIndex*.137)%1;
+      const source=creaturePosition(face,progress,aspect);
+      const aheadSource=creaturePosition(face,(progress+.0015)%1,aspect);
+      if(!source||!aheadSource)continue;
+      const anchor=forwardWarp(source,applied[faceIndex],aspect);
+      const ahead=forwardWarp(aheadSource,applied[faceIndex],aspect);
+      const heading=creatureHeading(id,(ahead.x-anchor.x)*creatureLayer.width,
+        (ahead.y-anchor.y)*creatureLayer.height);
+      const tick=reduceMotion?0:Math.floor(elapsed/110);
+      if(creatureFrames[id]!==tick){
+        creatureGaitFrame(image,sprite,tick*Math.PI/2,id);
+        creatureFrames[id]=tick;
+      }
+      const x=anchor.x*creatureLayer.width,y=anchor.y*creatureLayer.height;
+      const size=Math.max(12,face.frame.width*creatureLayer.width*.19*
+        state.spiderSize/100*entry.scale*(id==='wasp'?.82:id==='cockroach'?1.04:1));
+      const light=localLighting(colorBelow(source),id);
+      ctx.save();ctx.translate(x,y);ctx.rotate(heading);
+      ctx.translate(0,reduceMotion?0:Math.sin(elapsed/110)*size*.012);
+      ctx.save();ctx.globalAlpha=entry.intensity*light.shadow*.55;
+      ctx.filter='blur(5px)';ctx.fillStyle='#000';
+      ctx.beginPath();ctx.ellipse(3,size*.08,size*.27,size*.12,0,0,Math.PI*2);
+      ctx.fill();ctx.restore();
+      ctx.save();ctx.globalAlpha=entry.intensity*light.shadow;
+      ctx.filter='brightness(0) blur(2.5px)';
+      ctx.drawImage(sprite,-size/2+2,-size/2+3,size,size);ctx.restore();
+      ctx.globalAlpha=entry.intensity;
+      ctx.filter='brightness('+light.brightness+') contrast(1.08)';
+      ctx.drawImage(sprite,-size/2,-size/2,size,size);
+      ctx.restore();
     }
-    const x=anchor.x*creatureLayer.width,y=anchor.y*creatureLayer.height;
-    const size=Math.max(12,state.face.frame.width*creatureLayer.width*.19*
-      state.spiderSize/100*entry.scale*(id==='wasp'?.82:id==='cockroach'?1.04:1));
-    const light=localLighting(colorBelow(source),id);
-    ctx.save();ctx.translate(x,y);ctx.rotate(heading);
-    ctx.translate(0,reduceMotion?0:Math.sin(elapsed/110)*size*.012);
-    ctx.save();ctx.globalAlpha=entry.intensity*light.shadow*.55;
-    ctx.filter='blur(5px)';ctx.fillStyle='#000';
-    ctx.beginPath();ctx.ellipse(3,size*.08,size*.27,size*.12,0,0,Math.PI*2);
-    ctx.fill();ctx.restore();
-    ctx.save();ctx.globalAlpha=entry.intensity*light.shadow;
-    ctx.filter='brightness(0) blur(2.5px)';
-    ctx.drawImage(sprite,-size/2+2,-size/2+3,size,size);ctx.restore();
-    ctx.globalAlpha=entry.intensity;
-    ctx.filter='brightness('+light.brightness+') contrast(1.08)';
-    ctx.drawImage(sprite,-size/2,-size/2,size,size);
-    ctx.restore();
-  }
+  });
 }
 function point(event) {
   return mapPointer(event, canvas.getBoundingClientRect(), video.videoWidth, video.videoHeight);
 }
 canvas.addEventListener('pointerdown', event => {
-  if (!state.editable || state.mirror || state.settingsOpen || !state.face) return;
+  if (!state.editable || state.mirror || state.settingsOpen || !state.faces.length) return;
   const p = point(event);
-  if (gesture.begin(event.pointerId, p, state.face, state.radius, controls(), video.videoWidth / video.videoHeight)) {
+  const face=nearestFace(state.faces,p,video.videoWidth/video.videoHeight);
+  if (gesture.begin(event.pointerId, p, face, state.radius, controls(face), video.videoWidth / video.videoHeight)) {
     canvas.setPointerCapture(event.pointerId); event.preventDefault();
   }
 });
@@ -393,7 +404,7 @@ $('filters').addEventListener('change',event=>selectPreset(event.target.value));
 $('add-effect').addEventListener('click',()=>{
   const preset=$('extra-filter').value;
   if(!preset || state.effects.length>=4 || state.preset===preset || state.effects.some(e=>e.preset===preset))return;
-  state.effects.push({preset,intensity:CREATURE_IDS.includes(preset)?100:40});$('extra-filter').value='';
+  state.effects.push({preset,intensity:CREATURE_IDS.includes(preset)||preset==='makeup-green'?100:40});$('extra-filter').value='';
   refreshEffects();
 });
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });

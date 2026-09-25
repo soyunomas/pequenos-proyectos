@@ -1,4 +1,5 @@
 import { MAX_CONTROLS } from './geometry.js';
+import { controlBounds } from './faces.js';
 const VERTEX = `#version 300 es
 in vec2 aPosition;
 out vec2 vUV;
@@ -85,31 +86,47 @@ export class Renderer {
     this.bufferShapes = new Float32Array(MAX_CONTROLS);
     this.bufferScaleY = new Float32Array(MAX_CONTROLS);
   }
-  draw(video, controls) {
-    if (!video.videoWidth || video.readyState < 2) return;
-    const { gl, canvas } = this;
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      gl.viewport(0, 0, canvas.width, canvas.height);
-    }
-    this.bufferControls.fill(0); this.bufferDeltas.fill(0); this.bufferShapes.fill(1); this.bufferScaleY.fill(0);
-    for (let i = 0; i < Math.min(controls.length, MAX_CONTROLS); i++) {
-      const c = controls[i];
-      this.bufferControls.set([c.x, c.y, c.radius, c.scale], i * 4);
-      this.bufferDeltas.set([c.dx, c.dy], i * 2);
-      this.bufferShapes[i] = c.shapeY || 1;
-      this.bufferScaleY[i] = c.scaleY ?? c.scale;
+  draw(video, faceControls=[]) {
+    if(!video.videoWidth||video.readyState<2)return;
+    const {gl,canvas}=this,w=video.videoWidth,h=video.videoHeight,aspect=w/h;
+    if(canvas.width!==w||canvas.height!==h){
+      canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);
     }
     gl.useProgram(this.program);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-    gl.uniform1i(this.uCount, Math.min(controls.length, MAX_CONTROLS));
-    gl.uniform4fv(this.uControl, this.bufferControls);
-    gl.uniform2fv(this.uDelta, this.bufferDeltas);
-    gl.uniform1fv(this.uShape, this.bufferShapes);
-    gl.uniform1fv(this.uScaleY, this.bufferScaleY);
-    gl.uniform1f(this.uAspect, video.videoWidth / video.videoHeight);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.texture);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video);
+    gl.uniform1f(this.uAspect,aspect);
+    // Draw the untouched frame once. Every face then samples the ORIGINAL video,
+    // inside its own scissor: no 160-uniform shader or warping one face twice.
+    gl.disable(gl.SCISSOR_TEST);
+    gl.uniform1i(this.uCount,0);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    gl.enable(gl.SCISSOR_TEST);
+    for(const controls of faceControls){
+      const active=controls.slice(0,MAX_CONTROLS);
+      const b=controlBounds(active,aspect);
+      if(!b||b.right<=b.left||b.bottom<=b.top)continue;
+      this.bufferControls.fill(0);this.bufferDeltas.fill(0);
+      this.bufferShapes.fill(1);this.bufferScaleY.fill(0);
+      for(let i=0;i<active.length;i++){
+        const c=active[i];
+        this.bufferControls.set([c.x,c.y,c.radius,c.scale],i*4);
+        this.bufferDeltas.set([c.dx,c.dy],i*2);
+        this.bufferShapes[i]=c.shapeY||1;
+        this.bufferScaleY[i]=c.scaleY??c.scale;
+      }
+      const x=Math.max(0,Math.floor(b.left*w)),y=Math.max(0,Math.floor((1-b.bottom)*h));
+      const right=Math.min(w,Math.ceil(b.right*w));
+      const top=Math.min(h,Math.ceil((1-b.top)*h));
+      gl.scissor(x,y,right-x,top-y);
+      gl.uniform1i(this.uCount,active.length);
+      gl.uniform4fv(this.uControl,this.bufferControls);
+      gl.uniform2fv(this.uDelta,this.bufferDeltas);
+      gl.uniform1fv(this.uShape,this.bufferShapes);
+      gl.uniform1fv(this.uScaleY,this.bufferScaleY);
+      gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    }
+    gl.disable(gl.SCISSOR_TEST);
   }
   dispose() {
     const g = this.gl; g.deleteTexture(this.texture); g.deleteBuffer(this.buffer); g.deleteProgram(this.program);

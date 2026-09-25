@@ -52,7 +52,14 @@ const signX=(face,id)=>Math.sign(midpoint(face,id).x-midX(face))||1;
 const symmetric=(face,ids,r,dx,dy=0,scale=0,shapeY=1,scaleY=scale)=>
   ids.map(id=>ctl(face,id,r,dx*signX(face,id),dy,scale,shapeY,scaleY));
 export const FILTER_GROUPS=[
+  ['Bichos en la cara', [
+    ['spider','Arañas por la cara'],['cockroach','Cucarachas por la cara'],
+    ['wasp','Avispas por la cara']
+  ]],
   ['Básico', [['normal','Normal']]],
+  ['Maquillaje', [
+    ['makeup-green','Maquillaje verde · ojos, pestañas y labios']
+  ]],
   ['Ojos y cejas', [
     ['eyes-big','Ojos grandes'],['eyes-small','Ojos pequeños'],
     ['eyes-apart','Ojos separados'],['eyes-together','Ojos juntos'],
@@ -93,9 +100,7 @@ export const FILTER_GROUPS=[
     ['uncanny-droop','Extrañeza sutil · ojo y boca caídos'],
     ['uncanny-uneven','Extrañeza asimétrica · mirada y sonrisa'],
     ['uncanny-tired','Cansancio inquietante · ojos y expresión'],
-    ['uncanny-skeptic','Escepticismo sutil · cejas y boca'],
-    ['spider','Arañas por la cara'],['cockroach','Cucarachas por la cara'],
-    ['wasp','Avispas por la cara']
+    ['uncanny-skeptic','Escepticismo sutil · cejas y boca']
   ]]
 ];
 export const FILTERS=FILTER_GROUPS.flatMap(([,items])=>items);
@@ -112,6 +117,7 @@ export function presetControls(face,name) {
     symmetric(face,[L.mouthA,L.mouthB],r,dx,dy,s,y);
   switch(name) {
     case 'normal':return [];
+    case 'makeup-green':return [...eyes(.29,.23,.78,.28),ctl(face,lips,.24,0,0,.24,.73,.52)];
     case 'eyes-big':return eyes(.29,.95,.72);
     case 'eyes-small':return eyes(.32,-.5,.77);
     case 'eyes-apart':return symmetric(face,[eyeA,eyeB],.32,.095,0,0,.86);

@@ -78,8 +78,8 @@ try {
     assert.ok((await rect('.panel .slider output')).font>=39,device.name+' enlarged numeric value');
     assert.ok((await rect('.panel .check')).font>=34,device.name+' enlarged manual control');
     assert.ok((await rect('.panel .advanced>summary')).font>=37,device.name+' enlarged advanced rows');
-    assert.equal(await page.locator('#filters').inputValue(),'eyes-big');
-    assert.equal(await page.locator('#intensity').inputValue(),'75');
+    assert.equal(await page.locator('#filters').inputValue(),'spider');
+    assert.equal(await page.locator('#intensity').inputValue(),'100');
     assert.equal(await page.locator('#spider-speed').inputValue(),'100');
     assert.equal(await page.locator('#creature-count').inputValue(),'1');
     assert.equal(await page.locator('#spider-size').inputValue(),'175');
@@ -100,7 +100,7 @@ try {
     assert.ok(overflow<=1,device.name+' NO horizontal overflow: '+overflow);
     await page.screenshot({path:'facechanger-pages/test-results/'+device.name+'-ajustes.png'});
 
-    await page.getByRole('button',{name:/Ojos grandes/}).click();
+    await page.locator('#filter-picker-open').click();
     const picker=page.locator('#filter-picker');
     await picker.waitFor({state:'visible'});
     await page.waitForTimeout(230);
@@ -110,10 +110,13 @@ try {
     const list=await rect('.filter-option');
     assert.ok(Math.abs(list.x)<1&&Math.abs(list.width-w)<1,device.name+' full width filter list');
     assert.ok(list.height>=98&&list.font>=39,device.name+' oversized filter choices');
-    assert.equal(await page.locator('.filter-option').count(),58);
+    assert.equal(await page.locator('.filter-option').count(),59);
     assert.ok((await rect('.picker-search-label')).font>=34,device.name+' search instructions');
     assert.ok((await rect('#filter-search')).font>=35,device.name+' search entry');
     assert.ok((await rect('.picker-group h3')).font>=36,device.name+' category heading');
+    assert.equal(await page.locator('.filter-option').first().getAttribute('data-filter-id'),'spider');
+    assert.equal(await page.locator('#makeup-layer').count(),1);
+    assert.equal(await page.locator('button[data-filter-id="makeup-green"]').count(),1);
     const pickerOverflow=await picker.evaluate(el=>el.scrollWidth-el.clientWidth);
     assert.ok(pickerOverflow<=1,device.name+' no horizontal picker overflow');
     await page.screenshot({path:'facechanger-pages/test-results/'+device.name+'-filtros.png'});

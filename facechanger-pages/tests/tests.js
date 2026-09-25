@@ -1,4 +1,4 @@
-import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, LANDMARK, presetControls, influenceAt } from '../engine/geometry.js';
+import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, LANDMARK, FILTERS, normalizeEffects, forwardOne, presetControls, influenceAt } from '../engine/geometry.js';
 import { PointerDeformer, mapPointer } from '../engine/pointer.js';
 import { listFilters, saveFilter } from '../engine/storage.js';
 import { Renderer } from '../engine/renderer.js';
@@ -77,10 +77,11 @@ await test('Boca grande disponible y persistente en JSON',()=>{
 
 
 
-await test('Catálogo completo: 58 filtros con 10 tendencias y tres insectos',()=>{
-  assert(FILTERS.length===58);
+await test('Catálogo completo: 59 filtros con 10 tendencias y tres insectos',()=>{
+  assert(FILTERS.length===59);
   const ids=FILTERS.map(([id])=>id);
   assert(new Set(ids).size===ids.length);
+  assert(ids[0]==='spider'&&ids[1]==='cockroach'&&ids[2]==='wasp');
   assert(ids.filter(id=>id.startsWith('trend-')).length===10);
   const f=face();
   FILTERS.forEach(([id])=>{

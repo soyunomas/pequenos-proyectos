@@ -4,6 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne, forwardWarp } from '../engine/geometry.js';
 import { PointerDeformer, mapPointer } from '../engine/pointer.js';
+import { MAX_FACES, trackFaces, nearestFace, controlBounds } from '../engine/faces.js';
+import { makeupStrength, makeupPoint } from '../engine/makeup.js';
 import { listFilters, saveFilter, removeFilter, validFilter } from '../engine/storage.js';
 const raw = Array.from({length:478},()=>({x:.5,y:.5}));
 raw[234]={x:.7,y:.52};raw[454]={x:.3,y:.52};raw[33]={x:.35,y:.4};raw[263]={x:.65,y:.4};raw[1]={x:.5,y:.53};raw[4]={x:.5,y:.6};
@@ -128,11 +130,11 @@ test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>
   saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
 });
 
-test('catálogo con 58 opciones y filtros de tendencia únicos',()=>{
+test('catálogo con 59 opciones, bichos primero y maquillaje',()=>{
   const ids=FILTERS.map(([id])=>id);
-  assert.equal(ids.length,58);
+  assert.equal(ids.length,59);
   assert.equal(new Set(ids).size,ids.length);
-  assert.equal(ids[0],'normal');
+  assert.deepEqual(ids.slice(0,3),['spider','cockroach','wasp']);
   for(const id of ids.slice(1).filter(id=>!['spider','cockroach','wasp'].includes(id)))assert.ok(presetControls(anatomy(),id).length>0,id);
 });
 test('ojo caído: el ojo fuente solo ocupa su destino, no queda duplicado',()=>{
@@ -308,4 +310,41 @@ test('cucaracha y avispa verticales avanzan cabeza por delante',()=>{
    assert.ok(Math.abs(creatureHeading(id,0,1)-Math.PI)<1e-9,id+' al bajar');
  }
  assert.ok(Math.abs(creatureHeading('spider',0,1))<1e-9,'araña sin regresión');
+});
+
+test('MediaPipe: 5 rostros máximo, asociación temporal y selección táctil',()=>{
+  const shifted=dx=>raw.map(p=>({x:p.x+dx,y:p.y}));
+  const old=trackFaces([],[-.19,.19].map(shifted));
+  assert.equal(old.length,2);
+  const next=trackFaces(old,[.2,-.18].map(shifted));
+  assert.equal(next.length,2);
+  assert.ok(Math.abs(next[0].landmarks[1].x-old[1].landmarks[1].x+.0044)<1e-7);
+  assert.ok(Math.abs(next[1].landmarks[1].x-old[0].landmarks[1].x+.0044)<1e-7);
+  const many=trackFaces([],[-.22,-.11,0,.11,.22,.27].map(shifted));
+  assert.equal(MAX_FACES,5);assert.equal(many.length,5);
+  assert.equal(nearestFace(old,old[0].landmarks[1]),old[0]);
+  assert.equal(nearestFace(old,null),null);
+});
+test('cada rostro mantiene sus 32 controles GPU y su propia región de recorte',()=>{
+  const f=anatomy(),controls=compose(f,'trend-cartoon',[],100);
+  const b=controlBounds(controls,16/9);
+  assert.ok(controls.length>0&&controls.length<=MAX_CONTROLS);
+  assert.ok(b.left>=0&&b.right<=1&&b.top>=0&&b.bottom<=1);
+  for(const ctl of controls){
+    assert.ok(b.left<=ctl.x&&b.right>=ctl.x);
+    assert.ok(b.top<=ctl.y&&b.bottom>=ctl.y);
+  }
+  assert.equal(controlBounds([],16/9),null);
+});
+test('maquillaje verde: ojos y labios reales, mezcla y guardado compatibles',()=>{
+  const f=anatomy(),controls=presetControls(f,'makeup-green');
+  assert.equal(controls.length,3);
+  assert.ok(controls[0].scale>0&&controls[2].scaleY>0);
+  assert.equal(makeupStrength('makeup-green',[],100),1);
+  assert.equal(makeupStrength('makeup-green',[],40),.4);
+  assert.equal(makeupStrength('normal',[{preset:'makeup-green',intensity:50}],80),.4);
+  assert.equal(makeupStrength('normal',[],100),0);
+  const p=makeupPoint(f,159,controls,16/9);
+  assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));
+  assert.ok(validFilter({version:1,name:'Verde',preset:'makeup-green',intensity:100,radius:.19,strokes:[]}));
 });
