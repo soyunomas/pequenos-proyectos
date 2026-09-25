@@ -139,8 +139,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .settings-close span,.picker-back span{font-size:29px}
 
 /* Superposición independiente del shader: misma transformación cover que el espejo. */
-#makeup-layer,#overlay-layer,#creature-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
-#makeup-layer{z-index:2}
+#overlay-layer,#creature-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 #overlay-layer{z-index:2}
 #creature-layer{z-index:3}
 .quick-reset{position:absolute;z-index:9;right:max(16px,env(safe-area-inset-right,0px));top:calc(94px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:5px;min-height:42px;padding:8px 12px;border:1px solid #ffffff55;border-radius:99px;background:#171c26a8;color:#fff;font-size:13px;font-weight:550;box-shadow:0 2px 8px #0003;backdrop-filter:blur(8px)}

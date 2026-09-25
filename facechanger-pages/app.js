@@ -1,8 +1,7 @@
-import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js?v=multiface-makeup-2';
+import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js?v=realistic-ai-2';
 import { PointerDeformer, mapPointer } from './engine/pointer.js?v=multiface-makeup-2';
 import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js?v=multiface-makeup-2';
-import { drawMakeup, makeupStrength } from './engine/makeup.js?v=multiface-makeup-2';
-import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-1';
+import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-2';
 import { Renderer } from './engine/renderer.js?v=multiface-makeup-2';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js?v=multiface-makeup-2';
 import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
@@ -13,7 +12,6 @@ const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/f
 const $ = id => document.getElementById(id);
 const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('start');
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
-const makeupLayer = $('makeup-layer'), makeupContext = makeupLayer.getContext('2d');
 const overlayLayer = $('overlay-layer'), overlayContext = overlayLayer.getContext('2d');
 const creatureImages=Object.fromEntries(CREATURE_IDS.map(id=>{
   const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp'+(id==='spider'?'':'?v=clean-topdown-2');return [id,img];
@@ -75,7 +73,7 @@ function refreshFilters() {
 function selectPreset(id) {
   if (!FILTERS.some(([key]) => key === id)) return;
   state.preset = id;
-  if (id.startsWith('uncanny-') || id === 'eyes-big' || CREATURE_IDS.includes(id) || id === 'makeup-green') {
+  if (id.startsWith('uncanny-') || id === 'eyes-big' || CREATURE_IDS.includes(id)) {
     state.intensity = id === 'eyes-big' ? 75 : id.startsWith('uncanny-') ? 40 : 100;
     $('intensity').value = String(state.intensity);
     refreshNumbers();
@@ -200,7 +198,6 @@ function stopCamera() {
   state.stream?.getTracks().forEach(track => track.stop()); state.stream = null;
   video.pause(); video.srcObject = null;
   clearCreatures();
-  makeupContext.clearRect(0,0,makeupLayer.width,makeupLayer.height);
   overlayContext.clearRect(0,0,overlayLayer.width,overlayLayer.height);
 }
 async function startCamera(deviceId = '') {
@@ -274,7 +271,6 @@ function render(now) {
       }
       const applied=state.faces.map(face=>controls(face));
       state.renderer.draw(video,applied);
-      drawMakeups(applied);
       drawAIAssets(applied);
       drawCreatures(now,applied);
     }
@@ -307,16 +303,6 @@ function colorBelow(anchor) {
     for(let channel=0;channel<3;channel++)values[channel]+=lightPixels[at+channel];
   }
   return values.map(v=>v/9);
-}
-function drawMakeups(applied){
-  const w=video.videoWidth,h=video.videoHeight;
-  if(makeupLayer.width!==w||makeupLayer.height!==h){
-    makeupLayer.width=w;makeupLayer.height=h;
-  }
-  makeupContext.clearRect(0,0,w,h);
-  const strength=makeupStrength(state.preset,state.effects,state.intensity);
-  if(!strength)return;
-  state.faces.forEach((face,i)=>drawMakeup(makeupContext,face,applied[i],strength,w,h));
 }
 function drawAIAssets(applied) {
   const w=video.videoWidth,h=video.videoHeight;
@@ -417,7 +403,7 @@ $('filters').addEventListener('change',event=>selectPreset(event.target.value));
 $('add-effect').addEventListener('click',()=>{
   const preset=$('extra-filter').value;
   if(!preset || state.effects.length>=4 || state.preset===preset || state.effects.some(e=>e.preset===preset))return;
-  state.effects.push({preset,intensity:CREATURE_IDS.includes(preset)||preset==='makeup-green'?100:40});$('extra-filter').value='';
+  state.effects.push({preset,intensity:CREATURE_IDS.includes(preset)?100:40});$('extra-filter').value='';
   refreshEffects();
 });
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });

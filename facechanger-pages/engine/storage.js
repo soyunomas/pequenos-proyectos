@@ -1,4 +1,4 @@
-import { FILTERS, MAX_CONTROLS, normalizeEffects } from './geometry.js?v=multiface-makeup-2';
+import { FILTERS, MAX_CONTROLS, normalizeEffects } from './geometry.js?v=realistic-ai-2';
 import { SPIDER_LIMITS } from './spider.js';
 import { MAX_CREATURES } from './creatures.js';
 const KEY = 'facechanger-pages:filters:v1';

@@ -57,12 +57,9 @@ export const FILTER_GROUPS=[
     ['wasp','Avispas por la cara']
   ]],
   ['Básico', [['normal','Normal']]],
-  ['Maquillaje', [
-    ['makeup-green','Maquillaje verde · ojos, pestañas y labios']
-  ]],
   ['Accesorios realistas IA', [
     ['glasses-classic','Gafas clásicas'],['eyepatch-black','Parche ocular de cuero'],
-    ['nose-strip','Tira nasal'],['mask-lace','Máscara veneciana'],
+    ['mask-lace','Máscara veneciana'],
     ['mustache-handlebar','Bigote realista'],['beard-full','Barba completa'],
     ['grillz-gold','Grillz dorados']
   ]],
@@ -123,7 +120,6 @@ export function presetControls(face,name) {
     symmetric(face,[L.mouthA,L.mouthB],r,dx,dy,s,y);
   switch(name) {
     case 'normal':return [];
-    case 'makeup-green':return [...eyes(.29,.23,.78,.28),ctl(face,lips,.24,0,0,.24,.73,.52)];
     case 'eyes-big':return eyes(.29,.95,.72);
     case 'eyes-small':return eyes(.32,-.5,.77);
     case 'eyes-apart':return symmetric(face,[eyeA,eyeB],.32,.095,0,0,.86);
