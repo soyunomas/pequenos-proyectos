@@ -1,4 +1,4 @@
-import { forwardWarp } from './geometry.js?v=realistic-ai-2';
+import { forwardWarp } from './geometry.js?v=realistic-ai-3';
 const TILE=64;
 const atlas=new Image();atlas.decoding='async';
 let ready=false;
@@ -11,7 +11,7 @@ export function drawAtlasTile(ctx,index,x,y,w,h){
   ctx.drawImage(atlas,(index%4)*TILE,Math.floor(index/4)*TILE,TILE,TILE,x,y,w,h);
 }
 const indices={'glasses-classic':0,'eyepatch-black':1,'mask-lace':3,
-  'mustache-handlebar':4,'beard-full':5,'grillz-gold':6};
+  'mustache-handlebar':4};
 export function activeAIOverlays(preset,effects=[],intensity=100){
   if(intensity<=0)return[];
   const out=new Map(),add=(id,v)=>{if(indices[id]===undefined||v<=0)return;
@@ -28,7 +28,6 @@ export function drawAIOverlays(ctx,face,controls,width,height,active){
   const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const ea=p(33),eb=p(263),eyes=m(ea,eb),eyed=d(ea,eb);
   const la=p(61),lb=p(291),mouth=m(la,lb),mw=d(la,lb);
-  const chin=p(152);
   // MediaPipe IDs 33/263 are reversed on the mirrored canvas. The raw
   // atan2(263-33) rotated every accessory by 180 degrees.
   const leftEye=ea.x<=eb.x?ea:eb,rightEye=ea.x<=eb.x?eb:ea;
@@ -44,11 +43,9 @@ export function drawAIOverlays(ctx,face,controls,width,height,active){
       case 'mask-lace':w=eyed*2.22;h=eyed*1.15;break;
       case 'mustache-handlebar':center={x:mouth.x,y:lipY-(p(17).y-lipY)*.3};
         w=mw*1.65;h=mw*.54;break;
-      case 'beard-full':center=m(mouth,chin);w=mw*1.96;h=d(mouth,chin)*1.9;break;
-      case 'grillz-gold':center=mouth;w=mw*1.25;h=mw*.67;break;
     }
     ctx.save();ctx.translate(center.x,center.y);
-    const rotation=id==='mustache-handlebar'||id==='beard-full'||id==='grillz-gold'?mouthAng:angle;
+    const rotation=id==='mustache-handlebar'?mouthAng:angle;
     ctx.rotate(rotation);
     ctx.globalAlpha=alpha;
     if(id==='glasses-classic'||id==='eyepatch-black'||id==='mask-lace'){

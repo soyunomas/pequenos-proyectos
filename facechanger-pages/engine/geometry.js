@@ -60,8 +60,7 @@ export const FILTER_GROUPS=[
   ['Accesorios realistas IA', [
     ['glasses-classic','Gafas clásicas'],['eyepatch-black','Parche ocular de cuero'],
     ['mask-lace','Máscara veneciana'],
-    ['mustache-handlebar','Bigote realista'],['beard-full','Barba completa'],
-    ['grillz-gold','Grillz dorados']
+    ['mustache-handlebar','Bigote realista']
   ]],
   ['Ojos y cejas', [
     ['eyes-big','Ojos grandes'],['eyes-small','Ojos pequeños'],

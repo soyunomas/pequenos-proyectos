@@ -1,7 +1,7 @@
-import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js?v=realistic-ai-2';
+import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js?v=realistic-ai-3';
 import { PointerDeformer, mapPointer } from './engine/pointer.js?v=multiface-makeup-2';
 import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js?v=multiface-makeup-2';
-import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-2';
+import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-3';
 import { Renderer } from './engine/renderer.js?v=multiface-makeup-2';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js?v=multiface-makeup-2';
 import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
