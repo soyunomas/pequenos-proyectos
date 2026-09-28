@@ -34,8 +34,9 @@ test('cancelación descarta gesto',()=>{
 });
 test('toque sobre nariz previamente deformada',()=>{
  const f=face(),c=compose(f,'nose-twisted',[],100);
- const visible={x:f.landmarks[1].x+c[0].dx,y:f.landmarks[1].y};
- assert.ok(Math.abs(inverseWarp(visible,c,16/9).x-f.landmarks[1].x)<.025);
+ const source=f.landmarks[1],visible=forwardOne(source,c[0],16/9);
+ const hit=inverseWarp(visible,c,16/9);
+ assert.ok(Math.hypot(hit.x-source.x,hit.y-source.y)<.002);
  assert.ok(makeStroke(f,visible,.19,c,16/9));
 });
 test('filtros combinables e intensidad',()=>{
@@ -231,11 +232,11 @@ test('ojo caído siempre desciende, también con orden especular de landmarks',(
   assert.ok(presetControls(mirrored,'eye-droop')[0].dy>0);
 });
 
-test('presets inquietantes combinan caída ocular y boca sin exceso a 40 %',()=>{
- const f=anatomy(), controls=compose(f,'uncanny-droop',[],39);
+test('presets inquietantes al 50 % conservan la fuerza histórica sin salir de su soporte',()=>{
+ const f=anatomy(), controls=compose(f,'uncanny-droop',[],50);
  assert.equal(controls.length,4);
  assert.ok(controls[0].dy>0 && controls[1].dy>0);
- assert.ok(controls.every(c=>c.dy < .06*f.frame.width));
+ assert.ok(controls.every(c=>Math.abs(c.dy)<c.radius*.4));
  assert.equal(compose(f,'spider',[],100).length,0);
  assert.ok(FILTERS.some(([id])=>id==='spider'));
 });
@@ -303,7 +304,9 @@ test('tendencias: controles finitos, intensidad proporcional y mezclas compatibl
  const preset={version:1,name:'Tendencia',preset:'trend-surprise',intensity:55,radius:.19,strokes:[],
    effects:[{preset:'trend-hero',intensity:30}]};
  saveFilter(preset,store);
- assert.deepEqual(listFilters(store),[preset]);
+ assert.deepEqual(listFilters(store),[{
+   ...preset,version:2,intensity:27.5,effects:[{preset:'trend-hero',intensity:15}]
+ }]);
 });
 
 test('tres especies y cinco bichos máximo incluso en mezcla',()=>{

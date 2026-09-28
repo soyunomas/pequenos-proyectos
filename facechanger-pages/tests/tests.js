@@ -47,9 +47,9 @@ await test('Gesto cancelado no produce filtros guardados', () => {
 });
 await test('Hit-testing tolera píxeles ya deformados', () => {
   const f = face(), c = compose(f, 'nose-twisted', [], 100);
-  const visible = { x: f.landmarks[1].x + c[0].dx, y: f.landmarks[1].y };
+  const source = f.landmarks[1], visible = forwardOne(source, c[0], 16 / 9);
   const hit = inverseWarp(visible, c, 16 / 9);
-  assert(Math.abs(hit.x - f.landmarks[1].x) < .025);
+  assert(Math.hypot(hit.x - source.x, hit.y - source.y) < .002);
   assert(makeStroke(f, visible, .19, c, 16 / 9));
 });
 await test('Almacena y recupera JSON versionado sin servidor', () => {
