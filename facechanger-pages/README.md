@@ -51,9 +51,9 @@ La cámara ocupa toda la pantalla en móvil y escritorio. Actualmente, el engran
 
 Los presets se revisaron con las conexiones anatómicas oficiales de Face Landmarker:
 [face_landmarks_connections.ts](https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/tasks/web/vision/face_landmarker/face_landmarks_connections.ts).
-Se emplean punta/base de nariz 1/2, alas nasales 98/327, párpados 33/133/159/145 y 263/362/386/374, comisuras 61/291, barbilla 152 y frente 10. Los centros de los ojos ya no usan iris 468/473, que se desplaza al mirar a los lados. Además, el shader usa una máscara elíptica de soporte compacto (influencia exactamente cero fuera de su radio) para evitar que el filtro de nariz modifique también un ojo. Las máscaras del shader y del sistema de toque utilizan la misma fórmula.
+Para la nariz se usa ahora el grafo oficial completo de MediaPipe: eje 168→6→197→195→5→4→1→19→94→2 y laterales 4→45→220→115→48→64→98→97→2 / 4→275→440→344→278→294→327→326→2. «Nariz grande» y «Nariz pequeña» desplazan explícitamente paredes y alas nasales, porque escalar alrededor de 98/327 dejaba esos puntos casi inmóviles. Los párpados usan 33/133/159/145 y 263/362/386/374, las comisuras 61/291, la barbilla 152 y la frente 10. Los centros de los ojos no usan iris 468/473, que se desplaza al mirar a los lados. El shader mantiene máscara elíptica de soporte compacto para que la deformación nasal no alcance ojos ni boca.
 
-**Validación de esta revisión:** 13/13 pruebas de geometría, gestos, persistencia y contaminación ojo/nariz; comprobación de sintaxis en los módulos; automatización de interacción y dimensiones de interfaz en Chromium emulado a 390×844, 320×640 y 1440×900, sin excepciones JavaScript (la automatización inyectó archivos ya disponibles en vez de navegar por la red, bloqueada en este entorno). La GPU de ese Chromium no dispone de WebGL2; por ello, la nueva apariencia de la deformación visual aún necesita comprobación real en tu móvil y webcam. No se afirma que haya sido comprobada una cámara física ni que todos los rostros tengan proporciones idénticas.
+La validación automatizada comprueba sintaxis, geometría, persistencia, contaminación entre regiones y la interfaz en Chromium móvil y escritorio. La apariencia final sigue dependiendo de las proporciones de cada rostro y de la webcam física.
 
 ## Versión 1.2 — Ojos y boca
 

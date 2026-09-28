@@ -101,7 +101,7 @@ await test('Ojo caído inverso: el origen y el destino no duplican el ojo',()=>{
 await test('Mezclas y filtros antiguos conservan compatibilidad',()=>{
   const extras=normalizeEffects([{preset:'mouth-smile',intensity:80},{preset:'nose-small',intensity:40}]);
   assert(extras.length===2);
-  assert(compose(face(),'normal',[],100,extras).length===4);
+  assert(compose(face(),'normal',[],100,extras).length===8);
 });
 document.getElementById('summary').textContent = `${pass} correctas · ${fail} fallidas`;
 document.title = fail ? 'Error en pruebas · FaceChanger' : 'Pruebas correctas · FaceChanger';

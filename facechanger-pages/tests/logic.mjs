@@ -42,7 +42,7 @@ test('toque sobre nariz previamente deformada',()=>{
 test('filtros combinables e intensidad',()=>{
  const f=face(),s=makeStroke(f,{x:.5,y:.53},.19);
  s.delta={x:.1,y:.05};
- assert.equal(compose(f,'nose-big',[s],100).length,4);
+ assert.equal(compose(f,'nose-big',[s],100).length,6);
  assert.equal(compose(f,'nose-big',[s],0).length,0);
  assert.ok(compose(f,'nose-big',[s],50).at(-1).dx>0);
  assert.ok(compose(f,'nose-big',[s],50).at(-1).dx<compose(f,'nose-big',[s],100).at(-1).dx);
@@ -62,8 +62,14 @@ function anatomy() {
   const set=(i,x,y)=>{raw[i]={x:1-x,y};};
   const L=LANDMARK;
   for(const [i,x,y] of [
-    [L.cheekA,.3,.53],[L.cheekB,.7,.53],[L.noseTip,.5,.57],[L.noseBase,.5,.61],
-    [L.noseLowerBridge,.5,.51],[L.nostrilA,.47,.60],[L.nostrilB,.53,.60],
+    [L.cheekA,.3,.53],[L.cheekB,.7,.53],
+    [L.noseRoot,.5,.42],[L.noseBridgeUpper,.5,.46],[L.noseBridgeMid,.5,.49],[L.noseBridgeLow,.5,.51],
+    [L.noseDorsum,.5,.535],[L.noseBridge,.5,.55],[L.noseTip,.5,.57],
+    [L.noseColumella,.5,.59],[L.noseUnderTip,.5,.60],[L.noseBase,.5,.615],
+    [45,.477,.54],[220,.466,.56],[115,.455,.58],
+    [L.noseAEdge,.452,.595],[L.noseAOuter,.458,.605],[L.noseA,.47,.61],[L.noseAInner,.482,.615],
+    [275,.523,.54],[440,.534,.56],[344,.545,.58],
+    [L.noseBEdge,.548,.595],[L.noseBOuter,.542,.605],[L.noseB,.53,.61],[L.noseBInner,.518,.615],
     [L.eyeAOuter,.35,.4],[L.eyeAInner,.46,.4],[L.eyeATop,.405,.38],[L.eyeABottom,.405,.42],
     [L.eyeBOuter,.65,.4],[L.eyeBInner,.54,.4],[L.eyeBTop,.595,.38],[L.eyeBBottom,.595,.42],
     [L.mouthA,.43,.74],[L.mouthB,.57,.74],[L.mouthTopOuter,.5,.72],[L.mouthBottomOuter,.5,.76],[L.mouthTopInner,.5,.73],[L.mouthBottomInner,.5,.75],[L.chin,.5,.86],[L.forehead,.5,.16]
@@ -76,12 +82,13 @@ test('puntos anatómicos de nariz, ojos y boca separados',()=>{
   assert.ok(f.landmarks[L.noseTip].y<f.landmarks[L.mouthA].y);
   assert.ok(Math.abs(f.landmarks[L.nostrilA].x-f.landmarks[L.nostrilB].x)>.05);
 });
-test('nariz grande NO afecta a ningún párpado ni comisura',()=>{
+test('nariz grande usa el contorno oficial sin afectar párpados ni comisuras',()=>{
   const f=anatomy(),L=LANDMARK,c=presetControls(f,'nose-big');
-  assert.equal(c.length,3);
+  assert.equal(c.length,5);
   for(const i of [L.eyeAOuter,L.eyeAInner,L.eyeATop,L.eyeABottom,L.eyeBOuter,L.eyeBInner,L.eyeBTop,L.eyeBBottom,L.mouthA,L.mouthB])
     assert.equal(c.reduce((sum,ctl)=>sum+influenceAt(f.landmarks[i],ctl),0),0,'punto contaminado '+i);
   assert.ok(c.some(ctl=>influenceAt(f.landmarks[L.noseTip],ctl)>.01));
+  assert.ok(c.some(ctl=>Math.abs(ctl.dx)>.01*f.frame.width),'las alas deben desplazarse, no solo escalarse');
 });
 test('ojos grandes centrados en párpados estables y no en iris',()=>{
   const f=anatomy(),cs=presetControls(f,'eyes-big');
@@ -164,14 +171,22 @@ test('ojos alienígena difumina la transición en una zona más amplia',()=>{
   assert.ok(c.radius/f.frame.width>=.4);
   assert.equal(influenceAt({x:c.x+c.radius*1.01,y:c.y},c),0);
 });
-test('cejas levantadas no alcanzan nariz y las narices ganan recorrido',()=>{
+test('cejas no alcanzan nariz y grande/pequeña cambian el ancho nasal de verdad',()=>{
   const f=anatomy(),L=LANDMARK,brows=presetControls(f,'brows-up');
   for(const i of [L.noseTip,L.noseBase,L.nostrilA,L.nostrilB])
     assert.ok(brows.every(c=>influenceAt(f.landmarks[i],c)===0),'ceja contamina nariz '+i);
-  const big50=compose(f,'nose-big',[],50),big100=compose(f,'nose-big',[],100);
-  const small50=compose(f,'nose-small',[],50)[0],small100=compose(f,'nose-small',[],100)[0];
-  assert.ok(big100[0].scale>big50[0].scale*1.9);
-  assert.ok(Math.abs(small100.scale)>Math.abs(small50.scale)*1.5);
+  const width=controls=>{
+    const a=forwardWarp(f.landmarks[L.noseAEdge],controls,16/9);
+    const b=forwardWarp(f.landmarks[L.noseBEdge],controls,16/9);
+    return Math.abs(a.x-b.x);
+  };
+  const base=width([]);
+  const big50=width(compose(f,'nose-big',[],50)),big100=width(compose(f,'nose-big',[],100));
+  const small50=width(compose(f,'nose-small',[],50)),small100=width(compose(f,'nose-small',[],100));
+  assert.ok(big50>base*1.35,'nariz grande al 50 % casi no ensancha');
+  assert.ok(big100>big50*1.15,'nariz grande al 100 % no añade recorrido');
+  assert.ok(small50<base*.65,'nariz pequeña al 50 % casi no estrecha');
+  assert.ok(small100<small50*.6,'nariz pequeña al 100 % no añade recorrido');
 });
 test('ojos caídos tienen recorrido extra al 100 % sin perder inversión estable',()=>{
   const f=anatomy(),c50=compose(f,'eye-droop',[],50)[0],c100=compose(f,'eye-droop',[],100)[0];
@@ -206,9 +221,10 @@ test('mezclas limitadas a cuatro, con intensidades independientes',()=>{
   assert.equal(normalizeEffects([...extra,...extra]).length,2);
   const a=compose(f,'normal',[],100,extra);
   const b=compose(f,'normal',[],50,extra);
-  assert.ok(a.length===3);
-  assert.ok(a[0].scale<0 && a[1].scale>0);
-  assert.ok(Math.abs(b[0].scale-a[0].scale*.5)<1e-8);
+  assert.equal(a.length,7);
+  assert.equal(b.length,a.length);
+  for(let i=0;i<a.length;i++)for(const key of ['dx','dy','scale','scaleY'])
+    assert.ok(Math.abs(b[i][key]-a[i][key]*.5)<1e-8,key+' mezcla proporcional');
 });
 test('guardar y recuperar mezcla; compatibilidad con filtros antiguos',()=>{
   const data=new Map(),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};

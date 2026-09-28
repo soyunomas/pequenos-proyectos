@@ -1,7 +1,10 @@
 /** Mirror-space, top-left coordinates. IDs follow MediaPipe Face Landmarker topology. */
 export const MAX_CONTROLS = 32;
 export const LANDMARK = Object.freeze({
-  noseTip:1, noseBridge:4, noseLowerBridge:4, noseBase:2, noseA:98, noseB:327, nostrilA:98, nostrilB:327,
+  noseRoot:168, noseBridgeUpper:6, noseBridgeMid:197, noseBridgeLow:195, noseDorsum:5,
+  noseTip:1, noseBridge:4, noseLowerBridge:4, noseColumella:19, noseUnderTip:94, noseBase:2,
+  noseAInner:97, noseBInner:326, noseA:98, noseB:327,
+  noseAOuter:64, noseBOuter:294, noseAEdge:48, noseBEdge:278, nostrilA:98, nostrilB:327,
   eyeAOuter:33, eyeAInner:133, eyeATop:159, eyeABottom:145,
   eyeBOuter:263, eyeBInner:362, eyeBTop:386, eyeBBottom:374,
   browAOuter:70, browAInner:107, browAMiddle:105,
@@ -49,6 +52,11 @@ const ctl=(face,idx,radius,dx=0,dy=0,scale=0,shapeY=1,scaleY=scale)=>{
 const eyeA=[33,133,159,145],eyeB=[263,362,386,374];
 const browsA=[70,105,107],browsB=[300,334,336];
 const lips=[0,17,13,14];
+// MediaPipe FACE_LANDMARKS_NOSE: centro 168→6→197→195→5→4→1→19→94→2,
+// lateral A 4→45→220→115→48→64→98→97→2 y lateral B simétrico.
+const noseWingA=[48,64,98,97],noseWingB=[278,294,327,326];
+const noseWallA=[45,220,115],noseWallB=[275,440,344];
+const noseCore=[5,4,1,19,94,2];
 const midX=(face)=>midpoint(face,[LANDMARK.cheekA,LANDMARK.cheekB]).x;
 const signX=(face,id)=>Math.sign(midpoint(face,id).x-midX(face))||1;
 const symmetric=(face,ids,r,dx,dy=0,scale=0,shapeY=1,scaleY=scale)=>
@@ -150,10 +158,16 @@ export function presetControls(face,name) {
       ctl(face,L.browAOuter,.15,0,-.025),ctl(face,L.browBOuter,.15,0,-.025)
     ];
     case 'nose-big':return [
-      ctl(face,[L.noseTip,L.noseBase],.17,0,0,.34,.72),
-      ctl(face,L.noseA,.13,0,0,.22,.68),ctl(face,L.noseB,.13,0,0,.22,.68)
+      // Move the anatomical side contours: scaling around 98/327 left the wing centres almost fixed.
+      ...symmetric(face,[noseWingA,noseWingB],.18,.052,.004,.12,.68,.08),
+      ...symmetric(face,[noseWallA,noseWallB],.15,.032,0,.08,.82,.04),
+      ctl(face,noseCore,.23,0,.008,.20,.76,.14)
     ];
-    case 'nose-small':return [ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.24,0,0,-.52,.85)];
+    case 'nose-small':return [
+      ...symmetric(face,[noseWingA,noseWingB],.18,-.036,-.002,-.08,.68,-.05),
+      ...symmetric(face,[noseWallA,noseWallB],.15,-.022,0,-.06,.82,-.03),
+      ctl(face,noseCore,.23,0,-.004,-.22,.76,-.14)
+    ];
     case 'nose-twisted':return [ctl(face,[L.noseTip,L.noseBridge],.29,.11,0,0,.82)];
     case 'nose-long':return [ctl(face,[L.noseTip,L.noseBase],.28,0,.105,0,.82)];
     case 'nose-pinocchio':return [ctl(face,[L.noseTip,L.noseBase],.36,0,.165,0,.85)];

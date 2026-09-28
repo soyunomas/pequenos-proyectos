@@ -1,4 +1,4 @@
-import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp, defaultIntensityFor, visualBlendIntensity } from './engine/geometry.js?v=face-strength-1';
+import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp, defaultIntensityFor, visualBlendIntensity } from './engine/geometry.js?v=face-nose-map-1';
 import { PointerDeformer, mapPointer } from './engine/pointer.js?v=multiface-makeup-2';
 import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js?v=multiface-makeup-2';
 import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-3';
