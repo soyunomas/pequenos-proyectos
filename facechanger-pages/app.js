@@ -340,7 +340,8 @@ function drawCreatures(now,applied) {
       const ahead=forwardWarp(aheadSource,applied[faceIndex],aspect);
       const heading=creatureHeading(id,(ahead.x-anchor.x)*creatureLayer.width,
         (ahead.y-anchor.y)*creatureLayer.height);
-      const tickStep=id==='wasp'?55:110;\n      const tick=reduceMotion?0:Math.floor(elapsed/tickStep);
+      const tickStep=id==='wasp'?55:110;
+      const tick=reduceMotion?0:Math.floor(elapsed/tickStep);
       if(creatureFrames[id]!==tick){
         creatureGaitFrame(image,sprite,tick*Math.PI/2,id);
         creatureFrames[id]=tick;
