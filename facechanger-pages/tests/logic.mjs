@@ -1,4 +1,4 @@
-import { creatureConfig,activeCreatures,localLighting,creatureHeading,CREATURE_DEFAULTS } from '../engine/creatures.js';
+import { creatureConfig,activeCreatures,localLighting,creatureHeading,CREATURE_DEFAULTS,waspMotionAngles } from '../engine/creatures.js';
 import { spiderRoute,spiderPosition,spiderConfig,spiderHeading } from '../engine/spider.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -374,6 +374,16 @@ test('cucaracha y avispa verticales avanzan cabeza por delante',()=>{
    assert.ok(Math.abs(creatureHeading(id,0,1)-Math.PI)<1e-9,id+' al bajar');
  }
  assert.ok(Math.abs(creatureHeading('spider',0,1))<1e-9,'araña sin regresión');
+});
+
+test('la avispa mueve alas y patas con ciclos distintos',()=>{
+ const a=waspMotionAngles(Math.PI/2),b=waspMotionAngles(Math.PI);
+ assert.ok(Math.abs(a.wings[0])>.1);
+ assert.equal(a.wings[1],-a.wings[0]);
+ assert.equal(a.legs.length,6);
+ assert.ok(a.legs.some(v=>Math.abs(v)>.02));
+ assert.ok(b.legs.some(v=>Math.abs(v)>.05));
+ assert.notDeepEqual(a.legs,b.legs);
 });
 
 test('MediaPipe: 5 rostros máximo, asociación temporal y selección táctil',()=>{

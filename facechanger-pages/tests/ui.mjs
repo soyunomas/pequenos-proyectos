@@ -20,7 +20,7 @@ try {
       const checks=[];
       for(const species of ['cockroach','wasp']){
         const img=new Image();
-        img.src='./assets/'+species+'.webp?v=clean-topdown-2';
+        img.src='./assets/'+species+'.webp?v=wasp-motion-1';
         await img.decode();
         const canvas=document.createElement('canvas');
         canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;

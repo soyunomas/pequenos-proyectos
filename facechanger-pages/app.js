@@ -4,7 +4,7 @@ import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js?v=multifac
 import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-3';
 import { Renderer } from './engine/renderer.js?v=multiface-makeup-2';
 import { listFilters, removeFilter, saveFilter } from './engine/storage.js?v=face-strength-1';
-import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
+import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=wasp-motion-1';
 
 // Sin Node ni bundle. El módulo, WASM y modelo se descargan; la imagen se procesa en el equipo.
 const MEDIAPIPE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35';
@@ -14,7 +14,7 @@ const video = $('webcam'), canvas = $('mirror'), stage = $('stage'), start = $('
 const creatureLayer = $('creature-layer'), creatureContext = creatureLayer.getContext('2d');
 const overlayLayer = $('overlay-layer'), overlayContext = overlayLayer.getContext('2d');
 const creatureImages=Object.fromEntries(CREATURE_IDS.map(id=>{
-  const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp'+(id==='spider'?'':'?v=clean-topdown-2');return [id,img];
+  const img=new Image();img.decoding='async';img.src='./assets/'+id+'.webp'+(id==='spider'?'':'?v=wasp-motion-1');return [id,img];
 }));
 const creatureSprites=Object.fromEntries(CREATURE_IDS.map(id=>[id,document.createElement('canvas')]));
 const creatureFrames={spider:-1,cockroach:-1,wasp:-1};
@@ -340,7 +340,7 @@ function drawCreatures(now,applied) {
       const ahead=forwardWarp(aheadSource,applied[faceIndex],aspect);
       const heading=creatureHeading(id,(ahead.x-anchor.x)*creatureLayer.width,
         (ahead.y-anchor.y)*creatureLayer.height);
-      const tick=reduceMotion?0:Math.floor(elapsed/110);
+      const tickStep=id==='wasp'?55:110;\n      const tick=reduceMotion?0:Math.floor(elapsed/tickStep);
       if(creatureFrames[id]!==tick){
         creatureGaitFrame(image,sprite,tick*Math.PI/2,id);
         creatureFrames[id]=tick;
