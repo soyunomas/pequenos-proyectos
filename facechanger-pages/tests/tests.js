@@ -77,8 +77,8 @@ await test('Boca grande disponible y persistente en JSON',()=>{
 
 
 
-await test('Catálogo completo: 59 filtros con 10 tendencias y tres insectos',()=>{
-  assert(FILTERS.length===59);
+await test('Catálogo completo: 62 filtros con 10 tendencias y tres insectos',()=>{
+  assert(FILTERS.length===62);
   const ids=FILTERS.map(([id])=>id);
   assert(new Set(ids).size===ids.length);
   assert(ids[0]==='spider'&&ids[1]==='cockroach'&&ids[2]==='wasp');
@@ -86,7 +86,7 @@ await test('Catálogo completo: 59 filtros con 10 tendencias y tres insectos',()
   const f=face();
   FILTERS.forEach(([id])=>{
     const cs=presetControls(f,id);
-    assert(['normal','spider','cockroach','wasp'].includes(id)||cs.length>0,id);
+    assert(['normal','spider','cockroach','wasp','glasses-classic','eyepatch-black','mask-lace','mustache-handlebar'].includes(id)||cs.length>0,id);
     cs.forEach(c=>assert(Object.values(c).every(Number.isFinite),id+' NaN'));
   });
 });

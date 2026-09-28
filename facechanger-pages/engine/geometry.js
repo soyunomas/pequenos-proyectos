@@ -14,6 +14,8 @@ export const LANDMARK = Object.freeze({
   chin:152
 });
 export const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+export const FACE_DEFAULT_INTENSITY=50;
+export const MAX_FACE_STRENGTH=2;
 export const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export function faceFromLandmarks(raw) {
   if (!raw || raw.length < 455) return null;
@@ -107,6 +109,15 @@ export const FILTER_GROUPS=[
 ];
 export const FILTERS=FILTER_GROUPS.flatMap(([,items])=>items);
 export const FILTER_IDS=new Set(FILTERS.map(([id])=>id));
+export const NON_WARP_FILTER_IDS=new Set([
+  'normal','spider','cockroach','wasp',
+  'glasses-classic','eyepatch-black','mask-lace','mustache-handlebar'
+]);
+export const isFaceWarpPreset=name=>FILTER_IDS.has(name)&&!NON_WARP_FILTER_IDS.has(name);
+export const defaultIntensityFor=name=>isFaceWarpPreset(name)?FACE_DEFAULT_INTENSITY:100;
+export const faceStrength=intensity=>clamp(intensity/FACE_DEFAULT_INTENSITY,0,MAX_FACE_STRENGTH);
+export const visualBlendIntensity=(preset,intensity)=>
+  isFaceWarpPreset(preset)?clamp(intensity*2,0,100):clamp(intensity,0,100);
 export function presetControls(face,name) {
   if (!face || !FILTER_IDS.has(name)) return [];
   const L=LANDMARK;
@@ -123,26 +134,26 @@ export function presetControls(face,name) {
     case 'eyes-small':return eyes(.32,-.5,.77);
     case 'eyes-apart':return symmetric(face,[eyeA,eyeB],.32,.095,0,0,.86);
     case 'eyes-together':return symmetric(face,[eyeA,eyeB],.32,-.09,0,0,.86);
-    case 'eyes-alien':return eyes(.34,.52,.92,1.13);
+    case 'eyes-alien':return eyes(.42,.52,.92,1.13);
     // Eye DROP moves the whole source-eye patch with an invertible field:
     // gentle displacement / broad region, NOT a duplicate of the original eye.
-    case 'eye-droop':return [ctl(face,eyeA,.32,0,.105,0,.83)];
-    case 'eyes-droop':return [ctl(face,eyeA,.32,0,.078,0,.83),ctl(face,eyeB,.32,0,.078,0,.83)];
+    case 'eye-droop':return [ctl(face,eyeA,.38,0,.105,0,.83)];
+    case 'eyes-droop':return [ctl(face,eyeA,.36,0,.078,0,.83),ctl(face,eyeB,.36,0,.078,0,.83)];
     case 'eyes-uneven':return [ctl(face,eyeA,.29,0,.05,0,.83),ctl(face,eyeB,.29,0,-.025,0,.83)];
     case 'eyes-squint':return eyes(.31,-.055,.69,-.32);
     case 'brows-uneven':return [ctl(face,browsA,.20,0,-.055,0,.7),ctl(face,browsB,.20,0,.025,0,.7)];
     case 'brows-down':return [ctl(face,browsA,.20,0,.045,0,.72),ctl(face,browsB,.20,0,.045,0,.72)];
-    case 'brows-up':return [ctl(face,browsA,.19,0,-.065,0,.69),
-      ctl(face,browsB,.19,0,-.065,0,.69)];
+    case 'brows-up':return [ctl(face,browsA,.15,0,-.065,0,.60),
+      ctl(face,browsB,.15,0,-.065,0,.60)];
     case 'brows-angry':return [
       ctl(face,L.browAInner,.155,0,.065),ctl(face,L.browBInner,.155,0,.065),
       ctl(face,L.browAOuter,.15,0,-.025),ctl(face,L.browBOuter,.15,0,-.025)
     ];
     case 'nose-big':return [
-      ctl(face,[L.noseTip,L.noseBase],.135,0,0,.34,.72),
-      ctl(face,L.noseA,.105,0,0,.22,.68),ctl(face,L.noseB,.105,0,0,.22,.68)
+      ctl(face,[L.noseTip,L.noseBase],.17,0,0,.34,.72),
+      ctl(face,L.noseA,.13,0,0,.22,.68),ctl(face,L.noseB,.13,0,0,.22,.68)
     ];
-    case 'nose-small':return [ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.22,0,0,-.52,.85)];
+    case 'nose-small':return [ctl(face,[L.noseTip,L.noseBase,L.noseA,L.noseB],.24,0,0,-.52,.85)];
     case 'nose-twisted':return [ctl(face,[L.noseTip,L.noseBridge],.29,.11,0,0,.82)];
     case 'nose-long':return [ctl(face,[L.noseTip,L.noseBase],.28,0,.105,0,.82)];
     case 'nose-pinocchio':return [ctl(face,[L.noseTip,L.noseBase],.36,0,.165,0,.85)];
@@ -304,16 +315,26 @@ export function controlFromStroke(stroke,face) {
     dy:clamp(delta.y,-max,max*1.45),
     radius,shapeY:1,scale:stroke.scale||0,scaleY:stroke.scale||0};
 }
+function scaleControl(c,factor) {
+  const shapeY=Math.max(.1,c.shapeY||1);
+  const maxDx=c.radius*.72,maxDy=c.radius*shapeY*1.25;
+  return {...c,
+    dx:clamp(c.dx*factor,-maxDx,maxDx),
+    dy:clamp(c.dy*factor,-maxDy,maxDy),
+    scale:clamp((c.scale||0)*factor,-.82,2.2),
+    scaleY:clamp((c.scaleY??c.scale??0)*factor,-.82,2.2)};
+}
 export function compose(face,preset,strokes=[],intensity=100,effects=[]) {
   if(!face || intensity<=0)return [];
-  const factor=clamp(intensity/100,0,1);
-  const extra=normalizeEffects(effects).flatMap(e=>presetControls(face,e.preset)
-    .map(c=>({...c,dx:c.dx*e.intensity/100,dy:c.dy*e.intensity/100,
-      scale:c.scale*e.intensity/100,scaleY:c.scaleY*e.intensity/100})));
-  return [...presetControls(face,preset),...extra,
-    ...strokes.map(s=>controlFromStroke(s,face)).filter(Boolean)]
-    .slice(-MAX_CONTROLS).map(c=>({...c,dx:c.dx*factor,dy:c.dy*factor,
-      scale:c.scale*factor,scaleY:c.scaleY*factor}));
+  const factor=isFaceWarpPreset(preset)?faceStrength(intensity):clamp(intensity/100,0,1);
+  const primary=presetControls(face,preset).map(c=>scaleControl(c,factor));
+  const extra=normalizeEffects(effects).flatMap(e=>{
+    const combined=Math.min(MAX_FACE_STRENGTH,factor*faceStrength(e.intensity));
+    return presetControls(face,e.preset).map(c=>scaleControl(c,combined));
+  });
+  const manual=strokes.map(s=>controlFromStroke(s,face)).filter(Boolean)
+    .map(c=>scaleControl(c,factor));
+  return [...primary,...extra,...manual].slice(-MAX_CONTROLS);
 }
 /** Finite support identical to GLSL, with corrected video aspect ratio. */
 export function influenceAt(p,c,aspect=16/9) {

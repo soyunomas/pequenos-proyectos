@@ -2,10 +2,9 @@ import { creatureConfig,activeCreatures,localLighting,creatureHeading,CREATURE_D
 import { spiderRoute,spiderPosition,spiderConfig,spiderHeading } from '../engine/spider.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne, forwardWarp } from '../engine/geometry.js';
+import { faceFromLandmarks, makeStroke, compose, toLocal, toWorld, inverseWarp, MAX_CONTROLS, LANDMARK, FILTERS, influenceAt, presetControls, normalizeEffects, forwardOne, forwardWarp, FACE_DEFAULT_INTENSITY, faceStrength, isFaceWarpPreset, defaultIntensityFor } from '../engine/geometry.js';
 import { PointerDeformer, mapPointer } from '../engine/pointer.js';
 import { MAX_FACES, trackFaces, nearestFace, controlBounds } from '../engine/faces.js';
-import { makeupStrength, makeupPoint } from '../engine/makeup.js';
 import { listFilters, saveFilter, removeFilter, validFilter } from '../engine/storage.js';
 const raw = Array.from({length:478},()=>({x:.5,y:.5}));
 raw[234]={x:.7,y:.52};raw[454]={x:.3,y:.52};raw[33]={x:.35,y:.4};raw[263]={x:.65,y:.4};raw[1]={x:.5,y:.53};raw[4]={x:.5,y:.6};
@@ -105,14 +104,15 @@ test('caída compacta: píxeles lejanos intactos',()=>{
   assert.deepEqual(inverseWarp({x:.8,y:.5},[c]),{x:.8,y:.5});
 });
 
-test('ojos grandes: intensidad visible también en el contorno, sin modificar nariz',()=>{
+test('ojos grandes: 50 % conserva el máximo anterior y 100 % añade recorrido',()=>{
   const f=anatomy(),L=LANDMARK,eyes=presetControls(f,'eyes-big');
   assert.equal(eyes.length,2);
   const edge=f.landmarks[L.eyeAOuter],nose=f.landmarks[L.noseTip];
   const expansion=1+eyes[0].scale*influenceAt(edge,eyes[0]);
   assert.ok(expansion>1.35,'expansión insuficiente en comisura ocular: '+expansion);
   assert.ok(eyes.every(c=>influenceAt(nose,c)===0));
-  assert.ok(compose(f,'eyes-big',[],50)[0].scale<compose(f,'eyes-big',[],100)[0].scale);
+  assert.equal(compose(f,'eyes-big',[],FACE_DEFAULT_INTENSITY)[0].scale,eyes[0].scale);
+  assert.ok(compose(f,'eyes-big',[],100)[0].scale>eyes[0].scale*1.9);
 });
 test('boca grande agranda labios y separa comisuras sin alterar la nariz',()=>{
   const f=anatomy(),L=LANDMARK,cs=presetControls(f,'mouth-big');
@@ -127,15 +127,57 @@ test('boca grande agranda labios y separa comisuras sin alterar la nariz',()=>{
 test('boca grande se admite en JSON guardado sin modificar filtros previos',()=>{
   const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
   const filter={version:1,name:'Labios',preset:'mouth-big',intensity:80,radius:.19,strokes:[]};
-  saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[filter]);
+  saveFilter(filter,storage);assert.deepEqual(listFilters(storage),[{...filter,version:2,intensity:40}]);
 });
 
-test('catálogo con 59 opciones, bichos primero y maquillaje',()=>{
+test('catálogo con 62 opciones y 54 deformaciones faciales',()=>{
   const ids=FILTERS.map(([id])=>id);
-  assert.equal(ids.length,59);
+  assert.equal(ids.length,62);
   assert.equal(new Set(ids).size,ids.length);
   assert.deepEqual(ids.slice(0,3),['spider','cockroach','wasp']);
-  for(const id of ids.slice(1).filter(id=>!['normal','spider','cockroach','wasp'].includes(id)))assert.ok(presetControls(anatomy(),id).length>0,id);
+  assert.equal(ids.filter(isFaceWarpPreset).length,54);
+  for(const id of ids.filter(isFaceWarpPreset))assert.ok(presetControls(anatomy(),id).length>0,id);
+});
+test('todos los filtros faciales abren al 50 % con la fuerza del antiguo 100 %',()=>{
+  const f=anatomy();
+  assert.equal(FACE_DEFAULT_INTENSITY,50);
+  for(const [id] of FILTERS){
+    if(!isFaceWarpPreset(id))continue;
+    assert.equal(defaultIntensityFor(id),50,id+' default');
+    const base=presetControls(f,id),mid=compose(f,id,[],50),full=compose(f,id,[],100);
+    assert.equal(mid.length,base.length,id+' controles al 50');
+    assert.equal(full.length,base.length,id+' controles al 100');
+    for(let i=0;i<base.length;i++){
+      for(const key of ['dx','dy','scale','scaleY'])
+        assert.ok(Math.abs((mid[i][key]??0)-(base[i][key]??0))<1e-10,id+' '+key+' al 50');
+      assert.ok(full[i].scale>-1&&full[i].scaleY>-1,id+' no invierte ejes');
+      assert.ok(Math.abs(full[i].dx)<=full[i].radius*.72+1e-12,id+' dx dentro del soporte');
+      assert.ok(Math.abs(full[i].dy)<=full[i].radius*Math.max(.1,full[i].shapeY)*1.25+1e-12,id+' dy dentro del soporte');
+    }
+  }
+  for(const id of ['spider','cockroach','wasp','glasses-classic','eyepatch-black','mask-lace','mustache-handlebar'])
+    assert.equal(defaultIntensityFor(id),100,id+' conserva intensidad visual');
+});
+test('ojos alienígena difumina la transición en una zona más amplia',()=>{
+  const f=anatomy(),c=presetControls(f,'eyes-alien')[0];
+  assert.ok(c.radius/f.frame.width>=.4);
+  assert.equal(influenceAt({x:c.x+c.radius*1.01,y:c.y},c),0);
+});
+test('cejas levantadas no alcanzan nariz y las narices ganan recorrido',()=>{
+  const f=anatomy(),L=LANDMARK,brows=presetControls(f,'brows-up');
+  for(const i of [L.noseTip,L.noseBase,L.nostrilA,L.nostrilB])
+    assert.ok(brows.every(c=>influenceAt(f.landmarks[i],c)===0),'ceja contamina nariz '+i);
+  const big50=compose(f,'nose-big',[],50),big100=compose(f,'nose-big',[],100);
+  const small50=compose(f,'nose-small',[],50)[0],small100=compose(f,'nose-small',[],100)[0];
+  assert.ok(big100[0].scale>big50[0].scale*1.9);
+  assert.ok(Math.abs(small100.scale)>Math.abs(small50.scale)*1.5);
+});
+test('ojos caídos tienen recorrido extra al 100 % sin perder inversión estable',()=>{
+  const f=anatomy(),c50=compose(f,'eye-droop',[],50)[0],c100=compose(f,'eye-droop',[],100)[0];
+  assert.ok(c100.dy>c50.dy*1.9);
+  const origin={x:c100.x,y:c100.y},destination=forwardOne(origin,c100);
+  const source=inverseWarp(destination,[c100]);
+  assert.ok(Math.hypot(source.x-origin.x,source.y-origin.y)<2e-5);
 });
 test('ojo caído: el ojo fuente solo ocupa su destino, no queda duplicado',()=>{
   const f=anatomy(),c=presetControls(f,'eye-droop')[0];
@@ -172,8 +214,11 @@ test('guardar y recuperar mezcla; compatibilidad con filtros antiguos',()=>{
   const old={version:1,name:'Anterior',preset:'normal',intensity:60,radius:.19,strokes:[]};
   const newer={...old,name:'Combinado',effects:[{preset:'eyes-small',intensity:75}]};
   saveFilter(old,store);saveFilter(newer,store);
-  assert.equal(listFilters(store).length,2);
-  assert.deepEqual(listFilters(store)[1].effects,newer.effects);
+  const loaded=listFilters(store);
+  assert.equal(loaded.length,2);
+  assert.equal(loaded[0].version,2);
+  assert.equal(loaded[0].intensity,60,'Normal conserva escala histórica');
+  assert.equal(loaded[1].effects[0].intensity,37.5,'Efecto facial legado conserva apariencia');
 });
 
 test('ojo caído siempre desciende, también con orden especular de landmarks',()=>{
@@ -229,7 +274,7 @@ test('araña guarda reguladores y respeta filtros antiguos',()=>{
  assert.ok(validFilter(saved));
  assert.ok(!validFilter({...base,spider:{speed:251,size:140}}));
  const data=new Map(),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
- saveFilter(saved,store);assert.deepEqual(listFilters(store),[saved]);
+ saveFilter(saved,store);assert.deepEqual(listFilters(store),[{...saved,version:2}]);
 });
 
 test('araña gira para avanzar con la cabeza por delante',()=>{
@@ -249,7 +294,7 @@ test('tendencias: controles finitos, intensidad proporcional y mezclas compatibl
    for(let k=0;k<full.length;k++){
      assert.ok(Object.values(full[k]).every(Number.isFinite),id+' finitud');
      for(const key of ['dx','dy','scale','scaleY'])
-       assert.ok(Math.abs(lower[k][key]-full[k][key]*.35)<1e-8,id+' '+key);
+       assert.ok(Math.abs(lower[k][key]-full[k][key]*faceStrength(35))<1e-8,id+' '+key);
    }
  }
  const mixed=compose(f,'trend-baby',[],75,[{preset:'trend-pout',intensity:40}]);
@@ -300,7 +345,7 @@ test('nuevo guardado de criaturas y compatibilidad con spider guardado',()=>{
  const data=new Map(),store={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
  const saved={...base,creatures:settings,effects:[{preset:'wasp',intensity:45}]};
  saveFilter(saved,store);
- assert.deepEqual(listFilters(store),[saved]);
+ assert.deepEqual(listFilters(store),[{...saved,version:2}]);
 });
 
 test('cucaracha y avispa verticales avanzan cabeza por delante',()=>{
@@ -336,15 +381,7 @@ test('cada rostro mantiene sus 32 controles GPU y su propia región de recorte',
   }
   assert.equal(controlBounds([],16/9),null);
 });
-test('maquillaje verde: ojos y labios reales, mezcla y guardado compatibles',()=>{
-  const f=anatomy(),controls=presetControls(f,'makeup-green');
-  assert.equal(controls.length,3);
-  assert.ok(controls[0].scale>0&&controls[2].scaleY>0);
-  assert.equal(makeupStrength('makeup-green',[],100),1);
-  assert.equal(makeupStrength('makeup-green',[],40),.4);
-  assert.equal(makeupStrength('normal',[{preset:'makeup-green',intensity:50}],80),.4);
-  assert.equal(makeupStrength('normal',[],100),0);
-  const p=makeupPoint(f,159,controls,16/9);
-  assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));
-  assert.ok(validFilter({version:1,name:'Verde',preset:'makeup-green',intensity:100,radius:.19,strokes:[]}));
+test('los filtros retirados no reaparecen en el catálogo',()=>{
+  const ids=new Set(FILTERS.map(([id])=>id));
+  for(const id of ['makeup-green','beard-full','grillz-gold'])assert.equal(ids.has(id),false,id);
 });

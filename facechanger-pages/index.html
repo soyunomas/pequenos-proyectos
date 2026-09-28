@@ -38,7 +38,8 @@
           <span class="selected-filter-chevron" aria-hidden="true">›</span>
         </button>
         <label class="slider" for="intensity">Intensidad <output id="intensity-value" for="intensity">100 %</output></label>
-        <input class="main-range" type="range" id="intensity" min="0" max="100" value="100" aria-label="Intensidad general del efecto">
+        <input class="main-range" type="range" id="intensity" min="0" max="100" step="0.5" value="100" aria-label="Intensidad general del efecto">
+        <p class="help compact">En deformaciones faciales, 50 % equivale a la intensidad máxima anterior; de 50 a 100 % hay margen adicional.</p>
       </section>
       <section class="spider-section" aria-labelledby="spider-heading">
         <h2 id="spider-heading">Bichos en la cara</h2>
@@ -88,6 +89,6 @@
     </section>
   </main>
 </div>
-<script type="module" src="./app.js?v=realistic-ai-3"></script>
+<script type="module" src="./app.js?v=face-strength-1"></script>
 </body>
 </html>

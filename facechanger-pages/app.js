@@ -1,9 +1,9 @@
-import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp } from './engine/geometry.js?v=realistic-ai-3';
+import { FILTERS, FILTER_GROUPS, normalizeEffects, MAX_CONTROLS, compose, faceFromLandmarks, forwardWarp, defaultIntensityFor, visualBlendIntensity } from './engine/geometry.js?v=face-strength-1';
 import { PointerDeformer, mapPointer } from './engine/pointer.js?v=multiface-makeup-2';
 import { MAX_FACES, trackFaces, nearestFace } from './engine/faces.js?v=multiface-makeup-2';
 import { drawAIOverlays, activeAIOverlays } from './engine/ai-overlays.js?v=realistic-ai-3';
 import { Renderer } from './engine/renderer.js?v=multiface-makeup-2';
-import { listFilters, removeFilter, saveFilter } from './engine/storage.js?v=multiface-makeup-2';
+import { listFilters, removeFilter, saveFilter } from './engine/storage.js?v=face-strength-1';
 import { activeCreatures, creatureConfig, creaturePosition, creatureHeading, creatureGaitFrame, localLighting, CREATURE_DEFAULTS, CREATURE_IDS } from './engine/creatures.js?v=clean-topdown-2';
 
 // Sin Node ni bundle. El módulo, WASM y modelo se descargan; la imagen se procesa en el equipo.
@@ -73,11 +73,9 @@ function refreshFilters() {
 function selectPreset(id) {
   if (!FILTERS.some(([key]) => key === id)) return;
   state.preset = id;
-  if (id.startsWith('uncanny-') || id === 'eyes-big' || CREATURE_IDS.includes(id)) {
-    state.intensity = id === 'eyes-big' ? 75 : id.startsWith('uncanny-') ? 40 : 100;
-    $('intensity').value = String(state.intensity);
-    refreshNumbers();
-  }
+  state.intensity = defaultIntensityFor(id);
+  $('intensity').value = String(state.intensity);
+  refreshNumbers();
   refreshFilters();
 }
 const fold = value => value.toLocaleLowerCase('es')
@@ -131,7 +129,7 @@ function refreshEffects() {
     const title=document.createElement('span');title.className='effect-title';
     title.textContent=filterName(effect.preset);
     const value=document.createElement('output');value.textContent=effect.intensity+' %';
-    const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='100';
+    const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='100';slider.step='.5';
     slider.value=effect.intensity;slider.setAttribute('aria-label','Intensidad de '+filterName(effect.preset));
     slider.addEventListener('input',()=>{effect.intensity=+slider.value;value.textContent=slider.value+' %'});
     const remove=document.createElement('button');remove.type='button';remove.className='remove-effect';
@@ -309,12 +307,12 @@ function drawAIAssets(applied) {
   if(!w||!h)return;
   if(overlayLayer.width!==w||overlayLayer.height!==h){overlayLayer.width=w;overlayLayer.height=h;}
   overlayContext.clearRect(0,0,w,h);
-  const active=activeAIOverlays(state.preset,state.effects,state.intensity);
+  const active=activeAIOverlays(state.preset,state.effects,visualBlendIntensity(state.preset,state.intensity));
   if(!active.length)return;
   state.faces.forEach((face,i)=>drawAIOverlays(overlayContext,face,applied[i],w,h,active));
 }
 function drawCreatures(now,applied) {
-  const entries=activeCreatures(state.preset,state.effects,state.intensity,state.creatureCount)
+  const entries=activeCreatures(state.preset,state.effects,visualBlendIntensity(state.preset,state.intensity),state.creatureCount)
     .filter(entry=>creatureImages[entry.id].complete&&creatureImages[entry.id].naturalWidth);
   if(!state.faces.length||!entries.length){clearCreatures();return;}
   if(creatureLayer.width!==video.videoWidth||creatureLayer.height!==video.videoHeight){
@@ -403,7 +401,7 @@ $('filters').addEventListener('change',event=>selectPreset(event.target.value));
 $('add-effect').addEventListener('click',()=>{
   const preset=$('extra-filter').value;
   if(!preset || state.effects.length>=4 || state.preset===preset || state.effects.some(e=>e.preset===preset))return;
-  state.effects.push({preset,intensity:CREATURE_IDS.includes(preset)?100:40});$('extra-filter').value='';
+  state.effects.push({preset,intensity:defaultIntensityFor(preset)});$('extra-filter').value='';
   refreshEffects();
 });
 $('manual').addEventListener('change', e => { state.editable = e.target.checked; if (!state.editable) { gesture.cancel(); state.live = null; } });
@@ -434,7 +432,7 @@ $('quick-reset').addEventListener('click', resetEffects);
 $('save').addEventListener('click', () => {
   const name = prompt('Nombre del filtro personalizado:')?.trim(); if (!name) return;
   try {
-    saveFilter({ version: 1, name, preset: state.preset, effects: state.effects, intensity: state.intensity,
+    saveFilter({ version: 2, name, preset: state.preset, effects: state.effects, intensity: state.intensity,
       radius: state.radius, strokes: structuredClone(state.strokes),
       creatures:{speed:state.spiderSpeed,size:state.spiderSize,count:state.creatureCount} }); refreshSaved();
   } catch (err) { alert(errorText(err)); }
