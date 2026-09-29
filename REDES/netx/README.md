@@ -163,3 +163,7 @@ netx cc-compare --algorithms cubic,bbr,reno HOST
 `available` no es un alias de throughput. Devuelve una estimación de available bandwidth y puede rechazarla si la señal no es estable.
 
 `responsiveness` publica un RPM aproximado y declara `draft_conformant=false`; consulte `docs/PHASE4.md` antes de compararlo con implementaciones conformes del draft IPPM.
+
+### Gate de integración
+
+GitHub Actions ejecuta `make phase4-check` en cada cambio de `REDES/netx/**`. El mismo target puede ejecutarse localmente y mantiene la matriz OpenWrt sin cgo.
