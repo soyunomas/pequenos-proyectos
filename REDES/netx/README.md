@@ -144,3 +144,22 @@ make phase2-check # todo lo anterior
 `netem-check` configura, cuando el host tiene permisos, 20 ms ± 3 ms de delay, 1% loss y 1% reorder entre dos namespaces Linux. En contenedores sin `CAP_SYS_ADMIN/CAP_NET_ADMIN` devuelve un `SKIP` explícito y no modifica la red del host.
 
 La especificación completa y las decisiones derivadas de papers/RFC están en [`docs/SPEC.md`](docs/SPEC.md). El plan de cinco fases está en [`TODO.md`](TODO.md) y las reglas de ingeniería en [`SKILL.md`](SKILL.md).
+
+## Fase 4
+
+Además de TCP/UDP/latency:
+
+```sh
+netx available --min-rate 1M --max-rate 100M HOST
+netx quic --direction upload --streams 4 HOST
+netx scenario --profile request-response --message-size 1024 HOST
+netx scenario --profile bursty --burst-messages 32 HOST
+netx scenario --profile streaming --rate 10M HOST
+netx responsiveness --direction bidir --streams 4 HOST
+netx throughput --cc cubic HOST
+netx cc-compare --algorithms cubic,bbr,reno HOST
+```
+
+`available` no es un alias de throughput. Devuelve una estimación de available bandwidth y puede rechazarla si la señal no es estable.
+
+`responsiveness` publica un RPM aproximado y declara `draft_conformant=false`; consulte `docs/PHASE4.md` antes de compararlo con implementaciones conformes del draft IPPM.

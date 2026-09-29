@@ -53,4 +53,22 @@ grep -q '"type":"latency_sample"' "$TMP/tcp.ndjson"
 "$BIN" throughput --port "$PORT" --duration 250ms --warmup 100ms --sample 100ms --probe-interval 50ms --diagnostics=false --json 127.0.0.1 >"$TMP/tcp-nodiag.json"
 ! grep -q '"local_telemetry"' "$TMP/tcp-nodiag.json"
 
-printf '%s\n' 'smoke: Phase 3 TCP/UDP/latency/telemetry/JSON/NDJSON ok'
+# Phase 4: available bandwidth returns a typed estimate even when loopback is right-censored.
+"$BIN" available --port "$PORT" --min-rate 1M --max-rate 5M --chirps 3 --chirp-packets 8 --chirp-gap 20ms --json 127.0.0.1 >"$TMP/available.json"
+grep -q '"measurement_kind": "available_bandwidth_estimate"' "$TMP/available.json"
+
+"$BIN" quic --port "$PORT" --direction upload --duration 250ms --warmup 100ms --sample 100ms --probe-interval 50ms --json 127.0.0.1 >"$TMP/quic.json"
+grep -q '"measurement_kind": "transport_goodput"' "$TMP/quic.json"
+grep -q '"transport": "quic"' "$TMP/quic.json"
+
+"$BIN" scenario --port "$PORT" --profile request-response --duration 250ms --message-size 128 --json 127.0.0.1 >"$TMP/scenario.json"
+grep -q '"measurement_kind": "application_scenario"' "$TMP/scenario.json"
+
+"$BIN" responsiveness --port "$PORT" --direction upload --streams 1 --duration 250ms --warmup 100ms --sample 100ms --probe-interval 50ms --json 127.0.0.1 >"$TMP/responsiveness.json"
+grep -q '"measurement_kind": "responsiveness_under_working_conditions"' "$TMP/responsiveness.json"
+grep -q '"draft_conformant": false' "$TMP/responsiveness.json"
+
+"$BIN" cc-compare --port "$PORT" --algorithms cubic --direction upload --streams 1 --duration 250ms --warmup 100ms --sample 100ms --probe-interval 50ms --json 127.0.0.1 >"$TMP/cc.json"
+grep -q '"measurement_kind": "tcp_congestion_control_comparison"' "$TMP/cc.json"
+
+printf '%s\n' 'smoke: Phase 4 TCP/UDP/latency/telemetry/available/QUIC/scenarios/responsiveness/CC ok'

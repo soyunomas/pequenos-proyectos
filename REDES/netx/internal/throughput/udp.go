@@ -136,6 +136,7 @@ func RunUDP(ctx context.Context, cfg UDPConfig) (protocol.UDPResult, error) {
 	result.ProtocolVersion = protocol.Version
 	result.TestID = testID
 	result.Transport = "udp"
+	result.MeasurementKind = "transport_goodput"
 	result.Direction = "upload"
 	result.RateBitsPerSec = cfg.RateBitsPerSec
 	result.PacketSize = cfg.PacketSize

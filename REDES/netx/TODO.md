@@ -56,16 +56,23 @@ Estado: **COMPLETADA**.
 
 ## Fase 4 — Capacidad, available bandwidth, QUIC y escenarios
 
-Estado: pendiente.
+Estado: **COMPLETADA**.
 
-- [ ] Modo de available bandwidth inspirado en pathChirp/SLoPS, separado de goodput TCP.
-- [ ] Intervalos/confianza y rechazo de estimaciones inestables.
-- [ ] QUIC como transporte de primera clase sin reimplementar QUIC.
-- [ ] Escenarios request/response, bursty, mensajes pequeños y streaming.
-- [ ] Comparación de congestion control cuando el sistema lo permita.
-- [ ] Responsiveness under working conditions alineada con IPPM vigente.
+- [x] Modo `available_bandwidth_estimate` con chirps UDP de tasa creciente, inspirado en pathChirp/SLoPS y separado de goodput.
+- [x] Intervalo de confianza aproximado del 95%, censura y rechazo explícito de estimaciones inestables.
+- [x] QUIC upload/download/bidir mediante `quic-go v0.54.1`, sin reimplementar QUIC.
+- [x] Baseline single-stream y multi-stream separados también en QUIC.
+- [x] Escenarios request/response, small-message, bursty y streaming.
+- [x] `TCP_CONGESTION` seleccionable y `cc-compare` que conserva algoritmos no soportados como evidencia, sin ranking.
+- [x] Responsiveness bajo carga con goodput + idle RTT + working RTT + RPM aproximado.
+- [x] El modo responsiveness declara `draft_conformant=false`: alineado con los indicadores del draft IPPM -09, sin fingir implementar sus probes HTTP/trimmed means.
+- [x] `measurement_kind` diferencia available bandwidth, transport goodput, responsiveness y escenarios.
+- [x] Tests metodológicos prueban estimación estable, rechazo inestable y separación de magnitudes.
+- [x] Smoke E2E cubre available, QUIC, scenarios, responsiveness y CC.
+- [x] Matriz OpenWrt continúa con `CGO_ENABLED=0`.
+- [x] Fase 4 publicada directamente en `main`.
 
-**Gate de salida:** cada modo declara exactamente qué magnitud mide; pruebas controladas demuestran que capacity, available bandwidth y TCP goodput no se etiquetan como equivalentes.
+**Gate de salida:** `make phase4-check`. Ningún resultado de Fase 4 se etiqueta como capacidad del path; el estimador se abstiene cuando la señal no es estable.
 
 ## Fase 5 — Fast path, OpenWrt productizable y release
 

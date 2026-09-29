@@ -1,0 +1,29 @@
+name: netx
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "REDES/netx/**"
+      - ".github/workflows/netx.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: REDES/netx
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache-dependency-path: REDES/netx/go.sum
+      - name: Module integrity
+        run: go mod verify
+      - name: Phase 4 gate
+        run: make phase4-check

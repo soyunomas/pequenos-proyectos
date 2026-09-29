@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	Version               = 3
-	ResultSchemaVersion   = 2
+	Version               = 4
+	ResultSchemaVersion   = 3
 	MaxControlFrame       = 2 << 20 // 2 MiB: bounded time-series + diagnostics frame.
 	DefaultPort           = 5202
 	DefaultBuffer         = 128 << 10
@@ -38,7 +38,18 @@ type Request struct {
 	RateBitsPerSec   uint64 `json:"rate_bits_per_second,omitempty"`
 	PacketSize       int    `json:"packet_size,omitempty"`
 	PacingQuantumUS  int64  `json:"pacing_quantum_us,omitempty"`
-	Diagnostics      bool   `json:"diagnostics,omitempty"`
+	Diagnostics       bool   `json:"diagnostics,omitempty"`
+	CongestionControl string `json:"congestion_control,omitempty"`
+	MinRateBitsPerSec uint64 `json:"min_rate_bits_per_second,omitempty"`
+	MaxRateBitsPerSec uint64 `json:"max_rate_bits_per_second,omitempty"`
+	Chirps            int    `json:"chirps,omitempty"`
+	ChirpPackets      int    `json:"chirp_packets,omitempty"`
+	ChirpGapMS        int64  `json:"chirp_gap_ms,omitempty"`
+	Profile           string `json:"profile,omitempty"`
+	MessageSize       int    `json:"message_size,omitempty"`
+	BurstMessages     int    `json:"burst_messages,omitempty"`
+	BurstPauseMS      int64  `json:"burst_pause_ms,omitempty"`
+	ScenarioRateBPS   uint64 `json:"scenario_rate_bits_per_second,omitempty"`
 }
 
 type Offer struct {
@@ -233,6 +244,8 @@ type TCPTestResult struct {
 	ProtocolVersion    int                 `json:"protocol_version"`
 	TestID             string              `json:"test_id"`
 	Transport          string              `json:"transport"`
+	MeasurementKind    string              `json:"measurement_kind"`
+	CongestionControl  string              `json:"congestion_control,omitempty"`
 	Direction          string              `json:"direction"`
 	DurationMS         int64               `json:"duration_ms"`
 	WarmupMS           int64               `json:"warmup_ms"`
@@ -251,6 +264,7 @@ type UDPResult struct {
 	ProtocolVersion  int             `json:"protocol_version"`
 	TestID           string          `json:"test_id"`
 	Transport        string          `json:"transport"`
+	MeasurementKind  string          `json:"measurement_kind"`
 	Direction        string          `json:"direction"`
 	RateBitsPerSec   uint64          `json:"target_bits_per_second"`
 	PacketSize       int             `json:"packet_size"`

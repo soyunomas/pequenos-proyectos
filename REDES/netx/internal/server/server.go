@@ -11,7 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/advanced"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/sockopt"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/tcpinfo"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/throughput"
 )
@@ -66,6 +68,9 @@ func (s *Server) handleControl(ctx context.Context, control net.Conn) error {
 	}
 	if req.Mode == "latency" {
 		return handleLatency(control, reader)
+	}
+	if handled, err := advanced.HandleServer(ctx, control, reader, s.cfg.ListenHost, req); handled {
+		return err
 	}
 	if err := validateRequest(req); err != nil {
 		_ = protocol.WriteJSONLine(control, map[string]string{"error": err.Error()})
@@ -137,6 +142,13 @@ func (s *Server) handleTCP(ctx context.Context, control net.Conn, req protocol.R
 			_ = conn.Close()
 			closeConns(conns)
 			return errors.New("invalid TCP stream authentication/index")
+		}
+		if req.CongestionControl != "" {
+			if err := sockopt.SetCongestionControl(conn, req.CongestionControl); err != nil {
+				_ = conn.Close()
+				closeConns(conns)
+				return fmt.Errorf("set server congestion control stream %d: %w", hello.Stream, err)
+			}
 		}
 		seen[hello.Stream] = true
 		conns[hello.Stream] = conn
@@ -261,6 +273,14 @@ func validateRequest(req protocol.Request) error {
 	}
 	if req.Mode != "tcp-upload" && req.Mode != "tcp-download" && req.Mode != "tcp-bidir" {
 		return fmt.Errorf("unsupported mode %q", req.Mode)
+	}
+	if len(req.CongestionControl) > 32 {
+		return errors.New("congestion-control name too long")
+	}
+	for _, r := range req.CongestionControl {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-') {
+			return errors.New("invalid congestion-control name")
+		}
 	}
 	if req.BufferSize < 4<<10 || req.BufferSize > 16<<20 {
 		return errors.New("buffer size out of range")

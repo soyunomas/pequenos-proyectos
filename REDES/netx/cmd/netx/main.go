@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/advanced"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/latency"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
@@ -39,6 +41,16 @@ func run(args []string) error {
 		return runUDP(args[1:])
 	case "latency":
 		return runLatency(args[1:])
+	case "available":
+		return runAvailable(args[1:])
+	case "quic":
+		return runQUIC(args[1:])
+	case "scenario":
+		return runScenario(args[1:])
+	case "responsiveness":
+		return runResponsiveness(args[1:])
+	case "cc-compare":
+		return runCCCompare(args[1:])
 	case "version":
 		fmt.Printf("netx %s (%s) protocol=%d schema=%d\n", buildinfo.Version, buildinfo.Commit, protocol.Version, protocol.ResultSchemaVersion)
 		return nil
@@ -83,6 +95,7 @@ func runThroughput(args []string) error {
 	jsonOut := fs.Bool("json", false, "emit stable JSON result")
 	ndjsonOut := fs.Bool("ndjson", false, "emit summary plus post-measurement samples as NDJSON")
 	diagnostics := fs.Bool("diagnostics", true, "collect Linux TCP_INFO/host telemetry and deterministic diagnostics")
+	cc := fs.String("cc", "", "request a TCP congestion-control algorithm (for example cubic or bbr)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -97,7 +110,7 @@ func runThroughput(args []string) error {
 	result, err := throughput.RunTCPSuite(ctx, throughput.ClientConfig{
 		Host: fs.Arg(0), Port: *port, Direction: *direction, Duration: *duration, Warmup: *warmup,
 		BufferSize: *buffer, DialTimeout: *dialTimeout, SampleInterval: *sample, ProbeInterval: *probe,
-		Streams: *streams, Adaptive: *adaptive, MaxStreams: *maxStreams, ConvergencePct: *convergence, Diagnostics: *diagnostics,
+		Streams: *streams, Adaptive: *adaptive, MaxStreams: *maxStreams, ConvergencePct: *convergence, Diagnostics: *diagnostics, CongestionControl: *cc,
 	})
 	if err != nil {
 		return err
@@ -183,6 +196,185 @@ func runLatency(args []string) error {
 	return nil
 }
 
+func runAvailable(args []string) error {
+	fs := flag.NewFlagSet("available", flag.ContinueOnError)
+	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	minRateText := fs.String("min-rate", "1M", "lowest chirp input rate")
+	maxRateText := fs.String("max-rate", "100M", "highest chirp input rate")
+	packet := fs.Int("packet-size", protocol.DefaultAvailablePacketSize, "UDP chirp datagram size")
+	chirps := fs.Int("chirps", protocol.DefaultAvailableChirps, "number of chirps")
+	chirpPackets := fs.Int("chirp-packets", protocol.DefaultAvailablePackets, "packets per chirp")
+	chirpGap := fs.Duration("chirp-gap", time.Duration(protocol.DefaultAvailableChirpGapMS)*time.Millisecond, "quiet gap between chirps")
+	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: netx available [flags] HOST")
+	}
+	minRate, err := throughput.ParseBitrate(*minRateText)
+	if err != nil {
+		return fmt.Errorf("min-rate: %w", err)
+	}
+	maxRate, err := throughput.ParseBitrate(*maxRateText)
+	if err != nil {
+		return fmt.Errorf("max-rate: %w", err)
+	}
+	ctx, stop := commandContext()
+	defer stop()
+	result, err := advanced.RunAvailable(ctx, advanced.AvailableConfig{
+		Host: fs.Arg(0), Port: *port, DialTimeout: *dialTimeout, PacketSize: *packet, Chirps: *chirps,
+		ChirpPackets: *chirpPackets, ChirpGap: *chirpGap, MinRateBPS: minRate, MaxRateBPS: maxRate,
+	})
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return report.WriteJSON(os.Stdout, result)
+	}
+	report.PrintAvailableHuman(os.Stdout, result)
+	return nil
+}
+
+func runQUIC(args []string) error {
+	fs := flag.NewFlagSet("quic", flag.ContinueOnError)
+	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	direction := fs.String("direction", "upload", "upload, download or bidir")
+	duration := fs.Duration("duration", protocol.DefaultDuration, "measurement window")
+	warmup := fs.Duration("warmup", protocol.DefaultWarmup, "warm-up before measurement")
+	buffer := fs.Int("buffer", protocol.DefaultBuffer, "per-stream userspace buffer")
+	sample := fs.Duration("sample", protocol.DefaultSampleInterval, "throughput sample interval")
+	probe := fs.Duration("probe-interval", protocol.DefaultProbeInterval, "independent RTT probe interval")
+	streams := fs.Int("streams", 1, "QUIC streams; a single-stream baseline is retained")
+	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: netx quic [flags] HOST")
+	}
+	ctx, stop := commandContext()
+	defer stop()
+	result, err := advanced.RunQUICSuite(ctx, advanced.QUICConfig{
+		Host: fs.Arg(0), Port: *port, Direction: *direction, Duration: *duration, Warmup: *warmup,
+		BufferSize: *buffer, DialTimeout: *dialTimeout, SampleInterval: *sample, ProbeInterval: *probe, Streams: *streams,
+	})
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return report.WriteJSON(os.Stdout, result)
+	}
+	report.PrintQUICHuman(os.Stdout, result)
+	return nil
+}
+
+func runScenario(args []string) error {
+	fs := flag.NewFlagSet("scenario", flag.ContinueOnError)
+	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	profile := fs.String("profile", "request-response", "request-response, small-message, bursty or streaming")
+	duration := fs.Duration("duration", protocol.DefaultDuration, "scenario duration")
+	messageSize := fs.Int("message-size", protocol.DefaultScenarioMessageSize, "application payload bytes per message")
+	burstMessages := fs.Int("burst-messages", protocol.DefaultScenarioBurstMessages, "messages per burst")
+	burstPause := fs.Duration("burst-pause", time.Duration(protocol.DefaultScenarioBurstPauseMS)*time.Millisecond, "pause between bursts")
+	rateText := fs.String("rate", "10M", "streaming target payload rate")
+	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: netx scenario [flags] HOST")
+	}
+	rate, err := throughput.ParseBitrate(*rateText)
+	if err != nil {
+		return err
+	}
+	ctx, stop := commandContext()
+	defer stop()
+	result, err := advanced.RunScenario(ctx, advanced.ScenarioConfig{
+		Host: fs.Arg(0), Port: *port, DialTimeout: *dialTimeout, Duration: *duration, Profile: *profile,
+		MessageSize: *messageSize, BurstMessages: *burstMessages, BurstPause: *burstPause, RateBitsPerSec: rate,
+	})
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return report.WriteJSON(os.Stdout, result)
+	}
+	report.PrintScenarioHuman(os.Stdout, result)
+	return nil
+}
+
+func runResponsiveness(args []string) error {
+	fs := flag.NewFlagSet("responsiveness", flag.ContinueOnError)
+	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	direction := fs.String("direction", "bidir", "upload, download or bidir")
+	duration := fs.Duration("duration", protocol.DefaultDuration, "working-condition window")
+	warmup := fs.Duration("warmup", protocol.DefaultWarmup, "warm-up")
+	buffer := fs.Int("buffer", protocol.DefaultBuffer, "per-stream buffer")
+	sample := fs.Duration("sample", protocol.DefaultSampleInterval, "throughput sample interval")
+	probe := fs.Duration("probe-interval", protocol.DefaultProbeInterval, "working-latency probe interval")
+	streams := fs.Int("streams", 4, "load-generating TCP streams")
+	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: netx responsiveness [flags] HOST")
+	}
+	ctx, stop := commandContext()
+	defer stop()
+	result, err := advanced.RunResponsiveness(ctx, advanced.ResponsivenessConfig{
+		Host: fs.Arg(0), Port: *port, Direction: *direction, Duration: *duration, Warmup: *warmup,
+		BufferSize: *buffer, DialTimeout: *dialTimeout, SampleInterval: *sample, ProbeInterval: *probe, Streams: *streams,
+	})
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return report.WriteJSON(os.Stdout, result)
+	}
+	report.PrintResponsivenessHuman(os.Stdout, result)
+	return nil
+}
+
+func runCCCompare(args []string) error {
+	fs := flag.NewFlagSet("cc-compare", flag.ContinueOnError)
+	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	algorithms := fs.String("algorithms", "cubic,bbr,reno", "comma-separated TCP congestion-control algorithms")
+	direction := fs.String("direction", "upload", "upload, download or bidir")
+	duration := fs.Duration("duration", protocol.DefaultDuration, "measurement window")
+	warmup := fs.Duration("warmup", protocol.DefaultWarmup, "warm-up")
+	buffer := fs.Int("buffer", protocol.DefaultBuffer, "per-stream buffer")
+	sample := fs.Duration("sample", protocol.DefaultSampleInterval, "throughput sample interval")
+	probe := fs.Duration("probe-interval", protocol.DefaultProbeInterval, "RTT probe interval")
+	streams := fs.Int("streams", 1, "parallel TCP streams")
+	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: netx cc-compare [flags] HOST")
+	}
+	ctx, stop := commandContext()
+	defer stop()
+	result := advanced.CompareCongestionControl(ctx, throughput.ClientConfig{
+		Host: fs.Arg(0), Port: *port, Direction: *direction, Duration: *duration, Warmup: *warmup, BufferSize: *buffer,
+		DialTimeout: *dialTimeout, SampleInterval: *sample, ProbeInterval: *probe, Streams: *streams, MaxStreams: *streams,
+		ConvergencePct: 5, Diagnostics: true,
+	}, strings.Split(*algorithms, ","))
+	if *jsonOut {
+		return report.WriteJSON(os.Stdout, result)
+	}
+	report.PrintCCComparisonHuman(os.Stdout, result)
+	return nil
+}
+
 func commandContext() (context.Context, context.CancelFunc) {
 	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
@@ -195,10 +387,15 @@ Usage:
   netx throughput [--direction upload|download|bidir] [--streams N|--adaptive] [flags] HOST
   netx udp [--rate 100M] [flags] HOST
   netx latency [flags] HOST
+  netx available [flags] HOST
+  netx quic [--direction upload|download|bidir] [flags] HOST
+  netx scenario [--profile request-response|small-message|bursty|streaming] [flags] HOST
+  netx responsiveness [flags] HOST
+  netx cc-compare [--algorithms cubic,bbr,reno] [flags] HOST
   netx version
 
-Phase 3 adds Linux TCP_INFO and host telemetry plus deterministic evidence-based diagnosis.
-TCP diagnostics are enabled by default and can be disabled with --diagnostics=false.
+Phase 4 adds available-bandwidth chirps, QUIC goodput, application scenarios, congestion-control comparison and working-condition responsiveness.
+TCP diagnostics are enabled by default and can be disabled with --diagnostics=false. Available bandwidth, transport goodput and responsiveness are reported as distinct magnitudes.
 Use 'make help' for validation and OpenWrt cross-build targets.
 `)
 }

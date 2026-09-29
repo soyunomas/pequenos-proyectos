@@ -308,3 +308,24 @@ El diagnóstico se evalúa después de terminar los stages. Nunca modifica el ho
 ### 14.4 Coste
 
 La instrumentación TCP es O(streams) y hace dos `TCP_INFO` por stream. El gate `make diagnostics-overhead` mide el coste real de los snapshots `TCP_INFO` y verifica que, incluso al máximo de streams, el presupuesto de instrumentación sea <1% de la ventana por defecto. El A/B loopback queda como `make diagnostics-ab` informativo porque su varianza depende del scheduler y de la carga del host.
+
+## 15. Implementación — Fase 4
+
+La Fase 4 eleva el wire protocol a `4` y el schema de resultados a `3`.
+
+Se añaden cuatro `measurement_kind` explícitos:
+
+```text
+transport_goodput
+available_bandwidth_estimate
+application_scenario
+responsiveness_under_working_conditions
+```
+
+El estimador available-bandwidth usa `chirp-gap-dispersion-v1`; su definición, censura, intervalo de confianza, umbral de estabilidad y pacing portable están especificados en `docs/PHASE4.md`.
+
+QUIC usa `quic-go v0.54.1` con listener efímero por stage. Los resultados QUIC reutilizan la semántica de `DirectionResult`: el receptor calcula bytes útiles dentro de la ventana puntuada y warm-up queda fuera.
+
+`TCP_CONGESTION` puede fijarse en ambos endpoints Linux. El modo de comparación no presupone que todos los algoritmos estén instalados ni permitidos por el kernel.
+
+El modo responsiveness sigue el principio IPPM de medir goodput, idle latency y latencia durante working conditions, pero Fase 4 no reproduce todavía el algoritmo HTTP foreign/self del draft -09. Por eso la salida máquina-legible impide confundir la aproximación con conformidad normativa.

@@ -19,6 +19,7 @@ import (
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/latency"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/metrics"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/sockopt"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/tcpinfo"
 )
 
@@ -36,7 +37,8 @@ type ClientConfig struct {
 	Adaptive       bool
 	MaxStreams     int
 	ConvergencePct float64
-	Diagnostics    bool
+	Diagnostics       bool
+	CongestionControl string
 }
 
 type TCPStream struct {
@@ -78,7 +80,7 @@ func RunTCPSuite(ctx context.Context, cfg ClientConfig) (protocol.TCPTestResult,
 
 	result := protocol.TCPTestResult{
 		SchemaVersion: protocol.ResultSchemaVersion, ProtocolVersion: protocol.Version,
-		TestID: testID, Transport: "tcp", Direction: cfg.Direction,
+		TestID: testID, Transport: "tcp", MeasurementKind: "transport_goodput", CongestionControl: cfg.CongestionControl, Direction: cfg.Direction,
 		DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(), SampleMS: cfg.SampleInterval.Milliseconds(),
 		IdleLatency: idle, DiagnosticsEnabled: cfg.Diagnostics,
 		Adaptive: protocol.AdaptiveResult{Enabled: cfg.Adaptive, SelectedStreams: 1, ConvergencePct: cfg.ConvergencePct, StopReason: "fixed stream count"},
@@ -138,7 +140,7 @@ func RunTCPStage(ctx context.Context, cfg ClientConfig, streams int) (protocol.S
 	_ = control.SetDeadline(deadline)
 	reader := bufio.NewReaderSize(control, 4096)
 
-	req := protocol.Request{Mode: "tcp-" + cfg.Direction, DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(), SampleIntervalMS: cfg.SampleInterval.Milliseconds(), BufferSize: cfg.BufferSize, Streams: streams, Diagnostics: cfg.Diagnostics}
+	req := protocol.Request{Mode: "tcp-" + cfg.Direction, DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(), SampleIntervalMS: cfg.SampleInterval.Milliseconds(), BufferSize: cfg.BufferSize, Streams: streams, Diagnostics: cfg.Diagnostics, CongestionControl: cfg.CongestionControl}
 	if err := protocol.WriteJSONLine(control, req); err != nil {
 		return protocol.StageResult{}, fmt.Errorf("send request: %w", err)
 	}
@@ -157,6 +159,13 @@ func RunTCPStage(ctx context.Context, cfg ClientConfig, streams int) (protocol.S
 		if err != nil {
 			closeConns(data)
 			return protocol.StageResult{}, fmt.Errorf("dial data stream %d: %w", i, err)
+		}
+		if cfg.CongestionControl != "" {
+			if err := sockopt.SetCongestionControl(conn, cfg.CongestionControl); err != nil {
+				_ = conn.Close()
+				closeConns(data)
+				return protocol.StageResult{}, fmt.Errorf("set congestion control stream %d: %w", i, err)
+			}
 		}
 		data[i] = conn
 		_ = conn.SetDeadline(deadline)

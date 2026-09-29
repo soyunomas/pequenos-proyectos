@@ -61,3 +61,13 @@ Criterio técnico obligatorio para cualquier contribución a `netx`.
 - ECN negociado no equivale a congestión observada; sólo `delivered_ce`/contadores CE aportan evidencia de marcado.
 - El diagnóstico puede estar vacío. Ausencia de una regla disparada significa “sin evidencia suficiente para estas reglas”, no “red perfecta”.
 - El coste de instrumentación forma parte del gate; no se acepta telemetría que cambie de forma material lo que intenta medir.
+
+## Reglas específicas de Fase 4
+
+- `available_bandwidth_estimate` nunca se renombra a capacity por conveniencia de UI.
+- El estimador debe poder abstenerse; una cifra sin estabilidad suficiente es peor que un resultado rechazado con evidencia.
+- El pacing debe usar el gap real observado por el emisor para el análisis; no asumir que el scheduler cumplió el gap solicitado.
+- QUIC es una dependencia mantenida, no código de transporte propio. Su goodput se compara como goodput, no como capacidad.
+- Las pruebas de congestion control conservan configuración, error del kernel y métricas; no producen un ranking opaco.
+- Un resultado RPM sólo puede llamarse conforme al draft IPPM si implementa su metodología completa. La aproximación de Fase 4 lleva `draft_conformant=false`.
+- Los escenarios de aplicación no sustituyen al bulk throughput: responden a preguntas diferentes.
