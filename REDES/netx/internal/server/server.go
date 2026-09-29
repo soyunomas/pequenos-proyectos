@@ -269,6 +269,9 @@ func validateRequest(req protocol.Request) error {
 		if req.PacingQuantumUS < 100 || req.PacingQuantumUS > 10_000 {
 			return errors.New("UDP pacing quantum out of range")
 		}
+		if req.TimestampMode != "" && req.TimestampMode != "userspace" && req.TimestampMode != "kernel" && req.TimestampMode != "hardware" {
+			return errors.New("UDP timestamp mode must be userspace, kernel or hardware")
+		}
 		return nil
 	}
 	if req.Mode != "tcp-upload" && req.Mode != "tcp-download" && req.Mode != "tcp-bidir" {

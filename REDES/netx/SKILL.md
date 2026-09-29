@@ -71,3 +71,14 @@ Criterio técnico obligatorio para cualquier contribución a `netx`.
 - Las pruebas de congestion control conservan configuración, error del kernel y métricas; no producen un ranking opaco.
 - Un resultado RPM sólo puede llamarse conforme al draft IPPM si implementa su metodología completa. La aproximación de Fase 4 lleva `draft_conformant=false`.
 - Los escenarios de aplicación no sustituyen al bulk throughput: responden a preguntas diferentes.
+
+## Reglas específicas de Fase 5
+
+- Ningún fast path Linux sustituye al baseline portable sin perfil before/after y benchmark reproducible.
+- Reducir syscalls no basta si se degrada la semántica de pacing, jitter o timestamps.
+- `netx capabilities` distingue API de socket disponible de soporte real del NIC/driver.
+- El timestamping hardware requiere observar un timestamp hardware real; un socket que acepta `SO_TIMESTAMPING` no prueba que el NIC lo produzca.
+- Afinidad CPU/NUMA es opt-in; no se aplica silenciosamente.
+- AF_XDP sólo entra si sockets normales son un cuello de botella demostrado en hardware objetivo.
+- Una fila de 100G sin hardware 100G se marca como `not measured`; nunca se extrapola.
+- La release debe ser reproducible con `CGO_ENABLED=0`, checksums y matriz OpenWrt antes de etiquetarla.

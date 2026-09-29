@@ -76,15 +76,17 @@ Estado: **COMPLETADA**.
 
 ## Fase 5 — Fast path, OpenWrt productizable y release
 
-Estado: pendiente.
+Estado: **COMPLETADA**.
 
-- [ ] Perfilado CPU/memoria antes de cada optimización.
-- [ ] Linux batching y GSO/GRO donde aporten mejora demostrable.
-- [ ] Afinidad de CPU/NUMA opcional para hosts de alto rendimiento.
-- [ ] Timestamping de kernel y hardware como backends opcionales.
-- [ ] Evaluar AF_XDP sólo si sockets normales dejan de escalar y el benchmark lo prueba.
-- [ ] Paquete/receta OpenWrt e instrucciones de despliegue para routers con almacenamiento limitado.
-- [ ] Benchmarks 1/2.5/10/25/40/100G según hardware disponible.
-- [ ] Release reproducible, checksums y documentación de compatibilidad.
+- [x] Perfilado CPU/memoria reproducible para el baseline portable y el candidato UDP batch mediante pprof.
+- [x] Candidato Linux batching benchmarkeado; GSO/GRO se prueban como capabilities y no se activan en el hot path sin beneficio demostrado y semántica temporal preservada.
+- [x] Afinidad CPU/NUMA opcional mediante `--cpu` / `--numa-node`, desactivada por defecto.
+- [x] Timestamping UDP userspace/kernel/hardware como backends opcionales; hardware conserva fallback explícito y no afirma soporte del NIC sin observarlo.
+- [x] AF_XDP evaluado y deliberadamente no habilitado: falta evidencia de que sockets normales sean el cuello de botella en la matriz disponible.
+- [x] Receta OpenWrt procd/UCI y staging de paquete desde los binarios estáticos; servicio deshabilitado por defecto.
+- [x] Matriz 1/2.5/10/25/40/100G publicada con protocolo de benchmark; plataformas sin hardware real quedan como `not measured`, sin extrapolaciones.
+- [x] Release reproducible de diez arquitecturas, `SHA256SUMS`, `BUILDINFO`, gate byte-identical y documentación de compatibilidad.
+- [x] Workflow de release preparado para tags `netx-v*`.
+- [x] Fase 5 publicada directamente en `main`.
 
-**Gate de salida:** release versionada, artefactos OpenWrt, benchmarks publicados y fast path opcional sin degradar el modo portable.
+**Gate de salida:** `make phase5-check`. La release se construye dos veces y debe resultar byte-identical; el fast path no sustituye al modo portable por defecto.

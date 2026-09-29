@@ -2,4 +2,8 @@ module github.com/soyunomas/pequenos-proyectos/REDES/netx
 
 go 1.23
 
-require github.com/quic-go/quic-go v0.54.1
+require (
+	github.com/quic-go/quic-go v0.54.1
+	golang.org/x/net v0.28.0
+	golang.org/x/sys v0.23.0
+)

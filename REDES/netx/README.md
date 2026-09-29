@@ -4,13 +4,13 @@
 
 El proyecto está orientado desde el principio a Linux y OpenWrt: binario autocontenido, `CGO_ENABLED=0`, sin dependencias externas en el hot path y compilación cruzada desde el `Makefile`.
 
-> Estado: **Fase 3 terminada**. A la medición de Fase 2 se añaden `TCP_INFO` en Linux, métricas de CPU/RSS/PSI y diagnóstico determinista con evidencia numérica. El baseline OpenWrt sigue siendo `CGO_ENABLED=0`.
+> Estado: **Fase 5 terminada**. NetX incorpora available-bandwidth, QUIC, escenarios, diagnóstico, capability discovery, afinidad CPU/NUMA, timestamping UDP opcional y release OpenWrt reproducible. El baseline sigue siendo `CGO_ENABLED=0`.
 
 ## Inicio rápido
 
 ```sh
 make help
-make phase3-check
+make phase5-check
 make build
 ```
 
@@ -167,3 +167,50 @@ netx cc-compare --algorithms cubic,bbr,reno HOST
 ### Gate de integración
 
 GitHub Actions ejecuta `make phase4-check` en cada cambio de `REDES/netx/**`. El mismo target puede ejecutarse localmente y mantiene la matriz OpenWrt sin cgo.
+
+## Fase 5
+
+Inspección del host:
+
+```sh
+./bin/netx capabilities
+./bin/netx capabilities --json
+```
+
+Afinidad opcional:
+
+```sh
+./bin/netx server --cpu 2
+./bin/netx throughput --numa-node 0 HOST
+```
+
+Timestamping UDP:
+
+```sh
+./bin/netx udp --timestamp userspace HOST
+./bin/netx udp --timestamp kernel HOST
+./bin/netx udp --timestamp hardware HOST
+```
+
+El modo hardware no configura el NIC. Si el driver no entrega timestamps hardware, la salida conserva el fallback observado en `timestamp_source`.
+
+Optimización y profiling:
+
+```sh
+make profile-fastpath
+make fastpath-bench
+```
+
+El candidato batch Linux no se activa automáticamente: reducir syscalls no justifica cambiar la semántica temporal del test. GSO/GRO se detectan como capabilities y AF_XDP permanece deshabilitado hasta que hardware real demuestre que sockets normales son el límite.
+
+Release:
+
+```sh
+make release VERSION=0.5.0
+make release-repro VERSION=0.5.0
+make openwrt-feed VERSION=0.5.0 OPENWRT_ARCH=arm64
+```
+
+La release genera diez binarios, `SHA256SUMS` y `BUILDINFO`. El staging OpenWrt produce una receta procd/UCI lista para copiar al SDK; el daemon queda deshabilitado por defecto.
+
+Véanse [docs/PHASE5.md](docs/PHASE5.md), [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) y [benchmarks/README.md](benchmarks/README.md).

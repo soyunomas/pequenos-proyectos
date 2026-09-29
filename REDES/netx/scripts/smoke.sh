@@ -33,7 +33,7 @@ run "$BIN" throughput --port "$PORT" --direction upload --adaptive --max-streams
 run "$BIN" udp --port "$PORT" --duration 300ms --warmup 100ms --rate 10M --sample 100ms --probe-interval 50ms 127.0.0.1
 
 "$BIN" throughput --port "$PORT" --duration 250ms --warmup 100ms --sample 100ms --probe-interval 50ms --json 127.0.0.1 >"$TMP/tcp.json"
-grep -q '"schema_version": 2' "$TMP/tcp.json"
+grep -q '"schema_version": 4' "$TMP/tcp.json"
 grep -q '"single_stream"' "$TMP/tcp.json"
 grep -q '"aggregate"' "$TMP/tcp.json"
 grep -q '"idle_latency"' "$TMP/tcp.json"
@@ -72,3 +72,15 @@ grep -q '"draft_conformant": false' "$TMP/responsiveness.json"
 grep -q '"measurement_kind": "tcp_congestion_control_comparison"' "$TMP/cc.json"
 
 printf '%s\n' 'smoke: Phase 4 TCP/UDP/latency/telemetry/available/QUIC/scenarios/responsiveness/CC ok'
+# Phase 5 capability discovery is machine-readable.
+"$BIN" capabilities --json >"$TMP/capabilities.json"
+grep -q '"os"' "$TMP/capabilities.json"
+grep -q '"af_xdp_enabled"' "$TMP/capabilities.json"
+
+# Kernel RX timestamps are an optional Linux backend. Verify it on Linux hosts.
+if [ "$(uname -s)" = "Linux" ]; then
+    "$BIN" udp --port "$PORT" --duration 250ms --warmup 100ms --rate 5M --sample 100ms --probe-interval 50ms --timestamp kernel --json 127.0.0.1 >"$TMP/udp-kernel-ts.json"
+    grep -q '"timestamp_source": "kernel-software"' "$TMP/udp-kernel-ts.json"
+fi
+
+printf '%s\n' 'smoke: Phase 5 capabilities/timestamping ok'

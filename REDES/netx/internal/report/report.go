@@ -158,6 +158,9 @@ func PrintUDPHuman(w io.Writer, result protocol.UDPResult) {
 		float64(result.RateBitsPerSec)/1_000_000, result.Throughput.MegabitsPerSec, result.LossPercent, result.PacketsReordered, result.JitterMS)
 	fmt.Fprintf(w, "RTT idle p50 %.2f ms p95 %.2f ms | loaded p50 %.2f ms p95 %.2f ms p99 %.2f ms\n",
 		result.IdleLatency.Summary.P50MS, result.IdleLatency.Summary.P95MS, result.LoadedLatency.Summary.P50MS, result.LoadedLatency.Summary.P95MS, result.LoadedLatency.Summary.P99MS)
+	if result.TimestampSource != "" {
+		fmt.Fprintf(w, "UDP receive timestamps: %s\n", result.TimestampSource)
+	}
 }
 
 func stripStageSamples(stage protocol.StageResult) protocol.StageResult {

@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	Version               = 4
-	ResultSchemaVersion   = 3
+	Version               = 5
+	ResultSchemaVersion   = 4
 	MaxControlFrame       = 2 << 20 // 2 MiB: bounded time-series + diagnostics frame.
 	DefaultPort           = 5202
 	DefaultBuffer         = 128 << 10
@@ -38,6 +38,7 @@ type Request struct {
 	RateBitsPerSec   uint64 `json:"rate_bits_per_second,omitempty"`
 	PacketSize       int    `json:"packet_size,omitempty"`
 	PacingQuantumUS  int64  `json:"pacing_quantum_us,omitempty"`
+	TimestampMode    string `json:"timestamp_mode,omitempty"`
 	Diagnostics       bool   `json:"diagnostics,omitempty"`
 	CongestionControl string `json:"congestion_control,omitempty"`
 	MinRateBitsPerSec uint64 `json:"min_rate_bits_per_second,omitempty"`
@@ -277,6 +278,7 @@ type UDPResult struct {
 	PacketsReordered uint64          `json:"packets_reordered"`
 	LossPercent      float64         `json:"loss_percent"`
 	JitterMS         float64         `json:"jitter_ms"`
+	TimestampSource  string          `json:"timestamp_source,omitempty"`
 	IdleLatency      LatencyResult   `json:"idle_latency"`
 	LoadedLatency    LatencyResult   `json:"loaded_latency"`
 }

@@ -329,3 +329,37 @@ QUIC usa `quic-go v0.54.1` con listener efímero por stage. Los resultados QUIC 
 `TCP_CONGESTION` puede fijarse en ambos endpoints Linux. El modo de comparación no presupone que todos los algoritmos estén instalados ni permitidos por el kernel.
 
 El modo responsiveness sigue el principio IPPM de medir goodput, idle latency y latencia durante working conditions, pero Fase 4 no reproduce todavía el algoritmo HTTP foreign/self del draft -09. Por eso la salida máquina-legible impide confundir la aproximación con conformidad normativa.
+
+## 16. Fast path y productización — Fase 5
+
+La Fase 5 mantiene el baseline portable y convierte las optimizaciones Linux en capacidades explícitas, no en supuestos.
+
+### 16.1 Perfilado y batching
+
+Antes de activar un fast path se exige perfil CPU/memoria y benchmark before/after. El candidato UDP batch usa `x/net/ipv4.WriteBatch` para medir el coste de agrupar datagramas en Linux. No se conecta todavía al generador UDP de medición porque hacerlo sin TX timestamping por paquete puede modificar la semántica de pacing/jitter.
+
+`UDP_SEGMENT` y `UDP_GRO` se prueban como capabilities en tiempo de ejecución. Su existencia no implica activación.
+
+### 16.2 Affinity / NUMA
+
+`--cpu` y `--numa-node` son opt-in y Linux-only. La implementación aplica `sched_setaffinity` a los threads existentes y usa la topología de `/sys/devices/system/node` para NUMA. No realiza memory binding.
+
+### 16.3 Timestamping
+
+UDP admite tres fuentes:
+
+- userspace;
+- `SO_TIMESTAMPNS` para RX software de kernel;
+- `SO_TIMESTAMPING` para RX hardware cuando el NIC/driver ya está configurado.
+
+La salida registra la fuente observada y conserva fallback explícito. No se infiere soporte hardware sólo porque el socket acepte la opción.
+
+### 16.4 AF_XDP
+
+AF_XDP no forma parte del backend 0.5. La capability reporta la decisión y el motivo. Sólo se incorporará si un benchmark de hardware real demuestra que los sockets normales limitan el objetivo.
+
+### 16.5 Release y OpenWrt
+
+La release 0.5 usa builds puros Go, `-trimpath`, `-buildvcs=false`, build ID vacío, versión/commit explícitos y checksums SHA-256. El gate de reproducibilidad construye dos matrices independientes y exige binarios byte-identical.
+
+El paquete OpenWrt se genera a partir del binario de release correspondiente a la arquitectura. El servicio procd queda deshabilitado por defecto.

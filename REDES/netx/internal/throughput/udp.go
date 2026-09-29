@@ -17,6 +17,7 @@ import (
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/latency"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/metrics"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/timestamp"
 )
 
 const (
@@ -35,9 +36,13 @@ type UDPConfig struct {
 	RateBitsPerSec uint64
 	PacketSize     int
 	PacingQuantum  time.Duration
+	TimestampMode  string
 }
 
 func RunUDP(ctx context.Context, cfg UDPConfig) (protocol.UDPResult, error) {
+	if cfg.TimestampMode == "" {
+		cfg.TimestampMode = timestamp.Userspace
+	}
 	if err := validateUDPConfig(cfg); err != nil {
 		return protocol.UDPResult{}, err
 	}
@@ -68,7 +73,11 @@ func RunUDP(ctx context.Context, cfg UDPConfig) (protocol.UDPResult, error) {
 	_ = control.SetDeadline(deadline)
 	reader := bufio.NewReaderSize(control, 4096)
 
-	req := protocol.Request{Mode: "udp-upload", DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(), SampleIntervalMS: cfg.SampleInterval.Milliseconds(), RateBitsPerSec: cfg.RateBitsPerSec, PacketSize: cfg.PacketSize, PacingQuantumUS: cfg.PacingQuantum.Microseconds()}
+	req := protocol.Request{
+		Mode: "udp-upload", DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(),
+		SampleIntervalMS: cfg.SampleInterval.Milliseconds(), RateBitsPerSec: cfg.RateBitsPerSec,
+		PacketSize: cfg.PacketSize, PacingQuantumUS: cfg.PacingQuantum.Microseconds(), TimestampMode: cfg.TimestampMode,
+	}
 	if err := protocol.WriteJSONLine(control, req); err != nil {
 		return protocol.UDPResult{}, fmt.Errorf("send UDP request: %w", err)
 	}
@@ -205,6 +214,14 @@ func MeasureUDPServer(ctx context.Context, conn *net.UDPConn, tokenHex string, s
 	if err != nil || len(token) != 16 {
 		return protocol.UDPResult{}, errors.New("invalid UDP token")
 	}
+	tsMode := req.TimestampMode
+	if tsMode == "" {
+		tsMode = timestamp.Userspace
+	}
+	tsReader, err := timestamp.NewReader(conn, tsMode)
+	if err != nil {
+		return protocol.UDPResult{}, err
+	}
 	warmup := time.Duration(req.WarmupMS) * time.Millisecond
 	duration := time.Duration(req.DurationMS) * time.Millisecond
 	measureStart := startAt.Add(warmup)
@@ -227,9 +244,10 @@ func MeasureUDPServer(ctx context.Context, conn *net.UDPConn, tokenHex string, s
 	var jitterNS float64
 	var prevArrival time.Time
 	var prevSendNS uint64
+	timestampSource := timestamp.Userspace
 
 	for time.Now().Before(stopAt) {
-		n, _, err := conn.ReadFromUDP(buf)
+		n, _, arrival, source, err := tsReader.Read(buf)
 		now := time.Now()
 		if err != nil {
 			var ne net.Error
@@ -251,6 +269,7 @@ func MeasureUDPServer(ctx context.Context, conn *net.UDPConn, tokenHex string, s
 		if sendNS < measureStartNS || sendNS >= measureEndNS {
 			continue
 		}
+		timestampSource = preferTimestampSource(timestampSource, source)
 		received++
 		payload := n - udpHeaderSize
 		counter.Add(uint64(payload))
@@ -262,12 +281,13 @@ func MeasureUDPServer(ctx context.Context, conn *net.UDPConn, tokenHex string, s
 			highestSet = true
 		}
 		if !prevArrival.IsZero() && sendNS >= prevSendNS {
-			arrivalDelta := float64(now.Sub(prevArrival))
+			arrivalDelta := float64(arrival.Sub(prevArrival))
 			sendDelta := float64(time.Duration(sendNS - prevSendNS))
 			d := math.Abs(arrivalDelta - sendDelta)
 			jitterNS += (d - jitterNS) / 16
 		}
-		prevArrival, prevSendNS = now, sendNS
+		prevArrival, prevSendNS = arrival, sendNS
+		_ = now // window membership remains based on sender monotonic timestamps.
 	}
 
 	var done protocol.UDPDone
@@ -292,8 +312,32 @@ func MeasureUDPServer(ctx context.Context, conn *net.UDPConn, tokenHex string, s
 		Transport: "udp", Direction: "upload", RateBitsPerSec: req.RateBitsPerSec, PacketSize: req.PacketSize,
 		DurationMS: req.DurationMS, WarmupMS: req.WarmupMS, Throughput: throughput,
 		PacketsExpected: expected, PacketsReceived: received, PacketsLost: lost, PacketsReordered: reordered,
-		LossPercent: lossPct, JitterMS: jitterNS / float64(time.Millisecond),
+		LossPercent: lossPct, JitterMS: jitterNS / float64(time.Millisecond), TimestampSource: timestampSource,
 	}, nil
+}
+
+func preferTimestampSource(current, candidate string) string {
+	rank := func(s string) int {
+		switch s {
+		case "kernel-hardware":
+			return 4
+		case "kernel-software":
+			return 3
+		case "kernel-software-fallback":
+			return 2
+		case timestamp.Userspace:
+			return 1
+		default:
+			return 0
+		}
+	}
+	if rank(candidate) > rank(current) {
+		return candidate
+	}
+	if rank(current) == 0 && candidate != "" {
+		return candidate
+	}
+	return current
 }
 
 func ParseBitrate(s string) (uint64, error) {
@@ -316,7 +360,7 @@ func ParseBitrate(s string) (uint64, error) {
 	}
 	out := v * mult
 	if out > 100_000_000_000 {
-		return 0, errors.New("bitrate exceeds 100 Gbit/s phase-2 limit")
+		return 0, errors.New("bitrate exceeds 100 Gbit/s limit")
 	}
 	return uint64(out), nil
 }
@@ -342,6 +386,9 @@ func validateUDPConfig(cfg UDPConfig) error {
 	}
 	if cfg.PacingQuantum < 100*time.Microsecond || cfg.PacingQuantum > 10*time.Millisecond {
 		return errors.New("UDP pacing quantum must be between 100us and 10ms")
+	}
+	if cfg.TimestampMode != timestamp.Userspace && cfg.TimestampMode != timestamp.Kernel && cfg.TimestampMode != timestamp.Hardware {
+		return errors.New("timestamp mode must be userspace, kernel or hardware")
 	}
 	if cfg.DialTimeout <= 0 {
 		return errors.New("dial timeout must be positive")

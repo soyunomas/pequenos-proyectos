@@ -5,14 +5,14 @@ MODULE         := ./cmd/netx
 BIN_DIR        := bin
 DIST_DIR       := dist
 GO             ?= go
-VERSION        ?= 0.4.0-dev
+VERSION        ?= 0.5.0-dev
 COMMIT         ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 CGO_ENABLED    ?= 0
 
 LDFLAGS := -s -w -buildid= -X github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo.Version=$(VERSION) -X github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo.Commit=$(COMMIT)
 GOFLAGS_BUILD := -trimpath -ldflags "$(LDFLAGS)"
 
-.PHONY: help build run server test race vet fmt fmt-check check smoke netem-check diagnostics-overhead diagnostics-ab methodology-check phase2-check phase3-check phase4-check clean install size openwrt \
+.PHONY: help build run server test race vet fmt fmt-check check smoke netem-check diagnostics-overhead diagnostics-ab methodology-check fastpath-bench profile-fastpath capabilities release release-repro openwrt-feed openwrt-package-check phase2-check phase3-check phase4-check phase5-check clean install size openwrt \
         openwrt-amd64 openwrt-386 openwrt-armv5 openwrt-armv6 openwrt-armv7 \
         openwrt-arm64 openwrt-mips openwrt-mipsle openwrt-mips64 openwrt-riscv64
 
@@ -20,8 +20,9 @@ help: ## Show this help
 	@printf '%s\n' 'netx development targets' ''
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf '%s\n' '' 'OpenWrt builds are static pure-Go binaries (CGO_ENABLED=0).' \
-		'phase4-check runs the complete Phase 4 gate; netem-check reports SKIP when the host lacks network-admin capabilities.' \
-		'available bandwidth, transport goodput and responsiveness remain separate measurement kinds.'
+		'phase5-check runs the complete Phase 5 gate; netem-check reports SKIP when the host lacks network-admin capabilities.' \
+		'available bandwidth, transport goodput and responsiveness remain separate measurement kinds.' \
+		'Use fastpath-bench/profile-fastpath before enabling any Linux-only optimization.'
 
 build: ## Build native binary into bin/netx
 	@mkdir -p $(BIN_DIR)
@@ -75,6 +76,34 @@ methodology-check: ## Verify Phase 4 estimator stability/rejection and measureme
 
 phase4-check: check race smoke netem-check diagnostics-overhead methodology-check openwrt ## Run the complete Phase 4 validation gate
 	@printf '%s\n' 'Phase 4 gate complete.'
+
+fastpath-bench: ## Benchmark portable UDP Write against the Linux batch candidate; does not auto-enable it
+	./scripts/fastpath-bench.sh
+
+profile-fastpath: ## Capture CPU and memory pprof profiles for portable and batch UDP candidates
+	./scripts/profile-fastpath.sh
+
+capabilities: build ## Print detected Linux fast-path, timestamping and NUMA capabilities
+	./$(BIN_DIR)/$(APP) capabilities
+
+release: ## Build the reproducible 0.5 release matrix and SHA256SUMS
+	VERSION=$(VERSION) COMMIT=$(COMMIT) ./scripts/release.sh
+
+release-repro: ## Build the release matrix twice and require byte-identical binaries
+	VERSION=$(VERSION) COMMIT=$(COMMIT) ./scripts/repro-check.sh
+
+openwrt-feed: release ## Stage a ready OpenWrt package; set OPENWRT_ARCH=arm64 (or another matrix arch)
+	OPENWRT_ARCH=$(OPENWRT_ARCH) ./scripts/openwrt-feed.sh
+
+openwrt-package-check: ## Validate OpenWrt procd/UCI package files and shell syntax
+	@sh -n packaging/openwrt/files/netx.init
+	@sh -n scripts/openwrt-feed.sh
+	@grep -q "option enabled '0'" packaging/openwrt/files/netx.config
+	@grep -q 'BuildPackage,netx' packaging/openwrt/Makefile
+	@printf '%s\n' 'OpenWrt package recipe: PASS'
+
+phase5-check: check race smoke netem-check diagnostics-overhead methodology-check fastpath-bench release-repro openwrt-package-check openwrt ## Run the complete Phase 5 validation gate
+	@printf '%s\n' 'Phase 5 gate complete.'
 
 install: ## Install netx into GOBIN/GOPATH bin
 	CGO_ENABLED=$(CGO_ENABLED) $(GO) install -trimpath -ldflags "$(LDFLAGS)" $(MODULE)

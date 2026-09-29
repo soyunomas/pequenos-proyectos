@@ -1,0 +1,37 @@
+name: netx release
+
+on:
+  push:
+    tags:
+      - "netx-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: REDES/netx
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache-dependency-path: REDES/netx/go.sum
+      - name: Validate
+        run: make phase5-check
+      - name: Build release
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#netx-v}"
+          make release VERSION="$version" COMMIT="${GITHUB_SHA:0:12}"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/release/*             --repo "$GITHUB_REPOSITORY"             --title "netx ${GITHUB_REF_NAME#netx-v}"             --generate-notes

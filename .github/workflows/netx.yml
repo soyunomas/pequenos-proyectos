@@ -25,5 +25,5 @@ jobs:
           cache-dependency-path: REDES/netx/go.sum
       - name: Module integrity
         run: go mod verify
-      - name: Phase 4 gate
-        run: make phase4-check
+      - name: Phase 5 gate
+        run: make phase5-check
