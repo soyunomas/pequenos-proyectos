@@ -90,3 +90,4 @@ y una explicación de la desviación. El número RPM aproximado no debe comparar
 3. que available bandwidth, transport goodput y responsiveness tengan etiquetas distintas y ninguna use `capacity`.
 
 `make phase4-check` añade race, smoke E2E, diagnóstico, netem cuando el host lo permite y la matriz OpenWrt completa.
+La estimación de available bandwidth exige una **mayoría estricta** de chirps válidos. Un empate entre chirps acotados y censurados no se considera evidencia suficiente para publicar una estimación estable.
