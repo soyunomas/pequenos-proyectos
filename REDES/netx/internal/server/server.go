@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"sync"
@@ -35,12 +34,10 @@ func (s *Server) Run(ctx context.Context) error {
 		return fmt.Errorf("listen control %s: %w", addr, err)
 	}
 	defer ln.Close()
-
 	go func() {
 		<-ctx.Done()
 		_ = ln.Close()
 	}()
-
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -60,117 +57,200 @@ func (s *Server) Run(ctx context.Context) error {
 
 func (s *Server) handleControl(ctx context.Context, control net.Conn) error {
 	defer control.Close()
-	_ = control.SetDeadline(time.Now().Add(24*time.Hour + 15*time.Minute))
+	_ = control.SetDeadline(time.Now().Add(24*time.Hour + 30*time.Minute))
 	reader := bufio.NewReaderSize(control, 4096)
-
 	var req protocol.Request
 	if err := protocol.ReadJSONLine(reader, &req); err != nil {
 		return err
+	}
+	if req.Mode == "latency" {
+		return handleLatency(control, reader)
 	}
 	if err := validateRequest(req); err != nil {
 		_ = protocol.WriteJSONLine(control, map[string]string{"error": err.Error()})
 		return err
 	}
+	switch req.Mode {
+	case "tcp-upload", "tcp-download", "tcp-bidir":
+		return s.handleTCP(ctx, control, req)
+	case "udp-upload":
+		return s.handleUDP(ctx, control, reader, req)
+	default:
+		return fmt.Errorf("unsupported mode %q", req.Mode)
+	}
+}
 
+func handleLatency(control net.Conn, reader *bufio.Reader) error {
+	if err := protocol.WriteJSONLine(control, protocol.Ready{Ready: true}); err != nil {
+		return err
+	}
+	for {
+		var probe protocol.Probe
+		if err := protocol.ReadJSONLine(reader, &probe); err != nil {
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil
+			}
+			return err
+		}
+		if err := protocol.WriteJSONLine(control, protocol.ProbeReply{Seq: probe.Seq}); err != nil {
+			return err
+		}
+	}
+}
+
+func (s *Server) handleTCP(ctx context.Context, control net.Conn, req protocol.Request) error {
 	token, err := throughput.NewToken()
 	if err != nil {
 		return err
 	}
-	dataLn, err := net.Listen("tcp", net.JoinHostPort(s.cfg.ListenHost, "0"))
+	ln, err := net.Listen("tcp", net.JoinHostPort(s.cfg.ListenHost, "0"))
 	if err != nil {
-		return fmt.Errorf("listen data: %w", err)
+		return fmt.Errorf("listen TCP data: %w", err)
 	}
-	defer dataLn.Close()
-
-	port := dataLn.Addr().(*net.TCPAddr).Port
-	if err := protocol.WriteJSONLine(control, protocol.Offer{DataPort: port, Token: token}); err != nil {
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+	if err := protocol.WriteJSONLine(control, protocol.Offer{Transport: "tcp", DataPort: port, Token: token}); err != nil {
 		return err
 	}
-
-	if tcpLn, ok := dataLn.(*net.TCPListener); ok {
-		_ = tcpLn.SetDeadline(time.Now().Add(10 * time.Second))
-	}
-	dataConn, err := dataLn.Accept()
-	if err != nil {
-		return fmt.Errorf("accept data: %w", err)
-	}
-	defer dataConn.Close()
-
-	dataReader := bufio.NewReaderSize(dataConn, 4096)
-	gotToken, err := protocol.ReadTokenLine(dataReader)
-	if err != nil {
-		return fmt.Errorf("read data token: %w", err)
-	}
-	if subtle.ConstantTimeCompare([]byte(gotToken), []byte(token)) != 1 {
-		return errors.New("invalid data token")
+	if tcpLn, ok := ln.(*net.TCPListener); ok {
+		_ = tcpLn.SetDeadline(time.Now().Add(15 * time.Second))
 	}
 
-	if err := protocol.WriteJSONLine(control, map[string]bool{"ready": true}); err != nil {
+	streams := make([]throughput.TCPStream, req.Streams)
+	conns := make([]net.Conn, req.Streams)
+	seen := make([]bool, req.Streams)
+	for accepted := 0; accepted < req.Streams; accepted++ {
+		conn, err := ln.Accept()
+		if err != nil {
+			closeConns(conns)
+			return fmt.Errorf("accept TCP data: %w", err)
+		}
+		br := bufio.NewReaderSize(conn, 4096)
+		var hello protocol.DataHello
+		if err := protocol.ReadJSONLine(br, &hello); err != nil {
+			_ = conn.Close()
+			closeConns(conns)
+			return fmt.Errorf("read data hello: %w", err)
+		}
+		if subtle.ConstantTimeCompare([]byte(hello.Token), []byte(token)) != 1 || hello.Stream < 0 || hello.Stream >= req.Streams || seen[hello.Stream] {
+			_ = conn.Close()
+			closeConns(conns)
+			return errors.New("invalid TCP stream authentication/index")
+		}
+		seen[hello.Stream] = true
+		conns[hello.Stream] = conn
+		streams[hello.Stream] = throughput.TCPStream{Conn: conn, Reader: br}
+	}
+	defer closeConns(conns)
+	if err := protocol.WriteJSONLine(control, protocol.Ready{Ready: true, StartDelayMS: protocol.DefaultStartDelay.Milliseconds()}); err != nil {
 		return err
 	}
+	startAt := time.Now().Add(protocol.DefaultStartDelay)
+	warmup := time.Duration(req.WarmupMS) * time.Millisecond
+	duration := time.Duration(req.DurationMS) * time.Millisecond
+	sample := time.Duration(req.SampleIntervalMS) * time.Millisecond
+	result := protocol.SessionResult{}
 
-	result, err := measureTCPUpload(ctx, dataReader, req)
-	if err != nil {
-		return err
+	switch req.Mode {
+	case "tcp-upload":
+		upload, err := throughput.ReceiveTCP(ctx, startAt, warmup, duration, sample, req.BufferSize, streams)
+		if err != nil {
+			return err
+		}
+		result.Upload = &upload
+	case "tcp-download":
+		if err := throughput.SendTCP(ctx, startAt, warmup, duration, req.BufferSize, conns); err != nil {
+			return err
+		}
+	case "tcp-bidir":
+		sendDone := make(chan error, 1)
+		go func() { sendDone <- throughput.SendTCP(ctx, startAt, warmup, duration, req.BufferSize, conns) }()
+		upload, recvErr := throughput.ReceiveTCP(ctx, startAt, warmup, duration, sample, req.BufferSize, streams)
+		sendErr := <-sendDone
+		if recvErr != nil {
+			return recvErr
+		}
+		if sendErr != nil {
+			return sendErr
+		}
+		result.Upload = &upload
 	}
 	return protocol.WriteJSONLine(control, result)
 }
 
-func measureTCPUpload(ctx context.Context, r io.Reader, req protocol.Request) (protocol.Result, error) {
-	warmup := time.Duration(req.WarmupMS) * time.Millisecond
-	duration := time.Duration(req.DurationMS) * time.Millisecond
-	buf := make([]byte, req.BufferSize)
-	start := time.Now()
-	measureStart := start.Add(warmup)
-	measureEnd := measureStart.Add(duration)
-	var measured uint64
-
-	for {
-		n, err := r.Read(buf)
-		now := time.Now()
-		if n > 0 && !now.Before(measureStart) && now.Before(measureEnd) {
-			measured += uint64(n)
-		}
-		if !now.Before(measureEnd) {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			return protocol.Result{}, ctx.Err()
-		default:
-		}
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return protocol.Result{}, fmt.Errorf("read data: %w", err)
-		}
+func (s *Server) handleUDP(ctx context.Context, control net.Conn, reader *bufio.Reader, req protocol.Request) error {
+	token, err := throughput.NewToken()
+	if err != nil {
+		return err
 	}
-
-	seconds := duration.Seconds()
-	bps := float64(measured*8) / seconds
-	return protocol.Result{
-		Mode:            "tcp-upload",
-		Bytes:           measured,
-		DurationMS:      req.DurationMS,
-		BitsPerSecond:   bps,
-		MegabitsPerSec:  bps / 1_000_000,
-		MebibytesPerSec: float64(measured) / seconds / (1 << 20),
-	}, nil
+	addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(s.cfg.ListenHost, "0"))
+	if err != nil {
+		return err
+	}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		return fmt.Errorf("listen UDP data: %w", err)
+	}
+	defer conn.Close()
+	port := conn.LocalAddr().(*net.UDPAddr).Port
+	if err := protocol.WriteJSONLine(control, protocol.Offer{Transport: "udp", DataPort: port, Token: token}); err != nil {
+		return err
+	}
+	if err := protocol.WriteJSONLine(control, protocol.Ready{Ready: true, StartDelayMS: protocol.DefaultStartDelay.Milliseconds()}); err != nil {
+		return err
+	}
+	startAt := time.Now().Add(protocol.DefaultStartDelay)
+	udpResult, err := throughput.MeasureUDPServer(ctx, conn, token, startAt, req, reader)
+	if err != nil {
+		return err
+	}
+	return protocol.WriteJSONLine(control, protocol.SessionResult{UDP: &udpResult})
 }
 
 func validateRequest(req protocol.Request) error {
-	if req.Mode != "tcp-upload" {
-		return fmt.Errorf("unsupported mode %q", req.Mode)
-	}
 	if req.DurationMS < 100 || req.DurationMS > int64((24*time.Hour)/time.Millisecond) {
 		return errors.New("duration out of range")
 	}
 	if req.WarmupMS < 0 || req.WarmupMS > int64((10*time.Minute)/time.Millisecond) {
 		return errors.New("warmup out of range")
 	}
+	if req.SampleIntervalMS < 50 || req.SampleIntervalMS > 5000 {
+		return errors.New("sample interval out of range")
+	}
+	if req.DurationMS/req.SampleIntervalMS > 2000 {
+		return errors.New("too many samples; increase sample interval")
+	}
+	if req.Mode == "udp-upload" {
+		if req.RateBitsPerSec == 0 || req.RateBitsPerSec > 100_000_000_000 {
+			return errors.New("UDP rate out of range")
+		}
+		if req.PacketSize < 37 || req.PacketSize > 65507 {
+			return errors.New("UDP packet size out of range")
+		}
+		if req.PacingQuantumUS < 100 || req.PacingQuantumUS > 10_000 {
+			return errors.New("UDP pacing quantum out of range")
+		}
+		return nil
+	}
+	if req.Mode != "tcp-upload" && req.Mode != "tcp-download" && req.Mode != "tcp-bidir" {
+		return fmt.Errorf("unsupported mode %q", req.Mode)
+	}
 	if req.BufferSize < 4<<10 || req.BufferSize > 16<<20 {
 		return errors.New("buffer size out of range")
 	}
+	if req.Streams < 1 || req.Streams > protocol.MaxStreams {
+		return errors.New("stream count out of range")
+	}
+	if int64(req.Streams)*(req.DurationMS/req.SampleIntervalMS) > 20_000 {
+		return errors.New("sample/stream matrix too large")
+	}
 	return nil
+}
+
+func closeConns(conns []net.Conn) {
+	for _, conn := range conns {
+		if conn != nil {
+			_ = conn.Close()
+		}
+	}
 }

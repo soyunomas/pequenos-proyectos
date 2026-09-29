@@ -4,14 +4,13 @@
 
 El proyecto está orientado desde el principio a Linux y OpenWrt: binario autocontenido, `CGO_ENABLED=0`, sin dependencias externas en el hot path y compilación cruzada desde el `Makefile`.
 
-> Estado: **Fase 1 terminada**. Hay un baseline TCP upload funcional, control plane separado del data plane, warm-up fuera de la ventana medida, JSON de salida, tests y matriz de compilación OpenWrt.
+> Estado: **Fase 2 terminada**. TCP upload/download/bidireccional, single-flow vs aggregate, paralelismo adaptativo, series temporales, RTT idle/cargado, UDP paced con pérdida/reorder/jitter y JSON/NDJSON estable.
 
 ## Inicio rápido
 
 ```sh
 make help
-make check
-make smoke
+make phase2-check
 make build
 ```
 
@@ -21,35 +20,111 @@ Servidor:
 ./bin/netx server
 ```
 
-Cliente:
+TCP:
 
 ```sh
+# Baseline single-flow
 ./bin/netx throughput 192.0.2.10
-./bin/netx throughput --duration 5s --warmup 1s --json 192.0.2.10
+
+# Se conserva el baseline de 1 flujo y se compara con 4 flujos
+./bin/netx throughput --streams 4 192.0.2.10
+
+# 1 -> 2 -> 4 -> 8 hasta que la ganancia marginal converja
+./bin/netx throughput --adaptive --max-streams 8 --convergence 5 192.0.2.10
+
+# Download y bidireccional
+./bin/netx throughput --direction download 192.0.2.10
+./bin/netx throughput --direction bidir 192.0.2.10
 ```
 
-Puerto de control por defecto: `5202`. Cada medición abre un puerto TCP efímero independiente para datos.
+UDP:
+
+```sh
+./bin/netx udp --rate 100M --packet-size 1200 192.0.2.10
+```
+
+Latencia de aplicación:
+
+```sh
+./bin/netx latency 192.0.2.10
+```
+
+Salida máquina-legible:
+
+```sh
+./bin/netx throughput --json 192.0.2.10
+./bin/netx throughput --ndjson 192.0.2.10
+./bin/netx udp --ndjson --rate 50M 192.0.2.10
+```
+
+## Qué mide la Fase 2
+
+### TCP
+
+Cada suite conserva explícitamente dos niveles:
+
+- `single_stream`: resultado con un flujo TCP;
+- `aggregate`: mejor stage probado con N flujos.
+
+No se sustituyen entre sí. Si `--streams 4` se usa, primero se ejecuta un stage de 1 flujo y después uno de 4. Con `--adaptive`, se prueban 1, 2, 4, ... hasta el límite o hasta que la ganancia marginal cae por debajo de `--convergence`.
+
+Cada dirección incluye bytes, bit/s, MiB/s, resultado por stream y samples periódicos. `bidir` mantiene upload y download separados, no los colapsa en una cifra única.
+
+### Responsividad
+
+Antes de la carga se obtiene un baseline RTT con un echo de aplicación independiente. Durante cada stage se mantiene otro canal de probes y se calculan:
+
+- min;
+- p50, p90, p95 y p99;
+- max;
+- MAD (median absolute deviation).
+
+Esto permite observar queueing bajo carga sin depender de ICMP.
+
+### UDP
+
+El generador usa pacing por quantum con presupuesto de bits, no un `Write` loop sin límite. El receptor informa:
+
+- goodput útil;
+- paquetes esperados/recibidos/perdidos;
+- porcentaje de pérdida;
+- paquetes observados fuera de orden;
+- jitter EWMA basado en la diferencia entre spacing de envío y spacing de llegada;
+- RTT idle y bajo carga.
+
+El tamaño configurado incluye una cabecera netx de 36 bytes; el goodput reportado cuenta payload útil, no esa cabecera.
+
+## Hot path y backpressure
+
+Los workers de datos sólo actualizan contadores atómicos. El sampler los lee fuera del hot path. JSON y NDJSON se escriben **después** de finalizar la medición: una consola lenta o un pipe bloqueado no cambia el throughput observado.
 
 ## OpenWrt
 
-`make openwrt` genera binarios estáticos para x86/x86_64, ARMv5/6/7, AArch64, MIPS/MIPSLE/MIPS64 soft-float y RISC-V 64. Los artefactos quedan en `dist/`.
-
-## Diseño
-
-```text
-control TCP :5202
-    │ request / offer / ready / result
-    │
-    └── data TCP :ephemeral
-            token + bulk stream
+```sh
+make openwrt
 ```
 
-La Fase 1 implementa `connect → warm-up → measurement window → guard/cooldown → result`. El warm-up y el guard no se cuentan.
+Genera binarios estáticos para:
 
-La especificación completa está en [`docs/SPEC.md`](docs/SPEC.md), el plan de cinco fases en [`TODO.md`](TODO.md) y las reglas de ingeniería en [`SKILL.md`](SKILL.md).
+- `linux/amd64`, `linux/386`;
+- `linux/arm` con `GOARM=5`, `6` y `7`;
+- `linux/arm64`;
+- `linux/mips`, `linux/mipsle` y `linux/mips64` soft-float;
+- `linux/riscv64`.
 
-## Desarrollo
+Los artefactos quedan en `dist/`.
 
-`make help` es la interfaz principal. Incluye `build`, `check`, `race`, `smoke`, `openwrt`, `size` y `clean`.
+## Gates
 
-No se optimiza una ruta por intuición. Sockets avanzados, batching, GSO/GRO, afinidad, NUMA o zero-copy entrarán sólo con benchmarks que demuestren el cuello de botella.
+```sh
+make check        # gofmt + vet + unit tests
+make race         # race detector
+make smoke        # E2E loopback: TCP/UDP/latencia/JSON/NDJSON
+make netem-check  # namespaces + tc netem; SKIP explícito sin CAP_NET_ADMIN
+make openwrt      # cross-builds
+make phase2-check # todo lo anterior
+```
+
+`netem-check` configura, cuando el host tiene permisos, 20 ms ± 3 ms de delay, 1% loss y 1% reorder entre dos namespaces Linux. En contenedores sin `CAP_SYS_ADMIN/CAP_NET_ADMIN` devuelve un `SKIP` explícito y no modifica la red del host.
+
+La especificación completa y las decisiones derivadas de papers/RFC están en [`docs/SPEC.md`](docs/SPEC.md). El plan de cinco fases está en [`TODO.md`](TODO.md) y las reglas de ingeniería en [`SKILL.md`](SKILL.md).

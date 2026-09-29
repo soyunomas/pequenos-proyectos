@@ -5,21 +5,22 @@ MODULE         := ./cmd/netx
 BIN_DIR        := bin
 DIST_DIR       := dist
 GO             ?= go
-VERSION        ?= 0.1.0-dev
+VERSION        ?= 0.2.0-dev
 COMMIT         ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 CGO_ENABLED    ?= 0
 
 LDFLAGS := -s -w -buildid= -X github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo.Version=$(VERSION) -X github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo.Commit=$(COMMIT)
 GOFLAGS_BUILD := -trimpath -ldflags "$(LDFLAGS)"
 
-.PHONY: help build run server test race vet fmt fmt-check check smoke clean install size openwrt \
+.PHONY: help build run server test race vet fmt fmt-check check smoke netem-check phase2-check clean install size openwrt \
         openwrt-amd64 openwrt-386 openwrt-armv5 openwrt-armv6 openwrt-armv7 \
         openwrt-arm64 openwrt-mips openwrt-mipsle openwrt-mips64 openwrt-riscv64
 
 help: ## Show this help
 	@printf '%s\n' 'netx development targets' ''
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@printf '%s\n' '' 'OpenWrt builds are static pure-Go binaries (CGO_ENABLED=0).'
+	@printf '%s\n' '' 'OpenWrt builds are static pure-Go binaries (CGO_ENABLED=0).' \
+		'phase2-check runs the complete Phase 2 gate; netem-check reports SKIP when the host lacks network-admin capabilities.'
 
 build: ## Build native binary into bin/netx
 	@mkdir -p $(BIN_DIR)
@@ -34,7 +35,7 @@ server: build ## Start a local server on the default port
 test: ## Run unit tests
 	$(GO) test ./...
 
-race: ## Run tests with Go race detector (native development only)
+race: ## Run unit tests with Go race detector (native development only)
 	CGO_ENABLED=1 $(GO) test -race ./...
 
 vet: ## Run go vet
@@ -49,8 +50,15 @@ fmt-check: ## Fail if Go sources need formatting
 
 check: fmt-check vet test ## Run the fast quality gate
 
-smoke: build ## Run local end-to-end client/server smoke test
+smoke: build ## Run Phase 2 loopback E2E tests: TCP, UDP, latency, JSON and NDJSON
 	BIN=./$(BIN_DIR)/$(APP) ./scripts/smoke.sh
+
+netem-check: build ## Run Linux namespace/netem integration test, or explicit SKIP without CAP_NET_ADMIN
+	@sh -n ./scripts/netem.sh
+	BIN=./$(BIN_DIR)/$(APP) ./scripts/netem.sh
+
+phase2-check: check race smoke netem-check openwrt ## Run the complete Phase 2 validation gate
+	@printf '%s\n' 'Phase 2 gate complete.'
 
 install: ## Install netx into GOBIN/GOPATH bin
 	CGO_ENABLED=$(CGO_ENABLED) $(GO) install -trimpath -ldflags "$(LDFLAGS)" $(MODULE)

@@ -227,3 +227,59 @@ Para 10/25/100G se evitarán allocations en hot path, mutex globales y reporting
 - Estudios comparativos de Ookla/NDT7 que muestran cómo la metodología del test modifica el resultado observado.
 
 Estas referencias justifican el diseño; no implican copiar una implementación concreta.
+
+## 13. Protocolo wire y metodología — Fase 2
+
+La Fase 2 eleva el protocolo wire a `protocol=2`. El control sigue usando TCP + JSON newline-delimited, con frames acotados. Cada sesión de datos recibe un token aleatorio de 128 bits.
+
+### 13.1 TCP multi-stream
+
+Una solicitud TCP incluye dirección (`tcp-upload`, `tcp-download`, `tcp-bidir`) y número de streams. El servidor anuncia un único puerto efímero; cada socket se autentica una vez con `DataHello{token, stream}`. Sólo después de recibir todos los streams se envía `ready`.
+
+El receptor es quien calcula goodput. En upload mide el servidor; en download mide el cliente; en bidireccional cada extremo mide los bytes que recibe. Los emisores mantienen un guard corto fuera de la ventana puntuada para que el receptor pueda cerrar su ventana sin truncarla.
+
+Los workers incrementan contadores atómicos por stream. Un sampler independiente toma snapshots a intervalos configurables. La serialización de resultados ocurre después de detener el test.
+
+### 13.2 Single-flow y aggregate
+
+Una suite TCP siempre comienza por un stage de 1 stream. Si se pide `--streams N`, después ejecuta N streams. Si se pide `--adaptive`, prueba 1,2,4,... hasta convergencia o `--max-streams`.
+
+La convergencia se define mediante ganancia marginal porcentual sobre el stage anterior. Se conservan todos los stages y `aggregate` apunta al mejor score observado; un stage posterior peor no reemplaza al mejor.
+
+Para `bidir`, el score usado sólo para la lógica de convergencia es la suma de ambos goodputs. La salida sigue mostrando upload y download como magnitudes separadas.
+
+### 13.3 Responsividad
+
+El RTT se mide con un canal TCP de echo de aplicación distinto de los sockets bulk. No incluye handshake: el socket de probe se establece antes de la serie. Se mide un baseline idle y otra serie durante la ventana cargada.
+
+Se conservan samples RTT y se derivan min, p50, p90, p95, p99, max y MAD. Los timestamps para RTT usan el reloj monotónico local, por lo que no requieren sincronización entre hosts.
+
+### 13.4 UDP paced
+
+El datagrama de Fase 2 contiene 36 bytes de cabecera netx:
+
+```text
+magic[4] | token[16] | sequence[8] | sender_elapsed_ns[8] | payload...
+```
+
+El emisor usa un presupuesto de bits acumulado por `pacing-quantum`; no intenta representar una tasa mediante un loop de `Write` ilimitado. El `sender_elapsed_ns` permite clasificar paquetes según la ventana del emisor sin sincronizar relojes absolutos.
+
+El receptor reporta:
+
+- payload goodput;
+- expected/received/lost;
+- reorder observado;
+- loss percentage;
+- jitter EWMA, donde cada actualización usa `abs(arrival_spacing - sender_spacing)` y factor 1/16.
+
+El target `--rate` representa bit/s del datagrama completo; el throughput reportado representa payload útil, de modo que será ligeramente menor incluso sin pérdida.
+
+### 13.5 JSON y NDJSON
+
+Los resultados estructurados llevan `schema_version=1` y `protocol_version=2`. JSON conserva summary y samples. NDJSON emite primero un summary sin arrays de samples y luego eventos `throughput_sample` / `latency_sample`.
+
+La emisión es post-medición por diseño; un consumidor lento no aplica backpressure sobre los sockets bulk.
+
+### 13.6 Netem
+
+`scripts/netem.sh` crea dos network namespaces unidos por veth y aplica `tc netem` en el lado cliente (20 ms ± 3 ms, 1% loss, 1% reorder). El script requiere las capacidades de red correspondientes. Si el host no permite crear namespaces, informa `SKIP` explícitamente y no altera la red global.

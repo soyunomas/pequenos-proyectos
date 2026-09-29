@@ -9,7 +9,7 @@ import (
 
 func TestJSONLineRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
-	want := Request{Mode: "tcp-upload", DurationMS: 1000, WarmupMS: 200, BufferSize: 65536}
+	want := Request{Mode: "tcp-upload", DurationMS: 1000, WarmupMS: 200, BufferSize: 65536, Streams: 4}
 	if err := WriteJSONLine(&buf, want); err != nil {
 		t.Fatal(err)
 	}

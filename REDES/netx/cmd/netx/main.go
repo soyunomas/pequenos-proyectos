@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,7 +11,9 @@ import (
 	"time"
 
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/latency"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/report"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/server"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/throughput"
 )
@@ -34,8 +35,12 @@ func run(args []string) error {
 		return runServer(args[1:])
 	case "throughput":
 		return runThroughput(args[1:])
+	case "udp":
+		return runUDP(args[1:])
+	case "latency":
+		return runLatency(args[1:])
 	case "version":
-		fmt.Printf("netx %s (%s) protocol=%d\n", buildinfo.Version, buildinfo.Commit, protocol.Version)
+		fmt.Printf("netx %s (%s) protocol=%d schema=%d\n", buildinfo.Version, buildinfo.Commit, protocol.Version, protocol.ResultSchemaVersion)
 		return nil
 	case "help", "-h", "--help":
 		usage()
@@ -55,45 +60,130 @@ func runServer(args []string) error {
 	if *port < 1 || *port > 65535 {
 		return errors.New("port out of range")
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := commandContext()
 	defer stop()
-	fmt.Printf("netx server listening on %s:%d\n", *listen, *port)
+	fmt.Printf("netx server listening on %s:%d (protocol %d)\n", *listen, *port, protocol.Version)
 	return server.New(server.Config{ListenHost: *listen, Port: *port}).Run(ctx)
 }
 
 func runThroughput(args []string) error {
 	fs := flag.NewFlagSet("throughput", flag.ContinueOnError)
 	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	direction := fs.String("direction", "upload", "upload, download or bidir")
 	duration := fs.Duration("duration", protocol.DefaultDuration, "measurement window")
 	warmup := fs.Duration("warmup", protocol.DefaultWarmup, "warm-up before measurement")
-	buffer := fs.Int("buffer", protocol.DefaultBuffer, "per-connection userspace buffer")
+	buffer := fs.Int("buffer", protocol.DefaultBuffer, "per-stream userspace buffer")
+	sample := fs.Duration("sample", protocol.DefaultSampleInterval, "throughput sample interval")
+	probe := fs.Duration("probe-interval", protocol.DefaultProbeInterval, "RTT probe interval")
+	streams := fs.Int("streams", 1, "target parallel streams; single-flow baseline is retained")
+	adaptive := fs.Bool("adaptive", false, "increase 1,2,4,... streams until convergence")
+	maxStreams := fs.Int("max-streams", 8, "maximum streams for adaptive mode")
+	convergence := fs.Float64("convergence", 5, "stop adaptive mode below this marginal gain percent")
 	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
-	jsonOut := fs.Bool("json", false, "emit machine-readable JSON")
+	jsonOut := fs.Bool("json", false, "emit stable JSON result")
+	ndjsonOut := fs.Bool("ndjson", false, "emit summary plus post-measurement samples as NDJSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
 		return errors.New("usage: netx throughput [flags] HOST")
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	if *jsonOut && *ndjsonOut {
+		return errors.New("--json and --ndjson are mutually exclusive")
+	}
+	ctx, stop := commandContext()
 	defer stop()
-	result, err := throughput.RunTCPUpload(ctx, throughput.ClientConfig{
-		Host: fs.Arg(0), Port: *port, Duration: *duration, Warmup: *warmup,
-		BufferSize: *buffer, DialTimeout: *dialTimeout,
+	result, err := throughput.RunTCPSuite(ctx, throughput.ClientConfig{
+		Host: fs.Arg(0), Port: *port, Direction: *direction, Duration: *duration, Warmup: *warmup,
+		BufferSize: *buffer, DialTimeout: *dialTimeout, SampleInterval: *sample, ProbeInterval: *probe,
+		Streams: *streams, Adaptive: *adaptive, MaxStreams: *maxStreams, ConvergencePct: *convergence,
 	})
 	if err != nil {
 		return err
 	}
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+		return report.WriteJSON(os.Stdout, result)
 	}
-	fmt.Printf("TCP upload  %8.2f Mbit/s  %8.2f MiB/s  (%d bytes / %s)\n",
-		result.MegabitsPerSec, result.MebibytesPerSec, result.Bytes,
-		time.Duration(result.DurationMS)*time.Millisecond)
+	if *ndjsonOut {
+		return report.WriteTCPNDJSON(os.Stdout, result)
+	}
+	report.PrintTCPHuman(os.Stdout, result)
 	return nil
+}
+
+func runUDP(args []string) error {
+	fs := flag.NewFlagSet("udp", flag.ContinueOnError)
+	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	duration := fs.Duration("duration", protocol.DefaultDuration, "measurement window")
+	warmup := fs.Duration("warmup", protocol.DefaultWarmup, "warm-up before measurement")
+	rateText := fs.String("rate", "100M", "target rate in bit/s, accepts K/M/G suffix")
+	packet := fs.Int("packet-size", protocol.DefaultUDPPacket, "UDP datagram size including netx header")
+	quantum := fs.Duration("pacing-quantum", protocol.DefaultPacingQuantum, "token-bucket pacing quantum")
+	sample := fs.Duration("sample", protocol.DefaultSampleInterval, "throughput sample interval")
+	probe := fs.Duration("probe-interval", protocol.DefaultProbeInterval, "RTT probe interval")
+	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
+	jsonOut := fs.Bool("json", false, "emit stable JSON result")
+	ndjsonOut := fs.Bool("ndjson", false, "emit summary plus post-measurement samples as NDJSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: netx udp [flags] HOST")
+	}
+	if *jsonOut && *ndjsonOut {
+		return errors.New("--json and --ndjson are mutually exclusive")
+	}
+	rate, err := throughput.ParseBitrate(*rateText)
+	if err != nil {
+		return err
+	}
+	ctx, stop := commandContext()
+	defer stop()
+	result, err := throughput.RunUDP(ctx, throughput.UDPConfig{
+		Host: fs.Arg(0), Port: *port, Duration: *duration, Warmup: *warmup, DialTimeout: *dialTimeout,
+		SampleInterval: *sample, ProbeInterval: *probe, RateBitsPerSec: rate, PacketSize: *packet, PacingQuantum: *quantum,
+	})
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return report.WriteJSON(os.Stdout, result)
+	}
+	if *ndjsonOut {
+		return report.WriteUDPNDJSON(os.Stdout, result)
+	}
+	report.PrintUDPHuman(os.Stdout, result)
+	return nil
+}
+
+func runLatency(args []string) error {
+	fs := flag.NewFlagSet("latency", flag.ContinueOnError)
+	port := fs.Int("port", protocol.DefaultPort, "server control port")
+	duration := fs.Duration("duration", time.Second, "probe duration")
+	interval := fs.Duration("interval", protocol.DefaultProbeInterval, "probe interval")
+	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: netx latency [flags] HOST")
+	}
+	ctx, stop := commandContext()
+	defer stop()
+	result, err := latency.MeasureDuration(ctx, latency.Config{Host: fs.Arg(0), Port: *port, DialTimeout: *dialTimeout, Interval: *interval}, *duration)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return report.WriteJSON(os.Stdout, result)
+	}
+	fmt.Printf("RTT p50 %.3f ms p95 %.3f ms p99 %.3f ms MAD %.3f ms (%d probes)\n", result.Summary.P50MS, result.Summary.P95MS, result.Summary.P99MS, result.Summary.MADMS, result.Summary.Count)
+	return nil
+}
+
+func commandContext() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
 
 func usage() {
@@ -101,10 +191,13 @@ func usage() {
 
 Usage:
   netx server [--listen ADDR] [--port PORT]
-  netx throughput [flags] HOST
+  netx throughput [--direction upload|download|bidir] [--streams N|--adaptive] [flags] HOST
+  netx udp [--rate 100M] [flags] HOST
+  netx latency [flags] HOST
   netx version
 
-Phase 1 implements a TCP upload baseline with a separate control and data plane.
-Run 'make help' in the source tree for build, test and OpenWrt targets.
+Phase 2 separates single-flow from aggregate throughput, records time-series samples,
+measures RTT idle and under load, and adds paced UDP loss/reorder/jitter metrics.
+Use 'make help' for validation and OpenWrt cross-build targets.
 `)
 }
