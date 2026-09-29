@@ -4,7 +4,7 @@
 
 El proyecto está orientado desde el principio a Linux y OpenWrt: binario autocontenido, `CGO_ENABLED=0`, sin dependencias externas en el hot path y compilación cruzada desde el `Makefile`.
 
-> Estado: **Fase 5 terminada**. NetX incorpora available-bandwidth, QUIC, escenarios, diagnóstico, capability discovery, afinidad CPU/NUMA, timestamping UDP opcional y release OpenWrt reproducible. El baseline sigue siendo `CGO_ENABLED=0`.
+> Estado: **Fase 5 terminada**. Wire/result actual: **protocol=5 / schema=4**. NetX incorpora available-bandwidth, QUIC, escenarios, diagnóstico, capability discovery, afinidad CPU/NUMA, timestamping UDP opcional y release OpenWrt reproducible. El baseline sigue siendo `CGO_ENABLED=0`.
 
 ## Inicio rápido
 
