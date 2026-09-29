@@ -321,8 +321,9 @@ func analyzeChirps(cfg AvailableConfig, packets [][]availablePacket, seen [][]bo
 		result.Samples = append(result.Samples, ce)
 	}
 	result.ValidChirps = len(estimates)
-	if len(estimates) < maxInt(3, (cfg.Chirps+1)/2) {
-		if rightCensored >= (cfg.Chirps+1)/2 {
+	requiredValid := maxInt(3, cfg.Chirps/2+1)
+	if len(estimates) < requiredValid {
+		if rightCensored >= cfg.Chirps/2+1 {
 			result.RejectionReason = "probe ceiling below apparent available bandwidth; increase max rate"
 		} else {
 			result.RejectionReason = "insufficient valid chirps"
