@@ -214,3 +214,4 @@ make openwrt-feed VERSION=0.5.0 OPENWRT_ARCH=arm64
 La release genera diez binarios, `SHA256SUMS` y `BUILDINFO`. El staging OpenWrt produce una receta procd/UCI lista para copiar al SDK; el daemon queda deshabilitado por defecto.
 
 Véanse [docs/PHASE5.md](docs/PHASE5.md), [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) y [benchmarks/README.md](benchmarks/README.md).
+La grafo de módulos de la release se mantiene con `go mod tidy` de Go 1.23 y `go mod verify` forma parte del gate de CI.
