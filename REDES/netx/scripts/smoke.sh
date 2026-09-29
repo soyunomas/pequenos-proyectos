@@ -33,10 +33,13 @@ run "$BIN" throughput --port "$PORT" --direction upload --adaptive --max-streams
 run "$BIN" udp --port "$PORT" --duration 300ms --warmup 100ms --rate 10M --sample 100ms --probe-interval 50ms 127.0.0.1
 
 "$BIN" throughput --port "$PORT" --duration 250ms --warmup 100ms --sample 100ms --probe-interval 50ms --json 127.0.0.1 >"$TMP/tcp.json"
-grep -q '"schema_version": 1' "$TMP/tcp.json"
+grep -q '"schema_version": 2' "$TMP/tcp.json"
 grep -q '"single_stream"' "$TMP/tcp.json"
 grep -q '"aggregate"' "$TMP/tcp.json"
 grep -q '"idle_latency"' "$TMP/tcp.json"
+grep -q '"diagnostics_enabled": true' "$TMP/tcp.json"
+grep -q '"congestion_control"' "$TMP/tcp.json"
+grep -q '"local_telemetry"' "$TMP/tcp.json"
 
 "$BIN" udp --port "$PORT" --duration 250ms --warmup 100ms --rate 5M --sample 100ms --probe-interval 50ms --json 127.0.0.1 >"$TMP/udp.json"
 grep -q '"packets_lost"' "$TMP/udp.json"
@@ -47,4 +50,7 @@ grep -q '"type":"summary"' "$TMP/tcp.ndjson"
 grep -q '"type":"throughput_sample"' "$TMP/tcp.ndjson"
 grep -q '"type":"latency_sample"' "$TMP/tcp.ndjson"
 
-printf '%s\n' 'smoke: Phase 2 TCP/UDP/latency/JSON/NDJSON ok'
+"$BIN" throughput --port "$PORT" --duration 250ms --warmup 100ms --sample 100ms --probe-interval 50ms --diagnostics=false --json 127.0.0.1 >"$TMP/tcp-nodiag.json"
+! grep -q '"local_telemetry"' "$TMP/tcp-nodiag.json"
+
+printf '%s\n' 'smoke: Phase 3 TCP/UDP/latency/telemetry/JSON/NDJSON ok'

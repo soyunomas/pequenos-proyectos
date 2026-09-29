@@ -283,3 +283,28 @@ La emisión es post-medición por diseño; un consumidor lento no aplica backpre
 ### 13.6 Netem
 
 `scripts/netem.sh` crea dos network namespaces unidos por veth y aplica `tc netem` en el lado cliente (20 ms ± 3 ms, 1% loss, 1% reorder). El script requiere las capacidades de red correspondientes. Si el host no permite crear namespaces, informa `SKIP` explícitamente y no altera la red global.
+
+
+## 14. Diagnóstico — Fase 3
+
+La Fase 3 eleva el protocolo a `protocol_version=3` y el schema de resultados a `schema_version=2`. El cambio añade telemetría sin modificar la semántica de goodput, latencia ni UDP de Fase 2.
+
+### 14.1 TCP_INFO
+
+En Linux se realizan dos snapshots por stream, alineados con el inicio y final de la ventana medida. El decoder respeta la longitud real devuelta por `getsockopt(TCP_INFO)`, por lo que campos no presentes en kernels antiguos no se suponen válidos.
+
+Se conservan tanto snapshots como deltas para retransmisiones, bytes, `busy_time`, `rwnd_limited`, `sndbuf_limited`, delivered y delivered CE. El congestion control se obtiene con `TCP_CONGESTION`.
+
+Linux/386 usa el ABI `socketcall(GETSOCKOPT)`; las demás arquitecturas Linux de la matriz usan `getsockopt` directo. Ambos caminos son pure Go y no requieren cgo.
+
+### 14.2 Host telemetry
+
+La misma ventana captura CPU del proceso, CPU global, RSS y PSI cuando `/proc/pressure` existe. `process_cpu_percent_normalized` divide el consumo del proceso por el número de CPUs disponibles y es la métrica usada por la regla de saturación del proceso.
+
+### 14.3 Diagnóstico
+
+El diagnóstico se evalúa después de terminar los stages. Nunca modifica el hot path ni los contadores medidos. Las reglas y umbrales exactos están versionados en `docs/DIAGNOSTICS.md`; cada finding incluye los valores y thresholds que lo activaron.
+
+### 14.4 Coste
+
+La instrumentación TCP es O(streams) y hace dos `TCP_INFO` por stream. El gate `make diagnostics-overhead` mide el coste real de los snapshots `TCP_INFO` y verifica que, incluso al máximo de streams, el presupuesto de instrumentación sea <1% de la ventana por defecto. El A/B loopback queda como `make diagnostics-ab` informativo porque su varianza depende del scheduler y de la carga del host.

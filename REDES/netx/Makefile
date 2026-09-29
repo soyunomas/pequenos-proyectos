@@ -5,14 +5,14 @@ MODULE         := ./cmd/netx
 BIN_DIR        := bin
 DIST_DIR       := dist
 GO             ?= go
-VERSION        ?= 0.2.0-dev
+VERSION        ?= 0.3.0-dev
 COMMIT         ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 CGO_ENABLED    ?= 0
 
 LDFLAGS := -s -w -buildid= -X github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo.Version=$(VERSION) -X github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/buildinfo.Commit=$(COMMIT)
 GOFLAGS_BUILD := -trimpath -ldflags "$(LDFLAGS)"
 
-.PHONY: help build run server test race vet fmt fmt-check check smoke netem-check phase2-check clean install size openwrt \
+.PHONY: help build run server test race vet fmt fmt-check check smoke netem-check diagnostics-overhead diagnostics-ab phase2-check phase3-check clean install size openwrt \
         openwrt-amd64 openwrt-386 openwrt-armv5 openwrt-armv6 openwrt-armv7 \
         openwrt-arm64 openwrt-mips openwrt-mipsle openwrt-mips64 openwrt-riscv64
 
@@ -20,7 +20,7 @@ help: ## Show this help
 	@printf '%s\n' 'netx development targets' ''
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf '%s\n' '' 'OpenWrt builds are static pure-Go binaries (CGO_ENABLED=0).' \
-		'phase2-check runs the complete Phase 2 gate; netem-check reports SKIP when the host lacks network-admin capabilities.'
+		'phase3-check runs the complete Phase 3 gate; netem-check reports SKIP when the host lacks network-admin capabilities.'
 
 build: ## Build native binary into bin/netx
 	@mkdir -p $(BIN_DIR)
@@ -50,7 +50,7 @@ fmt-check: ## Fail if Go sources need formatting
 
 check: fmt-check vet test ## Run the fast quality gate
 
-smoke: build ## Run Phase 2 loopback E2E tests: TCP, UDP, latency, JSON and NDJSON
+smoke: build ## Run Phase 3 loopback E2E tests: TCP, UDP, latency, telemetry, JSON and NDJSON
 	BIN=./$(BIN_DIR)/$(APP) ./scripts/smoke.sh
 
 netem-check: build ## Run Linux namespace/netem integration test, or explicit SKIP without CAP_NET_ADMIN
@@ -59,6 +59,15 @@ netem-check: build ## Run Linux namespace/netem integration test, or explicit SK
 
 phase2-check: check race smoke netem-check openwrt ## Run the complete Phase 2 validation gate
 	@printf '%s\n' 'Phase 2 gate complete.'
+
+diagnostics-overhead: ## Verify TCP_INFO syscall budget stays below 1 percent of the default measurement window
+	$(GO) test -run TestSnapshotCostBudget -count=1 -v ./internal/tcpinfo
+
+diagnostics-ab: build ## Optional noisy loopback A/B of diagnostics off/on; not a CI gate
+	BIN=./$(BIN_DIR)/$(APP) ./scripts/diagnostics-overhead.sh
+
+phase3-check: check race smoke netem-check diagnostics-overhead openwrt ## Run the complete Phase 3 validation gate
+	@printf '%s\n' 'Phase 3 gate complete.'
 
 install: ## Install netx into GOBIN/GOPATH bin
 	CGO_ENABLED=$(CGO_ENABLED) $(GO) install -trimpath -ldflags "$(LDFLAGS)" $(MODULE)

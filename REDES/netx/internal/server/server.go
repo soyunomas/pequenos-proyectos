@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/tcpinfo"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/throughput"
 )
 
@@ -150,6 +151,25 @@ func (s *Server) handleTCP(ctx context.Context, control net.Conn, req protocol.R
 	duration := time.Duration(req.DurationMS) * time.Millisecond
 	sample := time.Duration(req.SampleIntervalMS) * time.Millisecond
 	result := protocol.SessionResult{}
+	measureStart := startAt.Add(warmup)
+	measureEnd := measureStart.Add(duration)
+	telemetryCh := make(chan struct {
+		result protocol.EndpointTelemetry
+		err    error
+	}, 1)
+	role := "receiver"
+	if req.Mode == "tcp-download" {
+		role = "sender"
+	} else if req.Mode == "tcp-bidir" {
+		role = "bidirectional"
+	}
+	go func() {
+		r, err := tcpinfo.CaptureWindow(ctx, conns, role, measureStart, measureEnd, req.Diagnostics)
+		telemetryCh <- struct {
+			result protocol.EndpointTelemetry
+			err    error
+		}{r, err}
+	}()
 
 	switch req.Mode {
 	case "tcp-upload":
@@ -174,6 +194,13 @@ func (s *Server) handleTCP(ctx context.Context, control net.Conn, req protocol.R
 			return sendErr
 		}
 		result.Upload = &upload
+	}
+	tele := <-telemetryCh
+	if tele.err != nil {
+		return fmt.Errorf("server telemetry: %w", tele.err)
+	}
+	if req.Diagnostics {
+		result.Telemetry = &tele.result
 	}
 	return protocol.WriteJSONLine(control, result)
 }

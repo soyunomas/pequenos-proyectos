@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	Version               = 2
-	ResultSchemaVersion   = 1
-	MaxControlFrame       = 2 << 20 // 2 MiB: bounded time-series result frames.
+	Version               = 3
+	ResultSchemaVersion   = 2
+	MaxControlFrame       = 2 << 20 // 2 MiB: bounded time-series + diagnostics frame.
 	DefaultPort           = 5202
-	DefaultBuffer         = 128 << 10 // 128 KiB
+	DefaultBuffer         = 128 << 10
 	DefaultDuration       = 10 * time.Second
 	DefaultWarmup         = 2 * time.Second
 	DefaultDial           = 5 * time.Second
@@ -38,6 +38,7 @@ type Request struct {
 	RateBitsPerSec   uint64 `json:"rate_bits_per_second,omitempty"`
 	PacketSize       int    `json:"packet_size,omitempty"`
 	PacingQuantumUS  int64  `json:"pacing_quantum_us,omitempty"`
+	Diagnostics      bool   `json:"diagnostics,omitempty"`
 }
 
 type Offer struct {
@@ -59,7 +60,6 @@ type DataHello struct {
 type Probe struct {
 	Seq uint64 `json:"seq"`
 }
-
 type ProbeReply struct {
 	Seq uint64 `json:"seq"`
 }
@@ -115,11 +115,110 @@ type LatencyResult struct {
 	Samples []LatencySample `json:"samples,omitempty"`
 }
 
+type TCPSnapshot struct {
+	Supported                bool   `json:"supported"`
+	Error                    string `json:"error,omitempty"`
+	TCPInfoLength            int    `json:"tcp_info_length,omitempty"`
+	CongestionControl        string `json:"congestion_control,omitempty"`
+	State                    uint8  `json:"state,omitempty"`
+	CAState                  uint8  `json:"ca_state,omitempty"`
+	Options                  uint8  `json:"options,omitempty"`
+	ECNNegotiated            bool   `json:"ecn_negotiated,omitempty"`
+	ECNSeen                  bool   `json:"ecn_seen,omitempty"`
+	DeliveryRateAppLimited   bool   `json:"delivery_rate_app_limited,omitempty"`
+	RTOUsec                  uint32 `json:"rto_usec,omitempty"`
+	RTTUsec                  uint32 `json:"rtt_usec,omitempty"`
+	RTTVarUsec               uint32 `json:"rttvar_usec,omitempty"`
+	MinRTTUsec               uint32 `json:"min_rtt_usec,omitempty"`
+	SndCwnd                  uint32 `json:"snd_cwnd,omitempty"`
+	SndSsthresh              uint32 `json:"snd_ssthresh,omitempty"`
+	Unacked                  uint32 `json:"unacked,omitempty"`
+	Lost                     uint32 `json:"lost,omitempty"`
+	Retrans                  uint32 `json:"retrans,omitempty"`
+	TotalRetrans             uint32 `json:"total_retrans,omitempty"`
+	Reordering               uint32 `json:"reordering,omitempty"`
+	PacingRateBytesPerSec    uint64 `json:"pacing_rate_bytes_per_second,omitempty"`
+	MaxPacingRateBytesPerSec uint64 `json:"max_pacing_rate_bytes_per_second,omitempty"`
+	DeliveryRateBytesPerSec  uint64 `json:"delivery_rate_bytes_per_second,omitempty"`
+	BytesAcked               uint64 `json:"bytes_acked,omitempty"`
+	BytesReceived            uint64 `json:"bytes_received,omitempty"`
+	BytesSent                uint64 `json:"bytes_sent,omitempty"`
+	BytesRetrans             uint64 `json:"bytes_retrans,omitempty"`
+	SegsOut                  uint32 `json:"segments_out,omitempty"`
+	SegsIn                   uint32 `json:"segments_in,omitempty"`
+	DataSegsOut              uint32 `json:"data_segments_out,omitempty"`
+	DataSegsIn               uint32 `json:"data_segments_in,omitempty"`
+	NotSentBytes             uint32 `json:"not_sent_bytes,omitempty"`
+	BusyTimeUsec             uint64 `json:"busy_time_usec,omitempty"`
+	RwndLimitedUsec          uint64 `json:"rwnd_limited_usec,omitempty"`
+	SndbufLimitedUsec        uint64 `json:"sndbuf_limited_usec,omitempty"`
+	Delivered                uint32 `json:"delivered,omitempty"`
+	DeliveredCE              uint32 `json:"delivered_ce,omitempty"`
+	DSACKDups                uint32 `json:"dsack_dups,omitempty"`
+	ReordSeen                uint32 `json:"reorder_events_seen,omitempty"`
+	RcvOOOPack               uint32 `json:"received_out_of_order_packets,omitempty"`
+	SndWnd                   uint32 `json:"send_window_bytes,omitempty"`
+	RcvWnd                   uint32 `json:"receive_window_bytes,omitempty"`
+	RcvSpace                 uint32 `json:"receive_space_bytes,omitempty"`
+}
+
+type TCPDelta struct {
+	TotalRetrans      uint32 `json:"total_retrans"`
+	BytesRetrans      uint64 `json:"bytes_retrans"`
+	BytesAcked        uint64 `json:"bytes_acked"`
+	BytesSent         uint64 `json:"bytes_sent"`
+	Delivered         uint32 `json:"delivered"`
+	DeliveredCE       uint32 `json:"delivered_ce"`
+	BusyTimeUsec      uint64 `json:"busy_time_usec"`
+	RwndLimitedUsec   uint64 `json:"rwnd_limited_usec"`
+	SndbufLimitedUsec uint64 `json:"sndbuf_limited_usec"`
+}
+
+type TCPStreamTelemetry struct {
+	Stream int         `json:"stream"`
+	Start  TCPSnapshot `json:"start"`
+	End    TCPSnapshot `json:"end"`
+	Delta  TCPDelta    `json:"delta"`
+}
+
+type HostTelemetry struct {
+	Supported                   bool    `json:"supported"`
+	NumCPU                      int     `json:"num_cpu,omitempty"`
+	ProcessCPUPercentOneCore    float64 `json:"process_cpu_percent_one_core,omitempty"`
+	ProcessCPUPercentNormalized float64 `json:"process_cpu_percent_normalized,omitempty"`
+	SystemCPUPercent            float64 `json:"system_cpu_percent,omitempty"`
+	RSSBytes                    uint64  `json:"rss_bytes,omitempty"`
+	CPUPressureSomeAvg10        float64 `json:"cpu_pressure_some_avg10,omitempty"`
+	MemoryPressureSomeAvg10     float64 `json:"memory_pressure_some_avg10,omitempty"`
+}
+
+type EndpointTelemetry struct {
+	Role      string               `json:"role"`
+	Supported bool                 `json:"supported"`
+	TCP       []TCPStreamTelemetry `json:"tcp,omitempty"`
+	Host      HostTelemetry        `json:"host"`
+}
+
+type DiagnosticEvidence struct {
+	Metric    string  `json:"metric"`
+	Value     float64 `json:"value"`
+	Threshold float64 `json:"threshold,omitempty"`
+	Unit      string  `json:"unit,omitempty"`
+}
+
+type DiagnosticFinding struct {
+	Code     string               `json:"code"`
+	Summary  string               `json:"summary"`
+	Evidence []DiagnosticEvidence `json:"evidence"`
+}
+
 type StageResult struct {
-	Streams       int              `json:"streams"`
-	Upload        *DirectionResult `json:"upload,omitempty"`
-	Download      *DirectionResult `json:"download,omitempty"`
-	LoadedLatency LatencyResult    `json:"loaded_latency"`
+	Streams         int                `json:"streams"`
+	Upload          *DirectionResult   `json:"upload,omitempty"`
+	Download        *DirectionResult   `json:"download,omitempty"`
+	LoadedLatency   LatencyResult      `json:"loaded_latency"`
+	LocalTelemetry  *EndpointTelemetry `json:"local_telemetry,omitempty"`
+	RemoteTelemetry *EndpointTelemetry `json:"remote_telemetry,omitempty"`
 }
 
 type AdaptiveResult struct {
@@ -130,19 +229,21 @@ type AdaptiveResult struct {
 }
 
 type TCPTestResult struct {
-	SchemaVersion   int            `json:"schema_version"`
-	ProtocolVersion int            `json:"protocol_version"`
-	TestID          string         `json:"test_id"`
-	Transport       string         `json:"transport"`
-	Direction       string         `json:"direction"`
-	DurationMS      int64          `json:"duration_ms"`
-	WarmupMS        int64          `json:"warmup_ms"`
-	SampleMS        int64          `json:"sample_interval_ms"`
-	IdleLatency     LatencyResult  `json:"idle_latency"`
-	Stages          []StageResult  `json:"stages"`
-	SingleStream    StageResult    `json:"single_stream"`
-	Aggregate       StageResult    `json:"aggregate"`
-	Adaptive        AdaptiveResult `json:"adaptive"`
+	SchemaVersion      int                 `json:"schema_version"`
+	ProtocolVersion    int                 `json:"protocol_version"`
+	TestID             string              `json:"test_id"`
+	Transport          string              `json:"transport"`
+	Direction          string              `json:"direction"`
+	DurationMS         int64               `json:"duration_ms"`
+	WarmupMS           int64               `json:"warmup_ms"`
+	SampleMS           int64               `json:"sample_interval_ms"`
+	DiagnosticsEnabled bool                `json:"diagnostics_enabled"`
+	IdleLatency        LatencyResult       `json:"idle_latency"`
+	Stages             []StageResult       `json:"stages"`
+	SingleStream       StageResult         `json:"single_stream"`
+	Aggregate          StageResult         `json:"aggregate"`
+	Adaptive           AdaptiveResult      `json:"adaptive"`
+	Diagnostics        []DiagnosticFinding `json:"diagnostics,omitempty"`
 }
 
 type UDPResult struct {
@@ -167,9 +268,10 @@ type UDPResult struct {
 }
 
 type SessionResult struct {
-	Upload   *DirectionResult `json:"upload,omitempty"`
-	Download *DirectionResult `json:"download,omitempty"`
-	UDP      *UDPResult       `json:"udp,omitempty"`
+	Upload    *DirectionResult   `json:"upload,omitempty"`
+	Download  *DirectionResult   `json:"download,omitempty"`
+	UDP       *UDPResult         `json:"udp,omitempty"`
+	Telemetry *EndpointTelemetry `json:"telemetry,omitempty"`
 }
 
 func WriteJSONLine(w io.Writer, v any) error {

@@ -15,9 +15,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/diagnose"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/latency"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/metrics"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/tcpinfo"
 )
 
 type ClientConfig struct {
@@ -34,6 +36,7 @@ type ClientConfig struct {
 	Adaptive       bool
 	MaxStreams     int
 	ConvergencePct float64
+	Diagnostics    bool
 }
 
 type TCPStream struct {
@@ -77,8 +80,8 @@ func RunTCPSuite(ctx context.Context, cfg ClientConfig) (protocol.TCPTestResult,
 		SchemaVersion: protocol.ResultSchemaVersion, ProtocolVersion: protocol.Version,
 		TestID: testID, Transport: "tcp", Direction: cfg.Direction,
 		DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(), SampleMS: cfg.SampleInterval.Milliseconds(),
-		IdleLatency: idle,
-		Adaptive:    protocol.AdaptiveResult{Enabled: cfg.Adaptive, SelectedStreams: 1, ConvergencePct: cfg.ConvergencePct, StopReason: "fixed stream count"},
+		IdleLatency: idle, DiagnosticsEnabled: cfg.Diagnostics,
+		Adaptive: protocol.AdaptiveResult{Enabled: cfg.Adaptive, SelectedStreams: 1, ConvergencePct: cfg.ConvergencePct, StopReason: "fixed stream count"},
 	}
 
 	var previousScore float64
@@ -106,6 +109,9 @@ func RunTCPSuite(ctx context.Context, cfg ClientConfig) (protocol.TCPTestResult,
 				result.Aggregate = bestStage
 				result.Adaptive.SelectedStreams = bestStage.Streams
 				result.Adaptive.StopReason = fmt.Sprintf("converged: %.2f%% marginal gain < %.2f%%", gain, cfg.ConvergencePct)
+				if cfg.Diagnostics {
+					result.Diagnostics = diagnose.EvaluateTCP(result)
+				}
 				return result, nil
 			}
 		}
@@ -113,6 +119,9 @@ func RunTCPSuite(ctx context.Context, cfg ClientConfig) (protocol.TCPTestResult,
 	}
 	if cfg.Adaptive {
 		result.Adaptive.StopReason = "maximum stream count reached"
+	}
+	if cfg.Diagnostics {
+		result.Diagnostics = diagnose.EvaluateTCP(result)
 	}
 	return result, nil
 }
@@ -129,7 +138,7 @@ func RunTCPStage(ctx context.Context, cfg ClientConfig, streams int) (protocol.S
 	_ = control.SetDeadline(deadline)
 	reader := bufio.NewReaderSize(control, 4096)
 
-	req := protocol.Request{Mode: "tcp-" + cfg.Direction, DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(), SampleIntervalMS: cfg.SampleInterval.Milliseconds(), BufferSize: cfg.BufferSize, Streams: streams}
+	req := protocol.Request{Mode: "tcp-" + cfg.Direction, DurationMS: cfg.Duration.Milliseconds(), WarmupMS: cfg.Warmup.Milliseconds(), SampleIntervalMS: cfg.SampleInterval.Milliseconds(), BufferSize: cfg.BufferSize, Streams: streams, Diagnostics: cfg.Diagnostics}
 	if err := protocol.WriteJSONLine(control, req); err != nil {
 		return protocol.StageResult{}, fmt.Errorf("send request: %w", err)
 	}
@@ -168,6 +177,19 @@ func RunTCPStage(ctx context.Context, cfg ClientConfig, streams int) (protocol.S
 	startAt := time.Now().Add(time.Duration(ready.StartDelayMS) * time.Millisecond)
 	measureStart := startAt.Add(cfg.Warmup)
 	measureEnd := measureStart.Add(cfg.Duration)
+
+	telemetryCh := make(chan struct {
+		result protocol.EndpointTelemetry
+		err    error
+	}, 1)
+	localRole := roleForDirection(cfg.Direction, true)
+	go func() {
+		r, err := tcpinfo.CaptureWindow(ctx, data, localRole, measureStart, measureEnd, cfg.Diagnostics)
+		telemetryCh <- struct {
+			result protocol.EndpointTelemetry
+			err    error
+		}{r, err}
+	}()
 
 	latencyCh := make(chan struct {
 		result protocol.LatencyResult
@@ -208,6 +230,13 @@ func RunTCPStage(ctx context.Context, cfg ClientConfig, streams int) (protocol.S
 	if receiveErr != nil {
 		return protocol.StageResult{}, receiveErr
 	}
+	tele := <-telemetryCh
+	if tele.err != nil {
+		return protocol.StageResult{}, fmt.Errorf("local telemetry: %w", tele.err)
+	}
+	if cfg.Diagnostics {
+		stage.LocalTelemetry = &tele.result
+	}
 	// The receiver stops exactly at the measurement boundary. Closing data sockets here
 	// prevents the peer's guard traffic from blocking on a socket that is no longer read.
 	closeConns(data)
@@ -215,6 +244,9 @@ func RunTCPStage(ctx context.Context, cfg ClientConfig, streams int) (protocol.S
 	var remote protocol.SessionResult
 	if err := protocol.ReadJSONLine(reader, &remote); err != nil {
 		return protocol.StageResult{}, fmt.Errorf("read session result: %w", err)
+	}
+	if cfg.Diagnostics && remote.Telemetry != nil {
+		stage.RemoteTelemetry = remote.Telemetry
 	}
 	if cfg.Direction == "upload" || cfg.Direction == "bidir" {
 		if remote.Upload == nil {
@@ -395,6 +427,25 @@ func validateClientConfig(cfg ClientConfig) error {
 		return errors.New("dial timeout must be positive")
 	}
 	return nil
+}
+
+func roleForDirection(direction string, local bool) string {
+	switch direction {
+	case "upload":
+		if local {
+			return "sender"
+		}
+		return "receiver"
+	case "download":
+		if local {
+			return "receiver"
+		}
+		return "sender"
+	case "bidir":
+		return "bidirectional"
+	default:
+		return "unknown"
+	}
 }
 
 func stageScore(stage protocol.StageResult) float64 {

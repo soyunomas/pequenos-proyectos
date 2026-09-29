@@ -92,6 +92,65 @@ func PrintTCPHuman(w io.Writer, result protocol.TCPTestResult) {
 		fmt.Fprintf(w, " | loaded RTT p50 %.2f ms p95 %.2f ms p99 %.2f ms\n", stage.LoadedLatency.Summary.P50MS, stage.LoadedLatency.Summary.P95MS, stage.LoadedLatency.Summary.P99MS)
 	}
 	fmt.Fprintf(w, "selected aggregate: %d stream(s) | %s\n", result.Aggregate.Streams, result.Adaptive.StopReason)
+	if result.DiagnosticsEnabled {
+		printEndpoint(w, "local", result.Aggregate.LocalTelemetry)
+		printEndpoint(w, "remote", result.Aggregate.RemoteTelemetry)
+		if len(result.Diagnostics) == 0 {
+			fmt.Fprintln(w, "diagnosis: no deterministic limitation crossed the configured thresholds")
+		} else {
+			for _, f := range result.Diagnostics {
+				fmt.Fprintf(w, "diagnosis: %s | %s", f.Code, f.Summary)
+				for _, e := range f.Evidence {
+					fmt.Fprintf(w, " | %s=%.3f%s", e.Metric, e.Value, e.Unit)
+				}
+				fmt.Fprintln(w)
+			}
+		}
+	}
+}
+
+func printEndpoint(w io.Writer, label string, ep *protocol.EndpointTelemetry) {
+	if ep == nil || !ep.Supported {
+		return
+	}
+	var cc string
+	var rtt, minRTT uint32
+	var cwnd uint32
+	var delivery, pacing uint64
+	var retransBytes, sentBytes, rwnd, sndbuf, busy uint64
+	for _, s := range ep.TCP {
+		if cc == "" {
+			cc = s.End.CongestionControl
+		}
+		if s.End.RTTUsec > rtt {
+			rtt = s.End.RTTUsec
+		}
+		if minRTT == 0 || (s.End.MinRTTUsec > 0 && s.End.MinRTTUsec < minRTT) {
+			minRTT = s.End.MinRTTUsec
+		}
+		if s.End.SndCwnd > cwnd {
+			cwnd = s.End.SndCwnd
+		}
+		if s.End.DeliveryRateBytesPerSec > delivery {
+			delivery = s.End.DeliveryRateBytesPerSec
+		}
+		if s.End.PacingRateBytesPerSec > pacing {
+			pacing = s.End.PacingRateBytesPerSec
+		}
+		retransBytes += s.Delta.BytesRetrans
+		sentBytes += s.Delta.BytesSent
+		rwnd += s.Delta.RwndLimitedUsec
+		sndbuf += s.Delta.SndbufLimitedUsec
+		busy += s.Delta.BusyTimeUsec
+	}
+	fmt.Fprintf(w, "%s %s telemetry | cc=%s rtt=%.3fms min_rtt=%.3fms cwnd=%d delivery=%.2fMbit/s pacing=%.2fMbit/s cpu=%.1f%% system=%.1f%%", label, ep.Role, cc, float64(rtt)/1000, float64(minRTT)/1000, cwnd, float64(delivery*8)/1e6, float64(pacing*8)/1e6, ep.Host.ProcessCPUPercentNormalized, ep.Host.SystemCPUPercent)
+	if sentBytes > 0 {
+		fmt.Fprintf(w, " retrans=%.3f%%", float64(retransBytes)/float64(sentBytes)*100)
+	}
+	if busy > 0 {
+		fmt.Fprintf(w, " rwnd=%.2f%% sndbuf=%.2f%%", float64(rwnd)/float64(busy)*100, float64(sndbuf)/float64(busy)*100)
+	}
+	fmt.Fprintln(w)
 }
 
 func PrintUDPHuman(w io.Writer, result protocol.UDPResult) {

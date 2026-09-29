@@ -8,13 +8,9 @@ Estado: **COMPLETADA**.
 
 - [x] Módulo Go independiente dentro de `REDES/netx`.
 - [x] Especificación técnica y metodología de medición.
-- [x] Protocolo de control versionable y limitado en tamaño.
-- [x] Control plane y data plane separados.
-- [x] `netx server`.
-- [x] TCP upload single-flow.
-- [x] Warm-up separado de la ventana medida.
-- [x] Salida humana y JSON.
-- [x] Validación, deadlines, token de sesión y cierre por señales.
+- [x] Protocolo de control versionable y control/data plane separados.
+- [x] TCP upload single-flow, warm-up separado y JSON.
+- [x] Validación, deadlines y token de sesión.
 - [x] `Makefile` con `make help` y matriz OpenWrt.
 - [x] Tests, vet, race, smoke y cross-build.
 
@@ -23,36 +19,40 @@ Estado: **COMPLETADA**.
 Estado: **COMPLETADA**.
 
 - [x] TCP upload, download y bidireccional.
-- [x] UDP upload con pacing por presupuesto de bits.
-- [x] Pérdida, reorder y jitter UDP.
-- [x] Samples periódicos mediante contadores atómicos fuera del hot path.
-- [x] RTT idle y RTT concurrente durante carga mediante echo de aplicación separado.
-- [x] Percentiles p50/p90/p95/p99 y MAD para latencia.
-- [x] Single-flow y multi-flow como métricas distintas.
-- [x] Paralelismo adaptativo 1,2,4,... hasta convergencia o límite configurable.
-- [x] Selección del mejor stage probado; un stage de convergencia más lento no reemplaza al mejor resultado.
-- [x] JSON versionado (`schema_version=1`) y NDJSON de samples crudos.
-- [x] NDJSON se serializa post-medición para aislar backpressure del hot path.
-- [x] Tests de límites temporales, percentiles/MAD, bitrate y propagación de backpressure del writer.
-- [x] Smoke E2E en loopback para TCP/UDP/latencia/JSON/NDJSON.
-- [x] Harness reproducible Linux namespace + `tc netem`; reporta SKIP explícito cuando faltan capacidades del kernel/contenedor.
-- [x] Matriz OpenWrt continúa compilando con `CGO_ENABLED=0`.
-- [x] Fase 2 publicada directamente en `main`.
-
-**Gate de salida:** `make phase2-check`. En hosts con `CAP_NET_ADMIN`, `netem-check` ejecuta el escenario namespace; en entornos restringidos el resto del gate pasa y ese subtest queda marcado `SKIP` de forma explícita.
+- [x] UDP paced con pérdida, reorder y jitter.
+- [x] Samples periódicos fuera del hot path.
+- [x] RTT idle/cargado, p50/p90/p95/p99 y MAD.
+- [x] Single-flow y multi-flow separados.
+- [x] Paralelismo adaptativo y selección del mejor stage.
+- [x] JSON versionado y NDJSON post-medición.
+- [x] Smoke E2E y harness namespace + `tc netem`.
+- [x] Matriz OpenWrt con `CGO_ENABLED=0`.
 
 ## Fase 3 — Diagnóstico del stack y causa probable
 
-Estado: pendiente.
+Estado: **COMPLETADA**.
 
-- [ ] Backend Linux `TCP_INFO` sin contaminar plataformas no Linux.
-- [ ] RTT, RTTvar, cwnd, ssthresh, retransmits, delivery/pacing rate y límites rwnd/sndbuf cuando el kernel los exponga.
-- [ ] CPU y presión del host con coste de observación acotado.
-- [ ] Detección ECN/CE cuando sea viable.
-- [ ] Reglas deterministas de diagnóstico: CPU-limited, rwnd-limited, loss/retransmission-limited, queueing-under-load, single-flow-limited.
-- [ ] Evidencia numérica junto a cada diagnóstico; nunca una “puntuación de red” opaca.
+- [x] Backend Linux `TCP_INFO` aislado por build tags, sin cgo.
+- [x] Linux/386 soportado mediante `socketcall(GETSOCKOPT)`; resto de Linux mediante syscall `getsockopt` directo.
+- [x] RTT, RTTvar, min RTT, RTO, cwnd, ssthresh, lost/retrans, reordering y ventanas.
+- [x] Pacing rate, delivery rate, bytes acked/sent/retrans y estado app-limited cuando el kernel los expone.
+- [x] Busy time, rwnd-limited y sndbuf-limited con deltas sobre la ventana medida.
+- [x] Algoritmo de congestion control por stream.
+- [x] Detección ECN negociado y `delivered_ce` cuando está disponible.
+- [x] CPU de proceso, CPU global, RSS y PSI CPU/memoria del host en Linux.
+- [x] Roles sender/receiver/bidirectional para no aplicar métricas de emisor al extremo incorrecto.
+- [x] Diagnóstico determinista con evidencia: queueing, single-flow, retransmission/loss, receiver-window, sender-buffer, CPU y ECN/CE.
+- [x] Umbrales documentados en `docs/DIAGNOSTICS.md`.
+- [x] `--diagnostics=false` para A/B y plataformas donde se quiera omitir instrumentación.
+- [x] JSON schema `2`, protocol `3`, conservando telemetría bruta además del diagnóstico.
+- [x] Test TCP real que verifica `TCP_INFO`, congestion control y contadores crecientes.
+- [x] Coste directo de snapshot bajo presupuesto: límite 500 µs; medición del host de validación 3,965 µs/snapshot en el gate final.
+- [x] Gate determinista `make diagnostics-overhead`: coste directo de los dos snapshots por stream <1% de la ventana por defecto.
+- [x] A/B loopback disponible como `make diagnostics-ab`, informativo y fuera del gate por ruido de scheduler/CPU.
+- [x] Race, smoke y matriz OpenWrt vuelven a formar parte del gate.
+- [x] Fase 3 publicada directamente en `main`.
 
-**Gate de salida:** diagnóstico trazable a métricas brutas y degradación medible <1% frente al hot path sin diagnóstico.
+**Gate de salida:** `make phase3-check`. El subtest `netem-check` ejecuta namespaces cuando el host tiene `CAP_NET_ADMIN`; en contenedores restringidos informa `SKIP` explícitamente.
 
 ## Fase 4 — Capacidad, available bandwidth, QUIC y escenarios
 

@@ -50,3 +50,14 @@ Criterio técnico obligatorio para cualquier contribución a `netx`.
 - [ ] Modo portable sigue sin cgo.
 - [ ] Backpressure de reporting sigue fuera del hot path.
 - [ ] Trade-off documentado.
+
+
+## Diagnóstico determinista
+
+- Nunca inferir una causa sólo por correlación visual: cada diagnóstico necesita una regla y evidencia numérica.
+- Las métricas de emisor (`cwnd`, pacing/delivery rate, `rwnd_limited`, `sndbuf_limited`, bytes retransmitidos) sólo se interpretan en endpoints con rol sender/bidirectional.
+- `TCP_INFO` se toma en los límites de la ventana medida, no por paquete ni por sample.
+- Un kernel que devuelve un `tcp_info` más corto no es un error: `tcp_info_length` gobierna qué campos pueden interpretarse.
+- ECN negociado no equivale a congestión observada; sólo `delivered_ce`/contadores CE aportan evidencia de marcado.
+- El diagnóstico puede estar vacío. Ausencia de una regla disparada significa “sin evidencia suficiente para estas reglas”, no “red perfecta”.
+- El coste de instrumentación forma parte del gate; no se acepta telemetría que cambie de forma material lo que intenta medir.

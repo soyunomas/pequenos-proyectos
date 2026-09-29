@@ -82,6 +82,7 @@ func runThroughput(args []string) error {
 	dialTimeout := fs.Duration("dial-timeout", protocol.DefaultDial, "connection timeout")
 	jsonOut := fs.Bool("json", false, "emit stable JSON result")
 	ndjsonOut := fs.Bool("ndjson", false, "emit summary plus post-measurement samples as NDJSON")
+	diagnostics := fs.Bool("diagnostics", true, "collect Linux TCP_INFO/host telemetry and deterministic diagnostics")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func runThroughput(args []string) error {
 	result, err := throughput.RunTCPSuite(ctx, throughput.ClientConfig{
 		Host: fs.Arg(0), Port: *port, Direction: *direction, Duration: *duration, Warmup: *warmup,
 		BufferSize: *buffer, DialTimeout: *dialTimeout, SampleInterval: *sample, ProbeInterval: *probe,
-		Streams: *streams, Adaptive: *adaptive, MaxStreams: *maxStreams, ConvergencePct: *convergence,
+		Streams: *streams, Adaptive: *adaptive, MaxStreams: *maxStreams, ConvergencePct: *convergence, Diagnostics: *diagnostics,
 	})
 	if err != nil {
 		return err
@@ -196,8 +197,8 @@ Usage:
   netx latency [flags] HOST
   netx version
 
-Phase 2 separates single-flow from aggregate throughput, records time-series samples,
-measures RTT idle and under load, and adds paced UDP loss/reorder/jitter metrics.
+Phase 3 adds Linux TCP_INFO and host telemetry plus deterministic evidence-based diagnosis.
+TCP diagnostics are enabled by default and can be disabled with --diagnostics=false.
 Use 'make help' for validation and OpenWrt cross-build targets.
 `)
 }

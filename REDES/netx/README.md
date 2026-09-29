@@ -4,13 +4,13 @@
 
 El proyecto está orientado desde el principio a Linux y OpenWrt: binario autocontenido, `CGO_ENABLED=0`, sin dependencias externas en el hot path y compilación cruzada desde el `Makefile`.
 
-> Estado: **Fase 2 terminada**. TCP upload/download/bidireccional, single-flow vs aggregate, paralelismo adaptativo, series temporales, RTT idle/cargado, UDP paced con pérdida/reorder/jitter y JSON/NDJSON estable.
+> Estado: **Fase 3 terminada**. A la medición de Fase 2 se añaden `TCP_INFO` en Linux, métricas de CPU/RSS/PSI y diagnóstico determinista con evidencia numérica. El baseline OpenWrt sigue siendo `CGO_ENABLED=0`.
 
 ## Inicio rápido
 
 ```sh
 make help
-make phase2-check
+make phase3-check
 make build
 ```
 
@@ -97,6 +97,22 @@ El tamaño configurado incluye una cabecera netx de 36 bytes; el goodput reporta
 ## Hot path y backpressure
 
 Los workers de datos sólo actualizan contadores atómicos. El sampler los lee fuera del hot path. JSON y NDJSON se escriben **después** de finalizar la medición: una consola lenta o un pipe bloqueado no cambia el throughput observado.
+
+
+## Diagnóstico de Fase 3
+
+Por defecto, los tests TCP capturan telemetría al inicio y final de la ventana medida:
+
+```sh
+./bin/netx throughput --json 192.0.2.10
+./bin/netx throughput --diagnostics=false 192.0.2.10
+```
+
+En Linux, cada stream conserva `TCP_INFO`: congestion control, RTT/RTTvar/minRTT, cwnd/ssthresh, retransmisiones, pacing/delivery rate, bytes sent/acked/retransmitted, `rwnd_limited`, `sndbuf_limited` y ECN/CE cuando el kernel los expone. También se capturan CPU del proceso, CPU global, RSS y PSI.
+
+El diagnóstico no es una puntuación. Las reglas (`queueing-under-load`, `single-flow-limited`, `loss-retransmission-limited`, `receiver-window-limited`, `sender-buffer-limited`, `host-cpu-limited`, `ecn-congestion-signaled`) sólo aparecen cuando se cruza un umbral documentado y siempre incluyen la evidencia numérica. Véase [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
+
+`make diagnostics-overhead` mide el coste real de `TCP_INFO` y verifica que el presupuesto máximo de instrumentación queda por debajo del 1% de la ventana por defecto. `make diagnostics-ab` deja disponible un A/B loopback informativo.
 
 ## OpenWrt
 
