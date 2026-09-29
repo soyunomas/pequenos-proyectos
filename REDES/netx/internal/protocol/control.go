@@ -29,16 +29,16 @@ const (
 )
 
 type Request struct {
-	Mode             string `json:"mode"`
-	DurationMS       int64  `json:"duration_ms,omitempty"`
-	WarmupMS         int64  `json:"warmup_ms,omitempty"`
-	SampleIntervalMS int64  `json:"sample_interval_ms,omitempty"`
-	BufferSize       int    `json:"buffer_size,omitempty"`
-	Streams          int    `json:"streams,omitempty"`
-	RateBitsPerSec   uint64 `json:"rate_bits_per_second,omitempty"`
-	PacketSize       int    `json:"packet_size,omitempty"`
-	PacingQuantumUS  int64  `json:"pacing_quantum_us,omitempty"`
-	TimestampMode    string `json:"timestamp_mode,omitempty"`
+	Mode              string `json:"mode"`
+	DurationMS        int64  `json:"duration_ms,omitempty"`
+	WarmupMS          int64  `json:"warmup_ms,omitempty"`
+	SampleIntervalMS  int64  `json:"sample_interval_ms,omitempty"`
+	BufferSize        int    `json:"buffer_size,omitempty"`
+	Streams           int    `json:"streams,omitempty"`
+	RateBitsPerSec    uint64 `json:"rate_bits_per_second,omitempty"`
+	PacketSize        int    `json:"packet_size,omitempty"`
+	PacingQuantumUS   int64  `json:"pacing_quantum_us,omitempty"`
+	TimestampMode     string `json:"timestamp_mode,omitempty"`
 	Diagnostics       bool   `json:"diagnostics,omitempty"`
 	CongestionControl string `json:"congestion_control,omitempty"`
 	MinRateBitsPerSec uint64 `json:"min_rate_bits_per_second,omitempty"`

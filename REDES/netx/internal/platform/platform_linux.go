@@ -171,4 +171,3 @@ func parseCPUList(s string) ([]int, error) {
 	sort.Ints(out)
 	return out, nil
 }
-

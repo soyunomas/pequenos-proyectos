@@ -24,19 +24,19 @@ import (
 )
 
 type ClientConfig struct {
-	Host           string
-	Port           int
-	Direction      string
-	Duration       time.Duration
-	Warmup         time.Duration
-	BufferSize     int
-	DialTimeout    time.Duration
-	SampleInterval time.Duration
-	ProbeInterval  time.Duration
-	Streams        int
-	Adaptive       bool
-	MaxStreams     int
-	ConvergencePct float64
+	Host              string
+	Port              int
+	Direction         string
+	Duration          time.Duration
+	Warmup            time.Duration
+	BufferSize        int
+	DialTimeout       time.Duration
+	SampleInterval    time.Duration
+	ProbeInterval     time.Duration
+	Streams           int
+	Adaptive          bool
+	MaxStreams        int
+	ConvergencePct    float64
 	Diagnostics       bool
 	CongestionControl string
 }

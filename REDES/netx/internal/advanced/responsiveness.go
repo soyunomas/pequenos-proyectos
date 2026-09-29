@@ -49,12 +49,12 @@ func RunResponsiveness(ctx context.Context, cfg ResponsivenessConfig) (protocol.
 	}
 	result := protocol.ResponsivenessResult{
 		SchemaVersion: protocol.ResultSchemaVersion, ProtocolVersion: protocol.Version, TestID: tcp.TestID,
-		MeasurementKind: "responsiveness_under_working_conditions",
-		Method: "netx-concurrent-application-echo-v1",
-		Reference: "draft-ietf-ippm-responsiveness-09",
-		DraftConformant: false,
+		MeasurementKind:    "responsiveness_under_working_conditions",
+		Method:             "netx-concurrent-application-echo-v1",
+		Reference:          "draft-ietf-ippm-responsiveness-09",
+		DraftConformant:    false,
 		NonConformanceNote: "Uses independent netx application echo and p95 working RTT; it does not implement the draft's HTTP foreign/self probes, moving-average stability rule, or trimmed-mean aggregation. RPM is therefore explicitly approximate.",
-		Direction: cfg.Direction, Streams: tcp.Aggregate.Streams, IdleLatency: tcp.IdleLatency,
+		Direction:          cfg.Direction, Streams: tcp.Aggregate.Streams, IdleLatency: tcp.IdleLatency,
 		WorkingLatency: tcp.Aggregate.LoadedLatency, WorkingRTTMS: working, WorkingRPMApprox: rpm,
 	}
 	if tcp.Aggregate.Upload != nil {

@@ -88,50 +88,50 @@ type ScenarioSample struct {
 }
 
 type ScenarioResult struct {
-	SchemaVersion        int             `json:"schema_version"`
-	ProtocolVersion      int             `json:"protocol_version"`
-	TestID               string          `json:"test_id"`
-	MeasurementKind      string          `json:"measurement_kind"`
-	Profile              string          `json:"profile"`
-	Transport            string          `json:"transport"`
-	DurationMS           int64           `json:"duration_ms"`
-	MessageSize          int             `json:"message_size"`
-	TargetRateBPS        uint64          `json:"target_bits_per_second,omitempty"`
-	Requests             uint64          `json:"requests"`
-	PayloadBytesSent     uint64          `json:"payload_bytes_sent"`
-	PayloadBytesReceived uint64          `json:"payload_bytes_received"`
-	OperationsPerSecond  float64         `json:"operations_per_second,omitempty"`
-	PayloadBitsPerSecond float64         `json:"payload_bits_per_second,omitempty"`
-	Latency              LatencyResult   `json:"latency"`
+	SchemaVersion        int              `json:"schema_version"`
+	ProtocolVersion      int              `json:"protocol_version"`
+	TestID               string           `json:"test_id"`
+	MeasurementKind      string           `json:"measurement_kind"`
+	Profile              string           `json:"profile"`
+	Transport            string           `json:"transport"`
+	DurationMS           int64            `json:"duration_ms"`
+	MessageSize          int              `json:"message_size"`
+	TargetRateBPS        uint64           `json:"target_bits_per_second,omitempty"`
+	Requests             uint64           `json:"requests"`
+	PayloadBytesSent     uint64           `json:"payload_bytes_sent"`
+	PayloadBytesReceived uint64           `json:"payload_bytes_received"`
+	OperationsPerSecond  float64          `json:"operations_per_second,omitempty"`
+	PayloadBitsPerSecond float64          `json:"payload_bits_per_second,omitempty"`
+	Latency              LatencyResult    `json:"latency"`
 	Samples              []ScenarioSample `json:"samples,omitempty"`
 }
 
 type ResponsivenessResult struct {
-	SchemaVersion       int           `json:"schema_version"`
-	ProtocolVersion     int           `json:"protocol_version"`
-	TestID              string        `json:"test_id"`
-	MeasurementKind     string        `json:"measurement_kind"`
-	Method              string        `json:"method"`
-	Reference           string        `json:"reference"`
-	DraftConformant     bool          `json:"draft_conformant"`
-	NonConformanceNote  string        `json:"non_conformance_note"`
-	Direction           string        `json:"direction"`
-	Streams             int           `json:"streams"`
-	UploadBPS           float64       `json:"upload_bits_per_second,omitempty"`
-	DownloadBPS         float64       `json:"download_bits_per_second,omitempty"`
-	IdleLatency         LatencyResult `json:"idle_latency"`
-	WorkingLatency      LatencyResult `json:"working_latency"`
-	WorkingRTTMS        float64       `json:"working_rtt_ms"`
-	WorkingRPMApprox    float64       `json:"working_rpm_approx,omitempty"`
+	SchemaVersion      int           `json:"schema_version"`
+	ProtocolVersion    int           `json:"protocol_version"`
+	TestID             string        `json:"test_id"`
+	MeasurementKind    string        `json:"measurement_kind"`
+	Method             string        `json:"method"`
+	Reference          string        `json:"reference"`
+	DraftConformant    bool          `json:"draft_conformant"`
+	NonConformanceNote string        `json:"non_conformance_note"`
+	Direction          string        `json:"direction"`
+	Streams            int           `json:"streams"`
+	UploadBPS          float64       `json:"upload_bits_per_second,omitempty"`
+	DownloadBPS        float64       `json:"download_bits_per_second,omitempty"`
+	IdleLatency        LatencyResult `json:"idle_latency"`
+	WorkingLatency     LatencyResult `json:"working_latency"`
+	WorkingRTTMS       float64       `json:"working_rtt_ms"`
+	WorkingRPMApprox   float64       `json:"working_rpm_approx,omitempty"`
 }
 
 type CCComparisonItem struct {
-	Algorithm     string  `json:"algorithm"`
-	Supported     bool    `json:"supported"`
-	Error         string  `json:"error,omitempty"`
-	GoodputBPS    float64 `json:"goodput_bits_per_second,omitempty"`
-	LoadedP95MS   float64 `json:"loaded_p95_ms,omitempty"`
-	RetransPct    float64 `json:"retrans_percent,omitempty"`
+	Algorithm   string  `json:"algorithm"`
+	Supported   bool    `json:"supported"`
+	Error       string  `json:"error,omitempty"`
+	GoodputBPS  float64 `json:"goodput_bits_per_second,omitempty"`
+	LoadedP95MS float64 `json:"loaded_p95_ms,omitempty"`
+	RetransPct  float64 `json:"retrans_percent,omitempty"`
 }
 
 type CCComparisonResult struct {

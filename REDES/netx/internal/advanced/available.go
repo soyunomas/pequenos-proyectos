@@ -27,15 +27,15 @@ const (
 )
 
 type AvailableConfig struct {
-	Host           string
-	Port           int
-	DialTimeout    time.Duration
-	PacketSize     int
-	Chirps         int
-	ChirpPackets   int
-	ChirpGap       time.Duration
-	MinRateBPS     uint64
-	MaxRateBPS     uint64
+	Host         string
+	Port         int
+	DialTimeout  time.Duration
+	PacketSize   int
+	Chirps       int
+	ChirpPackets int
+	ChirpGap     time.Duration
+	MinRateBPS   uint64
+	MaxRateBPS   uint64
 }
 
 type availablePacket struct {
@@ -110,7 +110,7 @@ func RunAvailable(ctx context.Context, cfg AvailableConfig) (protocol.AvailableR
 func handleAvailableServer(ctx context.Context, control net.Conn, reader *bufio.Reader, listenHost string, req protocol.Request) error {
 	cfg := AvailableConfig{
 		PacketSize: req.PacketSize, Chirps: req.Chirps, ChirpPackets: req.ChirpPackets,
-		ChirpGap: time.Duration(req.ChirpGapMS) * time.Millisecond,
+		ChirpGap:   time.Duration(req.ChirpGapMS) * time.Millisecond,
 		MinRateBPS: req.MinRateBitsPerSec, MaxRateBPS: req.MaxRateBitsPerSec,
 		DialTimeout: protocol.DefaultDial, Host: listenHost, Port: protocol.DefaultPort,
 	}

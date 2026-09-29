@@ -8,9 +8,9 @@ import (
 
 func detect() Capabilities {
 	return Capabilities{
-		Affinity: false,
+		Affinity:     false,
 		AFXDPEnabled: false,
-		AFXDPReason: "AF_XDP is a Linux-only optional backend and is not enabled",
+		AFXDPReason:  "AF_XDP is a Linux-only optional backend and is not enabled",
 	}
 }
 
