@@ -1,217 +1,154 @@
 # netx
 
-`netx` es una herramienta de medición de red escrita en Go, inspirada en iperf3 pero diseñada para separar **goodput**, **capacidad**, **ancho de banda disponible** y **responsividad bajo carga** en lugar de reducir la red a una única cifra de “velocidad”.
+**Mide el rendimiento de tu red entre dos equipos y comprueba cómo responde mientras transfieres datos.** netx es una herramienta de línea de comandos escrita en Go, orientada a Linux y OpenWrt. Usa un servidor netx en un extremo y un cliente en el otro.
 
-El proyecto está orientado desde el principio a Linux y OpenWrt: binario autocontenido, `CGO_ENABLED=0`, sin dependencias externas en el hot path y compilación cruzada desde el `Makefile`.
+## Funcionalidades
 
-> Estado: **Fase 5 terminada**. Wire/result actual: **protocol=5 / schema=4**. NetX incorpora available-bandwidth, QUIC, escenarios, diagnóstico, capability discovery, afinidad CPU/NUMA, timestamping UDP opcional y release OpenWrt reproducible. El baseline sigue siendo `CGO_ENABLED=0`.
+- **Transferencias TCP y QUIC:** subida, bajada y tráfico bidireccional.
+- **Uno o varios flujos:** conserva la medición de un solo flujo y permite compararla con flujos paralelos o aumentar su número de forma adaptativa en TCP.
+- **UDP con tasa configurable:** mide datos útiles recibidos, pérdida, reordenamiento y jitter.
+- **Latencia en reposo y bajo carga:** muestra percentiles de RTT para observar si una transferencia perjudica la respuesta de la red.
+- **Estimación del ancho de banda disponible:** usa sondas UDP y declara cuándo la señal no permite obtener una estimación válida.
+- **Escenarios de aplicación:** petición/respuesta, mensajes pequeños, ráfagas y streaming.
+- **Diagnóstico TCP en Linux:** telemetría de conexión, retransmisiones, CPU y reglas de diagnóstico con evidencia numérica.
+- **Resultados para automatización:** JSON y, en TCP/UDP, NDJSON con muestras de la medición.
+- **Binario estático:** compilación sin cgo, opciones de afinidad CPU/NUMA, timestamping UDP y compilación cruzada para distintas arquitecturas de OpenWrt.
 
-## Inicio rápido
+Consulta el **[HOWTO: guía de uso, ejemplos y conceptos](HOWTO.md)** para aprender qué mide cada modo y cómo interpretar sus resultados.
+
+## Qué necesitas
+
+- Dos equipos que puedan comunicarse por IP; uno actúa como servidor y el otro como cliente.
+- Un binario netx compatible con cada equipo. Para compilarlo: **Go 1.23 o posterior**, Git y, para los comandos `make`, GNU Make.
+- Acceso a las dependencias Go durante la compilación. El binario resultante no necesita Go instalado para ejecutarse.
+
+Puedes probar ambos extremos en el mismo equipo usando `127.0.0.1`. Esto comprueba el funcionamiento local; para medir Ethernet, Wi-Fi, una VPN o una ruta por Internet, sitúa los extremos a ambos lados de esa ruta.
+
+netx no selecciona servidores públicos de speed test: necesitas ejecutar tu propio servidor netx.
+
+## Instalación
+
+### Compilar desde el código fuente
 
 ```sh
-make help
-make phase5-check
+git clone https://github.com/soyunomas/pequenos-proyectos.git
+cd pequenos-proyectos/REDES/netx
 make build
+./bin/netx version
+./bin/netx help
 ```
 
-Servidor:
+El ejecutable se genera en `bin/netx`. El target `build` usa `CGO_ENABLED=0` por defecto. Si no tienes Make, puedes compilar desde esa misma carpeta:
 
 ```sh
-./bin/netx server
+CGO_ENABLED=0 go build -trimpath -o bin/netx ./cmd/netx
 ```
 
-TCP:
+Para instalarlo en tu usuario en Linux:
 
 ```sh
-# Baseline single-flow
-./bin/netx throughput 192.0.2.10
-
-# Se conserva el baseline de 1 flujo y se compara con 4 flujos
-./bin/netx throughput --streams 4 192.0.2.10
-
-# 1 -> 2 -> 4 -> 8 hasta que la ganancia marginal converja
-./bin/netx throughput --adaptive --max-streams 8 --convergence 5 192.0.2.10
-
-# Download y bidireccional
-./bin/netx throughput --direction download 192.0.2.10
-./bin/netx throughput --direction bidir 192.0.2.10
+mkdir -p "$HOME/.local/bin"
+install -m 0755 bin/netx "$HOME/.local/bin/netx"
+export PATH="$HOME/.local/bin:$PATH"
+netx version
 ```
 
-UDP:
+Añade esa línea `export PATH=...` al archivo de inicio de tu shell si quieres conservarla en nuevas terminales. También puedes usar siempre `./bin/netx` sin instalarlo.
+
+### Compilar para OpenWrt
+
+Compila en tu ordenador y copia el ejecutable correspondiente a la arquitectura del router. Por ejemplo, para ARM64:
 
 ```sh
-./bin/netx udp --rate 100M --packet-size 1200 192.0.2.10
+make openwrt-arm64
+scp dist/netx-linux-arm64 root@192.168.1.1:/tmp/netx
+ssh root@192.168.1.1
+chmod +x /tmp/netx
+/tmp/netx version
 ```
 
-Latencia de aplicación:
+Sustituye la dirección y la arquitectura por las de tu router. `/tmp` es temporal y se pierde al reiniciar. `make openwrt` genera toda la matriz: amd64, 386, ARM v5/v6/v7, ARM64, MIPS/MIPSLE/MIPS64 soft-float y RISC-V 64. La [guía de compatibilidad](docs/COMPATIBILITY.md) detalla los artefactos y las capacidades opcionales.
+
+Para integrar netx como paquete procd/UCI mediante el SDK de OpenWrt, consulta el [HOWTO](HOWTO.md#openwrt-y-servicio-procduci).
+
+## Primera medición entre dos equipos
+
+Supongamos que el servidor tiene la dirección LAN `192.168.1.10`. En ese equipo:
 
 ```sh
-./bin/netx latency 192.0.2.10
+netx server --listen 192.168.1.10
 ```
 
-Salida máquina-legible:
+En el otro equipo:
 
 ```sh
-./bin/netx throughput --json 192.0.2.10
-./bin/netx throughput --ndjson 192.0.2.10
-./bin/netx udp --ndjson --rate 50M 192.0.2.10
+# Cliente -> servidor: subida
+netx throughput 192.168.1.10
+
+# Servidor -> cliente: bajada
+netx throughput --direction download 192.168.1.10
+
+# RTT sin una transferencia de carga generada por netx
+netx latency 192.168.1.10
 ```
 
-## Qué mide la Fase 2
+Sustituye la IP del ejemplo por la de tu servidor. Las opciones se escriben **antes de la dirección del servidor**. Si no instalaste el ejecutable, sustituye `netx` por `./bin/netx`.
 
-### TCP
+Una prueba TCP usa por defecto una ventana de medición de 10 segundos y 2 segundos de calentamiento; el tiempo total incluye también sondas de latencia y preparación. Para detener el servidor, pulsa `Ctrl+C`.
 
-Cada suite conserva explícitamente dos niveles:
+### Conectividad y acceso
 
-- `single_stream`: resultado con un flujo TCP;
-- `aggregate`: mejor stage probado con N flujos.
+El puerto de control predeterminado es **TCP 5202**. Los canales de datos negocian puertos dinámicos: TCP para transferencias y escenarios TCP; UDP para las pruebas UDP, el estimador y QUIC. Abrir únicamente el puerto de control puede permitir conectar pero impedir completar la prueba.
 
-No se sustituyen entre sí. Si `--streams 4` se usa, primero se ejecuta un stage de 1 flujo y después uno de 4. Con `--adaptive`, se prueban 1, 2, 4, ... hasta el límite o hasta que la ganancia marginal cae por debajo de `--convergence`.
+En redes con firewall o NAT, permite los canales necesarios entre los equipos de prueba o usa una VPN que les dé conectividad directa. `--port` cambia el puerto de control, no fija los puertos de datos. Por defecto, `netx server` escucha en `0.0.0.0`; usa `--listen` para elegir la dirección de escucha.
 
-Cada dirección incluye bytes, bit/s, MiB/s, resultado por stream y samples periódicos. `bidir` mantiene upload y download separados, no los colapsa en una cifra única.
+El servidor está pensado para entornos de prueba controlados: el canal de control no autentica al usuario ni cifra sus mensajes. QUIC usa un certificado efímero autofirmado cuya identidad no valida el cliente. No publiques el servidor como un servicio abierto a Internet.
 
-### Responsividad
+## Elegir la prueba adecuada
 
-Antes de la carga se obtiene un baseline RTT con un echo de aplicación independiente. Durante cada stage se mantiene otro canal de probes y se calculan:
+| Quiero saber… | Comando de partida |
+| --- | --- |
+| Cuánto dato útil transfiere una conexión TCP | `netx throughput HOST` |
+| Qué cambia al usar cuatro flujos TCP | `netx throughput --streams 4 HOST` |
+| Cómo se comportan subida y bajada simultáneas | `netx throughput --direction bidir HOST` |
+| Si una tasa UDP provoca pérdida o jitter | `netx udp --rate 10M HOST` |
+| Cuánto tarda una interacción de ida y vuelta | `netx latency HOST` |
+| Cómo responde la red durante una transferencia | `netx responsiveness HOST` |
+| Qué ancho de banda podría estar disponible ahora | `netx available --min-rate 1M --max-rate 100M HOST` |
+| Cuánto dato útil transfiere QUIC | `netx quic HOST` |
+| Cómo funciona un patrón de petición/respuesta | `netx scenario --profile request-response HOST` |
+| Qué capacidades detecta netx en este equipo | `netx capabilities` |
 
-- min;
-- p50, p90, p95 y p99;
-- max;
-- MAD (median absolute deviation).
+`HOST` representa la IP o el nombre de tu servidor. En el [HOWTO](HOWTO.md) encontrarás ejemplos completos, opciones, definiciones y resolución de problemas.
 
-Esto permite observar queueing bajo carga sin depender de ICMP.
+## Interpretar la medición
 
-### UDP
+El throughput de TCP/QUIC representa **goodput**, es decir, datos útiles entregados durante la ventana medida. No certifica la capacidad física del enlace. Una conexión Ethernet de 1 Gbit/s puede entregar menos datos útiles por las cabeceras, el transporte o los límites del equipo.
 
-El generador usa pacing por quantum con presupuesto de bits, no un `Write` loop sin límite. El receptor informa:
+Un resultado con varios flujos conserva el baseline de un flujo. En bidireccional, subida y bajada se presentan por separado. En UDP, `--rate` cuenta el datagrama netx, incluida su cabecera, mientras que el goodput cuenta el payload útil.
 
-- goodput útil;
-- paquetes esperados/recibidos/perdidos;
-- porcentaje de pérdida;
-- paquetes observados fuera de orden;
-- jitter EWMA basado en la diferencia entre spacing de envío y spacing de llegada;
-- RTT idle y bajo carga.
+La latencia bajo carga ayuda a interpretar el rendimiento: transferir muchos datos con un p95 de RTT muy elevado puede perjudicar una llamada o una sesión interactiva. El estimador `available` puede abstenerse cuando faltan muestras válidas o la señal es inestable. El RPM de `responsiveness` es una aproximación y lleva `draft_conformant=false`.
 
-El tamaño configurado incluye una cabecera netx de 36 bytes; el goodput reportado cuenta payload útil, no esa cabecera.
+Consulta las [definiciones y unidades](HOWTO.md#conceptos-y-unidades) y los [ejemplos de interpretación](HOWTO.md#interpretar-los-resultados).
 
-## Hot path y backpressure
-
-Los workers de datos sólo actualizan contadores atómicos. El sampler los lee fuera del hot path. JSON y NDJSON se escriben **después** de finalizar la medición: una consola lenta o un pipe bloqueado no cambia el throughput observado.
-
-
-## Diagnóstico de Fase 3
-
-Por defecto, los tests TCP capturan telemetría al inicio y final de la ventana medida:
+## Desarrollo y documentación técnica
 
 ```sh
-./bin/netx throughput --json 192.0.2.10
-./bin/netx throughput --diagnostics=false 192.0.2.10
+make help          # Targets disponibles
+make check         # Formato, análisis estático y pruebas unitarias
+make race          # Detector de condiciones de carrera; necesita cgo/toolchain C
+make smoke         # Pruebas cliente/servidor en loopback
+make netem-check   # Simulación Linux; SKIP si faltan permisos o herramientas
 ```
 
-En Linux, cada stream conserva `TCP_INFO`: congestion control, RTT/RTTvar/minRTT, cwnd/ssthresh, retransmisiones, pacing/delivery rate, bytes sent/acked/retransmitted, `rwnd_limited`, `sndbuf_limited` y ECN/CE cuando el kernel los expone. También se capturan CPU del proceso, CPU global, RSS y PSI.
+- [HOWTO](HOWTO.md): instalación operativa, recetas, conceptos y problemas frecuentes.
+- [Compatibilidad](docs/COMPATIBILITY.md): arquitecturas y requisitos de las capacidades opcionales.
+- [Diagnóstico](docs/DIAGNOSTICS.md): reglas y evidencias de las limitaciones detectadas.
+- [Especificación](docs/SPEC.md): diseño y metodología de medición.
+- [Metodología de los modos avanzados](docs/PHASE4.md): estimador, QUIC, escenarios y responsividad.
+- [Capacidades y empaquetado](docs/PHASE5.md): afinidad, timestamping y generación de artefactos.
+- [Benchmarks](benchmarks/README.md): medición del rendimiento de la implementación.
 
-El diagnóstico no es una puntuación. Las reglas (`queueing-under-load`, `single-flow-limited`, `loss-retransmission-limited`, `receiver-window-limited`, `sender-buffer-limited`, `host-cpu-limited`, `ecn-congestion-signaled`) sólo aparecen cuando se cruza un umbral documentado y siempre incluyen la evidencia numérica. Véase [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
+## Licencia
 
-`make diagnostics-overhead` mide el coste real de `TCP_INFO` y verifica que el presupuesto máximo de instrumentación queda por debajo del 1% de la ventana por defecto. `make diagnostics-ab` deja disponible un A/B loopback informativo.
-
-## OpenWrt
-
-```sh
-make openwrt
-```
-
-Genera binarios estáticos para:
-
-- `linux/amd64`, `linux/386`;
-- `linux/arm` con `GOARM=5`, `6` y `7`;
-- `linux/arm64`;
-- `linux/mips`, `linux/mipsle` y `linux/mips64` soft-float;
-- `linux/riscv64`.
-
-Los artefactos quedan en `dist/`.
-
-## Gates
-
-```sh
-make check        # gofmt + vet + unit tests
-make race         # race detector
-make smoke        # E2E loopback: TCP/UDP/latencia/JSON/NDJSON
-make netem-check  # namespaces + tc netem; SKIP explícito sin CAP_NET_ADMIN
-make openwrt      # cross-builds
-make phase2-check # todo lo anterior
-```
-
-`netem-check` configura, cuando el host tiene permisos, 20 ms ± 3 ms de delay, 1% loss y 1% reorder entre dos namespaces Linux. En contenedores sin `CAP_SYS_ADMIN/CAP_NET_ADMIN` devuelve un `SKIP` explícito y no modifica la red del host.
-
-La especificación completa y las decisiones derivadas de papers/RFC están en [`docs/SPEC.md`](docs/SPEC.md). El plan de cinco fases está en [`TODO.md`](TODO.md) y las reglas de ingeniería en [`SKILL.md`](SKILL.md).
-
-## Fase 4
-
-Además de TCP/UDP/latency:
-
-```sh
-netx available --min-rate 1M --max-rate 100M HOST
-netx quic --direction upload --streams 4 HOST
-netx scenario --profile request-response --message-size 1024 HOST
-netx scenario --profile bursty --burst-messages 32 HOST
-netx scenario --profile streaming --rate 10M HOST
-netx responsiveness --direction bidir --streams 4 HOST
-netx throughput --cc cubic HOST
-netx cc-compare --algorithms cubic,bbr,reno HOST
-```
-
-`available` no es un alias de throughput. Devuelve una estimación de available bandwidth y puede rechazarla si la señal no es estable.
-
-`responsiveness` publica un RPM aproximado y declara `draft_conformant=false`; consulte `docs/PHASE4.md` antes de compararlo con implementaciones conformes del draft IPPM.
-
-### Gate de integración
-
-GitHub Actions ejecuta `make phase4-check` en cada cambio de `REDES/netx/**`. El mismo target puede ejecutarse localmente y mantiene la matriz OpenWrt sin cgo.
-
-## Fase 5
-
-Inspección del host:
-
-```sh
-./bin/netx capabilities
-./bin/netx capabilities --json
-```
-
-Afinidad opcional:
-
-```sh
-./bin/netx server --cpu 2
-./bin/netx throughput --numa-node 0 HOST
-```
-
-Timestamping UDP:
-
-```sh
-./bin/netx udp --timestamp userspace HOST
-./bin/netx udp --timestamp kernel HOST
-./bin/netx udp --timestamp hardware HOST
-```
-
-El modo hardware no configura el NIC. Si el driver no entrega timestamps hardware, la salida conserva el fallback observado en `timestamp_source`.
-
-Optimización y profiling:
-
-```sh
-make profile-fastpath
-make fastpath-bench
-```
-
-El candidato batch Linux no se activa automáticamente: reducir syscalls no justifica cambiar la semántica temporal del test. GSO/GRO se detectan como capabilities y AF_XDP permanece deshabilitado hasta que hardware real demuestre que sockets normales son el límite.
-
-Release:
-
-```sh
-make release VERSION=0.5.0
-make release-repro VERSION=0.5.0
-make openwrt-feed VERSION=0.5.0 OPENWRT_ARCH=arm64
-```
-
-La release genera diez binarios, `SHA256SUMS` y `BUILDINFO`. El staging OpenWrt produce una receta procd/UCI lista para copiar al SDK; el daemon queda deshabilitado por defecto.
-
-Véanse [docs/PHASE5.md](docs/PHASE5.md), [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) y [benchmarks/README.md](benchmarks/README.md).
-La grafo de módulos de la release se mantiene con `go mod tidy` de Go 1.23 y `go mod verify` forma parte del gate de CI.
+netx se distribuye bajo la **[licencia MIT](LICENSE)**. Las dependencias de terceros conservan sus propias licencias.
