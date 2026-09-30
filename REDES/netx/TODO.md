@@ -1,4 +1,19 @@
-# TODO — plan de cinco fases
+# TODO — mejoras pendientes e historial
+
+## Próxima sesión: salida legible y feedback de las pruebas
+
+Estado: **PENDIENTE**. Anotado el 1 de octubre de 2026 para retomar en la siguiente sesión; estas funciones todavía no están implementadas.
+
+- [ ] **Resumen legible por defecto.** Sustituir las líneas largas separadas por `|` por bloques cortos de velocidad, latencia y estado. Adaptar la presentación al ancho disponible, con un formato utilizable en terminales de 80 columnas sin necesitar pantalla completa. Mantener separados subida/bajada y baseline de un flujo/resultados de varios flujos.
+- [ ] **Detalle técnico opcional.** Mantener la recogida de diagnósticos cuando esté habilitada, pero mostrar por defecto sólo lo relevante para el usuario. Llevar TCP_INFO, CPU, ventanas, pacing y evidencias completas a una opción de detalle explícita, por ejemplo `--verbose`; conservar `--diagnostics=false` para desactivar su recogida.
+- [ ] **Selección de idioma.** Permitir elegir español o inglés, por ejemplo con `--lang es|en`, con idioma predeterminado y fallback documentados. Traducir de forma coherente ayuda, etiquetas, estados, errores y explicaciones de diagnóstico en cliente y servidor. Mantener estables las claves, códigos, unidades y esquema de JSON/NDJSON.
+- [ ] **Situación actual y posibles problemas.** Ofrecer un resumen en lenguaje sencillo: rendimiento observado, respuesta en reposo/bajo carga y posibles límites respaldados por las reglas existentes. Explicar qué significan los hallazgos y qué comprobar después. Diferenciar límites del equipo de problemas de la ruta; identificar loopback como prueba local, sin atribuir sus resultados al router o a Internet. No presentar hipótesis como causas confirmadas ni ausencia de findings como garantía de una red perfecta.
+- [ ] **Feedback visible en el cliente.** Informar de conexión, preparación, calentamiento, medición por stage y finalización. Durante la medición, mostrar una indicación discreta de actividad/progreso, duración y posibilidad de cancelar, sin esperar al resultado final para saber que la prueba arrancó. Mostrar errores y cancelación con claridad. Usar stderr para el feedback, respetar TTY/NO_COLOR y evitar animaciones o ruido en archivos, pipes y automatización.
+- [ ] **Actividad y resultados en el servidor.** Mostrar cuándo se conecta un cliente, su dirección, tipo de prueba, sentido y parámetros relevantes. Al terminar, mostrar los resultados disponibles para el servidor, duración y estado de éxito/error/cancelación. Asociar los mensajes a cada sesión para distinguir clientes concurrentes y separar las sondas de control del inicio real de una transferencia; evitar registrar cada paquete o exponer tokens de sesión.
+- [ ] **Preservar la medición y OpenWrt.** Mantener colores de contraste conservador, salida ASCII cuando sea necesario y compilación sin cgo. El feedback no debe bloquear workers ni añadir trabajo por paquete: diseñar actualización limitada y verificar su coste. Los resultados JSON/NDJSON siguen publicándose tras la medición y permanecen parseables, sin progreso ni escapes ANSI en stdout.
+- [ ] **Validación y documentación.** Comprobar terminal estrecha, fondos claros/oscuros, idiomas, errores, cancelación y sesiones simultáneas; validar pipes, JSON/NDJSON y compatibilidad OpenWrt. Actualizar README/HOWTO con ejemplos de la salida compacta y del modo detallado.
+
+## Historial del desarrollo inicial
 
 Regla de proyecto: **cada fase termina con gates reproducibles y un commit directo a `main` antes de comenzar la siguiente**. No se usan ramas para el desarrollo ordinario de `netx`.
 
