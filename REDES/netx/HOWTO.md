@@ -14,6 +14,7 @@ Esta guía explica cómo usar netx desde una primera prueba hasta mediciones de 
 - [Medir QUIC](#medir-quic)
 - [Probar escenarios de aplicación](#probar-escenarios-de-aplicación)
 - [Guardar resultados y automatizar](#guardar-resultados-y-automatizar)
+- [Colores de la terminal](#colores-de-la-terminal)
 - [Diagnóstico y opciones del host](#diagnóstico-y-opciones-del-host)
 - [OpenWrt y servicio procd/UCI](#openwrt-y-servicio-procduci)
 - [Interpretar los resultados](#interpretar-los-resultados)
@@ -366,6 +367,38 @@ done
 ```
 
 Guarda también versiones, interfaz usada, conexión cableada o Wi-Fi, distancia/ubicación, hora y carga externa. Compara la dispersión entre ejecuciones; una única cifra puede coincidir con una interferencia o una carga transitoria.
+
+## Colores de la terminal
+
+La salida de texto resalta etiquetas, valores y estados con secuencias ANSI SGR básicas, compatibles con terminales Linux y sesiones SSH habituales de OpenWrt. No usa truecolor, fondos de color, animaciones ni consultas de escape al terminal; no necesita cgo ni nuevos paquetes.
+
+En modo automático, sólo se resalta cuando la salida es una terminal y `TERM` está definido y es distinto de `dumb`. Al guardar en archivos o usar pipes se genera texto plano. JSON y NDJSON siempre permanecen libres de colores, incluso cuando se fuerza el resaltado.
+
+| Variable | Valores | Comportamiento |
+| --- | --- | --- |
+| `NETX_COLOR` | `auto` (predeterminado), `always`, `never` | Detección automática, forzar resaltado o desactivarlo |
+| `NETX_COLOR_THEME` | `auto` (predeterminado), `light`, `dark` | Elegir la paleta según el fondo |
+| `NO_COLOR` | Cualquier valor no vacío | Desactivar resaltado; tiene prioridad sobre `always` |
+| `COLORFGBG` | La proporciona algunos terminales | Permite inferir fondos convencionales negros o blancos en modo auto |
+
+Para un fondo oscuro, las etiquetas usan cian en negrita y los estados destacados amarillo en negrita; para un fondo claro, azul y rojo estándar. Los valores numéricos mantienen el color de texto del terminal en negrita. Si el fondo es desconocido, se conserva el color de texto del terminal y se usa negrita/subrayado: no se adivina un color que pueda resultar ilegible.
+
+Las paletas ANSI pueden estar personalizadas por el usuario, por lo que no se puede garantizar un contraste universal con colores fijos. El modo auto conservador y `NO_COLOR` permiten respetar esa configuración. El significado sigue presente en el texto; los colores no añaden un diagnóstico ni sustituyen los valores.
+
+```sh
+# Si tu terminal no informa del fondo, puedes elegirlo explícitamente
+NETX_COLOR_THEME=dark netx capabilities
+NETX_COLOR_THEME=light netx throughput 192.168.1.10
+
+# Desactivar todo resaltado
+NO_COLOR=1 netx capabilities
+NETX_COLOR=never netx throughput 192.168.1.10
+
+# Forzar ANSI, por ejemplo para un paginador que lo interprete
+NETX_COLOR=always NETX_COLOR_THEME=dark netx capabilities | less -R
+```
+
+`always` también puede añadir escapes a un archivo o pipe de texto si se solicita expresamente. `less` es opcional y puede no estar instalado en OpenWrt. Por SSH, el ejemplo `ssh -t root@192.168.1.1 '/tmp/netx capabilities'` asigna una terminal; sin `-t`, la salida permanece plana en modo auto. SSH no necesariamente transmite `COLORFGBG`: puedes establecer `NETX_COLOR_THEME` en el equipo remoto.
 
 ## Diagnóstico y opciones del host
 

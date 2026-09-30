@@ -5,9 +5,11 @@ import (
 	"io"
 
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/terminal"
 )
 
 func PrintAvailableHuman(w io.Writer, r protocol.AvailableResult) {
+	w = terminal.NewWriter(w)
 	fmt.Fprintf(w, "available bandwidth | method %s | probe %.2f..%.2f Mbit/s | %d/%d valid chirps\n",
 		r.Method, float64(r.RequestedMinBPS)/1e6, float64(r.RequestedMaxBPS)/1e6, r.ValidChirps, r.Chirps)
 	if r.EstimateValid {
@@ -24,6 +26,7 @@ func PrintAvailableHuman(w io.Writer, r protocol.AvailableResult) {
 }
 
 func PrintQUICHuman(w io.Writer, r protocol.QUICTestResult) {
+	w = terminal.NewWriter(w)
 	fmt.Fprintf(w, "QUIC %s goodput | idle RTT p50 %.2f ms p95 %.2f ms\n", r.Direction, r.IdleLatency.Summary.P50MS, r.IdleLatency.Summary.P95MS)
 	for i, stage := range r.Stages {
 		fmt.Fprintf(w, "stage %d | %d stream(s)", i+1, stage.Streams)
@@ -40,6 +43,7 @@ func PrintQUICHuman(w io.Writer, r protocol.QUICTestResult) {
 }
 
 func PrintScenarioHuman(w io.Writer, r protocol.ScenarioResult) {
+	w = terminal.NewWriter(w)
 	fmt.Fprintf(w, "scenario %s over %s | message %d B | duration %d ms | operations %d | %.2f ops/s\n",
 		r.Profile, r.Transport, r.MessageSize, r.DurationMS, r.Requests, r.OperationsPerSecond)
 	fmt.Fprintf(w, "payload sent %d B | received %d B | payload rate %.2f Mbit/s\n",
@@ -51,6 +55,7 @@ func PrintScenarioHuman(w io.Writer, r protocol.ScenarioResult) {
 }
 
 func PrintResponsivenessHuman(w io.Writer, r protocol.ResponsivenessResult) {
+	w = terminal.NewWriter(w)
 	fmt.Fprintf(w, "responsiveness under working conditions | %s | %d stream(s)\n", r.Direction, r.Streams)
 	if r.UploadBPS > 0 {
 		fmt.Fprintf(w, "upload goodput %.2f Mbit/s\n", r.UploadBPS/1e6)
@@ -68,6 +73,7 @@ func PrintResponsivenessHuman(w io.Writer, r protocol.ResponsivenessResult) {
 }
 
 func PrintCCComparisonHuman(w io.Writer, r protocol.CCComparisonResult) {
+	w = terminal.NewWriter(w)
 	fmt.Fprintf(w, "TCP congestion-control comparison | %s | %d stream(s)\n", r.Direction, r.Streams)
 	for _, item := range r.Items {
 		if !item.Supported {

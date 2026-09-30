@@ -18,6 +18,7 @@
 - **Escenarios de aplicación:** petición/respuesta, mensajes pequeños, ráfagas y streaming.
 - **Diagnóstico TCP en Linux:** telemetría de conexión, retransmisiones, CPU y reglas de diagnóstico con evidencia numérica.
 - **Resultados para automatización:** JSON y, en TCP/UDP, NDJSON con muestras de la medición.
+- **Salida de terminal legible:** resaltado ANSI discreto, adaptación al fondo y texto limpio al redirigir o usar `NO_COLOR`.
 - **Binario estático:** compilación sin cgo, opciones de afinidad CPU/NUMA, timestamping UDP y compilación cruzada para distintas arquitecturas de OpenWrt.
 
 Consulta el **[HOWTO: guía de uso, ejemplos y conceptos](HOWTO.md)** para aprender qué mide cada modo y cómo interpretar sus resultados.

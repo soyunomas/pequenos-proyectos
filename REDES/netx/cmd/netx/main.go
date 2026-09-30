@@ -18,12 +18,13 @@ import (
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/report"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/server"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/terminal"
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/throughput"
 )
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "netx:", err)
+		fmt.Fprintln(terminal.NewWriter(os.Stderr), "netx:", err)
 		os.Exit(1)
 	}
 }
@@ -55,7 +56,7 @@ func run(args []string) error {
 	case "capabilities":
 		return runCapabilities(args[1:])
 	case "version":
-		fmt.Printf("netx %s (%s) protocol=%d schema=%d\n", buildinfo.Version, buildinfo.Commit, protocol.Version, protocol.ResultSchemaVersion)
+		fmt.Fprintf(terminal.NewWriter(os.Stdout), "netx %s (%s) protocol=%d schema=%d\n", buildinfo.Version, buildinfo.Commit, protocol.Version, protocol.ResultSchemaVersion)
 		return nil
 	case "help", "-h", "--help":
 		usage()
@@ -81,7 +82,7 @@ func runServer(args []string) error {
 	}
 	ctx, stop := commandContext()
 	defer stop()
-	fmt.Printf("netx server listening on %s:%d (protocol %d)\n", *listen, *port, protocol.Version)
+	fmt.Fprintf(terminal.NewWriter(os.Stdout), "netx server listening on %s:%d (protocol %d)\n", *listen, *port, protocol.Version)
 	return server.New(server.Config{ListenHost: *listen, Port: *port}).Run(ctx)
 }
 
@@ -208,7 +209,7 @@ func runLatency(args []string) error {
 	if *jsonOut {
 		return report.WriteJSON(os.Stdout, result)
 	}
-	fmt.Printf("RTT p50 %.3f ms p95 %.3f ms p99 %.3f ms MAD %.3f ms (%d probes)\n", result.Summary.P50MS, result.Summary.P95MS, result.Summary.P99MS, result.Summary.MADMS, result.Summary.Count)
+	fmt.Fprintf(terminal.NewWriter(os.Stdout), "RTT p50 %.3f ms p95 %.3f ms p99 %.3f ms MAD %.3f ms (%d probes)\n", result.Summary.P50MS, result.Summary.P95MS, result.Summary.P99MS, result.Summary.MADMS, result.Summary.Count)
 	return nil
 }
 
@@ -424,17 +425,18 @@ func runCapabilities(args []string) error {
 	if *jsonOut {
 		return report.WriteJSON(os.Stdout, caps)
 	}
-	fmt.Printf("platform %s/%s | cpus=%d | affinity=%t | udp_batch=%t | gso=%t | gro=%t | kernel_ts=%t | hw_ts_api=%t | af_xdp=%t\n",
+	out := terminal.NewWriter(os.Stdout)
+	fmt.Fprintf(out, "platform %s/%s | cpus=%d | affinity=%t | udp_batch=%t | gso=%t | gro=%t | kernel_ts=%t | hw_ts_api=%t | af_xdp=%t\n",
 		caps.OS, caps.Arch, caps.CPUCount, caps.Affinity, caps.UDPBatching, caps.UDPGSO, caps.UDPGRO,
 		caps.KernelSoftwareTimestamping, caps.HardwareTimestampingSocketAPI, caps.AFXDPEnabled)
 	if len(caps.NUMANodes) > 0 {
 		for _, node := range caps.NUMANodes {
-			fmt.Printf("numa node %d cpus=%v\n", node.Node, node.CPUs)
+			fmt.Fprintf(out, "numa node %d cpus=%v\n", node.Node, node.CPUs)
 		}
 	}
-	fmt.Printf("AF_XDP: %s\n", caps.AFXDPReason)
+	fmt.Fprintf(out, "AF_XDP: %s\n", caps.AFXDPReason)
 	if caps.HardwareTimestampingSocketAPI && !caps.HardwareTimestampingNIC {
-		fmt.Println("hardware timestamping: socket API available; NIC/driver capability is not claimed until externally configured and observed")
+		fmt.Fprintln(out, "hardware timestamping: socket API available; NIC/driver capability is not claimed until externally configured and observed")
 	}
 	return nil
 }
@@ -459,7 +461,7 @@ func (t tuningFlags) apply() error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "netx: affinity cpus=%v threads=%d\n", res.AppliedCPUs, res.Threads)
+	fmt.Fprintf(terminal.NewWriter(os.Stderr), "netx: affinity cpus=%v threads=%d\n", res.AppliedCPUs, res.Threads)
 	return nil
 }
 
@@ -468,7 +470,7 @@ func commandContext() (context.Context, context.CancelFunc) {
 }
 
 func usage() {
-	fmt.Print(`netx - network performance measurement for real diagnostics
+	fmt.Fprint(terminal.NewWriter(os.Stdout), `netx - network performance measurement for real diagnostics
 
 Usage:
   netx server [--listen ADDR] [--port PORT]

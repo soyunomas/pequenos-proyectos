@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/protocol"
+	"github.com/soyunomas/pequenos-proyectos/REDES/netx/internal/terminal"
 )
 
 func WriteJSON(w io.Writer, v any) error {
@@ -80,6 +81,7 @@ func WriteUDPNDJSON(w io.Writer, result protocol.UDPResult) error {
 }
 
 func PrintTCPHuman(w io.Writer, result protocol.TCPTestResult) {
+	w = terminal.NewWriter(w)
 	fmt.Fprintf(w, "TCP %s | idle RTT p50 %.2f ms p95 %.2f ms\n", result.Direction, result.IdleLatency.Summary.P50MS, result.IdleLatency.Summary.P95MS)
 	for i, stage := range result.Stages {
 		fmt.Fprintf(w, "stage %d | %d stream(s)", i+1, stage.Streams)
@@ -154,6 +156,7 @@ func printEndpoint(w io.Writer, label string, ep *protocol.EndpointTelemetry) {
 }
 
 func PrintUDPHuman(w io.Writer, result protocol.UDPResult) {
+	w = terminal.NewWriter(w)
 	fmt.Fprintf(w, "UDP upload | target %.2f Mbit/s | received %.2f Mbit/s | loss %.3f%% | reorder %d | jitter %.3f ms\n",
 		float64(result.RateBitsPerSec)/1_000_000, result.Throughput.MegabitsPerSec, result.LossPercent, result.PacketsReordered, result.JitterMS)
 	fmt.Fprintf(w, "RTT idle p50 %.2f ms p95 %.2f ms | loaded p50 %.2f ms p95 %.2f ms p99 %.2f ms\n",
