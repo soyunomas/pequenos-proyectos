@@ -483,7 +483,7 @@ Usage:
   netx capabilities [--json]
   netx version
 
-Phase 5 adds capability discovery, optional CPU/NUMA affinity, kernel/hardware UDP receive timestamping, reproducible releases and OpenWrt packaging.
+Supports capability discovery, optional CPU/NUMA affinity, kernel/hardware UDP receive timestamping, reproducible releases and OpenWrt packaging.
 TCP diagnostics are enabled by default and can be disabled with --diagnostics=false. Available bandwidth, transport goodput and responsiveness are reported as distinct magnitudes.
 Use 'make help' for validation and OpenWrt cross-build targets.
 `)

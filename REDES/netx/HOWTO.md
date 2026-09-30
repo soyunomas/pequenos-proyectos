@@ -398,6 +398,12 @@ netx capabilities --json
 
 La salida distingue capacidades de API del soporte observado del hardware. GSO/GRO detectados no implican que se activen en la prueba, y AF_XDP permanece deshabilitado.
 
+**AF_XDP** es una API Linux que permite intercambiar paquetes con programas XDP mediante buffers compartidos, como alternativa a los sockets de red convencionales. Esta versión de netx no implementa ese backend: `af_xdp=false` describe la implementación de netx, no una prueba de que tu tarjeta sea incompatible. Las mediciones usan sockets estándar; AF_XDP no es un requisito para ejecutar TCP, UDP o QUIC.
+
+Se evaluó como optimización y se dejó fuera deliberadamente: su incorporación requiere benchmarks que demuestren que los sockets convencionales son el cuello de botella y que el cambio mejora el rendimiento sin alterar la medición.
+
+Del mismo modo, `hw_ts_api=true` indica que la API de timestamping hardware está disponible. No certifica soporte de la tarjeta ni que se hayan recibido timestamps hardware. Consulta `timestamp_source` en una prueba UDP para ver el origen utilizado.
+
 Si necesitas controlar la afinidad, elige una CPU o un nodo NUMA que exista y esté permitido para el proceso:
 
 ```sh

@@ -25,7 +25,7 @@ func detect() Capabilities {
 		HardwareTimestampingSocketAPI: probeHardwareTimestampSocketAPI(),
 		HardwareTimestampingNIC:       false,
 		AFXDPEnabled:                  false,
-		AFXDPReason:                   "not enabled: Phase 5 requires benchmark evidence that normal sockets are the bottleneck before adding AF_XDP",
+		AFXDPReason:                   "not enabled: no AF_XDP backend is implemented; standard sockets are used",
 	}
 }
 

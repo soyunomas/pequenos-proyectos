@@ -1,8 +1,14 @@
-# netx
+# 🌐 netx
+
+![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white)
+[![Linux / OpenWrt](https://img.shields.io/badge/Plataforma-Linux%20%2F%20OpenWrt-555555)](docs/COMPATIBILITY.md)
+[![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-green)](LICENSE)
 
 **Mide el rendimiento de tu red entre dos equipos y comprueba cómo responde mientras transfieres datos.** netx es una herramienta de línea de comandos escrita en Go, orientada a Linux y OpenWrt. Usa un servidor netx en un extremo y un cliente en el otro.
 
-## Funcionalidades
+[Instalación](#instalación) · [Primeros pasos](#primera-medición-entre-dos-equipos) · [Guía de uso](HOWTO.md) · [Licencia](LICENSE)
+
+## ✨ Funcionalidades
 
 - **Transferencias TCP y QUIC:** subida, bajada y tráfico bidireccional.
 - **Uno o varios flujos:** conserva la medición de un solo flujo y permite compararla con flujos paralelos o aumentar su número de forma adaptativa en TCP.
@@ -131,7 +137,7 @@ La latencia bajo carga ayuda a interpretar el rendimiento: transferir muchos dat
 
 Consulta las [definiciones y unidades](HOWTO.md#conceptos-y-unidades) y los [ejemplos de interpretación](HOWTO.md#interpretar-los-resultados).
 
-## Desarrollo y documentación técnica
+## 🛠️ Desarrollo y documentación técnica
 
 ```sh
 make help          # Targets disponibles
@@ -149,6 +155,6 @@ make netem-check   # Simulación Linux; SKIP si faltan permisos o herramientas
 - [Capacidades y empaquetado](docs/PHASE5.md): afinidad, timestamping y generación de artefactos.
 - [Benchmarks](benchmarks/README.md): medición del rendimiento de la implementación.
 
-## Licencia
+## 📄 Licencia
 
 netx se distribuye bajo la **[licencia MIT](LICENSE)**. Las dependencias de terceros conservan sus propias licencias.
