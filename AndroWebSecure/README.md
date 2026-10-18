@@ -1,3 +1,5 @@
+> **Estado de GitHub (18/10/2026):** todavía no se ha subido el código fuente a este repositorio. Esta carpeta contiene documentación; el proyecto íntegro se encuentra en el ZIP proporcionado en la conversación de ChatGPT. No hay APK compilado ni descargable aquí.
+
 # AndroWeb Secure · Servidor web privado para Android
 
 Servidor web **estático y local** para Android 8+ con panel nativo, servicio foreground controlado por el usuario y restricción de red a `127.0.0.1:8787`. No abre la Wi-Fi, no acepta subidas HTTP, no ejecuta backend dinámico y no recopila datos.
