@@ -25,12 +25,18 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
       - name: Install Android SDK
-        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME:-/usr/local/lib/android/sdk}" >> "${GITHUB_ENV}"
+          SDKMANAGER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -path '*/bin/sdkmanager' -type f | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" 'platforms;android-36' 'build-tools;36.0.0'
       - name: Unit tests, lint and APK
         working-directory: HorarioLectivo-Android
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
