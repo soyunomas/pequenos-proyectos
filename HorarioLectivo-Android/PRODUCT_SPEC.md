@@ -25,3 +25,9 @@ La configuración debe reducir al mínimo la repetición: las asignaturas se cre
 ## Puertas de calidad
 
 No se considera publicable una revisión hasta que pasen pruebas unitarias, lint y compilación de APK sin errores.
+
+## Recordatorios en contexto
+
+Tocar cualquier casilla del horario (incluidas horas sin asignatura, recreos e intervalos) abre una ficha con los recordatorios vinculados, próximos y anteriores. Desde la ficha deben poder crearse, consultarse íntegramente, editarse y eliminarse. La vinculación de nuevos avisos usa día + turno + índice de franja, no el texto de la asignatura. Los recordatorios creados anteriormente sin vinculación se conservan.
+
+Al crear un recordatorio contextual, se propone una única notificación diez minutos antes de la siguiente ocurrencia de la franja; la persona puede cambiar fecha, hora, texto y sonido. No se inventa recurrencia semanal. Las copias JSON del horario mantienen su esquema anterior y no incluyen avisos.

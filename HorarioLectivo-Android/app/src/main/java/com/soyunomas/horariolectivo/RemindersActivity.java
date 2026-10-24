@@ -163,6 +163,12 @@ public final class RemindersActivity extends Activity {
         when.setTextColor(th.muted);
         when.setPadding(0, dp(6), 0, dp(6));
         card.addView(when);
+        if (!item.slotKey.isEmpty()) {
+            TextView location = label("Horario · " + ReminderSlot.description(item.slotKey), 12, false);
+            location.setTextColor(th.primary);
+            location.setPadding(0, 0, 0, dp(6));
+            card.addView(location);
+        }
         if (!item.notes.isEmpty()) {
             TextView note = label(item.notes, 14, false);
             note.setMaxLines(4);
@@ -201,97 +207,7 @@ public final class RemindersActivity extends Activity {
     }
 
     private void edit(ReminderStore.Reminder existing) {
-        Calendar selected = Calendar.getInstance();
-        if (existing != null) selected.setTimeInMillis(existing.atMillis);
-        else {
-            selected.add(Calendar.HOUR_OF_DAY, 1);
-            selected.set(Calendar.MINUTE, 0);
-            selected.set(Calendar.SECOND, 0);
-            selected.set(Calendar.MILLISECOND, 0);
-        }
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(dp(20), dp(8), dp(20), dp(8));
-        TextView nameLabel = label("Título", 13, true);
-        form.addView(nameLabel);
-        EditText name = new EditText(this);
-        name.setSingleLine(true);
-        name.setHint("Ej.: Entregar las actas");
-        name.setFilters(new InputFilter[]{new InputFilter.LengthFilter(120)});
-        if (existing != null) name.setText(existing.title);
-        form.addView(name, new LinearLayout.LayoutParams(-1, dp(52)));
-        TextView noteLabel = label("Mensaje / notas", 13, true);
-        noteLabel.setPadding(0, dp(14), 0, 0);
-        form.addView(noteLabel);
-        EditText notes = new EditText(this);
-        notes.setHint("Escribe aquí todo lo que necesites recordar…");
-        notes.setGravity(Gravity.TOP | Gravity.START);
-        notes.setMinLines(5);
-        notes.setMaxLines(9);
-        notes.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
-        notes.setFilters(new InputFilter[]{new InputFilter.LengthFilter(5000)});
-        if (existing != null) notes.setText(existing.notes);
-        form.addView(notes);
-        TextView dateLabel = label("Fecha y hora", 13, true);
-        dateLabel.setPadding(0, dp(14), 0, dp(6));
-        form.addView(dateLabel);
-        LinearLayout dateRow = new LinearLayout(this);
-        Button date = button("", false);
-        Button time = button("", false);
-        Runnable update = () -> {
-            date.setText(DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.getDefault()).format(selected.getTime()));
-            time.setText(String.format(Locale.getDefault(), "%02d:%02d", selected.get(Calendar.HOUR_OF_DAY), selected.get(Calendar.MINUTE)));
-        };
-        update.run();
-        date.setOnClickListener(v -> new DatePickerDialog(this, (picker,y,m,d) -> {
-            selected.set(Calendar.YEAR, y); selected.set(Calendar.MONTH, m); selected.set(Calendar.DAY_OF_MONTH, d);
-            update.run();
-        }, selected.get(Calendar.YEAR), selected.get(Calendar.MONTH), selected.get(Calendar.DAY_OF_MONTH)).show());
-        time.setOnClickListener(v -> new TimePickerDialog(this, (picker,h,m) -> {
-            selected.set(Calendar.HOUR_OF_DAY, h); selected.set(Calendar.MINUTE, m); selected.set(Calendar.SECOND, 0);
-            selected.set(Calendar.MILLISECOND, 0);
-            update.run();
-        }, selected.get(Calendar.HOUR_OF_DAY), selected.get(Calendar.MINUTE), true).show());
-        dateRow.addView(date, new LinearLayout.LayoutParams(0, dp(48), 2));
-        LinearLayout.LayoutParams timeLp = new LinearLayout.LayoutParams(0, dp(48), 1);
-        timeLp.setMargins(dp(6), 0, 0, 0);
-        dateRow.addView(time, timeLp);
-        form.addView(dateRow);
-        Switch sound = new Switch(this);
-        sound.setText("Reproducir sonido al avisar");
-        sound.setTextColor(th.ink);
-        sound.setChecked(existing == null || existing.sound);
-        sound.setPadding(0, dp(12), 0, dp(8));
-        form.addView(sound);
-        TextView hint = label("El aviso aparecerá como una notificación del móvil; podrás expandirlo para leer las notas.", 12, false);
-        hint.setTextColor(th.muted);
-        form.addView(hint);
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(form);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(existing == null ? "Nuevo recordatorio" : "Editar recordatorio")
-            .setView(scroll).setNegativeButton("Cancelar", null)
-            .setPositiveButton("Guardar", null).create();
-        dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String title = name.getText().toString();
-            String body = notes.getText().toString();
-            String error = ReminderStore.Reminder.validate(title, body, selected.getTimeInMillis(), System.currentTimeMillis());
-            if (error != null) {
-                if (title.trim().isEmpty()) name.setError(error);
-                else Toast.makeText(this, error, Toast.LENGTH_LONG).show();
-                return;
-            }
-            try {
-                ReminderStore.Reminder updated = store.put(new ReminderStore.Reminder(
-                    existing == null ? 0 : existing.id, title, body, selected.getTimeInMillis(), sound.isChecked()));
-                boolean exact = ReminderScheduler.schedule(this, updated);
-                dialog.dismiss();
-                render();
-                if (!exact) Toast.makeText(this, "Guardado. Android podría retrasar el aviso hasta permitir alarmas exactas.", Toast.LENGTH_LONG).show();
-            } catch (Exception failure) {
-                Toast.makeText(this, "No se pudo guardar: " + failure.getMessage(), Toast.LENGTH_LONG).show();
-            }
-        }));
-        dialog.show();
+        ReminderEditor.show(this, existing, "", "", 0, this::render);
     }
 
     private LinearLayout panel() {

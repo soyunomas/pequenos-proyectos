@@ -16,16 +16,21 @@ public final class ReminderStore {
 
     public static final class Reminder {
         public final int id;
-        public final String title, notes;
+        public final String title, notes, slotKey;
         public final long atMillis;
         public final boolean sound;
 
         public Reminder(int id, String title, String notes, long atMillis, boolean sound) {
+            this(id, title, notes, atMillis, sound, "");
+        }
+
+        public Reminder(int id, String title, String notes, long atMillis, boolean sound, String slotKey) {
             this.id = id;
             this.title = title == null ? "" : title.trim();
             this.notes = notes == null ? "" : notes.trim();
             this.atMillis = atMillis;
             this.sound = sound;
+            this.slotKey = slotKey == null ? "" : slotKey.trim();
         }
 
         public static String validate(String title, String notes, long atMillis, long now) {
@@ -51,12 +56,19 @@ public final class ReminderStore {
                 int id = o.optInt("id", 0);
                 String title = o.optString("title", "");
                 if (id > 0 && !title.trim().isEmpty()) {
-                    result.add(new Reminder(id, title, o.optString("notes", ""), o.optLong("atMillis", 0L), o.optBoolean("sound", true)));
+                    result.add(new Reminder(id, title, o.optString("notes", ""), o.optLong("atMillis", 0L), o.optBoolean("sound", true), o.optString("slotKey", "")));
                 }
             }
         } catch (Exception ignored) { /* A corrupt record must not crash the timetable. */ }
         result.sort(Comparator.comparingLong(r -> r.atMillis));
         return result;
+    }
+
+    public synchronized List<Reminder> forSlot(String key) {
+        List<Reminder> matches = new ArrayList<>();
+        if (key == null || key.isEmpty()) return matches;
+        for (Reminder item : all()) if (key.equals(item.slotKey)) matches.add(item);
+        return matches;
     }
 
     public synchronized Reminder find(int id) {
@@ -70,7 +82,7 @@ public final class ReminderStore {
         int id = value.id == 0 ? Math.max(1, preferences.getInt(KEY_NEXT, 1)) : value.id;
         List<Reminder> list = all();
         list.removeIf(r -> r.id == id);
-        Reminder saved = new Reminder(id, value.title, value.notes, value.atMillis, value.sound);
+        Reminder saved = new Reminder(id, value.title, value.notes, value.atMillis, value.sound, value.slotKey);
         list.add(saved);
         persist(list, Math.max(preferences.getInt(KEY_NEXT, 1), id + 1));
         return saved;
@@ -92,6 +104,7 @@ public final class ReminderStore {
                 o.put("notes", r.notes);
                 o.put("atMillis", r.atMillis);
                 o.put("sound", r.sound);
+                o.put("slotKey", r.slotKey);
                 arr.put(o);
             }
             if (!preferences.edit().putString(KEY_ITEMS, arr.toString()).putInt(KEY_NEXT, next).commit()) {
