@@ -23,6 +23,12 @@ Aplicación Android para configurar un horario semanal y consultarlo rápidament
 - **Copia de seguridad JSON**: exporta toda la configuración y permite importarla después.
 - Si todavía no has rellenado el horario, **Exportar JSON** genera igualmente un archivo completo con todas las opciones, el esquema admitido y los arrays `subjects` y `assignments` vacíos. Está pensado también para poder entregárselo a una IA junto con una foto de un horario en papel y pedirle que rellene el JSON sin cambiar su estructura.
 
+## Recordatorios y alarmas
+
+Desde **Avisos**, en la pantalla principal, puedes crear, editar y borrar recordatorios independientes del horario. Cada recordatorio tiene título, fecha y hora, notas de hasta **5000 caracteres** y sonido opcional. El aviso aparece como una **notificación de Android ampliable** y al pulsarlo se abre el texto completo. Los avisos se guardan en el propio dispositivo y se reprograman al reiniciarlo o cambiar la hora.
+
+En Android 13 o superior, permite el acceso a notificaciones. Para precisión horaria, Android 12 o superior puede requerir activar **Alarmas y recordatorios** desde la propia pantalla de avisos. Sin este permiso se programa una alternativa que el sistema puede demorar; el ahorro de batería y los ajustes del fabricante también pueden afectar la entrega. El sonido depende de los canales de notificación de Android y se puede silenciar desde Ajustes del sistema. Los recordatorios no se incluyen en las copias JSON del horario.
+
 ## Configurar turnos
 
 En **Configurar horario** puedes activar o desactivar por separado mañana, tarde y noche. Cada turno tiene comienzo, fin y recreo propios.
@@ -79,7 +85,7 @@ Una importación rechaza, entre otros casos, códigos de asignatura inválidos o
 
 ## Instalación
 
-1. Descarga **[HorarioLectivo_v1.27.apk](./HorarioLectivo_v1.27.apk)**.
+1. Descarga **[HorarioLectivo_v1.28.apk](./HorarioLectivo_v1.28.apk)**.
 2. Abre el APK desde Android.
 3. Autoriza la instalación de aplicaciones desconocidas si Android lo solicita.
 4. Confirma la instalación y abre **Horario Lectivo**.
@@ -110,5 +116,5 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Descarga
 
-- **APK actual:** [HorarioLectivo_v1.27.apk](./HorarioLectivo_v1.27.apk)
+- **APK actual:** [HorarioLectivo_v1.28.apk](./HorarioLectivo_v1.28.apk)
 - **SHA-256:** [APK_SHA256.txt](./APK_SHA256.txt)
