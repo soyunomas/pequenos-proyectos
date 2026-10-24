@@ -60,9 +60,13 @@ jobs:
               'Exportar JSON', 'Importar JSON', 'Aula general', 'Detalles de esta hora',
               'Mostrar aula/lugar en el widget', 'getGroup', 'verifyExportedFile')
           has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/MainActivity.java",
-              'showSubjectDetails', 'Aula general', 'Aula excepcional', 'Grupo', 'getGroup', 'OvershootInterpolator')
+              'showSlotDetails', 'Aula general', 'Aula excepcional', 'Grupo', 'getGroup', 'OvershootInterpolator')
           has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/HorarioWidgetProvider.java",
               'roomFor(d,r)', 'groupFor(d,r)', 'current_group', 'next_group', 'ENTRE TURNOS')
+          has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ReminderStore.java",
+              'slotKey', 'forSlot', 'getString')
+          has("HorarioLectivo-Android/app/src/main/java/com/soyunomas/horariolectivo/ReminderEditor.java",
+              'Mensaje y detalles', 'DatePickerDialog', 'ReminderScheduler.schedule')
           has("HorarioLectivo-Android/horario_backup_template.json",
               '"subjects": []', '"assignments": []', '"subjects[].defaultRoom"',
               '"assignments[].room"', '"assignments[].group"', '"assignmentWithRoomException"',
