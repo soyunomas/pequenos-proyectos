@@ -12,6 +12,10 @@
         android:title="@string/open_pdf"
         app:showAsAction="always" />
     <item
+        android:id="@+id/action_save_as"
+        android:title="@string/save_as"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_compat"
         android:title="@string/compat_mode"
         app:showAsAction="never" />
