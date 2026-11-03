@@ -34,6 +34,7 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private static final int OPEN_PDF = 41;
     private static final int SAVE_PDF = 42;
+    private static final int SAVE_AS_PDF = 43;
     private static final String PREFS = "reader";
     private static final String LAST_URI = "last_uri";
     private static final String COPY_HINT_SHOWN = "copy_hint_shown_v2";
@@ -111,6 +112,10 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             requestOpenPicker();
             return true;
         }
+        if (id == R.id.action_save_as) {
+            requestSaveAs();
+            return true;
+        }
         if (id == R.id.action_search) {
             startSearch();
             return true;
@@ -157,6 +162,16 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             pendingSaveUri = data.getData();
             persistReadWritePermission(pendingSaveUri, data.getFlags());
             applyEditsForSave();
+            return;
+        }
+        if (requestCode == SAVE_AS_PDF) {
+            if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+                Diagnostics.i("SAVE_AS", "Save destination cancelled");
+                return;
+            }
+            Uri destination = data.getData();
+            persistReadWritePermission(destination, data.getFlags());
+            copyDocumentTo(destination);
         }
     }
 
@@ -165,6 +180,22 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         Runnable openPicker = this::choosePdf;
         if (hasUnsavedChanges()) showUnsavedChangesDialog(openPicker);
         else openPicker.run();
+    }
+
+    private void requestSaveAs() {
+        if (activeUri == null || saving) return;
+        if (hasUnsavedChanges()) {
+            // The editable viewer must serialize its current form values, not the original PDF bytes.
+            startSaveFlow(null);
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/pdf");
+        intent.putExtra(Intent.EXTRA_TITLE, suggestedSaveAsName());
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        Diagnostics.i("SAVE_AS", "Requesting destination title=" + suggestedSaveAsName());
+        startActivityForResult(intent, SAVE_AS_PDF);
     }
 
     private void requestReplaceWith(Uri uri, boolean remember) {
@@ -369,6 +400,29 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         startActivityForResult(intent, SAVE_PDF);
     }
 
+    private void copyDocumentTo(Uri destination) {
+        final Uri source = activeUri;
+        if (source == null) return;
+        if (source.equals(destination)) {
+            Snackbar.make(root, "Elige un archivo distinto al original", Snackbar.LENGTH_LONG).show();
+            return;
+        }
+        setSaving(true);
+        Diagnostics.i("SAVE_AS", "Copying PDF source=" + source + " destination=" + destination);
+        PdfCopyBridge.copy(getContentResolver(), source, destination, error ->
+                runOnUiThread(() -> {
+                    setSaving(false);
+                    if (error != null) {
+                        Diagnostics.e("SAVE_AS", "Copying PDF failed", error);
+                        Snackbar.make(root, "No se pudo guardar el PDF", Snackbar.LENGTH_LONG).show();
+                        return;
+                    }
+                    Diagnostics.i("SAVE_AS", "PDF saved destination=" + destination);
+                    openDocumentNow(destination, true);
+                    Snackbar.make(root, "PDF guardado", Snackbar.LENGTH_SHORT).show();
+                }));
+    }
+
     private void applyEditsForSave() {
         if (editableFragment == null || pendingSaveUri == null) return;
         setSaving(true);
@@ -438,6 +492,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         if (activeUri == null) return;
         Intent intent = new Intent(this, CompatPdfActivity.class);
         intent.putExtra(CompatPdfActivity.EXTRA_URI, activeUri);
+        intent.putExtra(CompatPdfActivity.EXTRA_DISPLAY_NAME, activeDisplayName);
         startActivity(intent);
     }
 
@@ -447,8 +502,10 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         MenuItem search = menu.findItem(R.id.action_search);
         MenuItem open = menu.findItem(R.id.action_open);
         MenuItem compat = menu.findItem(R.id.action_compat);
+        MenuItem saveAs = menu.findItem(R.id.action_save_as);
         if (search != null) search.setEnabled(documentLoaded && !formSessionActive && !saving);
         if (open != null) open.setEnabled(!saving);
+        if (saveAs != null) saveAs.setEnabled(activeUri != null && !saving);
         if (compat != null) compat.setVisible(activeUri != null);
     }
 
@@ -484,6 +541,12 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         formSessionActive = false;
         currentDocumentHasForm = false;
         updateMenuState();
+    }
+
+    private String suggestedSaveAsName() {
+        String name = activeDisplayName == null ? "" : activeDisplayName.trim();
+        if (name.isEmpty() || "Folio PDF".equals(name)) name = "documento.pdf";
+        return name.toLowerCase(java.util.Locale.ROOT).endsWith(".pdf") ? name : name + ".pdf";
     }
 
     private String suggestedSaveName() {
