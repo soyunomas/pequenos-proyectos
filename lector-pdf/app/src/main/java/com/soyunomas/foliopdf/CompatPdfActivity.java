@@ -1,5 +1,8 @@
 package com.soyunomas.foliopdf;
 
+import android.content.Intent;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.pdf.PdfRenderer;
@@ -25,6 +28,8 @@ import java.util.concurrent.Executors;
 
 public class CompatPdfActivity extends AppCompatActivity {
     public static final String EXTRA_URI = "uri";
+    public static final String EXTRA_DISPLAY_NAME = "display_name";
+    private static final int SAVE_AS_PDF = 51;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private ParcelFileDescriptor descriptor;
@@ -39,6 +44,8 @@ public class CompatPdfActivity extends AppCompatActivity {
     private int renderGeneration;
     private Bitmap bitmap;
     private Uri uri;
+    private Button saveAsButton;
+    private boolean saving;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +82,10 @@ public class CompatPdfActivity extends AppCompatActivity {
         title.setGravity(Gravity.CENTER_VERTICAL);
         title.setPadding(dp(12), 0, dp(8), 0);
         top.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        saveAsButton = button("Guardar como…", "Guardar una copia del PDF");
+        saveAsButton.setOnClickListener(v -> requestSaveAs());
+        top.addView(saveAsButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
         root.addView(top);
 
         TextView notice = new TextView(this);
@@ -132,6 +143,55 @@ public class CompatPdfActivity extends AppCompatActivity {
         root.addView(nav);
         updateNavigation();
         return root;
+    }
+
+    private void requestSaveAs() {
+        if (uri == null || saving) return;
+        String name = getIntent().getStringExtra(EXTRA_DISPLAY_NAME);
+        if (name == null || name.trim().isEmpty()) name = displayName(uri);
+        if (name == null || name.trim().isEmpty()) name = "documento.pdf";
+        if (!name.toLowerCase(java.util.Locale.ROOT).endsWith(".pdf")) name += ".pdf";
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/pdf");
+        intent.putExtra(Intent.EXTRA_TITLE, name);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        startActivityForResult(intent, SAVE_AS_PDF);
+    }
+
+    private String displayName(Uri source) {
+        try (Cursor cursor = getContentResolver().query(source,
+                new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+        } catch (Exception error) {
+            Diagnostics.e("SAVE_AS", "Could not read source file name", error);
+        }
+        return null;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != SAVE_AS_PDF || resultCode != RESULT_OK
+                || data == null || data.getData() == null || saving) return;
+        Uri destination = data.getData();
+        if (uri.equals(destination)) {
+            Toast.makeText(this, "Elige un archivo distinto al original", Toast.LENGTH_LONG).show();
+            return;
+        }
+        saving = true;
+        saveAsButton.setEnabled(false);
+        PdfCopyBridge.copy(getContentResolver(), uri, destination, error ->
+                runOnUiThread(() -> {
+                    saving = false;
+                    saveAsButton.setEnabled(true);
+                    if (error == null) {
+                        Toast.makeText(this, "PDF guardado", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Diagnostics.e("SAVE_AS", "Compatible PDF save failed", error);
+                        Toast.makeText(this, "No se pudo guardar el PDF", Toast.LENGTH_LONG).show();
+                    }
+                }));
     }
 
     private void openRenderer() {
