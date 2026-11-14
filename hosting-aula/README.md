@@ -176,3 +176,47 @@ Las pruebas unitarias incluidas comprueban nombres, colisiones, SQL y opciones d
 La instalación comprueba la sintaxis de Apache y SSH, montaje ro/nosuid/nodev, arranque de PHP y Apache, respuesta web por nombre e IP, .htaccess, PATH_INFO, denegación 403 y conexión MySQL/PostgreSQL. También valida la configuración efectiva de SSH. Tras reiniciar la VM, ejecuta doctor y prueba SSH/SFTP y todas las aplicaciones. No hay rollback global: si falla, conserva el registro, revisa /srv/hosting-aula y restaura una instantánea antes de repetir. Los comandos de administración requieren una instalación terminada. Los archivos de configuración originales se guardan bajo config-original; no los restaures selectivamente sin revisar cambios posteriores.
 
 Referencias: [Apache mod_proxy](https://httpd.apache.org/docs/2.4/mod/mod_proxy.html), [Apache .htaccess](https://httpd.apache.org/docs/2.4/howto/htaccess.html), [Moodle](https://moodledev.io/general/releases), [systemd](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html).
+
+## Estado observado en la VM de pruebas — 14 de noviembre de 2026
+
+Las comprobaciones de lectura realizadas en la VM confirman servicios Apache,
+SSH, MySQL y PostgreSQL activos, además de los servicios web y PHP-FPM de cinco
+alumnos. Sus páginas de bienvenida responden por HTTP y ejecutan PHP 8.5.4.
+phpMyAdmin responde por HTTP; su inicio de sesión y sus consultas siguen pendientes.
+
+La red, systemd y los sockets son accesibles desde la sesión actual de auditoría.
+Las restricciones de una sesión anterior ya no describen este entorno.
+La administración sigue bloqueada por la autenticación interactiva de sudo:
+el intento de ejecutar `sudo -n bash script.sh alta arturo` se detuvo antes de
+iniciar el gestor. Ese intento no creó la cuenta.
+
+Para añadir un alumno a una instalación terminada, ejecuta en una terminal de
+la VM con acceso a sudo:
+
+```bash
+cd /home/clemente/hosting-aula
+sudo bash script.sh alta arturo
+sudo bash script.sh listar
+```
+
+Ajusta la ruta si descargaste el proyecto en otra carpeta. Introduce la contraseña
+de sudo únicamente en la terminal. Si el alta termina correctamente, el gestor
+crea la cuenta, la web y las bases; la contraseña inicial del alumno es su nombre
+de usuario. No vuelvas a ejecutar la instalación inicial para añadir alumnos.
+
+Se han comprobado respuestas 403 para varios nombres de archivos sensibles y
+montajes de /usr de las jaulas en modo ro,nosuid,nodev. Estas comprobaciones
+puntuales no certifican el aislamiento completo. Siguen pendientes la integración
+privilegiada, la autenticación SSH/SFTP y SQL, las aplicaciones, las copias y su
+restauración, y la persistencia tras reiniciar. Las funciones descritas en este
+README expresan el comportamiento previsto; no todas cuentan con una prueba
+real completa.
+
+Para continuar el diagnóstico con permisos administrativos:
+
+```bash
+sudo bash script.sh doctor
+```
+
+Los 4 GB de RAM y 15 GB de disco indicados para una prueba pequeña son
+orientativos; no constituyen un dimensionamiento validado para un aula completa.
