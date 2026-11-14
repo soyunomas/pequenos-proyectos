@@ -18,11 +18,21 @@ El gestor comprueba los paquetes instalados con dpkg y solicita a APT únicament
 
 No añade repositorios externos. Los paquetes deben existir para la distribución detectada. APT puede actualizar dependencias necesarias. phpMyAdmin puede pedir seleccionar apache2 y aceptar dbconfig-common. Se requiere el sitio HTTP estándar 000-default.conf y autenticación local de root MySQL mediante socket. Si MySQL tiene validate_password, detiene la instalación antes de crear cuentas: no debilita la política global.
 
+## Panel de administración en terminal
+
+```bash
+sudo bash panel.sh
+# Alternativa:
+sudo bash script.sh --menu
+```
+
+No necesita servidor web adicional ni librerías de interfaz. Muestra el espacio disponible, los alumnos activos y cuatro secciones: alumnos y cuentas; bases de datos y contraseñas; web, PHP y aplicaciones; mantenimiento y recursos. Selecciona el alumno por número o usuario, responde a las preguntas y confirma las operaciones sensibles. Si el alojamiento todavía no existe, ofrece instalar desde el CSV. Puedes seguir utilizando todos los comandos de la CLI para automatizar tareas.
+
 ## Accesos
 
 Para Ana, usuario y contraseña son ana en SSH, SFTP, MySQL y PostgreSQL. Solo para pruebas controladas. Web: http://apw.local/ana/ o http://IP_DEL_SERVIDOR/ana/. phpMyAdmin: http://apw.local/phpmyadmin/. SSH: `ssh ana@apw.local`. SFTP: `sftp ana@apw.local`. Consulta la IP con `hostname -I`. mDNS depende de la red y del cliente.
 
-Bases de datos: nombre ana, usuario ana, contraseña ana, host **127.0.0.1**, MySQL 3306 y PostgreSQL 5432. SQLite no necesita servidor. La web se edita en ~/public_html; dentro de la jaula corresponde a /web/ana. Las credenciales se guardan en /root/credenciales-aula.csv (solo root). No publiques este fichero.
+Bases de datos MySQL iniciales de Ana: **db_ana, db_ana1, db_ana3**, todas accesibles con el usuario ana y contraseña inicial ana. PostgreSQL mantiene su base ana; host **127.0.0.1**, MySQL 3306 y PostgreSQL 5432. SQLite no necesita servidor. La web se edita en ~/public_html; dentro de la jaula corresponde a /web/ana. Las credenciales iniciales y la lista de bases se guardan en /root/credenciales-aula.csv (solo root). Las contraseñas personalizadas que se cambian desde el gestor no se guardan: se marcan como cambiadas. No publiques este fichero.
 
 ## Administración
 
@@ -52,7 +62,16 @@ Todas las órdenes requieren sudo y se ejecutan desde la carpeta del proyecto:
 | cron-baja ana tarea | Elimina tarea |
 | limites ana 1024 100 | RAM MiB y porcentaje de un núcleo, para servicios gestionados |
 | cuota ana 1024 | Cuota de disco si el FS ya tiene cuotas habilitadas |
-| backup ana | Copia de archivos y ambas bases de datos |
+| backup ana | Copia de archivos, todas las bases MySQL registradas existentes y PostgreSQL |
+| db-listar ana | Muestra bases MySQL y permisos |
+| db-alta ana 2 | Crea db_ana2 |
+| db-baja ana db_ana2 | Elimina una base adicional, con confirmación exacta |
+| db-reparar ana | Crea las bases iniciales que falten y restablece sus permisos |
+| db-reparar | Aplica la operación a todos los alumnos activos |
+| clave ana mysql | Cambia contraseña MySQL (dos cuentas locales) |
+| clave ana postgresql | Cambia contraseña PostgreSQL |
+| clave ana ssh | Cambia contraseña SSH/SFTP |
+| clave ana mysql --restablecer | Vuelve al nombre de usuario con confirmación |
 | baja ana | Suspende cuenta, sin borrar datos |
 | reactivar ana | Reactiva cuenta |
 
@@ -67,9 +86,33 @@ sudo bash script.sh listar
 
 Se admite también la sintaxis `--alta` y `--altas`. Puedes añadir nombres al CSV inicial y volver a importarlo mediante **altas**, no mediante instalar. Los alumnos existentes con el mismo nombre se omiten (incluidos los suspendidos); no se cambian sus contraseñas ni se eliminan sus datos. Las colisiones de nombres normalizados y las cuentas ajenas al proyecto se rechazan antes de iniciar el lote. Cada alta utiliza la plantilla compartida. Si falla una alta, las anteriores que hayan terminado se conservan; no hay rollback general.
 
+## Gestión de las bases de datos y claves
+
+Por cada alumno nuevo se crean exactamente tres bases MySQL iniciales: db_usuario, db_usuario1, db_usuario3. El salto del 1 al 3 es intencionado. Se conceden permisos independientes sobre los nombres exactos, no sobre patrones con comodines; se comprueba el modo partial_revokes de MySQL. Se rechazan colisiones entre alumnos (por ejemplo Ana y Ana1) antes de crear las cuentas. Elige nombres distintos si esto sucede.
+
+```bash
+sudo bash script.sh db-listar ana
+sudo bash script.sh db-alta ana 2
+sudo bash script.sh clave ana mysql
+sudo bash script.sh db-baja ana db_ana2
+```
+
+El sufijo de una base adicional es numérico; no puede invadir los nombres de otro alumno. Las tres bases iniciales están protegidas contra borrado **desde el gestor** (el alumno tiene privilegios de su propio esquema y puede borrarlo desde MySQL). Reparar vuelve a crear las bases ausentes, pero no recupera sus datos. Antes de eliminar una base adicional, realiza una copia si quieres conservarla. El borrado requiere que escribas el nombre exacto. No se almacenan las claves nuevas ni se pasan por argumentos de proceso; el programa pide confirmación oculta para las claves personalizadas y respeta las políticas del motor. Debes actualizar wp-config.php, .env u otros ficheros de aplicación si cambias una clave de base de datos. Las cuentas suspendidas deben reactivarse antes de modificar claves o crear bases.
+
+### Actualizar una instalación anterior del mismo proyecto
+
+Descarga/actualiza la carpeta del proyecto sin tocar /srv/hosting-aula. **No vuelvas a ejecutar la instalación inicial.**
+
+```bash
+sudo bash script.sh db-reparar
+sudo bash panel.sh
+```
+
+La base original (por ejemplo ana) se conserva; no se renombra, no se mueve ni se altera su contenido. Se añade el nuevo conjunto de tres bases, de modo que un alumno antiguo puede tener cuatro. Si una base de destino ya existe fuera del registro gestionado, el script se detiene en vez de conceder acceso a datos ajenos. Las cuentas suspendidas se omiten en la reparación colectiva. No es una migración desde otras arquitecturas/scripts anteriores. Recomendable hacer una instantánea o copia antes de actualizar. Si cambiaste contraseñas manualmente fuera del gestor, este no puede conocerlas.
+
 ## PHP, CMS y Composer
 
-Apache interpreta .htaccess, mod_rewrite y PATH_INFO. WordPress: desde SSH, cd public_html; elimina el index.php de prueba; wget https://wordpress.org/latest.zip; unzip latest.zip; cp -a wordpress/. .; rm -rf wordpress latest.zip. Visita /ana/ e introduce MySQL 127.0.0.1. PrestaShop y Drupal requieren comprobar las versiones de PHP y las extensiones correspondientes. Composer está disponible en la jaula. Laravel: configura la raíz public y guarda secretos fuera de la raíz publicada.
+Apache interpreta .htaccess, mod_rewrite y PATH_INFO. WordPress: desde SSH, cd public_html; elimina el index.php de prueba; wget https://wordpress.org/latest.zip; unzip latest.zip; cp -a wordpress/. .; rm -rf wordpress latest.zip. Visita /ana/ e introduce base db_ana (o db_ana1/db_ana3), usuario y clave inicial ana, host MySQL 127.0.0.1. PrestaShop y Drupal requieren comprobar las versiones de PHP y las extensiones correspondientes. Composer está disponible en la jaula. Laravel: configura la raíz public y guarda secretos fuera de la raíz publicada.
 
 Moodle: verifica requisitos de la versión exacta (https://moodledev.io/general/releases). Si necesita otro PHP, instala y selecciona una versión disponible para tu distribución; no mezcles releases Ubuntu. Para Moodle con carpeta public: descomprime en public_html/moodle; el profesor ejecuta `sudo bash script.sh documentroot ana moodle/public --moodle`. Datos en /home/ana/moodledata; URL canónica http://apw.local/ana. Cron: `sudo bash script.sh cron ana moodle 1 /web/ana/moodle/admin/cli/cron.php` (ajusta la ruta si la distribución la cambia). No alternes IP y nombre después de fijar la URL canónica de un CMS. Los CMS no se instalan automáticamente.
 
@@ -114,9 +157,19 @@ Como profesor: `sudo bash script.sh app ana /bin/bash /home/ana/apps/start.sh`. 
 
 ## Redis, recursos, copias y seguridad
 
-Redis opcional escucha únicamente en /run/aula/redis/redis.sock dentro de la jaula; no expone un puerto. Usa ese socket en la aplicación si admite Unix sockets. La caché se limita a 64 MB y no persiste. Las cuotas requieren soporte y configuración previa del sistema de archivos; el gestor no modifica la partición ni activa cuotas por su cuenta. Los límites systemd cubren los servicios gestionados, no toda sesión SSH ni bases compartidas. SSH tiene límites PAM adicionales. Las copias se guardan en /srv/hosting-aula/backups; no son instantáneas atómicas. Para restaurar, prepara una VM de prueba, revisa el tar (no extraigas archivos de alumnos como root sin validar rutas), restaura los ficheros como alumno, importa mysql.sql con un administrador y postgresql.dump con pg_restore bajo el rol correspondiente. No hay restaurador automático.
+Redis opcional escucha únicamente en /run/aula/redis/redis.sock dentro de la jaula; no expone un puerto. Usa ese socket en la aplicación si admite Unix sockets. La caché se limita a 64 MB y no persiste. Las cuotas requieren soporte y configuración previa del sistema de archivos; el gestor no modifica la partición ni activa cuotas por su cuenta. Los límites systemd cubren los servicios gestionados, no toda sesión SSH ni bases compartidas. SSH tiene límites PAM adicionales. Las copias de todas las bases MySQL registradas existentes y PostgreSQL se guardan junto con los archivos en /srv/hosting-aula/backups; no son instantáneas atómicas. Para restaurar, prepara una VM de prueba, revisa el tar (no extraigas archivos de alumnos como root sin validar rutas), restaura los ficheros como alumno, importa mysql.sql con un administrador y postgresql.dump con pg_restore bajo el rol correspondiente. No hay restaurador automático.
 
-El chroot no equivale a un contenedor fuerte: se comparte kernel y red; otros usuarios pueden contactar con listeners internos. Las aplicaciones deben respetar el puerto asignado. El puerto público previsto es 80 (SSH 22); limita el acceso mediante firewall de la VM/red. No se configura HTTPS, namespaces de red ni aislamiento de origen entre webs; todas comparten origen con phpMyAdmin. Contraseñas iguales al usuario permiten suplantación trivially: no expongas este sistema a Internet ni a alumnos no confiables. No uses la sesión administrativa de phpMyAdmin en el mismo navegador donde ejecutas código de alumnos. Para despliegue real, necesitas contraseñas únicas, HTTPS, orígenes separados y aislamiento más fuerte.
+El chroot no equivale a un contenedor fuerte: se comparte kernel y red; otros usuarios pueden contactar con listeners internos. Las aplicaciones deben respetar el puerto asignado. El puerto público previsto es 80 (SSH 22); limita el acceso mediante firewall de la VM/red. No se configura HTTPS, namespaces de red ni aislamiento de origen entre webs; todas comparten origen con phpMyAdmin. Contraseñas iguales al usuario permiten suplantación trivial: no expongas este sistema a Internet ni a alumnos no confiables. No uses la sesión administrativa de phpMyAdmin en el mismo navegador donde ejecutas código de alumnos. Para despliegue real, necesitas contraseñas únicas, HTTPS, orígenes separados y aislamiento más fuerte.
+
+## Pruebas sin modificar el servidor
+
+```bash
+python3 -m py_compile hosting.py panel.py
+bash -n script.sh panel.sh
+python3 -m unittest -v test_hosting
+```
+
+Las pruebas unitarias incluidas comprueban nombres, colisiones, SQL y opciones de administración. No sustituyen una instalación de prueba con MySQL, SSH y Apache reales.
 
 ## Verificación y fallos
 
