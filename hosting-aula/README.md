@@ -194,7 +194,7 @@ Para añadir un alumno a una instalación terminada, ejecuta en una terminal de
 la VM con acceso a sudo:
 
 ```bash
-cd /home/clemente/hosting-aula
+cd /ruta/al/proyecto/hosting-aula
 sudo bash script.sh alta arturo
 sudo bash script.sh listar
 ```
