@@ -252,6 +252,34 @@ def mounted(u):
     o = run("findmnt", "-n", "-o", "VFS-OPTIONS", "--mountpoint", p, capture=True)
     check({"ro", "nosuid", "nodev"}.issubset(o.split(",")), f"Montaje inseguro: {p}: {o}")
 
+def fix_shell_profile(root):
+    # systemd OSC 3008 necesita /proc; las jaulas deliberadamente no lo montan.
+    # Máscara oficial de tmpfiles, limitada a la plantilla y las jaulas.
+    root = Path(root)
+    check(root == TPL or (root.parent == JAILS and not root.is_symlink()), "Raíz de jaula inválida.")
+    check(root.is_dir() and not root.is_symlink() and root.stat().st_uid == 0, "Raíz de jaula no segura.")
+    profile = root / "etc/profile.d/80-systemd-osc-context.sh"
+    mask = root / "etc/tmpfiles.d/20-systemd-osc-context.conf"
+    for parent in (root / "etc", profile.parent, mask.parent):
+        check(not parent.is_symlink(), "Directorio de configuración inesperado.")
+        parent.mkdir(exist_ok=True)
+        check(parent.stat().st_uid == 0 and not parent.stat().st_mode & 0o022, "Directorio de configuración no seguro.")
+    if os.path.lexists(mask):
+        check(mask.is_symlink() and os.readlink(mask) == "/dev/null",
+              f"Máscara personalizada existente: {mask}. No se modifica.")
+    else:
+        mask.symlink_to("/dev/null")
+    if profile.is_symlink():
+        profile.unlink()
+    elif profile.is_file():
+        original = profile.read_text()
+        check("__systemd_osc_context" in original, f"Perfil personalizado: {profile}. No se modifica.")
+        backup = profile.with_suffix(".sh.disabled")
+        check(not os.path.lexists(backup), f"Ya existe {backup}.")
+        profile.rename(backup)
+    print(f"[OK] Terminal sin integración OSC de systemd: {root.name}")
+
+
 def sync_php(u, d):
     # Destinos root-owned, nunca se sincronizan directorios editables por alumnos.
     j = jail(u)
@@ -408,6 +436,7 @@ def init_template(codename, full):
     run("find", TPL / "usr", "-xdev", "-type", "f", "-perm", "/6000", "-exec", "chmod", "a-s", "{}", "+")
     php = run("chroot", TPL, "/usr/bin/php", "-r", 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;', capture=True)
     ensure_opcache(php)
+    fix_shell_profile(TPL)
     for tool in ("php", "node", "npm", "python3", "composer", "git", "wget", "curl", "zip", "unzip", "mysql", "psql", "redis-server", "sqlite3"):
         run("chroot", TPL, "/bin/sh", "-c", 'command -v "$1"', "sh", tool, quiet=True)
     return version(php)
@@ -643,6 +672,7 @@ def new_student(s, name, u):
 
 def finish_student(s, u, d):
     j = jail(u)
+    fix_shell_profile(j)
     sync_php(u, d)
     # Cada alumno recibe tres bases MySQL y permiso exacto sobre cada una.
     mysql("".join(f"CREATE USER '{u}'@'{h}' IDENTIFIED BY '{u}' WITH MAX_USER_CONNECTIONS 8;\n" for h in ("localhost", "127.0.0.1")))
@@ -1030,6 +1060,7 @@ def help_parser():
     for cmd in ("listar", "doctor", "dependencias", "extras"):
         sub.add_parser(cmd)
     q = sub.add_parser("reanudar", help="Retomar instalación detenida durante un alta inicial"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv")))
+    sub.add_parser("reparar-shell", help="Corregir avisos de systemd en la plantilla y las jaulas")
     sub.add_parser("referencia", help="Lista de órdenes de administración")
     q = sub.add_parser("db-listar", help="Bases MySQL y permisos"); q.add_argument("usuario")
     q = sub.add_parser("db-alta", help="Añadir una base MySQL con sufijo numérico"); q.add_argument("usuario"); q.add_argument("sufijo")
@@ -1102,6 +1133,10 @@ def cli():
                 print(u, d["php"], d["mode"], "activo" if d["activo"] else "suspendido", f"http://{HOST}/{u}/")
         elif c == "doctor":
             doctor(s)
+        elif c == "reparar-shell":
+            fix_shell_profile(TPL)
+            for u in sorted(s["alumnos"]):
+                fix_shell_profile(jail(u))
         elif c in ("dependencias", "extras", "instalar-php"):
             # Se instalan paquetes de confianza de los repositorios configurados.
             # No se agrega un repositorio externo ni se mezclan versiones de Ubuntu.
@@ -1119,7 +1154,9 @@ def cli():
                 for v in sorted({s["php_default"]} | {d["php"] for d in s["alumnos"].values()}):
                     ensure_opcache(v)
             run("find", TPL/"usr", "-xdev", "-type", "f", "-perm", "/6000", "-exec", "chmod", "a-s", "{}", "+")
+            fix_shell_profile(TPL)
             for u, d in s["alumnos"].items():
+                fix_shell_profile(jail(u))
                 sync_php(u, d)
             save(s)
             print("Dependencias instaladas. Reinicia los servicios de los alumnos afectados antes de probar extensiones nuevas.")
