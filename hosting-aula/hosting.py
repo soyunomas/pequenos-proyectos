@@ -27,7 +27,7 @@ SSH = Path("/etc/ssh/sshd_config")
 UNITS = Path("/etc/systemd/system")
 GROUP = "hosting-aula"
 HOST = "apw.local"
-EXT = "cli fpm mysql pgsql sqlite3 curl gd mbstring xml zip intl soap bcmath ldap opcache".split()
+EXT = "cli fpm mysql pgsql sqlite3 curl gd mbstring xml zip intl soap bcmath ldap".split()
 HOSTPKG = "apache2 mysql-server postgresql php-cli php-fpm php-mysql php-pgsql php-mbstring php-xml php-zip php-curl php-gd php-intl openssh-server avahi-daemon debootstrap ca-certificates curl openssl python3 iproute2 util-linux quota".split()
 CORE = "apache2-bin media-types ca-certificates bash nano less wget curl zip unzip git mysql-client postgresql-client redis-server redis-tools sqlite3 nodejs npm python3 python3-venv python3-pip composer tzdata".split()
 PHPPKG = ["php-" + x for x in EXT] + ["php-imagick", "php-redis"]
@@ -87,6 +87,18 @@ def packages(pkgs, root=None, interactive=False):
         run(*prefix, "apt-get", "install", "-y", "--no-install-recommends", "--no-upgrade", *missing, env=env)
     check(all(installed(p, root) for p in pkgs), "Faltan paquetes después de APT.")
     run(*prefix, "apt-get", "clean")
+
+def has_opcache(v):
+    return ok("chroot", TPL, "/usr/bin/php" + version(v), "-r", 'exit(function_exists("opcache_get_status") ? 0 : 1);')
+
+
+def ensure_opcache(v):
+    # PHP 8.5+ lo integra; versiones anteriores pueden necesitar el paquete separado.
+    if not has_opcache(v):
+        packages([f"php{version(v)}-opcache"], TPL)
+    check(has_opcache(v), f"OPcache no disponible para PHP {v}.")
+    print(f"[OK] OPcache PHP {v}: disponible en el runtime.")
+
 
 def disk(minimum=3, path="/srv"):
     free = shutil.disk_usage(path).free
@@ -393,6 +405,7 @@ def init_template(codename, full):
     # Se eliminan setuid/setgid; el montaje nosuid es una segunda protección.
     run("find", TPL / "usr", "-xdev", "-type", "f", "-perm", "/6000", "-exec", "chmod", "a-s", "{}", "+")
     php = run("chroot", TPL, "/usr/bin/php", "-r", 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;', capture=True)
+    ensure_opcache(php)
     for tool in ("php", "node", "npm", "python3", "composer", "git", "wget", "curl", "zip", "unzip", "mysql", "psql", "redis-server", "sqlite3"):
         run("chroot", TPL, "/bin/sh", "-c", 'command -v "$1"', "sh", tool, quiet=True)
     return version(php)
@@ -883,6 +896,8 @@ def doctor(s):
         print(f'{"OK" if installed(pkg) else "FALTA"} host {pkg}')
     for pkg in CORE + PHPPKG + EXTRA:
         print(f'{"OK" if installed(pkg,TPL) else "NO INSTALADO"} plantilla {pkg}')
+    for v in sorted({s["php_default"]} | {d["php"] for d in s["alumnos"].values()}):
+        print(f'{"OK" if has_opcache(v) else "FALTA"} OPcache en runtime PHP {v}')
     for u, d in s["alumnos"].items():
         print(f'{u}: PHP {d["php"]}, {d["mode"]}, activo={d["activo"]}')
         mounted(u)
@@ -975,12 +990,15 @@ def cli():
             if c == "instalar-php":
                 v = version(a.version)
                 packages([f"php{v}-{x}" for x in EXT], TPL)
+                ensure_opcache(v)
             elif c == "extras":
                 packages(EXTRA, TPL)
                 s["full"] = True
             else:
                 packages(HOSTPKG + ["phpmyadmin"])
                 packages(CORE + PHPPKG + (EXTRA if s["full"] else []), TPL)
+                for v in sorted({s["php_default"]} | {d["php"] for d in s["alumnos"].values()}):
+                    ensure_opcache(v)
             run("find", TPL/"usr", "-xdev", "-type", "f", "-perm", "/6000", "-exec", "chmod", "a-s", "{}", "+")
             for u, d in s["alumnos"].items():
                 sync_php(u, d)
