@@ -3,6 +3,7 @@
 import argparse
 import csv
 import fcntl
+import getpass
 import json
 import os
 import pwd
@@ -120,7 +121,12 @@ def pg(sql, capture=False):
 
 def state():
     check(READY.is_file() and STATE.is_file(), "No hay una instalación completa. Consulta el log; no sobrescribas un intento parcial.")
-    return json.loads(STATE.read_text())
+    s = json.loads(STATE.read_text())
+    # Compatibilidad con instalaciones anteriores: conservar su base original.
+    for u, d in s["alumnos"].items():
+        d.setdefault("mysql_dbs", [u])
+        d.setdefault("password_changed", {})
+    return s
 
 def save(s):
     put(STATE, json.dumps(s, ensure_ascii=False, indent=2) + "\n", 0o600)
@@ -129,9 +135,12 @@ def save(s):
     fd = os.open(tmp, os.O_CREAT | os.O_TRUNC | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["nombre", "usuario", "clave_ssh", "mysql", "clave_mysql", "postgresql", "clave_postgresql", "web", "activo"])
+        w.writerow(["nombre", "usuario", "clave_ssh", "mysql", "clave_mysql", "postgresql", "clave_postgresql", "web", "activo", "bases_mysql"])
         for u, d in s["alumnos"].items():
-            w.writerow([d["nombre"], u, u, u, u, u, u, f"http://{HOST}/{u}/", d["activo"]])
+            def label(kind):
+                return "CAMBIADA (no almacenada)" if d.get("password_changed", {}).get(kind) else u
+            w.writerow([d["nombre"], u, label("ssh"), u, label("mysql"), u, label("postgresql"),
+                        f"http://{HOST}/{u}/", d["activo"], ";".join(d.get("mysql_dbs", [u]))])
     os.chmod(tmp, 0o600)
     os.replace(tmp, path)
 
@@ -425,18 +434,158 @@ def host_setup():
     listing = run("apache2ctl", "-S", capture=True)
     check(not re.search(r"(?m)^\*:80\s+is a NameVirtualHost", listing), "Hay varios sitios HTTP; se requiere VM con un sitio HTTP único.")
 
+def default_dbs(u):
+    valid_user(u)
+    return [f"db_{u}{suffix}" for suffix in ("", "1", "3")]
+
+def owned_dbs(d, u):
+    return list(d.get("mysql_dbs", [u]))
+
+def db_ident(name):
+    check(re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", name), "Nombre de base de datos inválido.")
+    return chr(96) + name + chr(96)
+
+def db_scope(name, partial_revokes):
+    db_ident(name)
+    # MySQL interpreta _ y % como comodines en GRANT si partial_revokes=OFF.
+    return chr(96) + (name if partial_revokes else name.replace("_", "\\_")) + chr(96)
+
+def partial_revokes():
+    return mysql("SHOW VARIABLES LIKE 'partial_revokes';", capture=True).split()[-1:] == ["ON"]
+
+def grants_sql(u, name, verb="GRANT", partial=False):
+    valid_user(u)
+    check(verb in ("GRANT", "REVOKE"), "Operación inválida.")
+    connector = "TO" if verb == "GRANT" else "FROM"
+    return "".join(f"{verb} ALL PRIVILEGES ON {db_scope(name, partial)}.* {connector} '{u}'@'{h}';\n"
+                   for h in ("localhost", "127.0.0.1"))
+
+def db_exists(name):
+    db_ident(name)
+    return mysql(f"SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='{name}';", capture=True) != "0"
+
+def validate_db_plan(s, users=()):
+    # Reserva los nombres por adelantado: ana y ana1, por ejemplo, colisionan.
+    owners = {}
+    names = set(s["alumnos"]) | set(users)
+    for u in sorted(names):
+        d = s["alumnos"].get(u)
+        dbs = default_dbs(u) + (owned_dbs(d, u) if d is not None else [])
+        for name in dbs:
+            previous = owners.setdefault(name, u)
+            check(previous == u, f"Colisión MySQL: {name} corresponde a {previous} y {u}. Elige otro usuario.")
+    return owners
+
+def create_db_sql(name):
+    return f"CREATE DATABASE {db_ident(name)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n"
+
+def add_mysql_db(s, u, name):
+    d = student(s, u)
+    db_ident(name)
+    dbs = d.setdefault("mysql_dbs", [u])
+    owners = validate_db_plan(s)
+    check(owners.get(name, u) == u, f"Base reservada para otro alumno: {name}")
+    if name not in dbs:
+        check(not db_exists(name), f"Base existente ajena al registro: {name}. No se adopta automáticamente.")
+        mysql(create_db_sql(name))
+        dbs.append(name)
+        save(s)
+    elif not db_exists(name):
+        mysql(create_db_sql(name))
+    mysql(grants_sql(u, name, partial=partial_revokes()))
+    print(f"[OK] {u}: {name}")
+
+def mysql_dbs_list(s, u):
+    d = student(s, u, False)
+    for name in sorted(set(owned_dbs(d, u)) | set(default_dbs(u))):
+        managed = name in owned_dbs(d, u)
+        print(f"{name:36s} " + ("registrada" if managed else "pendiente de alta") +
+              (" | existe" if db_exists(name) else " | no existe"))
+    for h in ("localhost", "127.0.0.1"):
+        print(mysql(f"SHOW GRANTS FOR '{u}'@'{h}';", capture=True))
+
+def ensure_defaults(s, users):
+    validate_db_plan(s)
+    # Prevuelo completo: una base ajena nunca se concede a un alumno.
+    for u in users:
+        d = student(s, u)
+        for name in default_dbs(u):
+            if name not in owned_dbs(d, u):
+                check(not db_exists(name), f"Base ya existente y no registrada: {name}.")
+    for u in users:
+        for name in default_dbs(u):
+            add_mysql_db(s, u, name)
+
+def extra_db(s, u, suffix):
+    check(re.fullmatch(r"[0-9]{1,8}", suffix), "Indica un sufijo numérico de 1 a 8 cifras.")
+    add_mysql_db(s, u, f"db_{u}{suffix}")
+
+def drop_mysql_db(s, u, name):
+    d = student(s, u)
+    db_ident(name)
+    check(name in owned_dbs(d, u), "La base no pertenece al alumno.")
+    check(name not in default_dbs(u), "Las tres bases iniciales no se eliminan desde el panel.")
+    check(len(owned_dbs(d, u)) > 3, "Se deben conservar al menos tres bases registradas.")
+    check(all(db_exists(x) for x in default_dbs(u)), "Repara primero las tres bases iniciales.")
+    check(input(f"BORRADO IRREVERSIBLE. Escribe {name} para confirmar: ") == name, "Cancelado.")
+    # Revocar primero para impedir que el alumno la recree tras eliminarla.
+    mysql(grants_sql(u, name, verb="REVOKE", partial=partial_revokes()))
+    mysql(f"DROP DATABASE IF EXISTS {db_ident(name)};")
+    d["mysql_dbs"].remove(name)
+    save(s)
+    print(f"Eliminada: {name}")
+
+def ask_password(u, reset=False):
+    if reset:
+        check(input(f"Restablecer contraseña a {u}. Escribe SI: ") == "SI", "Cancelado.")
+        return u
+    check(sys.stdin.isatty(), "Cambia contraseñas desde una terminal interactiva.")
+    p = getpass.getpass("Nueva contraseña (no se muestra): ")
+    check(p and len(p) <= 128 and all(32 <= ord(ch) != 127 for ch in p), "Contraseña vacía, demasiado larga o con caracteres de control.")
+    check(p == getpass.getpass("Repite la contraseña: "), "Las contraseñas no coinciden.")
+    return p
+
+def sql_string(value):
+    # Para sesiones con NO_BACKSLASH_ESCAPES (MySQL) o standard_conforming_strings (PG).
+    return "'" + value.replace("'", "''") + "'"
+
+def change_password(s, u, kind, reset=False):
+    d = student(s, u)
+    check(kind in ("mysql", "postgresql", "ssh"), "Tipo de contraseña inválido.")
+    p = ask_password(u, reset)
+    if kind == "mysql":
+        accounts = ", ".join(f"'{u}'@'{h}' IDENTIFIED BY {sql_string(p)}" for h in ("localhost", "127.0.0.1"))
+        cmd = ["mysql", "--binary-mode", "--protocol=socket", "-uroot", "-NB"]
+        sql = "SET SESSION sql_mode='NO_BACKSLASH_ESCAPES';\nALTER USER " + accounts + ";\n"
+    elif kind == "postgresql":
+        cmd = ["runuser", "-u", "postgres", "--", "psql", "-X", "-v", "ON_ERROR_STOP=1", "-d", "postgres"]
+        sql = f'SET standard_conforming_strings=on;\nALTER ROLE "{u}" PASSWORD {sql_string(p)};\n'
+    else:
+        cmd = ["chpasswd"]
+        sql = f"{u}:{p}\n"
+    # Nunca pasar claves en argv ni reproducir stderr potencialmente sensible.
+    result = sp.run(cmd, input=sql, text=True, stdout=sp.DEVNULL, stderr=sp.PIPE)
+    check(result.returncode == 0, "No se pudo cambiar la contraseña. Comprueba la política y los registros del servicio.")
+    d.setdefault("password_changed", {})[kind] = p != u
+    save(s)
+    print(f"[OK] Contraseña {kind} actualizada para {u}.")
+    if kind != "ssh":
+        print("Actualiza también las credenciales en las aplicaciones de este alumno si procede.")
+
 def precheck_name(u):
     check(not ok("getent", "passwd", u) and not ok("getent", "group", u), "Cuenta Linux existente: " + u)
     check(not os.path.lexists("/home/" + u) and not os.path.lexists(str(jail(u))) and not os.path.lexists("/var/www/html/" + u), "Ruta existente: " + u)
     check(mysql(f"SELECT COUNT(*) FROM mysql.user WHERE User='{u}';", capture=True) == "0", "Cuenta MySQL existente: " + u)
-    check(mysql(f"SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='{u}';", capture=True) == "0", "BD MySQL existente: " + u)
+    for name in default_dbs(u):
+        check(not db_exists(name), "BD MySQL existente: " + name)
     check(pg(f"SELECT count(*) FROM pg_roles WHERE rolname='{u}';", capture=True) == "0", "Rol PostgreSQL existente: " + u)
     check(pg(f"SELECT count(*) FROM pg_database WHERE datname='{u}';", capture=True) == "0", "BD PostgreSQL existente: " + u)
 
 def new_student(s, name, u):
     precheck_name(u)
+    validate_db_plan(s, [u])
     disk(0.6)
-    d = {"nombre": name, "php": s["php_default"], "docroot": ".", "moodle": False, "activo": True, "mode": "php", "port_web": port(s), "port_app": 0, "cpu": 100, "mem": 1024, "redis": False, "app": [], "cron": []}
+    d = {"mysql_dbs": default_dbs(u), "password_changed": {}, "nombre": name, "php": s["php_default"], "docroot": ".", "moodle": False, "activo": True, "mode": "php", "port_web": port(s), "port_app": 0, "cpu": 100, "mem": 1024, "redis": False, "app": [], "cron": []}
     s["alumnos"][u] = d
     d["port_app"] = port(s)
     run("useradd", "-M", "-U", "-d", "/home/" + u, "-s", "/bin/bash", "-G", GROUP, u)
@@ -470,9 +619,11 @@ def new_student(s, name, u):
     (j / "var/empty/aula").mkdir(parents=True, exist_ok=True)
     (j / "etc/aula").mkdir(exist_ok=True)
     sync_php(u, d)
-    # Los nombres se validan estrictamente; no hay metacaracteres SQL en las claves.
-    bt = chr(96)
-    mysql(f"CREATE DATABASE {bt}{u}{bt} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n" + "".join(f"CREATE USER '{u}'@'{h}' IDENTIFIED BY '{u}' WITH MAX_USER_CONNECTIONS 8;\nGRANT ALL PRIVILEGES ON {bt}{u}{bt}.* TO '{u}'@'{h}';\n" for h in ("localhost", "127.0.0.1")))
+    # Cada alumno recibe tres bases MySQL y permiso exacto sobre cada una.
+    mysql("".join(f"CREATE USER '{u}'@'{h}' IDENTIFIED BY '{u}' WITH MAX_USER_CONNECTIONS 8;\n" for h in ("localhost", "127.0.0.1")))
+    partial = partial_revokes()
+    for name_db in d["mysql_dbs"]:
+        mysql(create_db_sql(name_db) + grants_sql(u, name_db, partial=partial))
     pg(f"CREATE ROLE \"{u}\" LOGIN PASSWORD '{u}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION CONNECTION LIMIT 8;\n")
     pg(f'CREATE DATABASE "{u}" OWNER "{u}";\n')
     pg(f'REVOKE ALL ON DATABASE "{u}" FROM PUBLIC;\n')
@@ -498,7 +649,8 @@ def new_student(s, name, u):
     for line in ips.splitlines():
         ip = line.split()[3].split("/")[0]
         check(run("curl", "--noproxy", "*", "-fsS", "--max-time", "10", f"http://{ip}/{u}/", capture=True).startswith("AULA_OK|"), "Falló acceso por IP: " + ip)
-    check(as_user(u, "mysql", "--protocol=TCP", "-h", "127.0.0.1", "-u", u, "-NBe", "SELECT DATABASE()", u, capture=True, env=dict(os.environ, MYSQL_PWD=u)) == u, "Falló acceso MySQL.")
+    for name_db in d["mysql_dbs"]:
+        check(as_user(u, "mysql", "--protocol=TCP", "-h", "127.0.0.1", "-u", u, "-NBe", "SELECT DATABASE()", name_db, capture=True, env=dict(os.environ, MYSQL_PWD=u)) == name_db, "Falló acceso MySQL: " + name_db)
     check(as_user(u, "psql", "-h", "127.0.0.1", "-U", u, "-d", u, "-Atc", "SELECT current_database()", capture=True, env=dict(os.environ, PGPASSWORD=u)) == u, "Falló acceso PostgreSQL.")
     effective = run("sshd", "-T", "-C", f"user={u},host=localhost,addr=127.0.0.1", capture=True)
     check(f"chrootdirectory {JAILS}/%u" in effective and "passwordauthentication yes" in effective, "No se aplica aislamiento SSH.")
@@ -523,6 +675,7 @@ def add_students(s, names):
     # Valida todo el lote antes de modificar cuentas; no recicla nombres de alumnos.
     check(names and len({u for _, u in names}) == len(names),
           "Lista vacía o usuarios normalizados duplicados.")
+    validate_db_plan(s, [u for _, u in names])
     pending = []
     for name, u in names:
         if u in s["alumnos"]:
@@ -545,6 +698,7 @@ def bootstrap(csvfile, full):
     check(not ok("getent", "group", GROUP), "El grupo del aula ya existe.")
     check("# BEGIN HOSTING AULA" not in SSH.read_text() if SSH.exists() else True, "Ya existe configuración SSH.")
     names = read_students(csvfile)
+    validate_db_plan({"alumnos": {}}, [u for _, u in names])
     print("Alumnos:", ", ".join(u for _, u in names))
     osrel = dict(x.split("=", 1) for x in Path("/etc/os-release").read_text().splitlines() if "=" in x)
     check(osrel.get("ID", "").strip('"') == "ubuntu", "Se requiere Ubuntu Server.")
@@ -682,8 +836,15 @@ def backup(s, u):
     folder = BASE / "backups" / f"{u}-{time.strftime('%Y%m%d-%H%M%S')}"
     folder.mkdir(mode=0o700)
     run("tar", "--one-file-system", "--numeric-owner", "-C", jail(u), "-czf", folder/"archivos.tar.gz", f"home/{u}", f"web/{u}")
+    dbs = [name for name in owned_dbs(d, u) if db_exists(name)]
+    missing = sorted(set(owned_dbs(d, u)) - set(dbs))
+    if missing:
+        print("Aviso: bases registradas que no existen:", ", ".join(missing))
     with open(folder/"mysql.sql", "w") as f:
-        run("mysqldump", "--protocol=socket", "-uroot", "--single-transaction", "--no-tablespaces", "--set-gtid-purged=OFF", "--databases", u, out=f)
+        if dbs:
+            run("mysqldump", "--protocol=socket", "-uroot", "--single-transaction", "--no-tablespaces", "--set-gtid-purged=OFF", "--databases", *dbs, out=f)
+        else:
+            f.write("-- No hay bases MySQL existentes.\n")
     with open(folder/"postgresql.dump", "wb") as f:
         # Sin shell; stdout es el archivo abierto por root. pg_dump escribe formato personalizado binario.
         check(sp.run(["runuser", "-u", "postgres", "--", "pg_dump", "-Fc", u], stdout=f).returncode == 0, "Falló pg_dump.")
@@ -738,6 +899,13 @@ def help_parser():
     q = sub.add_parser("instalar"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv"))); q.add_argument("--completo", action="store_true")
     for cmd in ("listar", "doctor", "dependencias", "extras"):
         sub.add_parser(cmd)
+    sub.add_parser("referencia", help="Lista de órdenes de administración")
+    q = sub.add_parser("db-listar", help="Bases MySQL y permisos"); q.add_argument("usuario")
+    q = sub.add_parser("db-alta", help="Añadir una base MySQL con sufijo numérico"); q.add_argument("usuario"); q.add_argument("sufijo")
+    q = sub.add_parser("db-baja", help="Eliminar una base adicional"); q.add_argument("usuario"); q.add_argument("base")
+    q = sub.add_parser("db-reparar", help="Crear/reparar las tres bases iniciales"); q.add_argument("usuario", nargs="?", default="todos")
+    q = sub.add_parser("clave", help="Cambiar contraseña sin mostrarla"); q.add_argument("usuario")
+    q.add_argument("servicio", choices=("mysql", "postgresql", "ssh")); q.add_argument("--restablecer", action="store_true")
     q = sub.add_parser("alta", help="Añadir uno o varios alumnos")
     q.add_argument("nombres", nargs="+", help="Nombres; entre comillas si tienen espacios")
     q = sub.add_parser("altas", help="Añadir alumnos desde CSV, sin recrear los existentes")
@@ -765,6 +933,9 @@ def cli():
     if not argv:
         argv = ["instalar"]
     a = parser.parse_args(argv)
+    if a.cmd == "referencia":
+        parser.print_help()
+        return
     check(os.geteuid() == 0, "Ejecuta mediante sudo bash script.sh.")
     with open("/run/lock/hosting-aula-admin.lock", "w") as lock:
         try:
@@ -780,6 +951,18 @@ def cli():
             add_students(s, [(n.strip(), slug(n)) for n in a.nombres])
         elif c == "altas":
             add_students(s, read_students(a.csv))
+        elif c == "db-reparar":
+            users = [u for u, d in s["alumnos"].items() if d["activo"]] if a.usuario == "todos" else [a.usuario]
+            ensure_defaults(s, users)
+        elif c == "db-listar":
+            mysql_dbs_list(s, a.usuario)
+        elif c == "db-alta":
+            student(s, a.usuario)
+            extra_db(s, a.usuario, a.sufijo)
+        elif c == "db-baja":
+            drop_mysql_db(s, a.usuario, a.base)
+        elif c == "clave":
+            change_password(s, a.usuario, a.servicio, a.restablecer)
         elif c == "listar":
             for u, d in s["alumnos"].items():
                 print(u, d["php"], d["mode"], "activo" if d["activo"] else "suspendido", f"http://{HOST}/{u}/")
@@ -867,6 +1050,6 @@ def cli():
 if __name__ == "__main__":
     try:
         cli()
-    except (Error, OSError, ValueError, KeyError) as e:
+    except (Error, OSError, ValueError, KeyError, EOFError) as e:
         print(f"ERROR: {e}\nNo se realiza rollback general. Consulta los logs y el estado; no repitas una instalación parcial a ciegas.", file=sys.stderr)
         sys.exit(1)
