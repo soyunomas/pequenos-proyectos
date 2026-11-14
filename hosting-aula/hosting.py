@@ -298,8 +298,8 @@ php_admin_value[upload_tmp_dir] = /home/{u}/tmp
 php_admin_flag[log_errors] = on
 php_admin_flag[display_errors] = off
 """)
-    service(u, "fpm", [f"/usr/sbin/php-fpm{v}", "-F", "-y", "/etc/aula/fpm.conf", "-d", "opcache.enable=0", "-d", "cgi.fix_pathinfo=0"])
-    as_user(u, f"/usr/sbin/php-fpm{v}", "-t", "-y", "/etc/aula/fpm.conf", "-d", "opcache.enable=0")
+    service(u, "fpm", [f"/usr/sbin/php-fpm{v}", "-F", "-y", "/etc/aula/fpm.conf", "-d", "opcache.enable=0", "-d", "cgi.fix_pathinfo=1"])
+    as_user(u, f"/usr/sbin/php-fpm{v}", "-t", "-y", "/etc/aula/fpm.conf", "-d", "opcache.enable=0", "-d", "cgi.fix_pathinfo=1")
 
 def apache_config(u, d):
     j = jail(u)
@@ -664,6 +664,10 @@ def finish_student(s, u, d):
     ctl("enable", "--now", unitname(u, "web"))
     wait_for(lambda: ok("curl", "--noproxy", "*", "-fsS", "--max-time", "3", f'http://127.0.0.1:{d["port_web"]}/{u}/'), "Apache individual de " + u)
     routes(s)
+    verify_student(s, u, d)
+
+
+def verify_student(s, u, d):
     def fetch(path, host=HOST, ip="127.0.0.1"):
         return run("curl", "--noproxy", "*", "--max-time", "15", "--resolve", f"{host}:80:{ip}", "-fsS", f"http://{host}/{u}/{path}", capture=True)
     check(fetch("prueba-aula").startswith("AULA_OK|"), "Falló rewrite/PHP.")
@@ -678,7 +682,7 @@ def finish_student(s, u, d):
         check(as_user(u, "mysql", "--protocol=TCP", "-h", "127.0.0.1", "-u", u, "-NBe", "SELECT DATABASE()", name_db, capture=True, env=dict(os.environ, MYSQL_PWD=u)) == name_db, "Falló acceso MySQL: " + name_db)
     check(as_user(u, "psql", "-h", "127.0.0.1", "-U", u, "-d", u, "-Atc", "SELECT current_database()", capture=True, env=dict(os.environ, PGPASSWORD=u)) == u, "Falló acceso PostgreSQL.")
     effective = run("sshd", "-T", "-C", f"user={u},host=localhost,addr=127.0.0.1", capture=True)
-    check(f"chrootdirectory {JAILS}/%u" in effective and "passwordauthentication yes" in effective, "No se aplica aislamiento SSH.")
+    check(any(x in effective.splitlines() for x in (f"chrootdirectory {JAILS}/%u", f"chrootdirectory {JAILS}/{u}")) and "passwordauthentication yes" in effective.splitlines(), "No se aplica aislamiento SSH.")
     as_user(u, "/bin/rm", "-f", f"/web/{u}/.htaccess", f"/web/{u}/privado-aula.txt")
     as_user(u, "/bin/sh", "-c", 'printf "%s\n" "$1" > "$2/index.php"', "sh", f'<?php echo "<h1>Hosting de {u}</h1>PHP ".PHP_VERSION;', f"/web/{u}")
     run("chpasswd", data=f"{u}:{u}\n")
@@ -760,7 +764,7 @@ def bootstrap(csvfile, full):
     print("Instalación finalizada. Credenciales: /root/credenciales-aula.csv")
 
 def resume_initial(csvfile):
-    """Retoma exclusivamente una instalación inicial detenida antes de crear las BD."""
+    """Retoma una instalación inicial detenida antes de habilitar el alumno."""
     check(not READY.exists() and STATE.is_file() and TPL.is_dir() and JAILS.is_dir(),
           "No hay una instalación inicial recuperable por esta orden.")
     check(FRONT.is_file() and str(FRONT) in SITE.read_text() and "# BEGIN HOSTING AULA" in SSH.read_text(),
@@ -794,21 +798,63 @@ def resume_initial(csvfile):
         mounted(u)
         check(f"{TPL}/usr {j}/usr none bind,ro,nosuid,nodev 0 0" in Path("/etc/fstab").read_text(),
               "Falta el montaje persistente de la jaula.")
-        check((j/"web"/u).is_dir() and not any((j/"web"/u).iterdir()),
-              "La web parcial contiene archivos. No se sobrescriben.")
+        check((j/"web"/u).is_dir() and not (j/"web"/u).is_symlink(), "Directorio web parcial inválido.")
         check(all((j / rel).is_dir() for rel in ("etc/aula", "run/aula/fpm", "run/aula/http", "run/aula/redis", "var/empty/aula")),
               "La estructura de la jaula está incompleta.")
-        check(not any((UNITS / unitname(u, k)).exists() for k in ("web", "fpm", "redis", "app")),
-              "Ya existen servicios del alumno. Requiere revisión manual.")
-        precheck_databases(u)
+        web = j / "web" / u
+        entries = {p.name for p in web.iterdir()}
         d = {"mysql_dbs": default_dbs(u), "password_changed": {}, "nombre": known[u],
              "php": s["php_default"], "docroot": ".", "moodle": False, "activo": True,
-             "mode": "php", "port_web": port(s), "port_app": 0, "cpu": 100,
+             "mode": "php", "port_web": 0, "port_app": 0, "cpu": 100,
              "mem": 1024, "redis": False, "app": [], "cron": []}
-        s["alumnos"][u] = d
-        d["port_app"] = port(s)
-        print(f"Continuando alta incompleta de {u}; se conservan plantilla, cuenta y montaje.")
-        finish_student(s, u, d)
+        if not entries:
+            check(not any((UNITS / unitname(u, k)).exists() for k in ("web", "fpm", "redis", "app")),
+                  "Ya existen servicios del alumno. Requiere revisión manual.")
+            precheck_databases(u)
+            d["port_web"] = port(s)
+            s["alumnos"][u] = d
+            d["port_app"] = port(s)
+            print(f"Continuando alta incompleta de {u}; se conservan plantilla, cuenta y montaje.")
+            finish_student(s, u, d)
+        else:
+            # Fase de verificación HTTP: no volver a crear cuentas, bases o archivos.
+            check(entries == {"index.php", ".htaccess", "privado-aula.txt"},
+                  "La web parcial contiene archivos distintos de la prueba. No se sobrescriben.")
+            check(all((web / n).is_file() and not (web / n).is_symlink() for n in entries),
+                  "Archivos de prueba inválidos.")
+            expected = {'index.php': '<?php echo "AULA_OK|".PHP_VERSION."|".($_SERVER["PATH_INFO"]??"");',
+                        '.htaccess': "RewriteEngine On\nRewriteRule ^prueba-aula$ index.php [L]\n<Files privado-aula.txt>\nRequire all denied\n</Files>",
+                        'privado-aula.txt': "privado"}
+            for n, value in expected.items():
+                check(as_user(u, "/usr/bin/cat", f"/web/{u}/{n}", capture=True) == value,
+                      f"Archivo de prueba modificado: {n}. No se sobrescribe.")
+            check(all((UNITS / unitname(u, k)).is_file() for k in ("web", "fpm")) and
+                  not any((UNITS / unitname(u, k)).exists() for k in ("redis", "app")),
+                  "Los servicios no corresponden a una alta pendiente.")
+            for k in ("web", "fpm"):
+                unit = (UNITS / unitname(u, k)).read_text()
+                check(f"RootDirectory={j}\n" in unit and f"User={u}\n" in unit, "Unidad inesperada.")
+            ac = (j / "etc/aula/apache.conf").read_text()
+            match = re.search(r"(?m)^Listen 127\.0\.0\.1:([0-9]+)$", ac)
+            check(match and 18000 <= int(match.group(1)) < 20000, "No se conoce el puerto de la jaula parcial.")
+            d["port_web"] = int(match.group(1))
+            check(d["port_web"] not in {x[k] for x in s["alumnos"].values() for k in ("port_web", "port_app")},
+                  "Puerto interno duplicado.")
+            check(f'ProxyPass "/{u}/" "http://127.0.0.1:{d["port_web"]}/{u}/"' in FRONT.read_text(),
+                  "La ruta del proxy no coincide.")
+            check(all(db_exists(n) for n in d["mysql_dbs"]), "Faltan bases MySQL: no se reanudará a ciegas.")
+            check(pg(f"SELECT count(*) FROM pg_database WHERE datname='{u}';", capture=True) == "1",
+                  "Falta la base PostgreSQL.")
+            s["alumnos"][u] = d
+            d["port_app"] = port(s)
+            print(f"Reanudando verificación de {u}; conservando cuentas, bases y archivos.")
+            php_config(u, d)
+            ctl("daemon-reload")
+            ctl("enable", "--now", unitname(u, "fpm"), unitname(u, "web"))
+            ctl("restart", unitname(u, "fpm"), unitname(u, "web"))
+            wait_for(lambda: ok("curl", "--noproxy", "*", "-fsS", "--max-time", "3", f'http://127.0.0.1:{d["port_web"]}/{u}/'), "Apache y PHP de " + u)
+            routes(s)
+            verify_student(s, u, d)
     for name, u in names:
         if u not in s["alumnos"]:
             new_student(s, name, u)
@@ -983,7 +1029,7 @@ def help_parser():
     q = sub.add_parser("instalar"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv"))); q.add_argument("--completo", action="store_true")
     for cmd in ("listar", "doctor", "dependencias", "extras"):
         sub.add_parser(cmd)
-    q = sub.add_parser("reanudar", help="Retomar instalación detenida antes de las bases del alumno"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv")))
+    q = sub.add_parser("reanudar", help="Retomar instalación detenida durante un alta inicial"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv")))
     sub.add_parser("referencia", help="Lista de órdenes de administración")
     q = sub.add_parser("db-listar", help="Bases MySQL y permisos"); q.add_argument("usuario")
     q = sub.add_parser("db-alta", help="Añadir una base MySQL con sufijo numérico"); q.add_argument("usuario"); q.add_argument("sufijo")
