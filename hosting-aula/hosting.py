@@ -258,7 +258,9 @@ def sync_php(u, d):
     for rel in ("etc/php", "etc/ssl/certs"):
         src = TPL / rel
         if src.is_dir():
-            shutil.copytree(src, j / rel, symlinks=True, dirs_exist_ok=True)
+            # cp -aT conserva enlaces absolutos internos y reemplaza los ya existentes.
+            # copytree(symlinks=True, dirs_exist_ok=True) falla con EEXIST.
+            run("cp", "-aT", src, j / rel)
     a = j / "etc/alternatives/php"
     a.parent.mkdir(exist_ok=True)
     a.unlink(missing_ok=True)
@@ -588,6 +590,11 @@ def change_password(s, u, kind, reset=False):
 def precheck_name(u):
     check(not ok("getent", "passwd", u) and not ok("getent", "group", u), "Cuenta Linux existente: " + u)
     check(not os.path.lexists("/home/" + u) and not os.path.lexists(str(jail(u))) and not os.path.lexists("/var/www/html/" + u), "Ruta existente: " + u)
+    precheck_databases(u)
+
+
+def precheck_databases(u):
+    valid_user(u)
     check(mysql(f"SELECT COUNT(*) FROM mysql.user WHERE User='{u}';", capture=True) == "0", "Cuenta MySQL existente: " + u)
     for name in default_dbs(u):
         check(not db_exists(name), "BD MySQL existente: " + name)
@@ -631,6 +638,11 @@ def new_student(s, name, u):
         private_dir(u, j / "run/aula" / rel)
     (j / "var/empty/aula").mkdir(parents=True, exist_ok=True)
     (j / "etc/aula").mkdir(exist_ok=True)
+    finish_student(s, u, d)
+
+
+def finish_student(s, u, d):
+    j = jail(u)
     sync_php(u, d)
     # Cada alumno recibe tres bases MySQL y permiso exacto sobre cada una.
     mysql("".join(f"CREATE USER '{u}'@'{h}' IDENTIFIED BY '{u}' WITH MAX_USER_CONNECTIONS 8;\n" for h in ("localhost", "127.0.0.1")))
@@ -746,6 +758,63 @@ def bootstrap(csvfile, full):
         new_student(s, name, u)
     put(READY, "Instalación terminada\n", 0o600)
     print("Instalación finalizada. Credenciales: /root/credenciales-aula.csv")
+
+def resume_initial(csvfile):
+    """Retoma exclusivamente una instalación inicial detenida antes de crear las BD."""
+    check(not READY.exists() and STATE.is_file() and TPL.is_dir() and JAILS.is_dir(),
+          "No hay una instalación inicial recuperable por esta orden.")
+    check(FRONT.is_file() and str(FRONT) in SITE.read_text() and "# BEGIN HOSTING AULA" in SSH.read_text(),
+          "No se terminó la configuración global. No se reanuda automáticamente.")
+    names = read_students(csvfile)
+    s = json.loads(STATE.read_text())
+    known = {u: name for name, u in names}
+    check(all(known.get(u) == d["nombre"] for u, d in s["alumnos"].items()),
+          "Usa el CSV original, sin modificar los alumnos ya creados.")
+    validate_db_plan(s, list(known))
+    pending = [p.name for p in JAILS.iterdir() if p.name not in s["alumnos"]]
+    check(len(pending) <= 1 and all(u in known for u in pending),
+          "Hay jaulas parciales ambiguas. No se modifica nada.")
+    # Validar antes de continuar: no borrar ni adoptar cuentas o bases ajenas.
+    for name, u in names:
+        if u in s["alumnos"] or u in pending:
+            continue
+        precheck_name(u)
+    if pending:
+        u = pending[0]
+        first = next((x for _, x in names if x not in s["alumnos"]), None)
+        check(u == first, "La jaula parcial no coincide con el primer alumno pendiente.")
+        j = jail(u)
+        check(j.is_dir() and not j.is_symlink() and j.stat().st_uid == 0, "Jaula parcial inválida.")
+        p = pwd.getpwnam(u)
+        check(p.pw_dir == f"/home/{u}" and p.pw_shell == "/bin/bash" and GROUP in run("id", "-nG", u, capture=True).split(),
+              "La cuenta no coincide con el alojamiento.")
+        check(run("passwd", "-S", u, capture=True).split()[1] == "L", "La cuenta no está bloqueada.")
+        check(Path("/home", u).is_symlink() and os.readlink(Path("/home", u)) == str(j/"home"/u),
+              "El home no coincide con la jaula.")
+        mounted(u)
+        check(f"{TPL}/usr {j}/usr none bind,ro,nosuid,nodev 0 0" in Path("/etc/fstab").read_text(),
+              "Falta el montaje persistente de la jaula.")
+        check((j/"web"/u).is_dir() and not any((j/"web"/u).iterdir()),
+              "La web parcial contiene archivos. No se sobrescriben.")
+        check(all((j / rel).is_dir() for rel in ("etc/aula", "run/aula/fpm", "run/aula/http", "run/aula/redis", "var/empty/aula")),
+              "La estructura de la jaula está incompleta.")
+        check(not any((UNITS / unitname(u, k)).exists() for k in ("web", "fpm", "redis", "app")),
+              "Ya existen servicios del alumno. Requiere revisión manual.")
+        precheck_databases(u)
+        d = {"mysql_dbs": default_dbs(u), "password_changed": {}, "nombre": known[u],
+             "php": s["php_default"], "docroot": ".", "moodle": False, "activo": True,
+             "mode": "php", "port_web": port(s), "port_app": 0, "cpu": 100,
+             "mem": 1024, "redis": False, "app": [], "cron": []}
+        s["alumnos"][u] = d
+        d["port_app"] = port(s)
+        print(f"Continuando alta incompleta de {u}; se conservan plantilla, cuenta y montaje.")
+        finish_student(s, u, d)
+    for name, u in names:
+        if u not in s["alumnos"]:
+            new_student(s, name, u)
+    put(READY, "Instalación terminada\n", 0o600)
+    print("Instalación finalizada. Credenciales: /root/credenciales-aula.csv")
+
 
 def app(s, u, argv):
     d = student(s, u)
@@ -914,6 +983,7 @@ def help_parser():
     q = sub.add_parser("instalar"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv"))); q.add_argument("--completo", action="store_true")
     for cmd in ("listar", "doctor", "dependencias", "extras"):
         sub.add_parser(cmd)
+    q = sub.add_parser("reanudar", help="Retomar instalación detenida antes de las bases del alumno"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv")))
     sub.add_parser("referencia", help="Lista de órdenes de administración")
     q = sub.add_parser("db-listar", help="Bases MySQL y permisos"); q.add_argument("usuario")
     q = sub.add_parser("db-alta", help="Añadir una base MySQL con sufijo numérico"); q.add_argument("usuario"); q.add_argument("sufijo")
@@ -959,6 +1029,9 @@ def cli():
             raise Error("Hay otra operación de administración en curso.")
         if a.cmd == "instalar":
             bootstrap(a.csv, a.completo)
+            return
+        if a.cmd == "reanudar":
+            resume_initial(a.csv)
             return
         s = state()
         c = a.cmd
