@@ -508,10 +508,7 @@ def new_student(s, name, u):
     save(s)
     print(f"[OK] {u}: HTTP, PHP, rewrite, PATH_INFO, 403, MySQL, PostgreSQL y política SSH. http://{HOST}/{u}/")
 
-def bootstrap(csvfile, full):
-    check(not BASE.exists() and not FRONT.exists() and not Path("/root/credenciales-aula.csv").exists(), "Existe un intento anterior de hosting. No se sobrescribe.")
-    check(not ok("getent", "group", GROUP), "El grupo del aula ya existe.")
-    check("# BEGIN HOSTING AULA" not in SSH.read_text() if SSH.exists() else True, "Ya existe configuración SSH.")
+def read_students(csvfile):
     names = []
     with open(csvfile, encoding="utf-8-sig", newline="") as f:
         for row in csv.reader(f):
@@ -520,6 +517,34 @@ def bootstrap(csvfile, full):
             check(len(row) == 1, "El CSV debe contener una sola columna sin cabecera.")
             names.append((row[0].strip(), slug(row[0])))
     check(names and len({u for _, u in names}) == len(names), "CSV vacío o nombres normalizados duplicados; distingue los nombres antes de instalar.")
+    return names
+
+def add_students(s, names):
+    # Valida todo el lote antes de modificar cuentas; no recicla nombres de alumnos.
+    check(names and len({u for _, u in names}) == len(names),
+          "Lista vacía o usuarios normalizados duplicados.")
+    pending = []
+    for name, u in names:
+        if u in s["alumnos"]:
+            existing = s["alumnos"][u]
+            check(existing["nombre"].casefold() == name.casefold(),
+                  f"Colisión de usuario {u}: {existing['nombre']} / {name}. Usa nombres distintos.")
+            print(f"[EXISTE] {u} ({'activo' if existing['activo'] else 'suspendido'}): sin cambios.")
+        else:
+            precheck_name(u)
+            pending.append((name, u))
+    if pending:
+        disk(0.6 + len(pending) * 0.08)
+    for name, u in pending:
+        new_student(s, name, u)
+    print(f"Altas completadas: {len(pending)}; existentes sin cambios: {len(names) - len(pending)}.")
+
+
+def bootstrap(csvfile, full):
+    check(not BASE.exists() and not FRONT.exists() and not Path("/root/credenciales-aula.csv").exists(), "Existe un intento anterior de hosting. No se sobrescribe.")
+    check(not ok("getent", "group", GROUP), "El grupo del aula ya existe.")
+    check("# BEGIN HOSTING AULA" not in SSH.read_text() if SSH.exists() else True, "Ya existe configuración SSH.")
+    names = read_students(csvfile)
     print("Alumnos:", ", ".join(u for _, u in names))
     osrel = dict(x.split("=", 1) for x in Path("/etc/os-release").read_text().splitlines() if "=" in x)
     check(osrel.get("ID", "").strip('"') == "ubuntu", "Se requiere Ubuntu Server.")
@@ -713,7 +738,10 @@ def help_parser():
     q = sub.add_parser("instalar"); q.add_argument("csv", nargs="?", default=str(Path(__file__).with_name("alumnos.csv"))); q.add_argument("--completo", action="store_true")
     for cmd in ("listar", "doctor", "dependencias", "extras"):
         sub.add_parser(cmd)
-    q = sub.add_parser("alta"); q.add_argument("nombre")
+    q = sub.add_parser("alta", help="Añadir uno o varios alumnos")
+    q.add_argument("nombres", nargs="+", help="Nombres; entre comillas si tienen espacios")
+    q = sub.add_parser("altas", help="Añadir alumnos desde CSV, sin recrear los existentes")
+    q.add_argument("csv")
     for cmd in ("baja", "reactivar", "backup", "redis", "web", "reiniciar", "logs"):
         q = sub.add_parser(cmd); q.add_argument("usuario")
     q = sub.add_parser("php"); q.add_argument("usuario"); q.add_argument("version")
@@ -749,7 +777,9 @@ def cli():
         s = state()
         c = a.cmd
         if c == "alta":
-            new_student(s, a.nombre, slug(a.nombre))
+            add_students(s, [(n.strip(), slug(n)) for n in a.nombres])
+        elif c == "altas":
+            add_students(s, read_students(a.csv))
         elif c == "listar":
             for u, d in s["alumnos"].items():
                 print(u, d["php"], d["mode"], "activo" if d["activo"] else "suspendido", f"http://{HOST}/{u}/")
