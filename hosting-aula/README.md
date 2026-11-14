@@ -31,6 +31,8 @@ Todas las órdenes requieren sudo y se ejecutan desde la carpeta del proyecto:
 | Orden (después de sudo bash script.sh) | Función |
 |---|---|
 | alta Carlos | Crea cuenta, web, servicios y bases de datos |
+| alta Carlos Lucía "María José" | Añade varios alumnos en una operación |
+| altas nuevos.csv | Añade alumnos de un CSV sin recrear los existentes |
 | listar | Enumera alumnos, PHP y modo |
 | doctor | Comprueba paquetes, montajes y servicios |
 | dependencias | Instala dependencias faltantes |
@@ -53,6 +55,17 @@ Todas las órdenes requieren sudo y se ejecutan desde la carpeta del proyecto:
 | backup ana | Copia de archivos y ambas bases de datos |
 | baja ana | Suspende cuenta, sin borrar datos |
 | reactivar ana | Reactiva cuenta |
+
+### Incorporar alumnos después de instalar
+
+```bash
+sudo bash script.sh alta Carlos
+sudo bash script.sh alta Lucía "María José"
+sudo bash script.sh altas alumnos.csv
+sudo bash script.sh listar
+```
+
+Se admite también la sintaxis `--alta` y `--altas`. Puedes añadir nombres al CSV inicial y volver a importarlo mediante **altas**, no mediante instalar. Los alumnos existentes con el mismo nombre se omiten (incluidos los suspendidos); no se cambian sus contraseñas ni se eliminan sus datos. Las colisiones de nombres normalizados y las cuentas ajenas al proyecto se rechazan antes de iniciar el lote. Cada alta utiliza la plantilla compartida. Si falla una alta, las anteriores que hayan terminado se conservan; no hay rollback general.
 
 ## PHP, CMS y Composer
 
