@@ -135,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
             return true;
         }
         if (id == R.id.action_immersive) {
-            setImmersive(true);
+            setReaderImmersive(true);
             return true;
         }
         if (id == R.id.action_info) {
@@ -389,7 +389,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
 
     @Override
     public void onEditModeChanged(boolean enabled) {
-        if (enabled && immersive) setImmersive(false);
+        if (enabled && immersive) setReaderImmersive(false);
         formSessionActive = enabled;
         editBar.setVisibility(enabled ? View.VISIBLE : View.GONE);
         if (enabled) {
@@ -548,7 +548,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         startActivity(intent);
     }
 
-    private void setImmersive(boolean value) {
+    private void setReaderImmersive(boolean value) {
         immersive = value;
         toolbar.setVisibility(value ? View.GONE : View.VISIBLE);
         androidx.core.view.WindowInsetsControllerCompat controller = androidx.core.view.WindowCompat.getInsetsController(getWindow(), root);
@@ -701,7 +701,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
 
     @Override
     public void onBackPressed() {
-        if (immersive) { setImmersive(false); return; }
+        if (immersive) { setReaderImmersive(false); return; }
         if (saving) return;
         if (hasUnsavedChanges()) {
             showUnsavedChangesDialog(super::onBackPressed);
