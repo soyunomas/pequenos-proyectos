@@ -97,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
 
     private void setupToolbar() {
         toolbar.setTitle(R.string.app_name);
-        toolbar.setSubtitle(R.string.no_document);
+        toolbar.setSubtitle(null);
         toolbar.setOnMenuItemClickListener(this::onToolbarItem);
         updateMenuState();
     }
@@ -356,7 +356,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         currentDocumentHasForm = !"NONE".equalsIgnoreCase(formType)
                 && !"0".equals(formType)
                 && !"null".equalsIgnoreCase(formType);
-        toolbar.setSubtitle(currentDocumentHasForm ? R.string.reader_ready_editable : R.string.reader_ready);
+        toolbar.setSubtitle(null);
         Diagnostics.i("OPEN", "SUCCESS fresh viewer elapsedMs=" + elapsed()
                 + " class=" + document.getClass().getName() + " formType=" + formType);
         Diagnostics.memory("after-document-loaded");
@@ -394,10 +394,10 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         editBar.setVisibility(enabled ? View.VISIBLE : View.GONE);
         if (enabled) {
             editSubtitle.setText(R.string.edit_mode_help);
-            toolbar.setSubtitle(R.string.edit_mode_active);
+            toolbar.setSubtitle(null);
             Diagnostics.i("FORM", "Form session active; save controls visible");
         } else if (documentLoaded) {
-            toolbar.setSubtitle(currentDocumentHasForm ? R.string.reader_ready_editable : R.string.reader_ready);
+            toolbar.setSubtitle(null);
             Diagnostics.i("FORM", "Form session ended");
         }
         updateMenuState();
@@ -605,7 +605,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private void showEmptyState() {
         emptyState.setVisibility(View.VISIBLE);
         toolbar.setTitle(R.string.app_name);
-        toolbar.setSubtitle(R.string.no_document);
+        toolbar.setSubtitle(null);
         documentLoaded = false;
         formSessionActive = false;
         currentDocumentHasForm = false;
