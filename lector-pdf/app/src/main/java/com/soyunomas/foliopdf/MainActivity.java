@@ -60,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     private boolean formSessionActive;
     private boolean currentDocumentHasForm;
     private boolean saving;
+    private boolean immersive;
     private int openGeneration;
     private long openStartedAt;
     private Runnable afterSaveAction;
@@ -67,7 +68,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Diagnostics.init(this);
-        Diagnostics.i("ACTIVITY", "onCreate v1.2.2 saved=" + (savedInstanceState != null));
+        Diagnostics.i("ACTIVITY", "onCreate v1.4.0 saved=" + (savedInstanceState != null));
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         bindViews();
@@ -108,6 +109,56 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
 
     private boolean onToolbarItem(MenuItem item) {
         int id = item.getItemId();
+        if (id == R.id.action_pages || id == R.id.action_share) {
+            if (activeUri == null || saving) return true;
+            if (hasUnsavedChanges()) {
+                Snackbar.make(root, "Guarda una copia del formulario primero", Snackbar.LENGTH_LONG).show();
+                return true;
+            }
+            if (id == R.id.action_pages) {
+                Intent organizer = new Intent(this, PageOrganizerActivity.class);
+                organizer.setData(activeUri);
+                organizer.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(organizer);
+            } else {
+                Intent share = new Intent(Intent.ACTION_SEND);
+                share.setType("application/pdf");
+                share.putExtra(Intent.EXTRA_STREAM, activeUri);
+                share.setClipData(android.content.ClipData.newRawUri("PDF", activeUri));
+                share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(share, "Compartir PDF"));
+            }
+            return true;
+        }
+        if (id == R.id.action_merge) {
+            startActivity(new Intent(this, MergePdfActivity.class));
+            return true;
+        }
+        if (id == R.id.action_immersive) {
+            setImmersive(true);
+            return true;
+        }
+        if (id == R.id.action_info) {
+            if (activeUri == null) return true;
+            String name = activeDisplayName;
+            Uri uri = activeUri;
+            new Thread(() -> {
+                String info;
+                java.io.File file = null;
+                try {
+                    file = PdfTools.local(this, uri);
+                    try (com.tom_roush.pdfbox.pdmodel.PDDocument pdf = PdfTools.load(this, file)) {
+                        info = pdf.getNumberOfPages()+" páginas\n"+android.text.format.Formatter.formatFileSize(this,file.length());
+                        String author=pdf.getDocumentInformation().getAuthor();
+                        if(author!=null&&!author.trim().isEmpty())info+="\nAutor: "+author;
+                    }
+                } catch(Exception e) { info="No se pudieron leer los metadatos"; }
+                finally { if(file!=null)file.delete(); }
+                final String details=info;
+                runOnUiThread(()->{if(!isFinishing()&&!isDestroyed())new MaterialAlertDialogBuilder(this).setTitle(name).setMessage(details).setPositiveButton("Cerrar",null).show();});
+            }).start();
+            return true;
+        }
         if (id == R.id.action_open) {
             requestOpenPicker();
             return true;
@@ -338,6 +389,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
 
     @Override
     public void onEditModeChanged(boolean enabled) {
+        if (enabled && immersive) setImmersive(false);
         formSessionActive = enabled;
         editBar.setVisibility(enabled ? View.VISIBLE : View.GONE);
         if (enabled) {
@@ -496,6 +548,17 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         startActivity(intent);
     }
 
+    private void setImmersive(boolean value) {
+        immersive = value;
+        toolbar.setVisibility(value ? View.GONE : View.VISIBLE);
+        androidx.core.view.WindowInsetsControllerCompat controller = androidx.core.view.WindowCompat.getInsetsController(getWindow(), root);
+        if (value) {
+            controller.setSystemBarsBehavior(androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+            Snackbar.make(root, "Pulsa Atrás para volver al lector normal", Snackbar.LENGTH_LONG).show();
+        } else controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+    }
+
     private void updateMenuState() {
         if (toolbar == null) return;
         Menu menu = toolbar.getMenu();
@@ -507,6 +570,12 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
         if (open != null) open.setEnabled(!saving);
         if (saveAs != null) saveAs.setEnabled(activeUri != null && !saving);
         if (compat != null) compat.setVisible(activeUri != null);
+        for (int id : new int[]{R.id.action_pages,R.id.action_share,R.id.action_info}) {
+            MenuItem action=menu.findItem(id);
+            if(action!=null)action.setEnabled(activeUri!=null&&!saving&&!formSessionActive);
+        }
+        menu.findItem(R.id.action_immersive).setEnabled(documentLoaded&&!formSessionActive&&!saving);
+        menu.findItem(R.id.action_merge).setEnabled(!saving&&!formSessionActive);
     }
 
     private boolean supportsEditablePdf() {
@@ -632,6 +701,7 @@ public class MainActivity extends AppCompatActivity implements ReaderEvents {
 
     @Override
     public void onBackPressed() {
+        if (immersive) { setImmersive(false); return; }
         if (saving) return;
         if (hasUnsavedChanges()) {
             showUnsavedChangesDialog(super::onBackPressed);

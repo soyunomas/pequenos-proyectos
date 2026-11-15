@@ -15,6 +15,11 @@
         android:id="@+id/action_save_as"
         android:title="@string/save_as"
         app:showAsAction="never" />
+    <item android:id="@+id/action_share" android:title="Compartir" app:showAsAction="never" />
+    <item android:id="@+id/action_immersive" android:title="Modo lectura inmersiva" app:showAsAction="never" />
+    <item android:id="@+id/action_pages" android:title="Organizar páginas" app:showAsAction="never" />
+    <item android:id="@+id/action_merge" android:title="Unir documentos" app:showAsAction="never" />
+    <item android:id="@+id/action_info" android:title="Información del PDF" app:showAsAction="never" />
     <item
         android:id="@+id/action_compat"
         android:title="@string/compat_mode"

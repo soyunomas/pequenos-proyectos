@@ -8,6 +8,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <activity android:name=".PageOrganizerActivity" android:exported="false" android:configChanges="orientation|screenSize" />
+        <activity android:name=".MergePdfActivity" android:exported="false" android:configChanges="orientation|screenSize" />
         <activity
             android:name=".DiagnosticsActivity"
             android:exported="false" />
