@@ -2,7 +2,7 @@
 
 Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones implementadas en v2.2
+## Funciones implementadas en v2.3
 
 - Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
 - Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
@@ -16,17 +16,26 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - Escaneo automático opcional, con posibilidad de pausar y seguir explorando manualmente.
 - Cabecera con margen superior ampliado, botón LAN visible e interfaz oscura. Android 8.0+.
 
+## Escaneo LAN rápido (v2.3)
+
+- Exploración rápida iniciada al abrir la sección LAN; sondeo TCP de tres puertos por IP con 48 tareas simultáneas y esperas cortas, sin hacer siete intentos lentos por host.
+- Los resultados se actualizan **en directo**, sin esperar a que terminen todas las direcciones. El gateway y la IP del teléfono aparecen primero.
+- Descubrimiento adicional SSDP/UPnP para equipos que responden a anuncios de servicios de red.
+- Modo **Más completo** con siete puertos y más tiempo de espera para ampliar detección, y botón Detener.
+- El tiempo real depende de la latencia del router, filtrado de puertos, aislamiento Wi-Fi y restricciones del fabricante. No garantiza identificar todos los dispositivos ni obtener sus MAC.
+- La base IEEE se carga fuera del hilo principal para no bloquear la interfaz.
+
 ## Descubrimiento LAN / ARP y fabricantes
 
-- Botón principal **LAN / ARP** de acceso inmediato; exploración TCP manual sobre la subred Wi-Fi privada, limitada a un máximo de 254 direcciones.
+- Botón principal **LAN / ARP** de acceso inmediato; exploración TCP iniciada al abrir la sección sobre la subred Wi-Fi privada, limitada a un máximo de 254 direcciones.
 - La sección lista IP, estado, gateway y MAC **solo cuando Android deja consultar ARP**. En Android 10+ el acceso a `/proc/net/arp` suele estar bloqueado: estas MAC aparecen como «No disponible». **No es un escaneo ARP de tramas raw** y no sustituye `arp-scan` de Linux con privilegios.
 - Fabricantes de puntos de acceso Wi-Fi mediante BSSID anunciado (MAC real) y fabricante de LAN cuando haya MAC disponible.
 - El índice OUI se genera antes de compilar desde los registros públicos IEEE MA-L, MA-M y MA-S; se integra offline en el APK, sin consultas externas por MAC. El titular de un OUI no siempre es el fabricante real del producto; MAC local/aleatoria se identifica como tal.
-- Los hosts que bloqueen todos los puertos TCP examinados pueden no aparecer. Solo se sondean redes privadas y tras pulsar explícitamente el botón.
+- Los hosts que bloqueen todos los puertos TCP examinados pueden no aparecer. Solo se sondean redes privadas al entrar voluntariamente en la sección LAN o al solicitar un escaneo adicional.
 
 ## Privacidad y permisos
 
-El escaneo Wi-Fi requiere ubicación precisa y ubicación activada en el dispositivo, y en Android 13+ también permiso de dispositivos Wi-Fi cercanos. Se solicitan ACCESS_WIFI_STATE, CHANGE_WIFI_STATE, ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES, ACCESS_NETWORK_STATE e INTERNET. Los resultados de los escaneos y el historial viven en memoria; los BSSID marcados como favoritos se guardan localmente en las preferencias de la app. No se conecta a servidores propios; el descubrimiento local de LAN solo se ejecuta al pulsar el botón. Se permite exportar voluntariamente los datos capturados.
+El escaneo Wi-Fi requiere ubicación precisa y ubicación activada en el dispositivo, y en Android 13+ también permiso de dispositivos Wi-Fi cercanos. Se solicitan ACCESS_WIFI_STATE, CHANGE_WIFI_STATE, ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES, ACCESS_NETWORK_STATE e INTERNET. Los resultados de los escaneos y el historial viven en memoria; los BSSID marcados como favoritos se guardan localmente en las preferencias de la app. No se conecta a servidores propios; el descubrimiento local de LAN solo se ejecuta al abrir voluntariamente la sección LAN o pulsar un botón de escaneo. Se permite exportar voluntariamente los datos capturados.
 
 **La aplicación solo realiza peticiones a Internet desde el teléfono cuando el usuario inicia expresamente una prueba DNS o HTTPS.** En la compilación CI se descargan los registros públicos IEEE para crear la base OUI local. El servidor de destino puede observar la IP pública y metadatos normales de la conexión. Las pruebas no envían el SSID, BSSID ni la lista de puntos de acceso.
 
@@ -63,4 +72,5 @@ python3 scripts/update_oui.py
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v2.2.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v2.3.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+\n**Instalación de APK debug:** GitHub Actions puede generar firmas de depuración diferentes entre ejecuciones. Si Android indica conflicto de firma al actualizar, desinstala antes la versión antigua (se borrarán sus preferencias locales). Para actualizaciones permanentes sin perder datos, hay que configurar una clave de firma estable y privada.\n

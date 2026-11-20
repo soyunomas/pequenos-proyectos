@@ -7,14 +7,19 @@ import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.RouteInfo;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -22,27 +27,32 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.Callable;
+import java.util.Set;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Unprivileged LAN host discovery using bounded TCP connection attempts.
- * This is NOT a raw ARP scan. MAC addresses are read from system ARP cache only if accessible.
+ * Fast, bounded discovery on the user's own connected private Wi-Fi subnet.
+ * Uses TCP responses + SSDP/UPnP replies. Neither replaces privileged ARP or detects every host.
+ * Never guesses MAC addresses or manufacturer names.
  */
 public final class LanScanner {
     public interface Callbacks {
-        void progress(int scanned,int total,int found);
+        void progress(int scanned, int total, int found);
+        void discovered(Device device);
         void finished(List<Device> devices, boolean arpReadable, String issue);
     }
+
     public static final class Device {
         public final String ip, mac, detail, vendor;
         public final boolean gateway;
-        public Device(String ip,String mac,String detail,String vendor,boolean gateway){
+        public Device(String ip,String mac,String detail,String vendor,boolean gateway) {
             this.ip=ip;this.mac=mac;this.detail=detail;this.vendor=vendor;this.gateway=gateway;
         }
     }
@@ -50,16 +60,24 @@ public final class LanScanner {
         public final Network network;
         public final String ownIp, gateway, scannedCidr, originalCidr;
         public final List<String> addresses;
-        Plan(Network net,String ownIp,String gateway,String originalCidr,String scannedCidr,
-             List<String> addresses){
+        Plan(Network net,String ownIp,String gateway,String originalCidr,String scannedCidr,List<String> addresses) {
             this.network=net;this.ownIp=ownIp;this.gateway=gateway;
             this.originalCidr=originalCidr;this.scannedCidr=scannedCidr;this.addresses=addresses;
         }
     }
     public static final class ScanHandle {
-        private final AtomicBoolean stopped=new AtomicBoolean(false);
-        private final ExecutorService executor=Executors.newSingleThreadExecutor();
-        public void cancel(){stopped.set(true);executor.shutdownNow();}
+        final AtomicBoolean stopped=new AtomicBoolean(false);
+        final ExecutorService manager=Executors.newSingleThreadExecutor();
+        volatile ExecutorService workers;
+        volatile Thread services;
+        public void cancel() {
+            stopped.set(true);
+            ExecutorService current=workers;
+            if(current!=null)current.shutdownNow();
+            Thread service=services;
+            if(service!=null)service.interrupt();
+            manager.shutdownNow();
+        }
         public boolean cancelled(){return stopped.get();}
     }
     private LanScanner(){}
@@ -67,143 +85,226 @@ public final class LanScanner {
     public static Plan plan(Context ctx) {
         ConnectivityManager cm=(ConnectivityManager)ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
         if(cm==null)return null;
-        for(Network n:cm.getAllNetworks()){
+        for(Network n:cm.getAllNetworks()) {
             NetworkCapabilities caps=cm.getNetworkCapabilities(n);
             if(caps==null||!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))continue;
             LinkProperties props=cm.getLinkProperties(n);
             if(props==null)continue;
-            for(LinkAddress address:props.getLinkAddresses()){
+            for(LinkAddress address:props.getLinkAddresses()) {
                 if(!(address.getAddress() instanceof Inet4Address))continue;
                 String ip=address.getAddress().getHostAddress();
                 if(!privateIpv4(ip))continue;
                 int prefix=address.getPrefixLength();
-                // Limit active probing to a maximum /24, preserving tighter network masks.
                 int scanPrefix=Math.max(24,Math.min(32,prefix));
                 SubnetTools.Subnet subnet=SubnetTools.calculate(ip+"/"+scanPrefix);
-                ArrayList<String> ips=new ArrayList<>();
-                long start=toLong(subnet.network),end=toLong(subnet.broadcast);
-                long first=scanPrefix>=31?start:start+1;
-                long last=scanPrefix>=31?end:end-1;
+                List<String> ips=new ArrayList<>();
+                long from=toLong(subnet.network),to=toLong(subnet.broadcast);
+                long first=scanPrefix>=31?from:from+1;
+                long last=scanPrefix>=31?to:to-1;
                 for(long i=first;i<=last;i++){
                     String candidate=SubnetTools.fmt(i);
                     if(!candidate.equals(ip))ips.add(candidate);
                 }
                 String gateway="";
-                for(RouteInfo route:props.getRoutes()){
+                for(RouteInfo route:props.getRoutes()) {
                     if(route.isDefaultRoute()&&route.getGateway() instanceof Inet4Address){
                         gateway=route.getGateway().getHostAddress();break;
                     }
                 }
-                return new Plan(n,ip,gateway,ip+"/"+prefix,subnet.network+"/"+scanPrefix,ips);
+                return new Plan(n,ip,gateway,ip+"/"+prefix,subnet.network+"/"+scanPrefix,
+                        prioritize(ips,gateway));
             }
         }
         return null;
     }
 
-    static long toLong(String ip){
-        String[] octets=ip.split("\\.");
-        long x=0;
-        for(String o:octets)x=(x<<8)|Integer.parseInt(o);
-        return x;
+    static List<String> prioritize(List<String> addresses,String gateway) {
+        List<String> list=new ArrayList<>(addresses);
+        Collections.sort(list, Comparator.comparingInt((String ip)->priority(ip,gateway))
+                .thenComparingLong(LanScanner::toLong));
+        return list;
     }
-    static boolean privateIpv4(String ip){
+    private static int priority(String ip,String gateway) {
+        if(ip.equals(gateway))return 0;
+        int last=Integer.parseInt(ip.substring(ip.lastIndexOf('.')+1));
+        if(last==1||last==254)return 1;
+        if(last==2||last==10||last==20||last==100)return 2;
+        return 3;
+    }
+    static long toLong(String ip) {
+        String[] parts=ip.split("\\.");
+        long value=0;
+        for(String part:parts)value=(value<<8)|Integer.parseInt(part);
+        return value;
+    }
+    static boolean privateIpv4(String ip) {
         try {
-            long x=toLong(ip);
-            return ((x>>>24)==10)||((x>>>20)==0xAC1)||((x>>>16)==0xC0A8);
-        }catch(Exception e){return false;}
+            long n=toLong(ip);
+            return (n>>>24)==10||(n>>>20)==0xAC1||(n>>>16)==0xC0A8;
+        }catch(RuntimeException e){return false;}
     }
 
-    public static ScanHandle start(Plan plan,OuiDatabase oui,Callbacks cb){
+    public static ScanHandle start(Plan plan,OuiDatabase oui,boolean deep,Callbacks callbacks) {
         ScanHandle handle=new ScanHandle();
-        handle.executor.execute(()->run(plan,oui,cb,handle));
+        handle.manager.execute(()->scan(plan,oui,deep,callbacks,handle));
         return handle;
     }
-    private static void run(Plan plan,OuiDatabase oui,Callbacks cb,ScanHandle handle){
-        ExecutorService probes=Executors.newFixedThreadPool(18);
-        ArrayList<Device> found=new ArrayList<>();
+    private static void scan(Plan plan,OuiDatabase oui,boolean deep,Callbacks cb,ScanHandle h) {
+        Map<String,Device> visible=new ConcurrentHashMap<>();
         boolean arpReadable=false;
         String issue="";
+        int checked=0;
+        int total=plan.addresses.size();
+        ExecutorService workers=Executors.newFixedThreadPool(deep?36:48);
+        h.workers=workers;
         try {
-            CompletionService<Probe> done=new ExecutorCompletionService<>(probes);
-            for(String ip:plan.addresses)
-                done.submit(()->probe(plan.network,ip,handle.stopped));
-            int count=0;
-            while(count<plan.addresses.size()&&!handle.stopped.get()){
-                Future<Probe> task=done.take();
+            // The gateway and own phone are shown immediately and are not counted as TCP discoveries.
+            if(!plan.ownIp.isEmpty())report(visible,new Device(plan.ownIp,"",
+                    "Este teléfono (dirección local)","MAC no disponible",false),cb);
+            if(!plan.gateway.isEmpty()&&privateIpv4(plan.gateway))
+                report(visible,new Device(plan.gateway,"",
+                    "Puerta de enlace (información de Android)","MAC no disponible",true),cb);
+
+            h.services=new Thread(()->ssdp(plan,visible,cb,h.stopped),"netscope-ssdp");
+            h.services.setDaemon(true);
+            h.services.start();
+
+            CompletionService<Probe> completion=new ExecutorCompletionService<>(workers);
+            for(String address:plan.addresses)
+                completion.submit(()->tcpProbe(plan.network,address,deep,h.stopped));
+
+            while(checked<total&&!h.stopped.get()) {
+                Future<Probe> task=completion.poll(250,TimeUnit.MILLISECONDS);
+                if(task==null)continue;
                 Probe result=task.get();
-                count++;
-                if(result.reachable)found.add(new Device(result.ip,"",result.detail,"",result.ip.equals(plan.gateway)));
-                if(count%7==0 || count==plan.addresses.size())
-                    cb.progress(count,plan.addresses.size(),found.size());
+                checked++;
+                if(result.reachable) {
+                    Device existing=visible.get(result.ip);
+                    boolean gateway=result.ip.equals(plan.gateway);
+                    String detail=result.detail;
+                    if(existing!=null&&existing.detail.contains("SSDP"))
+                        detail=existing.detail+" · "+detail;
+                    report(visible,new Device(result.ip,"",detail,"MAC no disponible",gateway),cb);
+                }
+                if(checked%5==0||checked==total)cb.progress(checked,total,visible.size());
             }
-            if(handle.stopped.get())issue="Exploración cancelada.";
+            // Let a short SSDP discovery complete, but don't block results for a slow network.
+            Thread service=h.services;
+            if(service!=null&&service.isAlive()&&!h.stopped.get())service.join(1300);
+            if(h.stopped.get())issue="Búsqueda detenida. Se conservan resultados parciales.";
             Map<String,String> arp=readArp();
             arpReadable=arp!=null;
             if(arp==null)arp=Collections.emptyMap();
-            // Gateway can be inferred from Android route even with all ports filtered.
-            if(!handle.stopped.get()&&!plan.gateway.isEmpty()&&!contains(found,plan.gateway)){
-                found.add(new Device(plan.gateway,"","Puerta de enlace anunciada por Android","",true));
-            }
-            ArrayList<Device> enriched=new ArrayList<>();
-            for(Device d:found) {
+            List<Device> finalList=new ArrayList<>();
+            for(Device d:visible.values()){
                 String mac=arp.get(d.ip);
-                enriched.add(new Device(d.ip,mac==null?"":mac,d.detail,
-                    oui.lookup(mac),d.gateway));
+                if(mac==null)mac="";
+                finalList.add(new Device(d.ip,mac,d.detail,oui==null?"Base IEEE pendiente":oui.lookup(mac),d.gateway));
             }
-            enriched.sort(Comparator.comparingLong(d->toLong(d.ip)));
-            cb.finished(Collections.unmodifiableList(enriched),arpReadable,issue);
-        }catch(Exception e){
-            issue=handle.stopped.get()?"Exploración cancelada.":"No se ha podido terminar: "+e.getClass().getSimpleName();
-            cb.finished(Collections.unmodifiableList(new ArrayList<>(found)),arpReadable,issue);
-        }finally{
-            probes.shutdownNow();handle.executor.shutdown();
+            finalList.sort(Comparator.comparingLong(d->toLong(d.ip)));
+            cb.finished(Collections.unmodifiableList(finalList),arpReadable,issue);
+        }catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
+            cb.finished(snapshot(visible),false,"Búsqueda detenida. Resultados parciales.");
+        }catch(Exception e) {
+            cb.finished(snapshot(visible),false,"Exploración incompleta: "+e.getClass().getSimpleName());
+        }finally {
+            h.stopped.set(true);
+            if(h.services!=null)h.services.interrupt();
+            workers.shutdownNow();
+            h.manager.shutdown();
         }
     }
-    private static boolean contains(List<Device> devices,String ip){
-        for(Device d:devices)if(d.ip.equals(ip))return true;
-        return false;
+    private static List<Device> snapshot(Map<String,Device> visible) {
+        List<Device> results=new ArrayList<>(visible.values());
+        results.sort(Comparator.comparingLong(d->toLong(d.ip)));
+        return results;
+    }
+    private static void report(Map<String,Device> map,Device device,Callbacks callbacks) {
+        Device old=map.put(device.ip,device);
+        if(old==null||!old.detail.equals(device.detail))callbacks.discovered(device);
     }
     private static final class Probe {
         final String ip,detail;
         final boolean reachable;
-        Probe(String ip,boolean ok,String detail){this.ip=ip;reachable=ok;this.detail=detail;}
+        Probe(String ip,boolean reachable,String detail) {
+            this.ip=ip;this.reachable=reachable;this.detail=detail;
+        }
     }
-    private static Probe probe(Network network,String ip,AtomicBoolean stopped){
-        int[] ports={80,443,22,445,53,8080,9100};
-        for(int port:ports){
-            if(stopped.get())break;
+    private static Probe tcpProbe(Network network,String ip,boolean deep,AtomicBoolean cancelled) {
+        int[] ports=deep?new int[]{80,443,22,445,53,8080,9100}:
+                          new int[]{80,443,22};
+        int timeout=deep?160:115;
+        for(int port:ports) {
+            if(cancelled.get()||Thread.currentThread().isInterrupted())break;
             try(Socket socket=network.getSocketFactory().createSocket()){
-                socket.connect(new InetSocketAddress(ip,port),180);
-                return new Probe(ip,true,"Conexión TCP aceptada: "+port);
-            }catch(ConnectException e){
-                String message=e.getMessage()==null?"":e.getMessage().toLowerCase(Locale.ROOT);
-                if(message.contains("refused")||message.contains("rechaz")||message.contains("refus"))
-                    return new Probe(ip,true,"Respuesta TCP (conexión rechazada)");
+                socket.connect(new InetSocketAddress(ip,port),timeout);
+                return new Probe(ip,true,"TCP "+port+" responde");
+            }catch(ConnectException e) {
+                // Connection refused is proof of an IP host; no successful app connection needed.
+                String detail=e.getMessage()==null?"":e.getMessage().toLowerCase(Locale.ROOT);
+                if(detail.contains("refused")||detail.contains("rechaz")||detail.contains("refus"))
+                    return new Probe(ip,true,"TCP "+port+" rechazado (host activo)");
             }catch(IOException|SecurityException ignored){}
         }
         return new Probe(ip,false,"");
     }
 
-    /**
-     * Reading this file is blocked for normal third-party apps on Android 10+.
-     * A returned null is an access restriction, not a blank but valid ARP table.
-     */
-    static Map<String,String> readArp(){
+    /** Discover UPnP/SSDP responders with one bounded M-SEARCH on the connected Wi-Fi network. */
+    private static void ssdp(Plan plan,Map<String,Device> map,Callbacks cb,AtomicBoolean cancelled) {
+        byte[] request=("M-SEARCH * HTTP/1.1\r\n"+
+                "HOST: 239.255.255.250:1900\r\n"+
+                "MAN: \"ssdp:discover\"\r\n"+
+                "MX: 1\r\n"+
+                "ST: ssdp:all\r\n\r\n").getBytes(StandardCharsets.US_ASCII);
+        try(DatagramSocket socket=new DatagramSocket(null)) {
+            socket.setReuseAddress(true);
+            socket.bind(new InetSocketAddress(0));
+            plan.network.bindSocket(socket);
+            socket.setSoTimeout(200);
+            socket.send(new DatagramPacket(request,request.length,
+                    InetAddress.getByName("239.255.255.250"),1900));
+            long until=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(1150);
+            byte[] buf=new byte[1600];
+            while(!cancelled.get()&&!Thread.currentThread().isInterrupted()&&System.nanoTime()<until) {
+                DatagramPacket incoming=new DatagramPacket(buf,buf.length);
+                try{socket.receive(incoming);}catch(SocketTimeoutException e){continue;}
+                String ip=incoming.getAddress().getHostAddress();
+                if(!privateIpv4(ip)||ip.equals(plan.ownIp))continue;
+                // Never accept responses outside the connected subnet being explored.
+                if(!plan.addresses.contains(ip)&&!ip.equals(plan.gateway))continue;
+                String reply=new String(incoming.getData(),incoming.getOffset(),
+                        incoming.getLength(),StandardCharsets.ISO_8859_1);
+                if(!reply.startsWith("HTTP/1.1 200")&&!reply.startsWith("HTTP/1.0 200"))continue;
+                Device previous=map.get(ip);
+                String detail="UPnP / SSDP detectado";
+                if(previous!=null)detail=previous.detail+" · SSDP";
+                report(map,new Device(ip,"",detail,"MAC no disponible",
+                        ip.equals(plan.gateway)),cb);
+            }
+        }catch(IOException|SecurityException ignored){
+            // Multicast may be disabled by the AP/Android. TCP discovery still works.
+        }
+    }
+
+    /** /proc/net/arp remains unavailable to ordinary apps on most Android 10+ devices. */
+    static Map<String,String> readArp() {
         try(BufferedReader reader=new BufferedReader(new FileReader("/proc/net/arp"))){
-            Map<String,String> items=new HashMap<>();
+            Map<String,String> records=new HashMap<>();
             String line;reader.readLine();
-            while((line=reader.readLine())!=null){
+            while((line=reader.readLine())!=null) {
                 String[] fields=line.trim().split("\\s+");
                 if(fields.length<6)continue;
                 if(!fields[3].matches("(?i)[0-9a-f]{2}(:[0-9a-f]{2}){5}"))continue;
                 if("00:00:00:00:00:00".equals(fields[3]))continue;
                 try{
                     int flags=Integer.decode(fields[2]);
-                    if((flags&2)==0)continue;
-                    items.put(fields[0],fields[3].toUpperCase(Locale.ROOT));
+                    if((flags&2)==0)
+                        continue;
+                    records.put(fields[0],fields[3].toUpperCase(Locale.ROOT));
                 }catch(NumberFormatException ignored){}
             }
-            return items;
+            return records;
         }catch(IOException|SecurityException e){return null;}
     }
 }
