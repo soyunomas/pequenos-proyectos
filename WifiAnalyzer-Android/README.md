@@ -1,37 +1,50 @@
-# WiFi Analyzer para Android
+# NetScope — Wi-Fi y diagnóstico de redes (Android)
 
-Aplicación Android nativa (Java, sin librerías UI externas) para inspeccionar redes Wi-Fi cercanas. Proyecto independiente, inspirado en las funciones habituales de los analizadores de Wi-Fi; no contiene código ni recursos propietarios de otras aplicaciones.
+Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones
-- Redes cercanas: SSID, BSSID, canal, frecuencia, ancho, RSSI, seguridad, calidad y conexión actual.
-- Gráficos de uso de canales por banda: 2,4 / 5 / 6 GHz.
-- Historial de hasta 40 lecturas por BSSID, mantenido solo en memoria.
-- Recomendaciones **heurísticas** de canales; no son mediciones de capacidad o interferencia no Wi-Fi.
-- Exportación CSV sin acceso a Internet.
+## Funciones implementadas en v2.0
 
-## Requisitos y privacidad
-Android 8.0+ (API 26), Wi-Fi y servicios de ubicación encendidos. El usuario debe conceder `ACCESS_FINE_LOCATION`; desde Android 13 también `NEARBY_WIFI_DEVICES`. La ubicación no se guarda, transmite ni registra. La app no solicita permiso INTERNET, no necesita una cuenta y no usa rastreadores.
+- Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
+- Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
+- Historial de señal de sesión con deduplicación por timestamp de escaneo Android (hasta 100 muestras por punto de acceso).
+- Auditoría pasiva de seguridad: red abierta, WEP, WPA, WPA2, WPA3, OWE y Enterprise, con recomendaciones.
+- Centro de diagnóstico: interfaz, IP locales, rutas/gateway, DNS, DNS privado, MTU, velocidad de enlace y validación Android.
+- Prueba DNS voluntaria contra example.com, y comprobación HTTPS voluntaria contra www.google.com/generate_204 (sobre la red Wi-Fi).
+- Calculadora IPv4/CIDR con /0, /31 y /32 y rango de hosts.
+- Exportación CSV de redes, CSV de historial, JSON de redes y JSON con SSID/BSSID anonimizados.
+- Interfaz oscura; compatible con Android 8.0+.
 
-Los escaneos están restringidos por el sistema operativo. Si Android limita una solicitud, se muestran los datos anteriores; no se finge un nuevo escaneo. La app solicita actualizaciones aproximadamente cada 15 segundos mientras está visible, aunque el sistema puede entregar una frecuencia menor. El historial refleja las respuestas recibidas, que pueden estar almacenadas en caché. En algunas versiones, el acceso a datos de conexión requiere restricciones adicionales.
+## Privacidad y permisos
 
-En 5/6 GHz algunos canales pueden no estar disponibles según país, hardware y regulación. No se detectan redes ocultas sin balizas ni interferencias de otros dispositivos. La app no cambia la configuración del router.
+El escaneo Wi-Fi requiere ubicación precisa y ubicación activada en el dispositivo, y en Android 13+ también permiso de dispositivos Wi-Fi cercanos. Se solicitan ACCESS_WIFI_STATE, CHANGE_WIFI_STATE, ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES, ACCESS_NETWORK_STATE e INTERNET. Los resultados de los escaneos y el historial viven en memoria. No se conecta a servidores propios ni se hace ningún rastreo de la LAN. Se permite exportar voluntariamente los datos capturados.
 
-## Compilación
-Desde el directorio `WifiAnalyzer-Android`:
+**La aplicación solo realiza peticiones a Internet cuando el usuario inicia expresamente una prueba DNS o HTTPS.** El servidor de destino puede observar la IP pública y metadatos normales de la conexión. Las pruebas no envían el SSID, BSSID ni la lista de puntos de acceso.
 
-```sh
-gradle testDebugUnitTest assembleDebug
+## Límites técnicos
+
+- Android limita las exploraciones y puede entregar datos en caché; se muestra la antigüedad aproximada de los resultados.
+- La evaluación de seguridad se basa en capacidades anunciadas, no en intentar vulnerar autenticación.
+- No se puede medir ruido no Wi-Fi con las API ordinarias, ni garantizar que un canal sea utilizable en una región.
+- Las velocidades Tx/Rx negociadas no equivalen a velocidad efectiva de Internet.
+- Las pruebas de HTTPS no representan un test de velocidad ni ping ICMP.
+- Algunas propiedades están ocultas por restricciones de Android o del fabricante; se deben validar en dispositivos físicos.
+
+## Arquitectura y pruebas
+
+- `MainActivity`: interfaz, escaneo, espectro, historial, seguridad y exportación.
+- `ToolkitActivity`: centro de diagnóstico y calculadora de subredes.
+- `NetworkDiagnostics`: conectividad Wi-Fi y pruebas de red bajo demanda.
+- `ChannelMath`: dominio puro de canales y estimación de solapamiento.
+- `SurveyHistory`: historial de señal deduplicado.
+- `SecurityAdvisor`: auditoría pasiva de cifrado/anuncios.
+- `SubnetTools`: calculadora CIDR.
+- `JsonExport` / `CsvExport`: exportaciones.
+
+Compila con JDK 17, Android SDK 35 y Gradle 8.9:
+
+```bash
+cd WifiAnalyzer-Android
+gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-APK generado: `app/build/outputs/apk/debug/app-debug.apk`.
-También se compila con GitHub Actions: [Build WiFi Analyzer APK](../.github/workflows/wifi-analyzer.yml).
-Después del workflow en la rama principal, si termina correctamente, el APK se publica como `WifiAnalyzer-Android/WiFi_Analyzer_v1.0.apk`.
-
-## Arquitectura
-- `MainActivity`: adquisición por `WifiManager`, permisos, interfaz, gráficos y SAF para CSV
-- `NetworkEntry`: modelo de lectura inmutable
-- `ChannelMath`: conversiones de frecuencia, evaluación de calidad y estimación de interferencia
-- `CsvExport`: exportación RFC-4180 con protección básica frente a fórmulas de hojas de cálculo
-- `app/src/test`: pruebas JVM de lógica de dominio
-
-Esta es una primera versión funcional, no una reproducción exacta de ninguna interfaz comercial. Se recomienda probarla en un teléfono físico para validar el comportamiento específico del chipset y la versión de Android.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v2.0.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.

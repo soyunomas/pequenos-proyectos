@@ -59,7 +59,9 @@ public final class MainActivity extends Activity {
     private static final long UPDATE_MS = 15000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ArrayList<NetworkEntry> networks = new ArrayList<>();
-    private final Map<String, ArrayList<Integer>> history = new HashMap<>();
+    private final SurveyHistory survey = new SurveyHistory();
+    private long scanAgeMs=-1;
+    private String exportText="";
     private WifiManager wifi;
     private LinearLayout root;
     private LinearLayout content;
@@ -193,6 +195,7 @@ public final class MainActivity extends Activity {
             WifiInfo connection = wifi.getConnectionInfo();
             String activeBssid = connection == null ? "" : connection.getBSSID();
             networks.clear();
+            scanAgeMs=-1;
             for (ScanResult s : scans) {
                 if (s == null || s.frequency <= 0) continue;
                 int width = width(s.channelWidth);
@@ -200,13 +203,9 @@ public final class MainActivity extends Activity {
                 NetworkEntry n = new NetworkEntry(s.SSID, s.BSSID, security(s.capabilities),
                     standard(s), s.frequency, s.level, width, connected);
                 networks.add(n);
-                ArrayList<Integer> values = history.get(n.bssid);
-                if (values == null) { values = new ArrayList<>(); history.put(n.bssid, values); }
-                values.add(n.dbm);
-                if (values.size() > 40) values.remove(0);
-            }
-            if (history.size() > 300) {
-                history.clear();
+                survey.add(n,s.timestamp,System.currentTimeMillis());
+                long age=Math.max(0,(android.os.SystemClock.elapsedRealtimeNanos()/1000-s.timestamp)/1000);
+                if(scanAgeMs<0||age<scanAgeMs)scanAgeMs=age;
             }
             lastResultMillis = System.currentTimeMillis();
             render();
@@ -258,12 +257,15 @@ public final class MainActivity extends Activity {
 
         LinearLayout header = line();
         header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = text("WiFi Analyzer", 25, TEXT, true);
+        TextView title = text("NetScope", 25, TEXT, true);
         header.addView(title, new LinearLayout.LayoutParams(0, dp(45), 1));
         Button refresh = button("↻", ACCENT);
         refresh.setContentDescription("Actualizar redes");
         refresh.setOnClickListener(v -> refresh(true));
         header.addView(refresh);
+        Button tools=button("Herramientas",PURPLE);
+        tools.setOnClickListener(v->startActivity(new Intent(this,ToolkitActivity.class)));
+        header.addView(tools);
         root.addView(header);
 
         status = text("Preparado", 12, MUTED, false);
@@ -273,11 +275,11 @@ public final class MainActivity extends Activity {
         root.addView(summary);
 
         LinearLayout tabs = line();
-        String[] labels = {"Redes", "Canales", "Señal", "Consejos"};
+        String[] labels = {"Redes", "Canales", "Señal", "Seguridad", "Consejos"};
         for (int i=0;i<labels.length;i++) {
             final int index=i;
             Button b=button(labels[i], i==tab ? ACCENT : MUTED);
-            b.setTextSize(12);
+            b.setTextSize(10);
             b.setOnClickListener(v -> { tab=index; buildShell(); render(); });
             tabs.addView(b, new LinearLayout.LayoutParams(0, dp(45), 1));
         }
@@ -294,7 +296,7 @@ public final class MainActivity extends Activity {
         footer.setGravity(Gravity.CENTER_VERTICAL);
         TextView footerText = text("Escaneo local · Sin cuenta · Sin anuncios", 11, MUTED, false);
         footer.addView(footerText, new LinearLayout.LayoutParams(0, dp(40), 1));
-        Button csv = button("CSV ↓", ACCENT);
+        Button csv = button("Exportar ↓", ACCENT);
         csv.setOnClickListener(v -> exportCsv());
         footer.addView(csv);
         root.addView(footer);
@@ -305,7 +307,7 @@ public final class MainActivity extends Activity {
         status.setText(scanning ? "Escaneando…" :
             lastResultMillis == 0 ? "Sin resultados todavía" :
             "Datos recibidos " + android.text.format.DateFormat.format("HH:mm:ss", lastResultMillis) +
-            " · Android puede reutilizar resultados anteriores");
+            " · antigüedad aprox. " + (scanAgeMs<0 ? "desconocida" : (scanAgeMs/1000)+" s"));
         summary.setText(networks.size() + " redes detectadas  ·  " +
             count(ChannelMath.BAND_24) + " en 2,4 GHz  ·  " + count(ChannelMath.BAND_5) +
             " en 5 GHz  ·  " + count(ChannelMath.BAND_6) + " en 6 GHz");
@@ -328,6 +330,7 @@ public final class MainActivity extends Activity {
         if (tab == 0) showNetworks();
         else if (tab == 1) showChannels();
         else if (tab == 2) showHistory();
+        else if(tab==3) showSecurity();
         else showAdvice();
     }
 
@@ -420,17 +423,33 @@ public final class MainActivity extends Activity {
     private void showHistory() {
         List<NetworkEntry> items=filtered();
         content.addView(text("Historial de intensidad",19,TEXT,true));
-        content.addView(text("Últimas 40 lecturas por BSSID durante esta sesión. Android puede devolver resultados en caché.",12,MUTED,false));
+        content.addView(text("Hasta 100 observaciones nuevas por BSSID. Las lecturas repetidas se deduplican mediante su timestamp.",12,MUTED,false));
         if(items.isEmpty()){ empty("Todavía no hay lecturas para dibujar.");return; }
         int shown=0;
         for(NetworkEntry n:items) {
             if(shown++>=8)break;
             LinearLayout box=card();
             box.addView(text(n.ssid+"   ·   "+n.dbm+" dBm",14,TEXT,true));
-            ArrayList<Integer> readings=history.get(n.bssid);
-            if(readings==null)readings=new ArrayList<>();
+            ArrayList<Integer> readings=new ArrayList<>(survey.values(n.bssid));
+            box.addView(text("Muestras "+survey.points(n.bssid)+" · mín "+survey.min(n.bssid)+" · media "+survey.avg(n.bssid)+" · máx "+survey.max(n.bssid)+" dBm",11,MUTED,false));
             box.addView(new HistoryGraph(this,readings,PALETTE[(shown-1)%PALETTE.length]),
                 new LinearLayout.LayoutParams(-1,dp(105)));
+            content.addView(box);
+        }
+    }
+
+    private void showSecurity() {
+        content.addView(text("Auditoría pasiva de seguridad",19,TEXT,true));
+        content.addView(text("Evaluación orientativa por protocolo anunciado. No se prueban contraseñas ni se realizan ataques.",12,MUTED,false));
+        List<NetworkEntry> items=new ArrayList<>(filtered());
+        Collections.sort(items,(a,b)->Integer.compare(SecurityAdvisor.evaluate(a.security).score,SecurityAdvisor.evaluate(b.security).score));
+        if(items.isEmpty()){empty("Sin redes que evaluar.");return;}
+        for(NetworkEntry n:items){
+            SecurityAdvisor.Evaluation e=SecurityAdvisor.evaluate(n.security);
+            LinearLayout box=card();
+            box.addView(text(n.ssid+" · "+e.score+"/100",15,e.score>=75?ACCENT:e.score>35?ORANGE:0xFFFF809C,true));
+            box.addView(text(e.protocol+" · riesgo "+e.risk+" · canal "+n.channel,12,MUTED,false));
+            box.addView(text(e.advice,12,MUTED,false));
             content.addView(box);
         }
     }
@@ -466,24 +485,31 @@ public final class MainActivity extends Activity {
     }
 
     private void exportCsv() {
-        if(networks.isEmpty()){ Toast.makeText(this,"Todavía no hay datos para exportar",Toast.LENGTH_SHORT).show();return; }
-        Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("text/csv");
-        intent.putExtra(Intent.EXTRA_TITLE,"wifi-analyzer-"+System.currentTimeMillis()+".csv");
-        startActivityForResult(intent,77);
+        if(networks.isEmpty()){Toast.makeText(this,"Aún no hay redes",Toast.LENGTH_SHORT).show();return;}
+        String[] choices={"CSV · redes","JSON · redes","JSON · anónimo","CSV · historial"};
+        new AlertDialog.Builder(this).setTitle("Exportar").setItems(choices,(dialog,choice)->{
+            String filename,mime;
+            if(choice==0){exportText=CsvExport.render(networks);filename="netscope-redes.csv";mime="text/csv";}
+            else if(choice==1){exportText=JsonExport.render(networks,false);filename="netscope-redes.json";mime="application/json";}
+            else if(choice==2){exportText=JsonExport.render(networks,true);filename="netscope-anonimo.json";mime="application/json";}
+            else{exportText=survey.csv();filename="netscope-historial.csv";mime="text/csv";}
+            Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType(mime);
+            intent.putExtra(Intent.EXTRA_TITLE,filename);
+            startActivityForResult(intent,77);
+        }).show();
     }
 
-    @Override protected void onActivityResult(int request, int result, Intent data) {
+    @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
-        if(request==77 && result==RESULT_OK && data!=null && data.getData()!=null) {
-            try(java.io.OutputStream out=getContentResolver().openOutputStream(data.getData())) {
-                if(out==null)throw new java.io.IOException("No se puede abrir el destino");
-                out.write(CsvExport.render(networks).getBytes(StandardCharsets.UTF_8));
-                Toast.makeText(this,"CSV guardado",Toast.LENGTH_SHORT).show();
-            }catch(Exception e){
-                Toast.makeText(this,"Error al guardar CSV",Toast.LENGTH_LONG).show();
-            }
+        if(request==77&&result==RESULT_OK&&data!=null&&data.getData()!=null){
+            try(java.io.OutputStream out=getContentResolver().openOutputStream(data.getData())){
+                if(out==null)throw new java.io.IOException("Destino inaccesible");
+                out.write(exportText.getBytes(StandardCharsets.UTF_8));
+                Toast.makeText(this,"Archivo exportado",Toast.LENGTH_SHORT).show();
+            }catch(Exception e){Toast.makeText(this,"Error de exportación",Toast.LENGTH_LONG).show();}
+            finally{exportText="";}
         }
     }
 
