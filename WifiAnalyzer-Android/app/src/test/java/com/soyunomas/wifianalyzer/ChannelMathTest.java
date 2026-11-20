@@ -29,7 +29,7 @@ public class ChannelMathTest {
         List<ChannelMath.Recommendation> result = ChannelMath.recommendations(
                 Arrays.asList(new ChannelMath.Observation(2412, -40, 20),
                               new ChannelMath.Observation(2417, -55, 20)), ChannelMath.BAND_24);
-        assertEquals(11, result.get(0).channel);
+        assertEquals(6, result.get(0).channel); // 6 and 11 tie; stable ordering picks 6
         assertTrue(result.get(0).score > result.get(result.size() - 1).score);
     }
 
