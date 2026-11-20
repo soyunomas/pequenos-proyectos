@@ -1,0 +1,53 @@
+name: Build WiFi Analyzer APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'WifiAnalyzer-Android/**'
+      - '.github/workflows/wifi-analyzer.yml'
+  pull_request:
+    paths:
+      - 'WifiAnalyzer-Android/**'
+      - '.github/workflows/wifi-analyzer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Unit tests and debug APK
+        working-directory: WifiAnalyzer-Android
+        run: gradle --no-daemon testDebugUnitTest assembleDebug
+      - name: Validate APK ZIP
+        run: unzip -t WifiAnalyzer-Android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiFi-Analyzer-v1.0-debug
+          path: WifiAnalyzer-Android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish installable APK to repository
+        if: github.event_name == 'push'
+        run: |
+          cp WifiAnalyzer-Android/app/build/outputs/apk/debug/app-debug.apk WifiAnalyzer-Android/WiFi_Analyzer_v1.0.apk
+          sha256sum WifiAnalyzer-Android/WiFi_Analyzer_v1.0.apk | awk '{print $1}' > WifiAnalyzer-Android/APK_SHA256.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add WifiAnalyzer-Android/WiFi_Analyzer_v1.0.apk WifiAnalyzer-Android/APK_SHA256.txt
+          git diff --cached --quiet && exit 0
+          git commit -m 'build: publish WiFi Analyzer v1.0 APK [skip ci]'
+          git push
