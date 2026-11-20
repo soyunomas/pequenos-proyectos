@@ -67,6 +67,7 @@ public final class MainActivity extends Activity {
     private String query="";
     private boolean automatic=true;
     private WifiManager wifi;
+    private OuiDatabase oui;
     private LinearLayout root;
     private LinearLayout content;
     private TextView status;
@@ -97,6 +98,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        oui = new OuiDatabase(this);
         favourites.addAll(getPreferences(MODE_PRIVATE).getStringSet("fav",java.util.Collections.emptySet()));
         automatic=getPreferences(MODE_PRIVATE).getBoolean("automatic",true);
         if (state != null) {
@@ -258,7 +260,7 @@ public final class MainActivity extends Activity {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(dp(16), dp(12), dp(16), dp(10));
+        root.setPadding(dp(16), dp(32), dp(16), dp(10));
         setContentView(root);
 
         LinearLayout header = line();
@@ -269,17 +271,29 @@ public final class MainActivity extends Activity {
         refresh.setContentDescription("Actualizar redes");
         refresh.setOnClickListener(v -> refresh(true));
         header.addView(refresh);
+        root.addView(header);
+
+        LinearLayout shortcuts=line();
+        shortcuts.setPadding(0,dp(9),0,dp(12));
+        Button lan=button("◎  LAN / ARP  ·  Buscar dispositivos",ACCENT);
+        lan.setTextSize(15);lan.setTypeface(null,1);
+        lan.setMinimumHeight(dp(56));lan.setContentDescription("Descubrir dispositivos de la red local");
+        lan.setOnClickListener(v->startActivity(new Intent(this,LanActivity.class)));
+        shortcuts.addView(lan,new LinearLayout.LayoutParams(0,dp(56),1));
+        root.addView(shortcuts);
+
+        LinearLayout utilities=line();utilities.setPadding(0,0,0,dp(11));
+        Button tools=button("Herramientas de red",PURPLE);
+        tools.setOnClickListener(v->startActivity(new Intent(this,ToolkitActivity.class)));
+        utilities.addView(tools,new LinearLayout.LayoutParams(0,dp(45),2));
         Button auto=button(automatic?"Auto ●":"Auto ○",automatic?ACCENT:MUTED);
         auto.setOnClickListener(v->{
             automatic=!automatic;
             getPreferences(MODE_PRIVATE).edit().putBoolean("automatic",automatic).apply();
             buildShell();render();
         });
-        header.addView(auto);
-        Button tools=button("Herramientas",PURPLE);
-        tools.setOnClickListener(v->startActivity(new Intent(this,ToolkitActivity.class)));
-        header.addView(tools);
-        root.addView(header);
+        utilities.addView(auto,new LinearLayout.LayoutParams(0,dp(45),1));
+        root.addView(utilities);
 
         status = text("Preparado", 12, MUTED, false);
         root.addView(status);
@@ -427,6 +441,7 @@ public final class MainActivity extends Activity {
             TextView info=text(ChannelMath.bandLabel(n.band)+"   ·   Canal "+n.channel+
                 "   ·   "+n.security+"   ·   "+n.width+" MHz",12,MUTED,false);
             card.addView(info);
+            card.addView(text("MAC AP: "+n.bssid+"  ·  "+oui.lookup(n.bssid),11,MUTED,false));
             card.addView(new SignalBar(this, ChannelMath.quality(n.dbm), PALETTE[i%PALETTE.length]),new LinearLayout.LayoutParams(-1,dp(16)));
             if(n.bssid.equals(selectedBssid)) {
                 card.addView(text("BSSID: "+n.bssid,12,MUTED,false));

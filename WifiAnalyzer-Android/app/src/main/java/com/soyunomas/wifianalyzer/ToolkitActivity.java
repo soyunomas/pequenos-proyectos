@@ -50,7 +50,7 @@ public final class ToolkitActivity extends Activity {
     }
     private void setup(){
         root=new LinearLayout(this);root.setOrientation(1);root.setBackgroundColor(BG);
-        root.setPadding(dp(16),dp(12),dp(16),dp(12));setContentView(root);
+        root.setPadding(dp(16),dp(32),dp(16),dp(12));setContentView(root);
         LinearLayout head=line();
         Button back=button("‹ Volver",MUTED);back.setOnClickListener(v->finish());
         head.addView(back);
