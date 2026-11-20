@@ -62,6 +62,10 @@ public final class MainActivity extends Activity {
     private final SurveyHistory survey = new SurveyHistory();
     private long scanAgeMs=-1;
     private String exportText="";
+    private final java.util.Set<String> favourites=new java.util.HashSet<>();
+    private boolean showFavourites=false;
+    private String query="";
+    private boolean automatic=true;
     private WifiManager wifi;
     private LinearLayout root;
     private LinearLayout content;
@@ -77,7 +81,7 @@ public final class MainActivity extends Activity {
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
             if (!running) return;
-            refresh(false);
+            if(automatic)refresh(false);
             handler.postDelayed(this, UPDATE_MS);
         }
     };
@@ -93,6 +97,8 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        favourites.addAll(getPreferences(MODE_PRIVATE).getStringSet("fav",java.util.Collections.emptySet()));
+        automatic=getPreferences(MODE_PRIVATE).getBoolean("automatic",true);
         if (state != null) {
             tab = state.getInt("tab", 0);
             band = state.getInt("band", ChannelMath.BAND_ALL);
@@ -263,6 +269,13 @@ public final class MainActivity extends Activity {
         refresh.setContentDescription("Actualizar redes");
         refresh.setOnClickListener(v -> refresh(true));
         header.addView(refresh);
+        Button auto=button(automatic?"Auto ●":"Auto ○",automatic?ACCENT:MUTED);
+        auto.setOnClickListener(v->{
+            automatic=!automatic;
+            getPreferences(MODE_PRIVATE).edit().putBoolean("automatic",automatic).apply();
+            buildShell();render();
+        });
+        header.addView(auto);
         Button tools=button("Herramientas",PURPLE);
         tools.setOnClickListener(v->startActivity(new Intent(this,ToolkitActivity.class)));
         header.addView(tools);
@@ -351,7 +364,11 @@ public final class MainActivity extends Activity {
     private List<NetworkEntry> filtered() {
         ArrayList<NetworkEntry> list = new ArrayList<>();
         for (NetworkEntry n : networks)
-            if (band == ChannelMath.BAND_ALL || n.band == band) list.add(n);
+            if((band==ChannelMath.BAND_ALL||n.band==band)
+                &&(!showFavourites||favourites.contains(n.bssid))
+                &&(query.isEmpty()||(n.ssid+" "+n.bssid+" "+n.security)
+                    .toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT))))
+                list.add(n);
         if (sortMode == 0) Collections.sort(list, (a,b) -> Integer.compare(b.dbm,a.dbm));
         else Collections.sort(list, (a,b) -> {
             int cmp = Integer.compare(a.mhz,b.mhz);
@@ -374,6 +391,26 @@ public final class MainActivity extends Activity {
         sort.setOnClickListener(v -> {sortMode=(sortMode+1)%2; render();});
         actions.addView(sort);
         content.addView(actions);
+        LinearLayout filters=line();
+        Button search=button(query.isEmpty()?"Buscar redes":"Filtro: "+query,ACCENT);
+        search.setOnClickListener(v->{
+            android.widget.EditText input=new android.widget.EditText(this);
+            input.setSingleLine(true);
+            input.setText(query);
+            input.setHint("SSID, BSSID o seguridad");
+            new AlertDialog.Builder(this).setTitle("Buscar redes")
+                .setView(input)
+                .setPositiveButton("Aplicar",(d,w)->{
+                    query=input.getText().toString().trim();render();
+                })
+                .setNeutralButton("Limpiar",(d,w)->{query="";render();})
+                .setNegativeButton("Cancelar",null).show();
+        });
+        filters.addView(search,new LinearLayout.LayoutParams(0,dp(43),1));
+        Button favFilter=button(showFavourites?"★ Favoritas":"☆ Todas",showFavourites?ORANGE:MUTED);
+        favFilter.setOnClickListener(v->{showFavourites=!showFavourites;render();});
+        filters.addView(favFilter,new LinearLayout.LayoutParams(0,dp(43),1));
+        content.addView(filters);
         List<NetworkEntry> list=filtered();
         if(list.isEmpty()){ empty("No hay redes en esta banda. Pulsa ↻ para actualizar.");return; }
         int i=0;
@@ -381,7 +418,7 @@ public final class MainActivity extends Activity {
             LinearLayout card=card();
             LinearLayout first=line();
             first.setGravity(Gravity.CENTER_VERTICAL);
-            TextView ssid=text((n.connected ? "●  " : "◉  ")+n.ssid,16,TEXT,true);
+            TextView ssid=text((favourites.contains(n.bssid)?"★ ":"")+(n.connected ? "●  " : "◉  ")+n.ssid,16,TEXT,true);
             ssid.setSingleLine(true);
             ssid.setEllipsize(android.text.TextUtils.TruncateAt.END);
             first.addView(ssid,new LinearLayout.LayoutParams(0,dp(34),1));
@@ -395,6 +432,13 @@ public final class MainActivity extends Activity {
                 card.addView(text("BSSID: "+n.bssid,12,MUTED,false));
                 card.addView(text("Frecuencia: "+n.mhz+" MHz   ·   Estándar: "+n.standard,12,MUTED,false));
                 card.addView(text("Calidad: "+ChannelMath.qualityLabel(n.dbm)+" ("+ChannelMath.quality(n.dbm)+"/100)",12,ACCENT,false));
+                Button star=button(favourites.contains(n.bssid)?"★ Quitar favorita":"☆ Añadir favorita",ORANGE);
+                star.setOnClickListener(v->{
+                    if(!favourites.add(n.bssid))favourites.remove(n.bssid);
+                    getPreferences(MODE_PRIVATE).edit().putStringSet("fav",new java.util.HashSet<>(favourites)).apply();
+                    render();
+                });
+                card.addView(star);
                 card.addView(text("Esta puntuación solo representa la señal recibida, no la velocidad de Internet.",11,MUTED,false));
             }
             card.setOnClickListener(v -> {selectedBssid=selectedBssid.equals(n.bssid) ? "" : n.bssid;render();});

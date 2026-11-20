@@ -2,7 +2,7 @@
 
 Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones implementadas en v2.0
+## Funciones implementadas en v2.1
 
 - Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
 - Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
@@ -12,11 +12,11 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - Prueba DNS voluntaria contra example.com, y comprobación HTTPS voluntaria contra www.google.com/generate_204 (sobre la red Wi-Fi).
 - Calculadora IPv4/CIDR con /0, /31 y /32 y rango de hosts.
 - Exportación CSV de redes, CSV de historial, JSON de redes y JSON con SSID/BSSID anonimizados.
-- Interfaz oscura; compatible con Android 8.0+.
+- Búsqueda por SSID/BSSID/seguridad; favoritos locales y filtro de favoritos.\n- Escaneo automático opcional, con posibilidad de pausar y seguir explorando manualmente.\n- Interfaz oscura; compatible con Android 8.0+.
 
 ## Privacidad y permisos
 
-El escaneo Wi-Fi requiere ubicación precisa y ubicación activada en el dispositivo, y en Android 13+ también permiso de dispositivos Wi-Fi cercanos. Se solicitan ACCESS_WIFI_STATE, CHANGE_WIFI_STATE, ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES, ACCESS_NETWORK_STATE e INTERNET. Los resultados de los escaneos y el historial viven en memoria. No se conecta a servidores propios ni se hace ningún rastreo de la LAN. Se permite exportar voluntariamente los datos capturados.
+El escaneo Wi-Fi requiere ubicación precisa y ubicación activada en el dispositivo, y en Android 13+ también permiso de dispositivos Wi-Fi cercanos. Se solicitan ACCESS_WIFI_STATE, CHANGE_WIFI_STATE, ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES, ACCESS_NETWORK_STATE e INTERNET. Los resultados de los escaneos y el historial viven en memoria; los BSSID marcados como favoritos se guardan localmente en las preferencias de la app. No se conecta a servidores propios ni se hace ningún rastreo de la LAN. Se permite exportar voluntariamente los datos capturados.
 
 **La aplicación solo realiza peticiones a Internet cuando el usuario inicia expresamente una prueba DNS o HTTPS.** El servidor de destino puede observar la IP pública y metadatos normales de la conexión. Las pruebas no envían el SSID, BSSID ni la lista de puntos de acceso.
 
@@ -47,4 +47,4 @@ cd WifiAnalyzer-Android
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v2.0.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v2.1.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
