@@ -47,15 +47,15 @@ import java.util.Map;
  * The Android system throttles scan requests; cached results are marked as such.
  */
 public final class MainActivity extends Activity {
-    private static final int BG = 0xFF090F1E;
-    private static final int SURFACE = 0xFF152139;
-    private static final int SURFACE_ALT = 0xFF1B2A44;
-    private static final int TEXT = 0xFFF0F6FF;
-    private static final int MUTED = 0xFF9CAFC7;
-    private static final int ACCENT = 0xFF57DED4;
-    private static final int PURPLE = 0xFFA896FA;
-    private static final int ORANGE = 0xFFFFBD74;
-    private static final int[] PALETTE = {ACCENT, PURPLE, ORANGE, 0xFF7FB9F8, 0xFFFF809C, 0xFFB7E487, 0xFFFFDE78};
+    private static final int BG = 0xFFF6F8FC;
+    private static final int SURFACE = 0xFFFFFFFF;
+    private static final int SURFACE_ALT = 0xFFF0F3FF;
+    private static final int TEXT = 0xFF172235;
+    private static final int MUTED = 0xFF66778D;
+    private static final int ACCENT = 0xFF456CFF;
+    private static final int PURPLE = 0xFF3659C9;
+    private static final int ORANGE = 0xFFAA5B15;
+    private static final int[] PALETTE = {ACCENT, 0xFF2887CC, 0xFF5378CE, 0xFF1C9EA8, 0xFF7790E4, 0xFF347AC7, 0xFF6474BB};
     private static final long UPDATE_MS = 15000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ArrayList<NetworkEntry> networks = new ArrayList<>();
@@ -72,6 +72,10 @@ public final class MainActivity extends Activity {
     private LinearLayout content;
     private TextView status;
     private TextView summary;
+    private TextView heroName;
+    private TextView heroDetail;
+    private TextView heroSignal;
+    private ScrollView screenScroll;
     private int tab = 0;
     private int band = ChannelMath.BAND_ALL;
     private boolean running = false;
@@ -97,6 +101,7 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         oui = new OuiDatabase(this);
         favourites.addAll(getPreferences(MODE_PRIVATE).getStringSet("fav",java.util.Collections.emptySet()));
@@ -257,8 +262,7 @@ public final class MainActivity extends Activity {
     }
 
     private void buildShell() {
-        root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
+        root=column();
         root.setBackgroundColor(BG);
         setContentView(root);
         root.setOnApplyWindowInsetsListener((view,insets)->{
@@ -270,86 +274,163 @@ public final class MainActivity extends Activity {
                 top=insets.getSystemWindowInsetTop();
                 bottom=insets.getSystemWindowInsetBottom();
             }
-            view.setPadding(dp(16),top+dp(13),dp(16),bottom+dp(12));
+            view.setPadding(dp(16),top+dp(9),dp(16),bottom+dp(4));
             return insets;
         });
         root.requestApplyInsets();
 
-        LinearLayout header = line();
+        LinearLayout header=line();
         header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = text("NetScope", 25, TEXT, true);
-        header.addView(title, new LinearLayout.LayoutParams(0, dp(45), 1));
-        Button refresh = button("↻", ACCENT);
-        refresh.setContentDescription("Actualizar redes");
-        refresh.setOnClickListener(v -> refresh(true));
-        header.addView(refresh);
+        TextView name=text("NetScope",25,TEXT,true);
+        name.setLetterSpacing(-0.02f);
+        header.addView(name,new LinearLayout.LayoutParams(0,dp(49),1));
+        Button export=button("⇧",ACCENT);
+        export.setTextSize(20);
+        export.setContentDescription("Exportar datos Wi-Fi");
+        export.setOnClickListener(v->exportCsv());
+        header.addView(export,new LinearLayout.LayoutParams(dp(47),dp(43)));
+        Button refresh=button("↻",ACCENT);
+        refresh.setTextSize(23);
+        refresh.setContentDescription("Actualizar redes Wi-Fi");
+        refresh.setOnClickListener(v->refresh(true));
+        LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(dp(47),dp(43));
+        rp.leftMargin=dp(6);
+        header.addView(refresh,rp);
         root.addView(header);
 
-        LinearLayout shortcuts=line();
-        shortcuts.setPadding(0,dp(9),0,dp(12));
-        Button lan=button("◎  LAN / ARP  ·  Buscar dispositivos",ACCENT);
-        lan.setTextSize(15);lan.setTypeface(null,1);
-        lan.setMinimumHeight(dp(56));lan.setContentDescription("Descubrir dispositivos de la red local");
-        lan.setOnClickListener(v->startActivity(new Intent(this,LanActivity.class)));
-        shortcuts.addView(lan,new LinearLayout.LayoutParams(0,dp(56),1));
-        root.addView(shortcuts);
+        LinearLayout hero=surface();
+        hero.setPadding(dp(17),dp(13),dp(17),dp(13));
+        LinearLayout top=line();top.setGravity(Gravity.CENTER_VERTICAL);
+        TextView label=text("CONEXIÓN WI-FI",11,MUTED,true);
+        label.setLetterSpacing(0.1f);
+        top.addView(label,new LinearLayout.LayoutParams(0,dp(27),1));
+        TextView live=text("●  EN DIRECTO",10,ACCENT,true);
+        top.addView(live);
+        hero.addView(top);
+        LinearLayout middle=line();middle.setGravity(Gravity.CENTER_VERTICAL);
+        TextView glyph=text("◉",35,ACCENT,true);
+        middle.addView(glyph,new LinearLayout.LayoutParams(dp(46),dp(59)));
+        LinearLayout naming=column();
+        heroName=text("Buscando conexión…",20,TEXT,true);
+        heroName.setSingleLine(true);
+        heroName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        naming.addView(heroName);
+        heroDetail=text("Sin resultados todavía",12,MUTED,false);
+        naming.addView(heroDetail);
+        middle.addView(naming,new LinearLayout.LayoutParams(0,-2,1));
+        heroSignal=text("—",15,ACCENT,true);
+        middle.addView(heroSignal);
+        hero.addView(middle);
+        LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,-2);
+        hp.topMargin=dp(7);
+        root.addView(hero,hp);
 
-        LinearLayout utilities=line();utilities.setPadding(0,0,0,dp(11));
-        Button tools=button("Herramientas de red",PURPLE);
-        tools.setOnClickListener(v->startActivity(new Intent(this,ToolkitActivity.class)));
-        utilities.addView(tools,new LinearLayout.LayoutParams(0,dp(45),2));
-        Button auto=button(automatic?"Auto ●":"Auto ○",automatic?ACCENT:MUTED);
+        LinearLayout quick=line();
+        quick.setPadding(0,dp(10),0,dp(2));
+        LinearLayout lan=actionTile("◎","Dispositivos","Explorar red local");
+        lan.setOnClickListener(v->startActivity(new Intent(this,LanActivity.class)));
+        quick.addView(lan,new LinearLayout.LayoutParams(0,dp(75),1));
+        LinearLayout diag=actionTile("⌁","Diagnóstico","IP, DNS y pruebas");
+        diag.setOnClickListener(v->startActivity(new Intent(this,ToolkitActivity.class)));
+        LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,dp(75),1);
+        qp.leftMargin=dp(9);
+        quick.addView(diag,qp);
+        root.addView(quick);
+
+        LinearLayout glance=line();
+        glance.setGravity(Gravity.CENTER_VERTICAL);
+        summary=text("",12,TEXT,true);
+        glance.addView(summary,new LinearLayout.LayoutParams(0,dp(35),1));
+        Button auto=button(automatic?"Auto: ON":"Auto: OFF",automatic?ACCENT:MUTED);
+        auto.setTextSize(11);
         auto.setOnClickListener(v->{
             automatic=!automatic;
             getPreferences(MODE_PRIVATE).edit().putBoolean("automatic",automatic).apply();
             buildShell();render();
         });
-        utilities.addView(auto,new LinearLayout.LayoutParams(0,dp(45),1));
-        root.addView(utilities);
-
-        status = text("Preparado", 12, MUTED, false);
+        glance.addView(auto,new LinearLayout.LayoutParams(dp(92),dp(34)));
+        root.addView(glance);
+        status=text("",11,MUTED,false);
         root.addView(status);
-        summary = text("", 13, MUTED, false);
-        summary.setPadding(0, dp(9), 0, dp(10));
-        root.addView(summary);
 
-        LinearLayout tabs = line();
-        String[] labels = {"Redes", "Canales", "Señal", "Seguridad", "Consejos"};
-        for (int i=0;i<labels.length;i++) {
+        screenScroll=new ScrollView(this);
+        screenScroll.setFillViewport(true);
+        screenScroll.setClipToPadding(false);
+        content=column();
+        content.setPadding(0,dp(7),0,dp(15));
+        screenScroll.addView(content);
+        root.addView(screenScroll,new LinearLayout.LayoutParams(-1,0,1));
+
+        LinearLayout nav=line();
+        nav.setGravity(Gravity.CENTER_VERTICAL);
+        nav.setPadding(0,dp(7),0,dp(1));
+        String[] labels={"Redes","Canales","Señal","Seguridad","Consejos"};
+        String[] icons={"◉","▥","⌁","◇","✦"};
+        for(int i=0;i<labels.length;i++){
             final int index=i;
-            Button b=button(labels[i], i==tab ? ACCENT : MUTED);
-            b.setTextSize(10);
-            b.setOnClickListener(v -> { tab=index; buildShell(); render(); });
-            tabs.addView(b, new LinearLayout.LayoutParams(0, dp(45), 1));
+            LinearLayout cell=column();
+            cell.setGravity(Gravity.CENTER);
+            boolean selected=i==tab;
+            TextView symbol=text(icons[i],20,selected?ACCENT:MUTED,true);
+            symbol.setGravity(Gravity.CENTER);
+            cell.addView(symbol);
+            TextView caption=text(labels[i],10,selected?ACCENT:MUTED,selected);
+            caption.setGravity(Gravity.CENTER);
+            caption.setSingleLine(true);
+            cell.addView(caption);
+            cell.setContentDescription("Abrir "+labels[i]);
+            cell.setClickable(true);
+            cell.setOnClickListener(v->{tab=index;buildShell();render();});
+            if(selected)cell.setBackground(shape(SURFACE_ALT,14,0));
+            nav.addView(cell,new LinearLayout.LayoutParams(0,dp(52),1));
         }
-        root.addView(tabs);
+        root.addView(nav);
+    }
 
-        ScrollView scroller = new ScrollView(this);
-        scroller.setFillViewport(true);
-        content = column();
-        content.setPadding(0, dp(12), 0, dp(16));
-        scroller.addView(content);
-        root.addView(scroller, new LinearLayout.LayoutParams(-1, 0, 1));
-
-        LinearLayout footer = line();
-        footer.setGravity(Gravity.CENTER_VERTICAL);
-        TextView footerText = text("Escaneo local · Sin cuenta · Sin anuncios", 11, MUTED, false);
-        footer.addView(footerText, new LinearLayout.LayoutParams(0, dp(40), 1));
-        Button csv = button("Exportar ↓", ACCENT);
-        csv.setOnClickListener(v -> exportCsv());
-        footer.addView(csv);
-        root.addView(footer);
+    private LinearLayout actionTile(String symbol,String title,String sub){
+        LinearLayout tile=line();
+        tile.setGravity(Gravity.CENTER_VERTICAL);
+        tile.setPadding(dp(10),dp(8),dp(8),dp(8));
+        tile.setBackground(shape(SURFACE,15,0xFFE2E8F1));
+        TextView marker=text(symbol,26,ACCENT,true);
+        marker.setGravity(Gravity.CENTER);
+        marker.setBackground(shape(SURFACE_ALT,11,0));
+        tile.addView(marker,new LinearLayout.LayoutParams(dp(42),dp(45)));
+        LinearLayout desc=column();
+        desc.setPadding(dp(8),0,0,0);
+        TextView heading=text(title,14,TEXT,true);
+        heading.setSingleLine(true);
+        heading.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        desc.addView(heading);
+        TextView hint=text(sub,11,MUTED,false);
+        hint.setSingleLine(true);
+        hint.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        desc.addView(hint);
+        tile.addView(desc,new LinearLayout.LayoutParams(0,-2,1));
+        return tile;
+    }
+    private LinearLayout surface(){
+        LinearLayout result=column();
+        result.setBackground(shape(SURFACE,17,0xFFE2E8F1));
+        return result;
+    }
+    private android.graphics.drawable.GradientDrawable shape(int fill,int radius,int stroke){
+        android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
+        bg.setColor(fill);bg.setCornerRadius(dp(radius));
+        if(stroke!=0)bg.setStroke(dp(1),stroke);
+        return bg;
     }
 
     private void render() {
         if (content == null) return;
-        status.setText(scanning ? "Escaneando…" :
+        int savedScroll=screenScroll==null?0:screenScroll.getScrollY();
+        status.setText(scanning ? "Explorando redes…" :
             lastResultMillis == 0 ? "Sin resultados todavía" :
             "Datos recibidos " + android.text.format.DateFormat.format("HH:mm:ss", lastResultMillis) +
             " · antigüedad aprox. " + (scanAgeMs<0 ? "desconocida" : (scanAgeMs/1000)+" s"));
-        summary.setText(networks.size() + " redes detectadas  ·  " +
-            count(ChannelMath.BAND_24) + " en 2,4 GHz  ·  " + count(ChannelMath.BAND_5) +
-            " en 5 GHz  ·  " + count(ChannelMath.BAND_6) + " en 6 GHz");
+        summary.setText(networks.size()+" redes · 2,4: "+count(ChannelMath.BAND_24)+
+            "  · 5: "+count(ChannelMath.BAND_5)+"  · 6: "+count(ChannelMath.BAND_6));
+        updateHero();
         content.removeAllViews();
 
         if (!hasPermissions()) {
@@ -371,18 +452,55 @@ public final class MainActivity extends Activity {
         else if (tab == 2) showHistory();
         else if(tab==3) showSecurity();
         else showAdvice();
+        if(screenScroll!=null&&savedScroll>0)screenScroll.post(()->screenScroll.scrollTo(0,savedScroll));
+    }
+
+    @SuppressWarnings("deprecation")
+    private void updateHero(){
+        if(heroName==null)return;
+        String ssid="Sin conexión Wi-Fi";
+        String extra="Activa el Wi-Fi para ver la red";
+        String strength="—";
+        try {
+            if(wifi!=null&&wifi.isWifiEnabled()){
+                WifiInfo info=wifi.getConnectionInfo();
+                if(info!=null&&info.getNetworkId()!=-1){
+                    String reported=info.getSSID();
+                    if(reported!=null&&reported.length()>1&&reported.charAt(0)==34
+                            &&reported.charAt(reported.length()-1)==34)
+                        reported=reported.substring(1,reported.length()-1);
+                    if(reported==null||reported.isEmpty()||reported.equals("<unknown ssid>"))
+                        reported="Wi-Fi conectada";
+                    ssid=reported;
+                    int mhz=info.getFrequency();
+                    extra=(mhz>0?ChannelMath.bandLabel(ChannelMath.band(mhz))+"  ·  Canal "+ChannelMath.channel(mhz):"Conectada");
+                    if(info.getRssi()<0&&info.getRssi()>-127)strength=info.getRssi()+" dBm";
+                } else {
+                    ssid="Wi-Fi activado";
+                    extra="Sin conexión a una red";
+                }
+            }
+        }catch(Exception ignored){extra="Información restringida por Android";}
+        heroName.setText(ssid);
+        heroDetail.setText(extra);
+        heroSignal.setText(strength);
     }
 
     private void addBands() {
-        LinearLayout bar = line();
-        int[] bands = {ChannelMath.BAND_ALL, ChannelMath.BAND_24, ChannelMath.BAND_5, ChannelMath.BAND_6};
-        String[] names = {"Todas", "2,4 GHz", "5 GHz", "6 GHz"};
-        for (int i=0;i<bands.length;i++) {
-            final int b = bands[i];
-            Button button = button(names[i], band==b ? ACCENT : MUTED);
-            button.setTextSize(11);
-            button.setOnClickListener(v -> { band=b; render(); });
-            bar.addView(button, new LinearLayout.LayoutParams(0, dp(42), 1));
+        LinearLayout bar=line();
+        bar.setPadding(0,0,0,dp(7));
+        int[] bands={ChannelMath.BAND_ALL,ChannelMath.BAND_24,ChannelMath.BAND_5,ChannelMath.BAND_6};
+        String[] titles={"Todas","2,4 GHz","5 GHz","6 GHz"};
+        for(int i=0;i<bands.length;i++){
+            final int selectedBand=bands[i];
+            boolean selected=band==selectedBand;
+            TextView pill=text(titles[i],12,selected?ACCENT:MUTED,selected);
+            pill.setGravity(Gravity.CENTER);
+            pill.setBackground(shape(selected?SURFACE_ALT:SURFACE,11,selected?0:0xFFE2E8F1));
+            pill.setOnClickListener(v->{band=selectedBand;render();});
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(37),1);
+            if(i>0)p.leftMargin=dp(6);
+            bar.addView(pill,p);
         }
         content.addView(bar);
     }
@@ -410,67 +528,97 @@ public final class MainActivity extends Activity {
     }
 
     private void showNetworks() {
-        LinearLayout actions=line();
-        TextView hint=text("Redes próximas", 17, TEXT,true);
-        actions.addView(hint,new LinearLayout.LayoutParams(0,dp(50),1));
-        Button sort=button(sortMode==0 ? "Por señal" : "Por canal", MUTED);
-        sort.setOnClickListener(v -> {sortMode=(sortMode+1)%2; render();});
-        actions.addView(sort);
-        content.addView(actions);
+        LinearLayout heading=line();
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.addView(text("Redes cercanas",18,TEXT,true),new LinearLayout.LayoutParams(0,dp(43),1));
+        Button sort=button(sortMode==0?"↕ Por señal":"↕ Por canal",MUTED);
+        sort.setOnClickListener(v->{sortMode=(sortMode+1)%2;render();});
+        heading.addView(sort,new LinearLayout.LayoutParams(dp(96),dp(36)));
+        content.addView(heading);
         LinearLayout filters=line();
-        Button search=button(query.isEmpty()?"Buscar redes":"Filtro: "+query,ACCENT);
+        Button search=button(query.isEmpty()?"⌕  Buscar red":"⌕  "+query,ACCENT);
+        search.setSingleLine(true);
+        search.setEllipsize(android.text.TextUtils.TruncateAt.END);
         search.setOnClickListener(v->{
             android.widget.EditText input=new android.widget.EditText(this);
-            input.setSingleLine(true);
-            input.setText(query);
+            input.setSingleLine(true);input.setText(query);
             input.setHint("SSID, BSSID o seguridad");
             new AlertDialog.Builder(this).setTitle("Buscar redes")
-                .setView(input)
-                .setPositiveButton("Aplicar",(d,w)->{
+                .setView(input).setPositiveButton("Aplicar",(d,w)->{
                     query=input.getText().toString().trim();render();
-                })
-                .setNeutralButton("Limpiar",(d,w)->{query="";render();})
+                }).setNeutralButton("Limpiar",(d,w)->{query="";render();})
                 .setNegativeButton("Cancelar",null).show();
         });
-        filters.addView(search,new LinearLayout.LayoutParams(0,dp(43),1));
-        Button favFilter=button(showFavourites?"★ Favoritas":"☆ Todas",showFavourites?ORANGE:MUTED);
-        favFilter.setOnClickListener(v->{showFavourites=!showFavourites;render();});
-        filters.addView(favFilter,new LinearLayout.LayoutParams(0,dp(43),1));
+        filters.addView(search,new LinearLayout.LayoutParams(0,dp(39),2));
+        Button fav=button(showFavourites?"★ Favoritas":"☆ Todas",showFavourites?ACCENT:MUTED);
+        fav.setOnClickListener(v->{showFavourites=!showFavourites;render();});
+        LinearLayout.LayoutParams fParams=new LinearLayout.LayoutParams(0,dp(39),1);
+        fParams.leftMargin=dp(7);filters.addView(fav,fParams);
         content.addView(filters);
-        List<NetworkEntry> list=filtered();
-        if(list.isEmpty()){ empty("No hay redes en esta banda. Pulsa ↻ para actualizar.");return; }
-        int i=0;
-        for(NetworkEntry n:list) {
-            LinearLayout card=card();
-            LinearLayout first=line();
-            first.setGravity(Gravity.CENTER_VERTICAL);
-            TextView ssid=text((favourites.contains(n.bssid)?"★ ":"")+(n.connected ? "●  " : "◉  ")+n.ssid,16,TEXT,true);
+
+        List<NetworkEntry> items=filtered();
+        if(items.isEmpty()){empty("No hay redes en esta banda. Actualiza el escaneo o ajusta los filtros.");return;}
+        LinearLayout list=surface();
+        list.setPadding(dp(11),dp(4),dp(11),dp(5));
+        LinearLayout.LayoutParams listParams=new LinearLayout.LayoutParams(-1,-2);
+        listParams.topMargin=dp(10);
+        content.addView(list,listParams);
+        for(int i=0;i<items.size();i++){
+            NetworkEntry n=items.get(i);
+            boolean expanded=n.bssid.equals(selectedBssid);
+            LinearLayout group=column();
+            LinearLayout line=line();line.setGravity(Gravity.CENTER_VERTICAL);
+            line.setPadding(dp(2),dp(8),dp(2),dp(8));
+            TextView icon=text(n.connected?"◉":"⌁",26,n.connected?ACCENT:0xFF8198B9,true);
+            icon.setGravity(Gravity.CENTER);
+            icon.setBackground(shape(SURFACE_ALT,11,0));
+            line.addView(icon,new LinearLayout.LayoutParams(dp(45),dp(50)));
+            LinearLayout details=column();
+            details.setPadding(dp(10),0,dp(3),0);
+            TextView ssid=text((favourites.contains(n.bssid)?"★ ":"")+n.ssid,15,TEXT,true);
             ssid.setSingleLine(true);
             ssid.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            first.addView(ssid,new LinearLayout.LayoutParams(0,dp(34),1));
-            first.addView(text(n.dbm+" dBm",14,PALETTE[i%PALETTE.length],true));
-            card.addView(first);
-            TextView info=text(ChannelMath.bandLabel(n.band)+"   ·   Canal "+n.channel+
-                "   ·   "+n.security+"   ·   "+n.width+" MHz",12,MUTED,false);
-            card.addView(info);
-            card.addView(text("MAC AP: "+n.bssid+"  ·  "+oui.lookup(n.bssid),11,MUTED,false));
-            card.addView(new SignalBar(this, ChannelMath.quality(n.dbm), PALETTE[i%PALETTE.length]),new LinearLayout.LayoutParams(-1,dp(16)));
-            if(n.bssid.equals(selectedBssid)) {
-                card.addView(text("BSSID: "+n.bssid,12,MUTED,false));
-                card.addView(text("Frecuencia: "+n.mhz+" MHz   ·   Estándar: "+n.standard,12,MUTED,false));
-                card.addView(text("Calidad: "+ChannelMath.qualityLabel(n.dbm)+" ("+ChannelMath.quality(n.dbm)+"/100)",12,ACCENT,false));
-                Button star=button(favourites.contains(n.bssid)?"★ Quitar favorita":"☆ Añadir favorita",ORANGE);
+            details.addView(ssid);
+            details.addView(text(ChannelMath.bandLabel(n.band)+" · Canal "+n.channel+" · "+n.security,11,MUTED,false));
+            TextView manufacturer=text(oui.lookup(n.bssid),10,MUTED,false);
+            manufacturer.setSingleLine(true);
+            manufacturer.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            details.addView(manufacturer);
+            line.addView(details,new LinearLayout.LayoutParams(0,-2,1));
+            LinearLayout metrics=column();metrics.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+            TextView power=text(n.dbm+" dBm",13,ACCENT,true);power.setGravity(Gravity.RIGHT);
+            metrics.addView(power);
+            TextView quality=text(ChannelMath.qualityLabel(n.dbm),10,MUTED,false);
+            quality.setGravity(Gravity.RIGHT);
+            metrics.addView(quality);
+            line.addView(metrics,new LinearLayout.LayoutParams(dp(76),-2));
+            line.setOnClickListener(v->{selectedBssid=expanded?"":n.bssid;render();});
+            group.addView(line);
+            if(expanded){
+                LinearLayout extra=column();extra.setPadding(dp(13),0,dp(11),dp(12));
+                extra.addView(text("BSSID: "+n.bssid,12,MUTED,false));
+                extra.addView(text("Frecuencia "+n.mhz+" MHz · Ancho "+n.width+" MHz · "+n.standard,12,MUTED,false));
+                extra.addView(text("Intensidad de señal, no velocidad de Internet.",11,MUTED,false));
+                extra.addView(new SignalBar(this,ChannelMath.quality(n.dbm),ACCENT),
+                    new LinearLayout.LayoutParams(-1,dp(15)));
+                Button star=button(favourites.contains(n.bssid)?"★ Quitar favorita":"☆ Añadir favorita",ACCENT);
                 star.setOnClickListener(v->{
                     if(!favourites.add(n.bssid))favourites.remove(n.bssid);
-                    getPreferences(MODE_PRIVATE).edit().putStringSet("fav",new java.util.HashSet<>(favourites)).apply();
+                    getPreferences(MODE_PRIVATE).edit()
+                       .putStringSet("fav",new java.util.HashSet<>(favourites)).apply();
                     render();
                 });
-                card.addView(star);
-                card.addView(text("Esta puntuación solo representa la señal recibida, no la velocidad de Internet.",11,MUTED,false));
+                LinearLayout.LayoutParams starP=new LinearLayout.LayoutParams(-1,dp(39));
+                starP.topMargin=dp(7);extra.addView(star,starP);
+                group.addView(extra);
             }
-            card.setOnClickListener(v -> {selectedBssid=selectedBssid.equals(n.bssid) ? "" : n.bssid;render();});
-            content.addView(card);
-            i++;
+            list.addView(group);
+            if(i<items.size()-1){
+                View separator=new View(this);separator.setBackgroundColor(0xFFE7ECF4);
+                LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(1));
+                sp.leftMargin=dp(57);
+                list.addView(separator,sp);
+            }
         }
     }
 
@@ -600,17 +748,12 @@ public final class MainActivity extends Activity {
     private LinearLayout line(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.HORIZONTAL);return l;}
     private LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
     private LinearLayout card(){
-        LinearLayout l=column();l.setPadding(dp(16),dp(13),dp(16),dp(13));
-        android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-        bg.setColor(SURFACE);bg.setCornerRadius(dp(18));
-        bg.setStroke(dp(1),0xFF283B56);l.setBackground(bg);
+        LinearLayout c=surface();
+        c.setPadding(dp(15),dp(13),dp(15),dp(13));
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
-        p.topMargin=dp(10);
-        content.addView(l,p);
-        // The card is already attached, so callers should not attach it again.
-        content.removeView(l);
-        l.setLayoutParams(p);
-        return l;
+        p.topMargin=dp(9);
+        c.setLayoutParams(p);
+        return c;
     }
     private TextView text(String s,int size,int color,boolean bold){
         TextView v=new TextView(this);v.setText(s);v.setTextSize(size);v.setTextColor(color);
@@ -619,15 +762,13 @@ public final class MainActivity extends Activity {
         if(bold)v.setTypeface(null,1);
         return v;
     }
-    private Button button(String s,int color){
+    private Button button(String text,int color){
         Button b=new Button(this);
-        b.setText(s);b.setTextSize(12);b.setAllCaps(false);
+        b.setText(text);b.setTextSize(12);b.setAllCaps(false);
         b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);
-        b.setPadding(dp(9),0,dp(9),0);
+        b.setPadding(dp(8),0,dp(8),0);
         b.setTextColor(color);
-        android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-        bg.setColor(SURFACE_ALT);bg.setCornerRadius(dp(13));
-        b.setBackground(bg);
+        b.setBackground(shape(SURFACE,11,0xFFE2E8F1));
         return b;
     }
 
@@ -637,7 +778,7 @@ public final class MainActivity extends Activity {
         SignalBar(Context ctx,int value,int color){super(ctx);this.value=value;this.color=color;}
         @Override protected void onDraw(Canvas c){
             super.onDraw(c);float h=getHeight(),w=getWidth();
-            paint.setColor(0xFF30405A);c.drawRoundRect(0,dp(5),w,h-dp(5),dp(4),dp(4),paint);
+            paint.setColor(0xFFE8ECF5);c.drawRoundRect(0,dp(5),w,h-dp(5),dp(4),dp(4),paint);
             paint.setColor(color);c.drawRoundRect(0,dp(5),w*value/100f,h-dp(5),dp(4),dp(4),paint);
         }
         private float dp(float n){return n*getResources().getDisplayMetrics().density;}
@@ -657,7 +798,7 @@ public final class MainActivity extends Activity {
             p.setTextSize(dp(10));p.setColor(MUTED);
             for(int db=-100;db<=-30;db+=20) {
                 float y=map(db,-100,-30,bottom,top);
-                p.setColor(0xFF34435D);c.drawLine(left,y,right,y,p);
+                p.setColor(0xFFE5EBF3);c.drawLine(left,y,right,y,p);
                 p.setColor(MUTED);c.drawText(db+"",0,y+dp(3),p);
             }
             for(int j=0;j<6;j++) {
@@ -696,7 +837,7 @@ public final class MainActivity extends Activity {
             float w=getWidth(),h=getHeight(),left=dp(4),right=w-dp(4),top=dp(8),bottom=h-dp(8);
             for(int i=0;i<4;i++){
                 float y=top+(bottom-top)*i/3f;
-                p.setColor(0xFF34435D);p.setStrokeWidth(dp(1));c.drawLine(left,y,right,y,p);
+                p.setColor(0xFFE5EBF3);p.setStrokeWidth(dp(1));c.drawLine(left,y,right,y,p);
             }
             if(values.size()==0)return;
             Path line=new Path();

@@ -56,16 +56,16 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NetScope-v2.4-debug
+          name: NetScope-v2.5-debug
           path: WifiAnalyzer-Android/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish installable APK to repository
         if: github.event_name == 'push'
         run: |
-          cp WifiAnalyzer-Android/app/build/outputs/apk/debug/app-debug.apk WifiAnalyzer-Android/NetScope_v2.4.apk
-          sha256sum WifiAnalyzer-Android/NetScope_v2.4.apk | awk '{print $1}' > WifiAnalyzer-Android/APK_SHA256.txt
+          cp WifiAnalyzer-Android/app/build/outputs/apk/debug/app-debug.apk WifiAnalyzer-Android/NetScope_v2.5.apk
+          sha256sum WifiAnalyzer-Android/NetScope_v2.5.apk | awk '{print $1}' > WifiAnalyzer-Android/APK_SHA256.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add WifiAnalyzer-Android/NetScope_v2.4.apk WifiAnalyzer-Android/APK_SHA256.txt
+          git add WifiAnalyzer-Android/NetScope_v2.5.apk WifiAnalyzer-Android/APK_SHA256.txt
           git diff --cached --quiet && exit 0
-          git commit -m 'build: publish NetScope v2.4 APK [skip ci]'
+          git commit -m 'build: publish NetScope v2.5 APK [skip ci]'
           git push

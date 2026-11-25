@@ -28,8 +28,8 @@ import java.util.Map;
 
 /** Diagnostics run on demand: no unattended external requests or local-network probing. */
 public final class ToolkitActivity extends Activity {
-    static final int BG=0xFF090F1E, SURFACE=0xFF152139, TEXT=0xFFF0F6FF,
-         MUTED=0xFF9CAFC7, ACCENT=0xFF57DED4, PURPLE=0xFFA896FA, WARNING=0xFFFFBD74;
+    static final int BG=0xFFF6F8FC, SURFACE=0xFFFFFFFF, TEXT=0xFF172235,
+         MUTED=0xFF66778D, ACCENT=0xFF456CFF, PURPLE=0xFF3659C9, WARNING=0xFFAA5B15;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private LinearLayout root,content;
     private TextView diagnosticsOutput;
@@ -42,6 +42,7 @@ public final class ToolkitActivity extends Activity {
         super.onCreate(state);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
+        getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         if(state!=null)tab=state.getInt("toolTab",0);
         setup();
     }
@@ -222,7 +223,7 @@ public final class ToolkitActivity extends Activity {
         LinearLayout l=new LinearLayout(this);l.setOrientation(1);
         l.setPadding(dp(15),dp(15),dp(15),dp(15));
         android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-        bg.setColor(SURFACE);bg.setCornerRadius(dp(16));bg.setStroke(dp(1),0xFF283B56);
+        bg.setColor(SURFACE);bg.setCornerRadius(dp(16));bg.setStroke(dp(1),0xFFE2E8F1);
         l.setBackground(bg);
         LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,-2);
         params.topMargin=dp(11);params.bottomMargin=dp(5);
@@ -241,7 +242,7 @@ public final class ToolkitActivity extends Activity {
         b.setText(s);b.setTextSize(12);b.setTextColor(color);b.setAllCaps(false);
         b.setPadding(dp(9),0,dp(9),0);b.setMinWidth(0);b.setMinHeight(0);b.setMinimumHeight(0);
         android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-        bg.setColor(0xFF1B2A44);bg.setCornerRadius(dp(12));b.setBackground(bg);
+        bg.setColor(0xFFF0F3FF);bg.setCornerRadius(dp(12));b.setBackground(bg);
         return b;
     }
     private int dp(float n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}

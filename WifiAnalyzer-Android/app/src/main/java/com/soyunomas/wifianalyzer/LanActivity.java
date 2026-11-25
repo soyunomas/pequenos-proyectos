@@ -29,8 +29,8 @@ import java.util.List;
  * Distinct original UI; results are rendered incrementally as they're detected.
  */
 public final class LanActivity extends Activity {
-    private static final int BLUE=0xFF3299E8, WHITE=0xFFFFFFFF, BG=0xFFF4F7FA,
-            TEXT=0xFF202B3A, MUTED=0xFF728195, TEAL=0xFF147DA7, GREEN=0xFF269C6B,
+    private static final int BLUE=0xFF456CFF, WHITE=0xFFFFFFFF, BG=0xFFF6F8FC,
+            TEXT=0xFF172235, MUTED=0xFF66778D, TEAL=0xFF3659C9, GREEN=0xFF238A70,
             BORDER=0xFFE6ECF2, ORANGE=0xFFAF6400;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final List<LanScanner.Device> devices=new ArrayList<>();
