@@ -69,6 +69,7 @@ public final class MainActivity extends Activity {
     private WifiManager wifi;
     private OuiDatabase oui;
     private LinearLayout root;
+    private LinearLayout bottomNav;
     private LinearLayout content;
     private TextView status;
     private TextView summary;
@@ -269,12 +270,15 @@ public final class MainActivity extends Activity {
             int top,bottom;
             if(Build.VERSION.SDK_INT>=30){
                 top=insets.getInsets(android.view.WindowInsets.Type.statusBars()).top;
-                bottom=insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom;
+                bottom=Math.max(insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom,
+                    Math.max(insets.getInsets(android.view.WindowInsets.Type.systemGestures()).bottom,
+                        insets.getInsets(android.view.WindowInsets.Type.tappableElement()).bottom));
             }else{
                 top=insets.getSystemWindowInsetTop();
                 bottom=insets.getSystemWindowInsetBottom();
             }
-            view.setPadding(dp(16),top+dp(9),dp(16),bottom+dp(4));
+            view.setPadding(dp(16),top+dp(9),dp(16),0);
+            if(bottomNav!=null)bottomNav.setPadding(0,dp(7),0,bottom+dp(14));
             return insets;
         });
         root.requestApplyInsets();
@@ -362,6 +366,7 @@ public final class MainActivity extends Activity {
         root.addView(screenScroll,new LinearLayout.LayoutParams(-1,0,1));
 
         LinearLayout nav=line();
+        bottomNav=nav;
         nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setPadding(0,dp(7),0,dp(1));
         String[] labels={"Redes","Canales","Señal","Seguridad","Consejos"};
@@ -385,6 +390,7 @@ public final class MainActivity extends Activity {
             nav.addView(cell,new LinearLayout.LayoutParams(0,dp(52),1));
         }
         root.addView(nav);
+        root.requestApplyInsets();
     }
 
     private LinearLayout actionTile(String symbol,String title,String sub){

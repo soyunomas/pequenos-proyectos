@@ -81,12 +81,15 @@ public final class LanActivity extends Activity {
             int top,bottom;
             if(Build.VERSION.SDK_INT>=30){
                 top=insets.getInsets(WindowInsets.Type.statusBars()).top;
-                bottom=insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+                bottom=Math.max(insets.getInsets(WindowInsets.Type.navigationBars()).bottom,
+                    Math.max(insets.getInsets(WindowInsets.Type.systemGestures()).bottom,
+                        insets.getInsets(WindowInsets.Type.tappableElement()).bottom));
             }else{
                 top=insets.getSystemWindowInsetTop();
                 bottom=insets.getSystemWindowInsetBottom();
             }
-            view.setPadding(0,top,0,bottom);
+            view.setPadding(0,top,0,0);
+            if(navbar!=null)navbar.setPadding(dp(12),dp(7),dp(12),bottom+dp(14));
             return insets;
         });
         root.requestApplyInsets();
@@ -168,6 +171,7 @@ public final class LanActivity extends Activity {
         root.addView(navbar);
         setScanning(false);
         renderResults();
+        root.requestApplyInsets();
     }
     private void setScanning(boolean on){
         scanning=on;
@@ -256,12 +260,11 @@ public final class LanActivity extends Activity {
         for(LanScanner.Device d:shown){
             boolean self=plan!=null&&d.ip.equals(plan.ownIp);
             String type=DeviceProfile.category(d.detail,d.gateway,self);
-            String icon=DeviceProfile.glyph(type);
+            // Dedicated vector-style icons, independent of font glyph availability.
             LinearLayout item=row();
             item.setPadding(dp(15),dp(8),dp(14),dp(8));
             item.setBackgroundColor(WHITE);
-            TextView symbol=text(icon,29,self?TEAL:d.gateway?BLUE:MUTED,true);
-            symbol.setGravity(Gravity.CENTER);
+            DeviceIconView symbol=new DeviceIconView(this,type);
             item.addView(symbol,new LinearLayout.LayoutParams(dp(54),dp(67)));
             LinearLayout details=column();
             details.addView(text(d.ip,19,TEXT,true));
@@ -280,7 +283,8 @@ public final class LanActivity extends Activity {
             vendorText.setMaxLines(2);
             rhs.addView(vendorText);
             item.addView(rhs,new LinearLayout.LayoutParams(dp(127),-2));
-            item.setOnClickListener(v->showDetails(d,type));
+            item.setContentDescription("Examinar dispositivo "+d.ip+" · "+type);
+            item.setOnClickListener(v->openDevice(d));
             list.addView(item);
             View sep=new View(this);
             sep.setBackgroundColor(BORDER);
@@ -291,6 +295,16 @@ public final class LanActivity extends Activity {
         info.setPadding(dp(18),dp(16),dp(18),dp(30));
         list.addView(info);
     }
+    private void openDevice(LanScanner.Device device){
+        Intent intent=new Intent(this,DeviceDetailActivity.class);
+        intent.putExtra(DeviceDetailActivity.EXTRA_IP,device.ip);
+        intent.putExtra(DeviceDetailActivity.EXTRA_MAC,device.mac);
+        intent.putExtra(DeviceDetailActivity.EXTRA_DETAIL,device.detail);
+        intent.putExtra(DeviceDetailActivity.EXTRA_VENDOR,device.vendor);
+        intent.putExtra(DeviceDetailActivity.EXTRA_GATEWAY,device.gateway);
+        startActivity(intent);
+    }
+
     private void showDetails(LanScanner.Device d,String type){
         String vendor=d.mac.isEmpty()?DeviceProfile.serviceHint(d.detail):
             (oui==null?"Base OUI aún sin cargar":oui.lookup(d.mac));

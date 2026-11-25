@@ -2,7 +2,7 @@
 
 Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones implementadas en v2.5
+## Funciones implementadas en v2.6
 
 - Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
 - Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
@@ -15,6 +15,18 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - Búsqueda por SSID/BSSID/seguridad; favoritos locales y filtro de favoritos.
 - Escaneo automático opcional, con posibilidad de pausar y seguir explorando manualmente.
 - Cabecera con margen superior ampliado, botón LAN visible e interfaz oscura. Android 8.0+.
+
+## Análisis de un equipo y herramientas de experto (v2.6)
+
+- Pulsa un dispositivo para abrir su ficha individual. La primera visita pregunta si deseas escanear puertos; acciones **Rápido**, **Ampliado** y **Puerto personalizado**.
+- Sondeo TCP bajo demanda en la Wi-Fi actual, limitado a una IP privada del segmento detectado, con 16 conexiones paralelas, 380 ms por conexión, máximo de 80 puertos y 18 segundos por operación. Resultados progresivos y cancelación.
+- Abiertos: puerto y latencia de conexión, identificación orientativa de servicio, detalle de respuesta, lectura de banner TCP, petición `HEAD` sin TLS, o texto manual enviado como socket TCP (`nc` básico).
+- Para HTTP/HTTPS, apertura mediante navegador externo del teléfono. Certificados HTTPS autofirmados pueden ocasionar avisos del navegador.
+- Respuestas truncadas a 2048 bytes; bytes de control escapados. Envíos de texto explícitos y limitados a 512 caracteres. Sin autenticaciones, ataques ni almacenamiento de credenciales.
+- Los nombres asociados a puertos son convenciones, no detección probada de protocolo o versiones.
+- Pictogramas vectoriales propios para router, móvil, PC/NAS, impresora, TV, servidor y domótica.
+- Las barras inferiores reservan explícitamente el área de navegación y gestos de Android mediante `WindowInsets`, en lugar de solo añadir un margen arbitrario.
+- Se requiere prueba visual en el móvil para confirmar que no hay solapamientos específicos del fabricante.
 
 ## Escaneo LAN rápido (v2.3)
 
@@ -50,7 +62,7 @@ El escaneo Wi-Fi requiere ubicación precisa y ubicación activada en el disposi
 
 ## Arquitectura y pruebas
 
-- `LanActivity`: pantalla de descubrimiento LAN y exportación.
+- `LanActivity`: pantalla de descubrimiento LAN y exportación.\n- `DeviceDetailActivity`: detalle y acciones explícitas por dispositivo.\n- `PortScanner`: sondeo TCP acotado y concurrente.\n- `PortCatalog`: puertos habituales, nombres tentativos y validación.\n- `ResponseInspector`: lectura acotada de banner, HTTP HEAD y texto TCP.\n- `DeviceIconView`: iconos vectoriales de categorías.
 - `LanScanner`: sondeos TCP limitados de hosts y lectura de ARP cuando esté autorizada.
 - `OuiDatabase`: asignación offline de prefijos MAC usando IEEE.
 - `scripts/update_oui.py`: descarga y valida las listas públicas IEEE para incluirlas en el APK (ejecutar antes de compilar fuera de CI).
@@ -72,5 +84,5 @@ python3 scripts/update_oui.py
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v2.5.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v2.6.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
 \n**Instalación de APK debug:** GitHub Actions puede generar firmas de depuración diferentes entre ejecuciones. Si Android indica conflicto de firma al actualizar, desinstala antes la versión antigua (se borrarán sus preferencias locales). Para actualizaciones permanentes sin perder datos, hay que configurar una clave de firma estable y privada.\n

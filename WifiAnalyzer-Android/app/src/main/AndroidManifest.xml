@@ -16,6 +16,7 @@
         android:usesCleartextTraffic="false">
         <activity android:name=".ToolkitActivity" android:exported="false" />
         <activity android:name=".LanActivity" android:exported="false" />
+        <activity android:name=".DeviceDetailActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -12,6 +12,7 @@ public final class DeviceProfile {
         String d=details==null?"":details.toLowerCase(Locale.ROOT);
         if (has(d,"_ipp.","_printer.","printer","impressora","impresora","jetdirect","9100","_pdl-datastream.")) return "Impresora";
         if (has(d,"_googlecast.","chromecast","medienderer","mediarenderer","airplay","_raop.","smarttv","television")) return "TV / multimedia";
+        if (has(d,"iphone","ipad","android phone","android mobile","smartphone","pixel phone","_companion-link.")) return "Móvil";
         if (has(d,"_smb.","_workstation.","netbios","samba","windows","445 responde")) return "Ordenador / NAS";
         if (has(d,"_hap.","homekit","_matter.","_ewelink.")) return "Domótica";
         if (has(d,"_ssh.","22 responde")) return "Servidor / red";
