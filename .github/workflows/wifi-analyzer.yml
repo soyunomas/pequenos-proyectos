@@ -37,8 +37,17 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
-      - name: Update offline IEEE MAC-vendor database
-        run: python3 WifiAnalyzer-Android/scripts/update_oui.py
+      - name: Update IEEE vendors (offline fallback)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! python3 WifiAnalyzer-Android/scripts/update_oui.py; then
+            echo "::warning::IEEE temporarily unavailable; reusing verified offline database from NetScope 2.3"
+            mkdir -p WifiAnalyzer-Android/app/src/main/assets
+            unzip -p WifiAnalyzer-Android/NetScope_v2.3.apk assets/oui.tsv > WifiAnalyzer-Android/app/src/main/assets/oui.tsv
+            test "$(wc -l < WifiAnalyzer-Android/app/src/main/assets/oui.tsv)" -gt 10000
+            head -n 1 WifiAnalyzer-Android/app/src/main/assets/oui.tsv
+          fi
       - name: Unit tests and debug APK
         working-directory: WifiAnalyzer-Android
         run: gradle --no-daemon testDebugUnitTest assembleDebug
