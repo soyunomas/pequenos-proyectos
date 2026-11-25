@@ -184,7 +184,8 @@ public final class LanScanner {
                     String detail=result.detail;
                     if(existing!=null&&existing.detail.contains("SSDP"))
                         detail=existing.detail+" · "+detail;
-                    report(visible,new Device(result.ip,"",detail,"MAC no disponible",gateway),cb);
+                    report(visible,new Device(result.ip,result.mac,detail,
+                            result.mac.isEmpty()?"MAC no disponible":oui==null?"Base IEEE pendiente":oui.lookup(result.mac),gateway),cb);
                 }
                 if(checked%5==0||checked==total)cb.progress(checked,total,visible.size());
             }
@@ -198,7 +199,7 @@ public final class LanScanner {
             List<Device> finalList=new ArrayList<>();
             for(Device d:visible.values()){
                 String mac=arp.get(d.ip);
-                if(mac==null)mac="";
+                if(mac==null||mac.isEmpty())mac=d.mac;
                 finalList.add(new Device(d.ip,mac,d.detail,oui==null?"Base IEEE pendiente":oui.lookup(mac),d.gateway));
             }
             finalList.sort(Comparator.comparingLong(d->toLong(d.ip)));
@@ -225,10 +226,10 @@ public final class LanScanner {
         if(old==null||!old.detail.equals(device.detail))callbacks.discovered(device);
     }
     private static final class Probe {
-        final String ip,detail;
+        final String ip,detail,mac;
         final boolean reachable;
-        Probe(String ip,boolean reachable,String detail) {
-            this.ip=ip;this.reachable=reachable;this.detail=detail;
+        Probe(String ip,boolean reachable,String detail,String mac) {
+            this.ip=ip;this.reachable=reachable;this.detail=detail;this.mac=mac;
         }
     }
     private static Probe tcpProbe(Network network,String ip,boolean deep,AtomicBoolean cancelled) {
@@ -239,15 +240,23 @@ public final class LanScanner {
             if(cancelled.get()||Thread.currentThread().isInterrupted())break;
             try(Socket socket=network.getSocketFactory().createSocket()){
                 socket.connect(new InetSocketAddress(ip,port),timeout);
-                return new Probe(ip,true,"TCP "+port+" responde");
+                return withNetbios(network,ip,"TCP "+port+" responde");
             }catch(ConnectException e) {
                 // Connection refused is proof of an IP host; no successful app connection needed.
                 String detail=e.getMessage()==null?"":e.getMessage().toLowerCase(Locale.ROOT);
                 if(detail.contains("refused")||detail.contains("rechaz")||detail.contains("refus"))
-                    return new Probe(ip,true,"TCP "+port+" rechazado (host activo)");
+                    return withNetbios(network,ip,"TCP "+port+" rechazado (host activo)");
             }catch(IOException|SecurityException ignored){}
         }
-        return new Probe(ip,false,"");
+        NetBiosProbe.Result nb=NetBiosProbe.query(network,ip,deep?180:90);
+        if(nb!=null)return new Probe(ip,true,nb.name.isEmpty()?"NetBIOS activo":"NetBIOS: "+nb.name,nb.mac);
+        return new Probe(ip,false,"","");
+    }
+
+    private static Probe withNetbios(Network net,String ip,String detail) {
+        NetBiosProbe.Result nb=NetBiosProbe.query(net,ip,90);
+        if(nb==null)return new Probe(ip,true,detail,"");
+        return new Probe(ip,true,detail+(nb.name.isEmpty()?"":" · NetBIOS: "+nb.name),nb.mac);
     }
 
     /** Discover UPnP/SSDP responders with one bounded M-SEARCH on the connected Wi-Fi network. */
@@ -277,9 +286,17 @@ public final class LanScanner {
                         incoming.getLength(),StandardCharsets.ISO_8859_1);
                 if(!reply.startsWith("HTTP/1.1 200")&&!reply.startsWith("HTTP/1.0 200"))continue;
                 Device previous=map.get(ip);
-                String detail="UPnP / SSDP detectado";
-                if(previous!=null)detail=previous.detail+" · SSDP";
-                report(map,new Device(ip,"",detail,"MAC no disponible",
+                String detail="UPnP / SSDP";
+                for(String line:reply.split("\\r?\\n")) {
+                    if(line.regionMatches(true,0,"SERVER:",0,7)){
+                        String announced=line.substring(7).trim();
+                        if(announced.length()>95)announced=announced.substring(0,95);
+                        if(!announced.isEmpty())detail+=" · "+announced;
+                        break;
+                    }
+                }
+                if(previous!=null)detail=previous.detail+" · "+detail;
+                report(map,new Device(ip,previous==null?"":previous.mac,detail,"MAC no disponible",
                         ip.equals(plan.gateway)),cb);
             }
         }catch(IOException|SecurityException ignored){

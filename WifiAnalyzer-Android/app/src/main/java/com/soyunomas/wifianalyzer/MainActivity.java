@@ -260,8 +260,20 @@ public final class MainActivity extends Activity {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(dp(16), dp(32), dp(16), dp(10));
         setContentView(root);
+        root.setOnApplyWindowInsetsListener((view,insets)->{
+            int top,bottom;
+            if(Build.VERSION.SDK_INT>=30){
+                top=insets.getInsets(android.view.WindowInsets.Type.statusBars()).top;
+                bottom=insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom;
+            }else{
+                top=insets.getSystemWindowInsetTop();
+                bottom=insets.getSystemWindowInsetBottom();
+            }
+            view.setPadding(dp(16),top+dp(13),dp(16),bottom+dp(12));
+            return insets;
+        });
+        root.requestApplyInsets();
 
         LinearLayout header = line();
         header.setGravity(Gravity.CENTER_VERTICAL);

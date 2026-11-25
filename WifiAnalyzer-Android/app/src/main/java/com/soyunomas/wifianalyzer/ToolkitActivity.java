@@ -50,7 +50,20 @@ public final class ToolkitActivity extends Activity {
     }
     private void setup(){
         root=new LinearLayout(this);root.setOrientation(1);root.setBackgroundColor(BG);
-        root.setPadding(dp(16),dp(32),dp(16),dp(12));setContentView(root);
+        setContentView(root);
+        root.setOnApplyWindowInsetsListener((view,insets)->{
+            int top,bottom;
+            if(android.os.Build.VERSION.SDK_INT>=30){
+                top=insets.getInsets(android.view.WindowInsets.Type.statusBars()).top;
+                bottom=insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom;
+            }else{
+                top=insets.getSystemWindowInsetTop();
+                bottom=insets.getSystemWindowInsetBottom();
+            }
+            view.setPadding(dp(16),top+dp(12),dp(16),bottom+dp(12));
+            return insets;
+        });
+        root.requestApplyInsets();
         LinearLayout head=line();
         Button back=button("‹ Volver",MUTED);back.setOnClickListener(v->finish());
         head.addView(back);
