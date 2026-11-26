@@ -348,7 +348,7 @@ public final class MainActivity extends Activity {
         qp.leftMargin=dp(9);
         quick.addView(diag,qp);
         root.addView(quick);
-        LinearLayout expert=actionTile("▥","25 herramientas de red","Ping, DNS, TLS, SNMP, rutas, rendimiento y más");
+        LinearLayout expert=actionTile("▥","45 herramientas de red","Ping, DNS, TLS, SNMP, rutas, rendimiento y más");
         expert.setOnClickListener(v->startActivity(new Intent(this,AdvancedToolsActivity.class)));
         LinearLayout.LayoutParams expertParams=new LinearLayout.LayoutParams(-1,dp(66));
         expertParams.topMargin=dp(6);

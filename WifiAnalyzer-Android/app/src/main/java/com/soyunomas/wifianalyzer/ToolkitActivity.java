@@ -72,7 +72,7 @@ public final class ToolkitActivity extends Activity {
         title.setGravity(Gravity.CENTER);
         head.addView(title,new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(head);
-        Button advanced=button("25 HERRAMIENTAS · PING, DNS, TLS, LAN Y MÁS",ACCENT);
+        Button advanced=button("45 HERRAMIENTAS · PING, DNS, TLS, LAN Y MÁS",ACCENT);
         advanced.setOnClickListener(v->startActivity(new Intent(this,AdvancedToolsActivity.class)));
         LinearLayout.LayoutParams toolsP=new LinearLayout.LayoutParams(-1,dp(49));
         toolsP.topMargin=dp(6);toolsP.bottomMargin=dp(7);

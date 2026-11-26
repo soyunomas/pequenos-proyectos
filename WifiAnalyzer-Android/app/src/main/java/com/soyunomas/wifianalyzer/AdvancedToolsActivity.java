@@ -80,7 +80,7 @@ public final class AdvancedToolsActivity extends Activity {
         header.addView(back,new LinearLayout.LayoutParams(dp(46),dp(49)));
         LinearLayout heading=column();
         heading.addView(text("Suite experta",23,TEXT,true));
-        heading.addView(text("25 herramientas · bajo demanda",12,MUTED,false));
+        heading.addView(text("45 herramientas · sin root",12,MUTED,false));
         LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(10);
         header.addView(heading,hp);
         root.addView(header);
@@ -168,6 +168,15 @@ public final class AdvancedToolsActivity extends Activity {
             return;
         }
         selected=tool;
+        if(tool.id>=27&&tool.id<=31){
+            Class<?> screen=tool.id==27?PeerTestActivity.class:
+                tool.id==28||tool.id==31?FieldSessionActivity.class:
+                    tool.id==29?HeatmapActivity.class:RttActivity.class;
+            Intent page=new Intent(this,screen);
+            page.putExtra("tool",tool.id);
+            startActivity(page);
+            return;
+        }
         EditText field=new EditText(this);
         field.setSingleLine(true);
         field.setText(tool.defaultValue);
@@ -185,6 +194,10 @@ public final class AdvancedToolsActivity extends Activity {
             message+="\nConsulta UDP/161 SNMP v1 de solo lectura a la comunidad public.";
         if(tool.id==24)
             message+="\nGuarda solo el inventario local. Algunos equipos pueden no responder.";
+        if(tool.id==26)message+="\nNo incluye ARP raw: únicamente equipos que contesten anuncios multicast.";
+        if(tool.id==34)message+="\nAD es una afirmación del servidor DNS, no validación DNSSEC local.";
+        if(tool.id==42)message+="\nSolo negociación SMB2 sin autenticación; los shares requieren sesión.";
+        if(tool.id==45)message+="\nSe comprueba HTTP/2 mediante ALPN y anuncio HTTP/3; no se establece QUIC.";
         if(tool.id==25){
             new AlertDialog.Builder(this).setTitle("Informe técnico")
                 .setMessage("Hay "+ToolHistory.count()+" resultados en esta sesión. Puedes previsualizarlos y exportarlos.")

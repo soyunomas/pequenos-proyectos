@@ -17,6 +17,13 @@ public final class ToolEngine {
         Network net=snap.network;
         if(net==null)return "Conéctate a una red Wi-Fi antes de utilizar esta herramienta.";
         if(id==24)return InventoryTools.scan(ctx);
+        if(id==26||id==41)return FieldDiscovery.execute(ctx,net,id,input);
+        if(id==32||id==45)return FieldHttp.execute(ctx,net,id,input);
+        if(id==33||id==34||id==35)return FieldDns.execute(ctx,net,id,input);
+        if(id==36||id==37||id==38)return FieldNat.execute(ctx,net,id,input);
+        if(id==39||id==40||id==42||id==43)return FieldServices.execute(net,id,input);
+        if(id==44)return FieldProtocols.webSocket(net,input);
+        if(id>=27&&id<=31)throw new IllegalArgumentException("Esta herramienta necesita una sesión interactiva.");
         if(id==5||id==6||id==7)return dns(ctx,net,id,input);
         if(id==1||id==2||id==3||id==4||id==10||id==11||id==12||id==13||
            id==14||id==15||id==21||id==22||id==23)

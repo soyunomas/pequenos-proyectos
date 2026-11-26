@@ -39,7 +39,27 @@ public final class ToolCatalog {
         new Tool(22,"Conectividad","NTP / reloj","Tiempo, RTT y diferencia aproximada por UDP/123.","Servidor NTP","time.google.com"),
         new Tool(23,"Conectividad","Diagnóstico DHCP","Lease, puerta de enlace, máscara, DNS y enlace si disponibles.","Sin parámetros",""),
         new Tool(24,"Descubrimiento","Inventario de LAN","Detecta cambios de dispositivos conocidos, almacena IP en el teléfono.","Sin parámetros",""),
-        new Tool(25,"Informes","Informe técnico","Exporta resultados anteriores de esta sesión como texto estructurado.","Sin parámetros","")
+        new Tool(25,"Informes","Informe técnico","Exporta resultados anteriores de esta sesión como texto estructurado.","Sin parámetros",""),
+        new Tool(26,"Descubrimiento","Detectar fuera de subred","mDNS, SSDP y WS-Discovery: escucha anuncios de IP ajenas a la subred, sin ARP raw.","Servicio","ssdp:all"),
+        new Tool(27,"Rendimiento","Prueba entre dos móviles","Servidor y cliente TCP/UDP entre dos Android; mide caudal local real.","IP del otro móvil",""),
+        new Tool(28,"Wi-Fi","Analizador de roaming","Registro temporal de BSSID, RSSI y cambios de acceso durante dos minutos.","Sin parámetros",""),
+        new Tool(29,"Wi-Fi","Mapa de cobertura","Selecciona un plano y marca mediciones RSSI en sus posiciones.","Sin parámetros",""),
+        new Tool(30,"Wi-Fi","Distancia Wi-Fi RTT","Distancia estimada real a APs compatibles con IEEE 802.11mc.","Sin parámetros",""),
+        new Tool(31,"Wi-Fi","Registro de cambios de red","Detecta cambios de interfaz, IP, BSSID, DNS y gateway en la sesión.","Sin parámetros",""),
+        new Tool(32,"Servicios","Portal cautivo","Comprueba detección de portal Android y respuesta HTTP 204 sin seguir redirecciones.","Sin parámetros",""),
+        new Tool(33,"DNS","DNS interno frente a externo","Compara las respuestas del DNS de la Wi-Fi con las de un resolutor público.","Dominio","example.com"),
+        new Tool(34,"DNS","Diagnóstico DNSSEC","Compara señales AD/CD/DO del resolutor; no valida firmas criptográficamente.","Dominio","cloudflare.com"),
+        new Tool(35,"DNS","EDNS y DNS TCP","Inspecciona EDNS, truncamiento UDP y respuesta DNS por TCP.","Dominio","example.com"),
+        new Tool(36,"Internet","Diagnóstico NAT STUN","Consulta Binding y dirección pública/puerto reflejados por un servidor STUN.","Servidor STUN:puerto","stun.l.google.com:19302"),
+        new Tool(37,"Descubrimiento","Inspector UPnP IGD","Localiza un IGD y consulta WANIPConnection mediante SOAP de solo lectura.","Servicio SSDP","urn:schemas-upnp-org:device:InternetGatewayDevice:1"),
+        new Tool(38,"Internet","PCP / NAT-PMP","Sondea PCP ANNOUNCE y consulta la IP externa NAT-PMP sin crear mapeos.","Puerta de enlace LAN",""),
+        new Tool(39,"Servicios","Inspector UDP","Envía un datagrama corto y lee la respuesta sin confundir silencio con cerrado.","IP:puerto|texto",""),
+        new Tool(40,"Dispositivos","Inspector de impresoras IPP","Consulta Get-Printer-Attributes de impresoras de la LAN.","URL IPP local","ipp://192.168.1.10:631/ipp/print"),
+        new Tool(41,"Dispositivos","Descubrimiento ONVIF","Busca cámaras mediante WS-Discovery y muestra XAddrs anunciados.","Sin parámetros",""),
+        new Tool(42,"Dispositivos","Explorador SMB","Negociación SMB2 y capacidades anunciadas; enumeración requiere sesión SMB.","IP servidor LAN",""),
+        new Tool(43,"Servicios","Inspector SSH","Lee banner SSH y listado de algoritmos KEXINIT sin iniciar sesión.","IP:puerto","192.168.1.1:22"),
+        new Tool(44,"Servicios","Cliente WebSocket","Conexión ws/wss con handshake y mensaje texto delimitado.","URL|texto","wss://echo.websocket.events|NetScope"),
+        new Tool(45,"Servicios","HTTP/2 y HTTP/3","Consulta ALPN TLS y cabeceras Alt-Svc; HTTP/3 requiere cliente QUIC.","URL HTTPS","https://www.cloudflare.com")
     ));
     public static Tool get(int id){
         for(Tool t:ALL)if(t.id==id)return t;

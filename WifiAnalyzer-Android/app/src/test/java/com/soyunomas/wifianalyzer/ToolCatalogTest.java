@@ -6,7 +6,7 @@ import static org.junit.Assert.*;
 
 public class ToolCatalogTest {
     @Test public void allToolsUniqueAndClassified(){
-        assertEquals(25,ToolCatalog.ALL.size());
+        assertEquals(45,ToolCatalog.ALL.size());
         HashSet<Integer> ids=new HashSet<>();
         for(ToolCatalog.Tool t:ToolCatalog.ALL){
             assertTrue(ids.add(t.id));
@@ -16,8 +16,8 @@ public class ToolCatalogTest {
         }
     }
     @Test public void numberedToolsAreAddressable(){
-        for(int i=1;i<=25;i++)assertEquals(i,ToolCatalog.get(i).id);
+        for(int i=1;i<=45;i++)assertEquals(i,ToolCatalog.get(i).id);
     }
     @Test(expected=IllegalArgumentException.class)
-    public void invalidTool(){ToolCatalog.get(26);}
+    public void invalidTool(){ToolCatalog.get(46);}
 }

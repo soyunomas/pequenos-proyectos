@@ -2,7 +2,7 @@
 
 Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones implementadas en v3.3
+## Funciones implementadas en v4.0
 
 - Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
 - Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
@@ -14,7 +14,7 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - Exportación CSV de redes, CSV de historial, JSON de redes y JSON con SSID/BSSID anonimizados.
 - Búsqueda por SSID/BSSID/seguridad; favoritos locales y filtro de favoritos.
 - Escaneo automático opcional, con posibilidad de pausar y seguir explorando manualmente.
-- Cabecera con margen superior ampliado, botón LAN visible e interfaz oscura. Android 8.0+.
+- Interfaz técnica blanca/azul con navegación inferior protegida de las barras Android. Android 8.0+.
 
 ## Gráficas Wi-Fi con identificación inequívoca (v3.3)
 
@@ -23,6 +23,43 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - La asignación de color se conserva entre escaneos y cuando Android recrea la actividad; los BSSID que desaparecen no transfieren su color a otra red durante la sesión.
 - Selecciona una fila de la leyenda para resaltar la curva correspondiente y atenuar las restantes. Los colores distinguen redes, **no son un indicador de calidad o seguridad**.
 - Pruebas JVM verifican 80 BSSID diferentes sin colores duplicados, asignación estable y restauración en el mismo orden.
+
+## NetScope 4.0 — 20 herramientas adicionales sin root
+
+Se amplía **Suite experta** de 25 a 45 herramientas. Todas las pruebas son voluntarias, se ejecutan sin privilegios root y quedan limitadas por tiempo o tamaño. La interfaz mantiene los estilos B + D.
+
+| ID | Función | Alcance real |
+|---|---|---|
+| 26 | Equipos fuera de subred | SSDP, mDNS y WS-Discovery con respuestas observadas; no genera ARP ni garantiza hallar IPs desconocidas |
+| 27 | Dos móviles | Servidor y cliente TCP 5202 / UDP 5203, 4 MiB TCP, hasta 80 datagramas UDP; requiere que dos teléfonos estén en la misma red sin aislamiento |
+| 28 | Roaming Wi-Fi | Sesión de 120 segundos; cambios BSSID, RSSI y marcas de tiempo |
+| 29 | Mapa de cobertura | Plano local importado, puntos RSSI manuales, interpolación tras 3 muestras y exportación PNG |
+| 30 | Wi-Fi RTT | API WifiRttManager 802.11mc para hardware/routers compatibles y ubicación autorizada |
+| 31 | Cambios de red | Registro de IP, BSSID, DNS, gateway e interfaz durante 120 s |
+| 32 | Portal cautivo | Capability Android y GET HTTP 204 sin seguir redirecciones |
+| 33 | Split DNS | Compara respuestas A/AAAA del DNS Wi-Fi y resolutores públicos |
+| 34 | DNSSEC | Consulta con DO al validador 1.1.1.1 y compara AD/RCODE; **no verifica firmas de forma independiente** |
+| 35 | EDNS/TCP | Consulta OPT con DO y TCP DNS real, informe TC y RCODE |
+| 36 | NAT STUN | STUN Binding y dirección/puerto reflejados, con validación de transaction ID |
+| 37 | UPnP IGD | Descubre IGD y consulta WAN IP vía SOAP **solo lectura**; control URL limitada al gateway anunciante |
+| 38 | PCP/NAT-PMP | PCP ANNOUNCE y consulta de dirección NAT-PMP, **sin configurar mapeos** |
+| 39 | UDP | Envía máximo 512 bytes, recibe máximo 2 KiB; silencio no significa puerto cerrado |
+| 40 | IPP | Get-Printer-Attributes de lectura a impresora de red; no imprime |
+| 41 | ONVIF | WS-Discovery (Probe) y XAddrs anunciados; no pide credenciales |
+| 42 | SMB | Negociación SMB2 y dialecto; **la enumeración de recursos compartidos requiere sesión y está pendiente** |
+| 43 | SSH | Banner y algoritmos KEXINIT; no inicia sesión ni autentica clave host |
+| 44 | WebSocket | Cliente ws/wss con handshake RFC6455, mensaje enmascarado y lectura acotada |
+| 45 | HTTP/2 / HTTP/3 | Negociación HTTP/2 por ALPN y anuncio HTTP/3 por Alt-Svc. **No negocia QUIC/HTTP3 real sin motor adicional** |
+
+### Seguridad y privacidad
+
+- El escaneo de anuncios multicast se limita al dominio de broadcast actual. Sin root no equivale a arp-scan de capa 2.
+- Para IPP, SMB, SSH, IGD y UDP personalizado se aceptan destinos LAN RFC1918 y RFC6598; las direcciones públicas no se examinan de forma accidental.
+- Las sesiones de roaming, cambio de red y tests entre móviles se detienen al salir; no mantienen servicios invisibles.
+- El mapa usa únicamente una imagen seleccionada por el usuario y el RSSI obtenido por Android, con exportación voluntaria local.
+- STUN, DNS público y HTTP pueden contactar servicios de terceros; estos observarán la IP pública y el destino solicitado. El cliente no envía SSID, BSSID ni lista de Wi-Fi a dichos servicios por iniciativa propia.
+- HTTP/3, DNSSEC con validación criptográfica y exploración SMB de recursos autenticados **no deben considerarse terminados**. Necesitan motores completos, pruebas específicas y posiblemente dependencias externas.
+- El acceso a dispositivos de la LAN puede quedar restringido por aislamiento Wi-Fi, cortafuegos o permisos de Android; validar en hardware real.
 
 ## Compatibilidad con LAN 100.64.0.0/10 y subredes /22 (v3.2)
 
@@ -119,5 +156,5 @@ python3 scripts/update_oui.py
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v3.3.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v4.0.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
 \n**Instalación de APK debug:** GitHub Actions puede generar firmas de depuración diferentes entre ejecuciones. Si Android indica conflicto de firma al actualizar, desinstala antes la versión antigua (se borrarán sus preferencias locales). Para actualizaciones permanentes sin perder datos, hay que configurar una clave de firma estable y privada.\n
