@@ -55,13 +55,6 @@ public final class MainActivity extends Activity {
     private static final int ACCENT = 0xFF456CFF;
     private static final int PURPLE = 0xFF3659C9;
     private static final int ORANGE = 0xFFAA5B15;
-    private static final int[] PALETTE = {ACCENT, 0xFF168E9E, 0xFFC97B32, 0xFF8C60D9,
-        0xFF167D5B, 0xFFD35683, 0xFF4D8DC4, 0xFF9A7426, 0xFF984B6B,
-        0xFF218A74, 0xFF6877C0, 0xFFBD6652};
-    private static int colorFor(String bssid){
-        int h=bssid==null?0:bssid.toUpperCase(java.util.Locale.ROOT).hashCode();
-        return PALETTE[(h&0x7fffffff)%PALETTE.length];
-    }
     private static final long UPDATE_MS = 15000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ArrayList<NetworkEntry> networks = new ArrayList<>();
@@ -91,6 +84,7 @@ public final class MainActivity extends Activity {
     private int sortMode = 0;
     private String selectedBssid = "";
     private String spectrumFocusBssid = "";
+    private final SpectrumColorAllocator spectrumColors=new SpectrumColorAllocator();
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
             if (!running) return;
@@ -117,6 +111,7 @@ public final class MainActivity extends Activity {
         if (state != null) {
             tab = state.getInt("tab", 0);
             band = state.getInt("band", ChannelMath.BAND_ALL);
+            spectrumColors.restore(state.getStringArrayList("spectrumColors"));
         }
         buildShell();
         render();
@@ -126,6 +121,7 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(out);
         out.putInt("tab", tab);
         out.putInt("band", band);
+        out.putStringArrayList("spectrumColors",new ArrayList<>(spectrumColors.assignedIdentifiers()));
     }
 
     @Override protected void onResume() {
@@ -228,6 +224,11 @@ public final class MainActivity extends Activity {
                 long age=Math.max(0,(android.os.SystemClock.elapsedRealtimeNanos()/1000-s.timestamp)/1000);
                 if(scanAgeMs<0||age<scanAgeMs)scanAgeMs=age;
             }
+            // Allocate in a deterministic order so source scan-result order cannot shuffle colours.
+            ArrayList<String> seenIds=new ArrayList<>();
+            for(NetworkEntry n:networks)seenIds.add(n.bssid);
+            Collections.sort(seenIds);
+            for(String id:seenIds)spectrumColors.style(id);
             lastResultMillis = System.currentTimeMillis();
             render();
         } catch (SecurityException e) {
@@ -644,7 +645,8 @@ public final class MainActivity extends Activity {
         if(networks.isEmpty()){empty("Sin redes Wi-Fi. Actualiza el escaneo.");return;}
         content.addView(text("Mapa de canales",19,TEXT,true));
         content.addView(text("Selecciona una red en la leyenda para destacar su curva. "+
-            "Cada BSSID conserva el mismo color entre escaneos; los colores pueden repetirse.",12,MUTED,false));
+            "Cada BSSID tiene su propio color y número, estables durante la sesión. "+
+            "Toca la leyenda para resaltar una curva.",12,MUTED,false));
         int[] bands=band==ChannelMath.BAND_ALL?
             new int[]{ChannelMath.BAND_24,ChannelMath.BAND_5,ChannelMath.BAND_6}:
             new int[]{band};
@@ -656,7 +658,7 @@ public final class MainActivity extends Activity {
             LinearLayout card=card();
             card.addView(text(ChannelMath.bandLabel(bandId)+" · "+group.size()+" puntos de acceso",
                 16,TEXT,true));
-            card.addView(new SpectrumGraph(this,group,bandId,spectrumFocusBssid),
+            card.addView(new SpectrumGraph(this,group,bandId,spectrumFocusBssid,spectrumColors),
                 new LinearLayout.LayoutParams(-1,dp(246)));
             TextView legendLabel=text("IDENTIFICACIÓN DE CURVAS · TOCA PARA RESALTAR",11,MUTED,true);
             legendLabel.setPadding(0,dp(8),0,dp(5));
@@ -667,9 +669,12 @@ public final class MainActivity extends Activity {
                 legend.setPadding(dp(7),dp(5),dp(7),dp(5));
                 boolean active=n.bssid.equals(spectrumFocusBssid);
                 if(active)legend.setBackground(shape(SURFACE_ALT,9,0));
-                View dot=new View(this);
-                dot.setBackground(shape(colorFor(n.bssid),5,0));
-                legend.addView(dot,new LinearLayout.LayoutParams(dp(13),dp(13)));
+                SpectrumColorAllocator.Style style=spectrumColors.style(n.bssid);
+                TextView colorMarker=text(String.format(java.util.Locale.ROOT,"%02d",style.number),
+                    11,style.color,true);
+                colorMarker.setGravity(Gravity.CENTER);
+                colorMarker.setBackground(shape(SURFACE,8,style.color));
+                legend.addView(colorMarker,new LinearLayout.LayoutParams(dp(34),dp(28)));
                 LinearLayout names=column();
                 names.setPadding(dp(10),0,0,0);
                 TextView ssid=text(n.ssid,13,TEXT,active);
@@ -845,10 +850,12 @@ public final class MainActivity extends Activity {
         private final List<NetworkEntry> networks;
         private final int band;
         private final String focus;
+        private final SpectrumColorAllocator colors;
         private final Paint paint=new Paint(3);
-        SpectrumGraph(Context ctx,List<NetworkEntry> entries,int band,String focus){
+        SpectrumGraph(Context ctx,List<NetworkEntry> entries,int band,String focus,SpectrumColorAllocator colors){
             super(ctx);
             networks=new ArrayList<>(entries);this.band=band;this.focus=focus==null?"":focus;
+            this.colors=colors;
         }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
@@ -869,7 +876,8 @@ public final class MainActivity extends Activity {
                 canvas.drawText(""+freq,x-dp(11),height-dp(8),paint);
             }
             for(NetworkEntry n:networks){
-                int color=colorFor(n.bssid);
+                SpectrumColorAllocator.Style style=colors.style(n.bssid);
+                int color=style.color;
                 float center=map(n.mhz,fMin,fMax,left,right);
                 float half=Math.max(10,n.width/2f);
                 float x0=map(n.mhz-half,fMin,fMax,left,right);
@@ -880,14 +888,21 @@ public final class MainActivity extends Activity {
                 path.cubicTo(x0+(center-x0)*.55f,peak,center-(center-x0)*.25f,peak,center,peak);
                 path.cubicTo(center+(x1-center)*.25f,peak,x1-(x1-center)*.55f,peak,x1,bottom);
                 paint.setStyle(Paint.Style.STROKE);
+                paint.setPathEffect(style.linePattern==0?null:
+                    new android.graphics.DashPathEffect(
+                        style.linePattern==1?new float[]{dp(7),dp(4)}:
+                        style.linePattern==2?new float[]{dp(2),dp(4)}:
+                            new float[]{dp(12),dp(4),dp(2),dp(4)},0));
                 paint.setStrokeWidth(dp(n.bssid.equals(focus)?3.6f:2));
                 paint.setColor(color);
                 paint.setAlpha(!focus.isEmpty()&&!focus.equals(n.bssid)?55:255);
                 canvas.drawPath(path,paint);
+                paint.setPathEffect(null);
                 paint.setStyle(Paint.Style.FILL);paint.setAlpha(255);
                 if(n.bssid.equals(focus)){
                     paint.setColor(color);paint.setTextSize(dp(11));
-                    String name=n.ssid.length()>15?n.ssid.substring(0,15)+"…":n.ssid;
+                    String caption=style.number+" · "+n.ssid;
+                    String name=caption.length()>15?caption.substring(0,15)+"…":caption;
                     canvas.drawText(name,Math.max(left,Math.min(right-dp(95),center-dp(40))),
                         Math.max(dp(13),peak-dp(9)),paint);
                 }
