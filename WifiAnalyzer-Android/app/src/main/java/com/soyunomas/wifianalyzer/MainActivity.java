@@ -713,7 +713,7 @@ public final class MainActivity extends Activity {
             box.addView(text(n.ssid+"   ·   "+n.dbm+" dBm",14,TEXT,true));
             ArrayList<Integer> readings=new ArrayList<>(survey.values(n.bssid));
             box.addView(text("Muestras "+survey.points(n.bssid)+" · mín "+survey.min(n.bssid)+" · media "+survey.avg(n.bssid)+" · máx "+survey.max(n.bssid)+" dBm",11,MUTED,false));
-            box.addView(new HistoryGraph(this,readings,PALETTE[(shown-1)%PALETTE.length]),
+            box.addView(new HistoryGraph(this,readings,spectrumColors.style(n.bssid).color),
                 new LinearLayout.LayoutParams(-1,dp(105)));
             content.addView(box);
         }
