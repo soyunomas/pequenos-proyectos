@@ -55,7 +55,13 @@ public final class MainActivity extends Activity {
     private static final int ACCENT = 0xFF456CFF;
     private static final int PURPLE = 0xFF3659C9;
     private static final int ORANGE = 0xFFAA5B15;
-    private static final int[] PALETTE = {ACCENT, 0xFF2887CC, 0xFF5378CE, 0xFF1C9EA8, 0xFF7790E4, 0xFF347AC7, 0xFF6474BB};
+    private static final int[] PALETTE = {ACCENT, 0xFF168E9E, 0xFFC97B32, 0xFF8C60D9,
+        0xFF167D5B, 0xFFD35683, 0xFF4D8DC4, 0xFF9A7426, 0xFF984B6B,
+        0xFF218A74, 0xFF6877C0, 0xFFBD6652};
+    private static int colorFor(String bssid){
+        int h=bssid==null?0:bssid.toUpperCase(java.util.Locale.ROOT).hashCode();
+        return PALETTE[(h&0x7fffffff)%PALETTE.length];
+    }
     private static final long UPDATE_MS = 15000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ArrayList<NetworkEntry> networks = new ArrayList<>();
@@ -84,6 +90,7 @@ public final class MainActivity extends Activity {
     private long lastResultMillis = 0L;
     private int sortMode = 0;
     private String selectedBssid = "";
+    private String spectrumFocusBssid = "";
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
             if (!running) return;
@@ -340,6 +347,11 @@ public final class MainActivity extends Activity {
         qp.leftMargin=dp(9);
         quick.addView(diag,qp);
         root.addView(quick);
+        LinearLayout expert=actionTile("▥","25 herramientas de red","Ping, DNS, TLS, SNMP, rutas, rendimiento y más");
+        expert.setOnClickListener(v->startActivity(new Intent(this,AdvancedToolsActivity.class)));
+        LinearLayout.LayoutParams expertParams=new LinearLayout.LayoutParams(-1,dp(66));
+        expertParams.topMargin=dp(6);
+        root.addView(expert,expertParams);
 
         LinearLayout glance=line();
         glance.setGravity(Gravity.CENTER_VERTICAL);
@@ -629,18 +641,57 @@ public final class MainActivity extends Activity {
     }
 
     private void showChannels() {
-        if(filtered().isEmpty()){ empty("Sin datos de canales. Actualiza el escaneo.");return; }
-        content.addView(text("Distribución por canal",19,TEXT,true));
-        content.addView(text("Curvas estimadas a partir de frecuencias, anchos y niveles RSSI.",12,MUTED,false));
-        int[] bands= band==ChannelMath.BAND_ALL ?
-            new int[]{ChannelMath.BAND_24,ChannelMath.BAND_5,ChannelMath.BAND_6} : new int[]{band};
-        for(int b:bands){
-            ArrayList<NetworkEntry> items=new ArrayList<>();
-            for(NetworkEntry n:networks) if(n.band==b)items.add(n);
-            if(items.isEmpty())continue;
+        if(networks.isEmpty()){empty("Sin redes Wi-Fi. Actualiza el escaneo.");return;}
+        content.addView(text("Mapa de canales",19,TEXT,true));
+        content.addView(text("Selecciona una red en la leyenda para destacar su curva. "+
+            "Cada BSSID conserva el mismo color entre escaneos; los colores pueden repetirse.",12,MUTED,false));
+        int[] bands=band==ChannelMath.BAND_ALL?
+            new int[]{ChannelMath.BAND_24,ChannelMath.BAND_5,ChannelMath.BAND_6}:
+            new int[]{band};
+        for(int bandId:bands){
+            ArrayList<NetworkEntry> group=new ArrayList<>();
+            for(NetworkEntry n:networks)if(n.band==bandId)group.add(n);
+            if(group.isEmpty())continue;
+            group.sort((a,b)->Integer.compare(b.dbm,a.dbm));
             LinearLayout card=card();
-            card.addView(text(ChannelMath.bandLabel(b)+" · "+items.size()+" redes",16,TEXT,true));
-            card.addView(new SpectrumGraph(this, items, b),new LinearLayout.LayoutParams(-1,dp(245)));
+            card.addView(text(ChannelMath.bandLabel(bandId)+" · "+group.size()+" puntos de acceso",
+                16,TEXT,true));
+            card.addView(new SpectrumGraph(this,group,bandId,spectrumFocusBssid),
+                new LinearLayout.LayoutParams(-1,dp(246)));
+            TextView legendLabel=text("IDENTIFICACIÓN DE CURVAS · TOCA PARA RESALTAR",11,MUTED,true);
+            legendLabel.setPadding(0,dp(8),0,dp(5));
+            card.addView(legendLabel);
+            for(NetworkEntry n:group){
+                LinearLayout legend=line();
+                legend.setGravity(Gravity.CENTER_VERTICAL);
+                legend.setPadding(dp(7),dp(5),dp(7),dp(5));
+                boolean active=n.bssid.equals(spectrumFocusBssid);
+                if(active)legend.setBackground(shape(SURFACE_ALT,9,0));
+                View dot=new View(this);
+                dot.setBackground(shape(colorFor(n.bssid),5,0));
+                legend.addView(dot,new LinearLayout.LayoutParams(dp(13),dp(13)));
+                LinearLayout names=column();
+                names.setPadding(dp(10),0,0,0);
+                TextView ssid=text(n.ssid,13,TEXT,active);
+                ssid.setSingleLine(true);
+                ssid.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                names.addView(ssid);
+                TextView bssid=text(n.bssid,10,MUTED,false);
+                bssid.setSingleLine(true);
+                names.addView(bssid);
+                legend.addView(names,new LinearLayout.LayoutParams(0,-2,1));
+                TextView metrics=text("C"+n.channel+" · "+n.dbm+" dBm",12,active?ACCENT:MUTED,active);
+                legend.addView(metrics);
+                legend.setOnClickListener(v->{
+                    spectrumFocusBssid=active?"":n.bssid;
+                    render();
+                });
+                card.addView(legend);
+            }
+            TextView tip=text("RSSI en dBm y frecuencia central (MHz). "+
+                "Los solapamientos son aproximaciones según el ancho anunciado.",11,MUTED,false);
+            tip.setPadding(0,dp(8),0,0);
+            card.addView(tip);
             content.addView(card);
         }
     }
@@ -791,45 +842,62 @@ public final class MainActivity extends Activity {
     }
 
     private static final class SpectrumGraph extends View {
-        private final List<NetworkEntry> nets;
+        private final List<NetworkEntry> networks;
         private final int band;
-        private final Paint p=new Paint(3);
-        SpectrumGraph(Context ctx,List<NetworkEntry> nets,int band){super(ctx);this.nets=nets;this.band=band;}
-        @Override protected void onDraw(Canvas c) {
-            float w=getWidth(),h=getHeight();
-            float left=dp(29), right=w-dp(10), top=dp(20), bottom=h-dp(30);
+        private final String focus;
+        private final Paint paint=new Paint(3);
+        SpectrumGraph(Context ctx,List<NetworkEntry> entries,int band,String focus){
+            super(ctx);
+            networks=new ArrayList<>(entries);this.band=band;this.focus=focus==null?"":focus;
+        }
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float width=getWidth(),height=getHeight();
+            float left=dp(40),right=width-dp(13),top=dp(24),bottom=height-dp(35);
             int fMin=band==ChannelMath.BAND_24?2400:band==ChannelMath.BAND_5?5000:5925;
             int fMax=band==ChannelMath.BAND_24?2500:band==ChannelMath.BAND_5?5900:7125;
-            p.setStrokeWidth(dp(1));
-            p.setTextSize(dp(10));p.setColor(MUTED);
-            for(int db=-100;db<=-30;db+=20) {
+            paint.setStrokeWidth(dp(1));paint.setTextSize(dp(10));paint.setAlpha(255);
+            for(int db=-100;db<=-30;db+=20){
                 float y=map(db,-100,-30,bottom,top);
-                p.setColor(0xFFE5EBF3);c.drawLine(left,y,right,y,p);
-                p.setColor(MUTED);c.drawText(db+"",0,y+dp(3),p);
+                paint.setColor(0xFFE5EBF3);canvas.drawLine(left,y,right,y,paint);
+                paint.setColor(MUTED);canvas.drawText(""+db,0,y+dp(3),paint);
             }
-            for(int j=0;j<6;j++) {
-                int f=fMin+(fMax-fMin)*j/5;
-                p.setColor(MUTED);
-                c.drawText(ChannelMath.channel(f)+"",map(f,fMin,fMax,left,right)-dp(5),h-dp(7),p);
+            for(int j=0;j<=5;j++){
+                int freq=fMin+(fMax-fMin)*j/5;
+                float x=map(freq,fMin,fMax,left,right);
+                paint.setColor(MUTED);
+                canvas.drawText(""+freq,x-dp(11),height-dp(8),paint);
             }
-            int index=0;
-            for(NetworkEntry n:nets) {
-                int color=PALETTE[index++%PALETTE.length];
-                float x=map(n.mhz,fMin,fMax,left,right);
+            for(NetworkEntry n:networks){
+                int color=colorFor(n.bssid);
+                float center=map(n.mhz,fMin,fMax,left,right);
                 float half=Math.max(10,n.width/2f);
                 float x0=map(n.mhz-half,fMin,fMax,left,right);
                 float x1=map(n.mhz+half,fMin,fMax,left,right);
                 float peak=map(Math.max(-100,Math.min(-30,n.dbm)),-100,-30,bottom,top);
-                Path path=new Path();path.moveTo(x0,bottom);
-                path.cubicTo(x0+(x-x0)*0.55f,peak,x-(x-x0)*0.25f,peak,x,peak);
-                path.cubicTo(x+(x1-x)*0.25f,peak,x1-(x1-x)*0.55f,peak,x1,bottom);
-                p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(2));p.setColor(color);
-                c.drawPath(path,p);
-                p.setStyle(Paint.Style.FILL);
+                android.graphics.Path path=new android.graphics.Path();
+                path.moveTo(x0,bottom);
+                path.cubicTo(x0+(center-x0)*.55f,peak,center-(center-x0)*.25f,peak,center,peak);
+                path.cubicTo(center+(x1-center)*.25f,peak,x1-(x1-center)*.55f,peak,x1,bottom);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(dp(n.bssid.equals(focus)?3.6f:2));
+                paint.setColor(color);
+                paint.setAlpha(!focus.isEmpty()&&!focus.equals(n.bssid)?55:255);
+                canvas.drawPath(path,paint);
+                paint.setStyle(Paint.Style.FILL);paint.setAlpha(255);
+                if(n.bssid.equals(focus)){
+                    paint.setColor(color);paint.setTextSize(dp(11));
+                    String name=n.ssid.length()>15?n.ssid.substring(0,15)+"…":n.ssid;
+                    canvas.drawText(name,Math.max(left,Math.min(right-dp(95),center-dp(40))),
+                        Math.max(dp(13),peak-dp(9)),paint);
+                }
             }
+            paint.setAlpha(255);
         }
         private float dp(float n){return n*getResources().getDisplayMetrics().density;}
-        private float map(float x,float a,float b,float m,float n){return m+(x-a)*(n-m)/(b-a);}
+        private float map(float v,float vMin,float vMax,float pMin,float pMax){
+            return pMin+(v-vMin)*(pMax-pMin)/(vMax-vMin);
+        }
     }
 
     private static final class HistoryGraph extends View {
