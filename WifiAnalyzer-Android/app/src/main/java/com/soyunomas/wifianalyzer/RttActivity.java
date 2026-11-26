@@ -76,7 +76,7 @@ public final class RttActivity extends Activity{
         List<ScanResult> candidates=new ArrayList<>();
         try{
             for(ScanResult s:wifi.getScanResults())
-                if(s.is80211mcResponder&&candidates.size()<8)candidates.add(s);
+                if(s.is80211mcResponder()&&candidates.size()<8)candidates.add(s);
         }catch(SecurityException e){output.setText("No hay permisos suficientes para resultados Wi-Fi.");return;}
         if(candidates.isEmpty()){
             output.setText("Ningún punto de acceso detectado anuncia compatibilidad con RTT. "+
