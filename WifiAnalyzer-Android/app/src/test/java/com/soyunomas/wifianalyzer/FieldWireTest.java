@@ -50,7 +50,7 @@ public class FieldWireTest {
         assertEquals(0x0B,query[3]&255);
         assertEquals(3,query[query.length-1]);
         // Test a valid short response composed from the same IPP tags:
-        byte[] actual=new byte[]{1,1,0,0,0,0,0,1,4,0x42,0,4,0,4,110,97,109,101,116,101,115,116,3};
+        byte[] actual=new byte[]{1,1,0,0,0,0,0,1,4,0x42,0,4,110,97,109,101,0,4,116,101,115,116,3};
         Map<String,String> attrs=FieldWire.ippResponse(actual);
         assertEquals("test",attrs.get("name"));
     }
