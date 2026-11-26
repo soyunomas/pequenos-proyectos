@@ -10,11 +10,12 @@ public class FieldWireTest {
         byte[] tx={0,1,2,3,4,5,6,7,8,9,10,11};
         byte[] request=FieldWire.stunRequest(tx);
         assertEquals(20,request.length);
-        assertEquals((byte)0x21,request[0]);
-        assertEquals((byte)0x12,request[4]);
-        assertEquals((byte)0xA4,request[5]);
-        assertEquals((byte)0x42,request[6]);
-        assertEquals((byte)0x99,request[7]);
+        assertEquals((byte)0x00,request[0]);
+        assertEquals((byte)0x01,request[1]);
+        assertEquals((byte)0x21,request[4]);
+        assertEquals((byte)0x12,request[5]);
+        assertEquals((byte)0xA4,request[6]);
+        assertEquals((byte)0x42,request[7]);
         assertEquals(11,request[19]);
     }
     @Test public void decodesXorMappedAddressFromValidStunResponse(){
@@ -36,6 +37,7 @@ public class FieldWireTest {
     public void stunRejectsMismatchedRequestId(){
         byte[] bytes=new byte[32];bytes[0]=1;bytes[1]=1;
         bytes[4]=0x21;bytes[5]=0x12;bytes[6]=(byte)0xA4;bytes[7]=0x42;
+        bytes[8]=42;
         FieldWire.stunMapped(bytes,new byte[12]);
     }
     @Test public void natPmpExternalAddress(){
@@ -47,9 +49,6 @@ public class FieldWireTest {
         assertEquals(1,query[0]);assertEquals(1,query[1]);
         assertEquals(0x0B,query[3]&255);
         assertEquals(3,query[query.length-1]);
-        byte[] response={1,1,0,0,0,0,0,1,4,0x42,0,12,0,7,
-             112,114,105,110,116,101,114,45,110,97,109,101, // incorrect length? updated test below
-             80,114,105,110,116,101,114,3};
         // Test a valid short response composed from the same IPP tags:
         byte[] actual=new byte[]{1,1,0,0,0,0,0,1,4,0x42,0,4,0,4,110,97,109,101,116,101,115,116,3};
         Map<String,String> attrs=FieldWire.ippResponse(actual);
