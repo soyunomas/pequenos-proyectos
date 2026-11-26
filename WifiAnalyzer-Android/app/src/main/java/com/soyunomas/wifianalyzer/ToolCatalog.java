@@ -23,7 +23,7 @@ public final class ToolCatalog {
         new Tool(6,"DNS","DNS inverso PTR","Resuelve IP a nombres mediante el árbol in-addr.arpa o ip6.arpa.","Dirección IP","1.1.1.1"),
         new Tool(7,"DNS","Comparador DNS / DoH / DoT","Compara resolvedores UDP, DNS sobre HTTPS y DNS sobre TLS.","Dominio","example.com"),
         new Tool(8,"Servicios","Inspector TLS","Cadena X.509, versión TLS, cifrado, caducidad y nombres alternativos.","Host[:puerto]","example.com:443"),
-        new Tool(9,"Servicios","Cliente HTTP","GET, HEAD, OPTIONS; cabeceras, código, redirección y latencia.","URL HTTPS","https://example.com"),
+        new Tool(9,"Servicios","Cliente HTTP","GET, HEAD, OPTIONS; cabeceras, código, redirección y latencia.","GET/HEAD/OPTIONS https://...","HEAD https://example.com"),
         new Tool(10,"Conectividad","Monitor de disponibilidad","Cinco comprobaciones y registro de cambios de estado.","Host[:puerto]","1.1.1.1:443"),
         new Tool(11,"Conectividad","Diagnóstico IPv6","Direcciones, rutas, DNS y conectividad IPv6 de la red activa.","Host IPv6","2606:4700:4700::1111"),
         new Tool(12,"Descubrimiento","mDNS / DNS-SD","Consulta multicast de servicios anunciados en la Wi-Fi.","Tipo de servicio","_services._dns-sd._udp.local"),

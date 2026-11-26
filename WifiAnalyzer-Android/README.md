@@ -2,7 +2,7 @@
 
 Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones implementadas en v3.0
+## Funciones implementadas en v3.1
 
 - Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
 - Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
@@ -28,22 +28,22 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - Las barras inferiores reservan explícitamente el área de navegación y gestos de Android mediante `WindowInsets`, en lugar de solo añadir un margen arbitrario.
 - Se requiere prueba visual en el móvil para confirmar que no hay solapamientos específicos del fabricante.
 
-## NetScope 3.0 — 25 herramientas y gráfica identificada
+## NetScope 3.1 — 25 herramientas y gráfica identificada
 
 - Gráficas Wi-Fi por banda con **leyenda interactiva por SSID y BSSID**, colores deterministas y selección para destacar una curva; curva aproximada a partir de RSSI y ancho de canal. El eje X muestra frecuencia en MHz, no se confunden canales con frecuencias.
 - Acceso «25 herramientas de red» desde el panel principal y el Centro de red.
-- Diagnóstico: **ping/alcanzabilidad Android**, 10 muestras, traceroute TTL si el dispositivo admite ping `-t`, MTR nativo solo si está instalado, monitorización TCP, IPv6, MTU/sonda DF cuando el binario lo permite, NTP y DHCP.
+- Diagnóstico: **ping/alcanzabilidad Android**, 10 muestras con variación media de tiempos, traceroute TTL si el dispositivo admite ping `-t`, MTR nativo o alternativa PathPing experimental por TTL, monitorización TCP, IPv6, MTU/sonda DF cuando el binario lo permite, NTP y DHCP.
 - DNS: A, AAAA, MX, TXT, NS, CNAME, SOA, SRV, CAA, PTR inverso; comparador de DNS público por UDP, DoH y DoT (dependiendo de las restricciones de red).
-- Servicios: inspección TLS con verificación de certificados y SAN; cliente HTTP HEAD y cabeceras.
+- Servicios: inspección TLS con verificación de certificados y SAN; cliente HTTP GET, HEAD u OPTIONS (prefijo del campo URL), cabeceras y hasta 2 KiB de respuesta GET.
 - LAN: mDNS/DNS-SD por multicast, SSDP/UPnP, consulta SNMP v1 de solo lectura de `sysDescr.0` con comunidad pública, Wake-on-LAN y un inventario de equipos con comparación local entre sesiones.
-- Rendimiento: prueba HTTPS de hasta 3 MB; subida corta solo si se usa el servidor de Cloudflare. **iPerf3** requiere un ejecutable nativo externo compatible y un servidor, así que el botón actual verifica el puerto y explica cómo hacer la medición real, sin inventar un rendimiento.
+- Rendimiento: prueba HTTPS de hasta 3 MB; subida corta solo si se usa el servidor de Cloudflare. **iPerf3** ejecuta un binario nativo compatible si ya existe en el sistema; si no, solo verifica disponibilidad TCP y muestra las instrucciones, **sin fingir una medición**.
 - Internet: RDAP, RIPEstat ASN/BGP, IP pública Wi-Fi, VPN y guía para investigar CGNAT.
 - Informe técnico exportable desde el selector de documentos Android, con hasta 30 resultados realizados en esta sesión.
 
 ### Advertencias y límites
 
 Todas las acciones de red se inician al pulsar «Ejecutar». Algunas consultan servicios públicos externos y revelan al destino la IP pública o el nombre consultado (DNS público, rdap.org, RIPE NCC, ipify, Cloudflare y otros servicios elegidos).
-`InetAddress.isReachable` no garantiza ICMP: puede depender de TCP; los tiempos no se deben etiquetar como RTT ICMP auténtico. Traceroute, MTR y Path MTU completos pueden no ser ejecutables sin binarios nativos o permisos. La disponibilidad TCP de iperf3 **no equivale** a la prueba iPerf3.
+`InetAddress.isReachable` no garantiza ICMP: puede depender de TCP; los tiempos no se deben etiquetar como RTT ICMP auténtico. Traceroute, MTR nativo y Path MTU completos pueden no ser ejecutables sin binarios nativos o permisos. La disponibilidad TCP de iperf3 **no equivale** a la prueba iPerf3.
 Se habilitan conexiones HTTP sin cifrar **únicamente para permitir diagnósticos voluntarios de servicios HTTP**; las consultas de proveedores externos utilizan HTTPS salvo DNS UDP explícito. No se introducen contraseñas, no se realizan ataques ni se hacen consultas automáticas.
 El inventario almacena IP y MAC observadas localmente; las demás acciones se mantienen en el historial de esta sesión. Resultados de servicios y DNS pueden estar afectados por bloqueos, DNS privado y VPN. Hay que probar en teléfonos físicos.
 
@@ -103,5 +103,5 @@ python3 scripts/update_oui.py
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v3.0.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v3.1.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
 \n**Instalación de APK debug:** GitHub Actions puede generar firmas de depuración diferentes entre ejecuciones. Si Android indica conflicto de firma al actualizar, desinstala antes la versión antigua (se borrarán sus preferencias locales). Para actualizaciones permanentes sin perder datos, hay que configurar una clave de firma estable y privada.\n

@@ -23,8 +23,11 @@ public final class InventoryTools {
                 done.countDown();
             }
         });
-        if(!done.await(28,TimeUnit.SECONDS)){handle.cancel();return "Inventario incompleto: timeout. Vuelve a intentarlo.";}
-        if(Thread.currentThread().isInterrupted()){handle.cancel();return "Exploración cancelada.";}
+        boolean completed;
+        try{completed=done.await(28,TimeUnit.SECONDS);}
+        finally{handle.cancel();}
+        if(!completed)return "Inventario incompleto: timeout. Vuelve a intentarlo.";
+        if(Thread.currentThread().isInterrupted())return "Exploración cancelada.";
         SharedPreferences prefs=ctx.getSharedPreferences("netscope-inventory",Context.MODE_PRIVATE);
         Map<String,JSONObject> previous=new HashMap<>();
         String previousJson=prefs.getString("hosts","[]");

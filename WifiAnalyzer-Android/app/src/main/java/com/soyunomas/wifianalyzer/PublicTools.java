@@ -93,18 +93,28 @@ public final class PublicTools {
         }
     }
     private static String http(Network net,String userUrl)throws Exception{
-        URL url=new URL(userUrl.trim());
+        String requested=userUrl.trim();
+        String method="HEAD";
+        String upper=requested.toUpperCase(Locale.ROOT);
+        for(String candidate:new String[]{"GET ","HEAD ","OPTIONS "}){
+            if(upper.startsWith(candidate)){
+                method=candidate.trim();
+                requested=requested.substring(candidate.length()).trim();
+                break;
+            }
+        }
+        URL url=new URL(requested);
         if(!url.getProtocol().equals("http")&&!url.getProtocol().equals("https"))
             throw new IllegalArgumentException("Escribe una URL HTTP o HTTPS");
         long start=System.nanoTime();
         HttpURLConnection c=(HttpURLConnection)net.openConnection(url);
         c.setConnectTimeout(4000);c.setReadTimeout(4000);
         c.setInstanceFollowRedirects(true);
-        c.setRequestMethod("HEAD");
+        c.setRequestMethod(method);
         try{
             int code=c.getResponseCode();
             long ms=TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-start);
-            StringBuilder output=new StringBuilder("HEAD "+url+"\nHTTP "+code+" "+c.getResponseMessage()+
+            StringBuilder output=new StringBuilder(method+" "+url+"\nHTTP "+code+" "+c.getResponseMessage()+
                 "\nTotal: "+ms+" ms\nURL final: "+c.getURL()+"\n");
             if(url.getProtocol().equals("http"))output.append("\nAviso: sin cifrado TLS.\n");
             int count=0;
@@ -112,6 +122,14 @@ public final class PublicTools {
                 if(h.getKey()==null)continue;
                 if(count++>=24){output.append("[cabeceras adicionales omitidas]\n");break;}
                 output.append(h.getKey()).append(": ").append(String.join(", ",h.getValue())).append("\n");
+            }
+            if(method.equals("GET")){
+                InputStream body=code<400?c.getInputStream():c.getErrorStream();
+                if(body!=null){
+                    byte[] data=DnsTools.readLimited(body,2048);
+                    String sample=ResponseInspector.printable(data);
+                    output.append("\nCuerpo de respuesta (máx. 2 KiB):\n").append(sample);
+                }
             }
             return output.toString();
         }finally{c.disconnect();}
@@ -228,20 +246,45 @@ public final class PublicTools {
     }
     private static String iperf(Network net,String hostname)throws Exception {
         String target=LocalTools.host(hostname);
-        // A socket check does not constitute a throughput benchmark.
+        // Prefer a real installed iperf3 executable; never describe TCP connectivity as a bandwidth test.
+        java.io.File binary=null;
+        for(String prefix:new String[]{"/system/bin/","/system/xbin/","/vendor/bin/"}){
+            java.io.File f=new java.io.File(prefix+"iperf3");
+            if(f.isFile()&&f.canExecute()){binary=f;break;}
+        }
+        if(binary!=null){
+            Process process=new ProcessBuilder(binary.getAbsolutePath(),"-c",target,
+                "-p","5201","-t","4","-J").redirectErrorStream(true).start();
+            java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream();
+            Thread collect=new Thread(()->{
+                try(InputStream in=process.getInputStream()){
+                    byte[] buf=new byte[512];int n;
+                    while((n=in.read(buf))>=0&&output.size()<12000)
+                        output.write(buf,0,Math.min(n,12000-output.size()));
+                }catch(Exception ignored){}
+            },"netscope-iperf-output");
+            collect.setDaemon(true);collect.start();
+            boolean completed=false;
+            try{completed=process.waitFor(9000,TimeUnit.MILLISECONDS);}
+            finally{if(process.isAlive())process.destroyForcibly();}
+            collect.join(350);
+            return "iPerf3 nativo ("+binary.getAbsolutePath()+") · "+target+
+                "\nATENCIÓN: el proceso nativo puede utilizar la interfaz predeterminada, no necesariamente Wi-Fi.\n"+
+                new String(output.toByteArray(),StandardCharsets.UTF_8)+
+                (completed?"":"\n[Interrumpido por tiempo máximo]");
+        }
         InetAddress address=net.getAllByName(target)[0];
         boolean reachable=false;
         try(Socket socket=net.getSocketFactory().createSocket()){
             socket.connect(new InetSocketAddress(address,5201),1500);reachable=true;
         }catch(IOException ignored){}
-        return "iPerf3 (protocolo específico, requiere cliente y servidor compatibles)\n"+
+        return "iPerf3 auténtico requiere un ejecutable nativo y servidor compatibles.\n"+
             "Servidor: "+target+":5201\n"+
-            "Puerto TCP 5201: "+(reachable?"conexión aceptada":"sin conexión")+
-            "\n\nNetScope no contiene el motor nativo de iPerf3. "+
-            "La conexión TCP no representa una medición de caudal iPerf3. "+
-            "Para obtener resultados iPerf3 reales ejecuta:\n"+
+            "Comprobación de disponibilidad TCP (NO mide caudal): "+
+            (reachable?"conexión aceptada":"sin conexión")+"\n\n"+
+            "No existe un motor iPerf3 en este dispositivo. Ejecuta en un cliente compatible:\n"+
             "iperf3 -c "+target+" -t 10\n"+
-            "En el servidor: iperf3 -s\n"+
-            "Esta función sirve para verificar disponibilidad y preparar la prueba, no para falsificarla.";
+            "Servidor: iperf3 -s\n"+
+            "NetScope no inventa resultados de rendimiento.";
     }
 }

@@ -60,6 +60,8 @@ public final class LocalTools {
         InetAddress addr=resolve(net,domain);
         int count=continuous?10:4,received=0;
         long min=Long.MAX_VALUE,max=0,sum=0;
+        long previous=-1,jitterSum=0;
+        int consecutivePairs=0;
         StringBuilder out=new StringBuilder(continuous?
             "Alcanzabilidad repetida · 10 muestras\n":"Prueba de disponibilidad · 4 muestras\n");
         out.append("Destino: ").append(addr.getHostAddress()).append("\n");
@@ -70,16 +72,20 @@ public final class LocalTools {
             long elapsed=TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-start);
             if(ok){
                 received++;min=Math.min(min,elapsed);max=Math.max(max,elapsed);sum+=elapsed;
+                if(previous>=0){jitterSum+=Math.abs(elapsed-previous);consecutivePairs++;}
+                previous=elapsed;
                 out.append("Sondeo ").append(i+1).append(": respuesta en ").append(elapsed).append(" ms\n");
-            }else out.append("Sondeo ").append(i+1).append(": sin respuesta (filtrado o desconectado)\n");
+            }else {previous=-1;out.append("Sondeo ").append(i+1).append(": sin respuesta (filtrado o desconectado)\n");}
             if(i<count-1&&continuous)Thread.sleep(240);
         }
         out.append("\nRecibidos: ").append(received).append("/").append(count)
            .append("\nPérdida aparente: ").append(100*(count-received)/count).append("%\n");
         if(received>0)out.append("RTT mín/media/máx (sondeo de alcanzabilidad): ")
             .append(min).append("/").append(sum/received).append("/").append(max).append(" ms\n");
+        if(consecutivePairs>0)out.append("Variación media absoluta entre muestras exitosas: ")
+            .append(jitterSum/consecutivePairs).append(" ms\n");
         out.append("\nAndroid InetAddress.isReachable: puede utilizar ICMP o una alternativa TCP. "+
-            "No es equivalente a una medición ICMP garantizada ni permite inferir jitter exacto.");
+            "La variación observada es una aproximación, no jitter de RTP ni ICMP garantizado.");
         return out.toString();
     }
 
@@ -94,10 +100,40 @@ public final class LocalTools {
             args.add(target);
             return runNative(args,16000);
         }
-        if(mtr)return "MTR real requiere un ejecutable nativo compatible disponible para esta aplicación. "+
-            "No hay uno instalado. No se simulan pérdida o jitter por salto. "+
-            "Puedes usar MTR desde un equipo Linux o desde Termux con los permisos correspondientes.";
         String ping=findExecutable("ping");
+        if(mtr){
+            if(ping==null)return "MTR requiere un binario MTR o ping con control de TTL; ninguno está disponible.";
+            StringBuilder output=new StringBuilder("Trazado repetido tipo PathPing · sin MTR nativo\n");
+            output.append("Dos sondas ICMP por salto; la pérdida de respuestas ICMP de routers "+
+                "no representa pérdida de tráfico reenviado.\n\n");
+            for(int ttl=1;ttl<=8&&!Thread.currentThread().isInterrupted();ttl++){
+                int received=0;
+                String firstHop="Sin respuesta";
+                long sum=0;
+                for(int trial=0;trial<2;trial++){
+                    String reply=runNative(Arrays.asList(ping,"-n","-c","1","-W","1","-t",
+                        Integer.toString(ttl),target),2600);
+                    if(reply.contains("invalid option")||reply.contains("usage:")||reply.contains("Usage:"))
+                        return "El ping del dispositivo no admite TTL. MTR requiere un motor nativo adicional.";
+                    for(String line:reply.split("\\n")){
+                        if(line.contains("From ")||line.contains("from ")||line.contains("bytes from")){
+                            received++;
+                            if(firstHop.equals("Sin respuesta"))firstHop=line.length()>80?line.substring(0,80):line;
+                            java.util.regex.Matcher match=java.util.regex.Pattern.compile("time[=<]([0-9]+(?:\\.[0-9]+)?)")
+                                .matcher(line);
+                            if(match.find())try{sum+=(long)Double.parseDouble(match.group(1));}
+                                catch(NumberFormatException ignored){}
+                            break;
+                        }
+                    }
+                }
+                output.append(ttl).append(". ").append(firstHop)
+                    .append(" · ").append(received).append("/2 respuestas")
+                    .append(" · RTT aprox. ").append(received==0?"N/D":(sum/received)+" ms").append("\n");
+                if(firstHop.contains("bytes from"))break;
+            }
+            return output.append("\nAlternativa real basada en TTL; no reproduce todas las métricas de MTR.").toString();
+        }
         if(ping==null)return "Traceroute requiere ICMP/UDP TTL o un binario traceroute permitido por Android. "+
             "No se encontró uno compatible.";
         StringBuilder output=new StringBuilder("Trazado experimental con TTL usando ping del sistema.\n");
@@ -137,8 +173,11 @@ public final class LocalTools {
             }catch(IOException ignored){}
         },"netscope-process");
         collector.setDaemon(true);collector.start();
-        boolean finished=process.waitFor(timeoutMs,TimeUnit.MILLISECONDS);
-        if(!finished)process.destroyForcibly();
+        boolean finished;
+        try{finished=process.waitFor(timeoutMs,TimeUnit.MILLISECONDS);}
+        finally{
+            if(process.isAlive())process.destroyForcibly();
+        }
         collector.join(400);
         return new String(bytes.toByteArray(),StandardCharsets.UTF_8)+
             (finished?"":"\n[Proceso detenido por tiempo máximo]");
@@ -201,8 +240,10 @@ public final class LocalTools {
         byte[] label=question(domain,12);
         Set<String> answers=new LinkedHashSet<>();
         InetAddress multicast=InetAddress.getByName("224.0.0.251");
-        try(DatagramSocket socket=new DatagramSocket(null)){
-            socket.setReuseAddress(true);socket.bind(new InetSocketAddress(0));net.bindSocket(socket);
+        try(MulticastSocket socket=new MulticastSocket(null)){
+            socket.setReuseAddress(true);socket.bind(new InetSocketAddress(5353));
+            net.bindSocket(socket);
+            socket.joinGroup(multicast);
             socket.setSoTimeout(280);
             socket.send(new DatagramPacket(label,label.length,multicast,5353));
             long until=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(1900);
@@ -329,7 +370,7 @@ public final class LocalTools {
     private static String mtu(Context ctx,String domain)throws Exception{
         ConnectivityManager cm=(ConnectivityManager)ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkDiagnostics.Snapshot snap=NetworkDiagnostics.capture(ctx);
-        LinkProperties props=cm.getLinkProperties(snap.network);
+        LinkProperties props=cm==null||snap.network==null?null:cm.getLinkProperties(snap.network);
         int mtu=props==null?0:props.getMtu();
         StringBuilder s=new StringBuilder("MTU de interfaz: "+(mtu>0?mtu+" bytes":"no informada")+
             "\nPath MTU requiere sondas DF / ICMP que Android no garantiza en aplicaciones sin root.\n");
