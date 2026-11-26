@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Fast, bounded discovery on the user's own connected private Wi-Fi subnet.
+ * Fast, bounded discovery on the user's own connected RFC1918 or RFC6598 Wi-Fi subnet.
  * Uses TCP responses + SSDP/UPnP replies. Neither replaces privileged ARP or detects every host.
  * Never guesses MAC addresses or manufacturer names.
  */
@@ -95,16 +95,9 @@ public final class LanScanner {
                 String ip=address.getAddress().getHostAddress();
                 if(!privateIpv4(ip))continue;
                 int prefix=address.getPrefixLength();
-                int scanPrefix=Math.max(24,Math.min(32,prefix));
+                int scanPrefix=boundedPrefix(prefix);
                 SubnetTools.Subnet subnet=SubnetTools.calculate(ip+"/"+scanPrefix);
-                List<String> ips=new ArrayList<>();
-                long from=toLong(subnet.network),to=toLong(subnet.broadcast);
-                long first=scanPrefix>=31?from:from+1;
-                long last=scanPrefix>=31?to:to-1;
-                for(long i=first;i<=last;i++){
-                    String candidate=SubnetTools.fmt(i);
-                    if(!candidate.equals(ip))ips.add(candidate);
-                }
+                List<String> ips=candidateAddresses(ip,prefix);
                 String gateway="";
                 for(RouteInfo route:props.getRoutes()) {
                     if(route.isDefaultRoute()&&route.getGateway() instanceof Inet4Address){
@@ -131,16 +124,44 @@ public final class LanScanner {
         if(last==2||last==10||last==20||last==100)return 2;
         return 3;
     }
+    /** Limit to 1024 addresses. Scan full /22 networks instead of silently cutting to /24. */
+    static int boundedPrefix(int prefix){
+        if(prefix<0||prefix>32)throw new IllegalArgumentException("Invalid prefix");
+        return Math.max(22,prefix);
+    }
+    static List<String> candidateAddresses(String ip,int prefix){
+        if(!privateIpv4(ip))throw new IllegalArgumentException("Not a local RFC1918/RFC6598 address");
+        int scanPrefix=boundedPrefix(prefix);
+        SubnetTools.Subnet subnet=SubnetTools.calculate(ip+"/"+scanPrefix);
+        long first=toLong(subnet.network)+(scanPrefix>=31?0:1);
+        long last=toLong(subnet.broadcast)-(scanPrefix>=31?0:1);
+        List<String> addresses=new ArrayList<>();
+        for(long n=first;n<=last;n++){
+            String candidate=SubnetTools.fmt(n);
+            if(!candidate.equals(ip))addresses.add(candidate);
+        }
+        return addresses;
+    }
+    /** Strict IPv4 parsing, so malformed 100.x addresses cannot pass local checks. */
     static long toLong(String ip) {
-        String[] parts=ip.split("\\.");
+        if(ip==null)throw new IllegalArgumentException("Missing IPv4");
+        String[] parts=ip.split("\\.",-1);
+        if(parts.length!=4)throw new IllegalArgumentException("Invalid IPv4");
         long value=0;
-        for(String part:parts)value=(value<<8)|Integer.parseInt(part);
+        for(String part:parts){
+            if(!part.matches("[0-9]{1,3}"))throw new IllegalArgumentException("Invalid IPv4 octet");
+            int octet=Integer.parseInt(part);
+            if(octet>255)throw new IllegalArgumentException("Invalid IPv4 octet");
+            value=(value<<8)|octet;
+        }
         return value;
     }
+    /** RFC1918 private ranges and RFC6598 shared address space 100.64.0.0/10. */
     static boolean privateIpv4(String ip) {
         try {
             long n=toLong(ip);
-            return (n>>>24)==10||(n>>>20)==0xAC1||(n>>>16)==0xC0A8;
+            return (n>>>24)==10||(n>>>20)==0xAC1||(n>>>16)==0xC0A8||
+                ((n>>>22)==((100L<<24|64L<<16)>>>22));
         }catch(RuntimeException e){return false;}
     }
 

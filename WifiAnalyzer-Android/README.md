@@ -2,7 +2,7 @@
 
 Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones implementadas en v3.1
+## Funciones implementadas en v3.2
 
 - Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
 - Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
@@ -15,6 +15,14 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - Búsqueda por SSID/BSSID/seguridad; favoritos locales y filtro de favoritos.
 - Escaneo automático opcional, con posibilidad de pausar y seguir explorando manualmente.
 - Cabecera con margen superior ampliado, botón LAN visible e interfaz oscura. Android 8.0+.
+
+## Compatibilidad con LAN 100.64.0.0/10 y subredes /22 (v3.2)
+
+- El escáner admite ahora **RFC6598 (100.64.0.0/10)** además de las redes RFC1918. No autoriza automáticamente 100.0.0.0/8, pues fuera de 100.64.0.0/10 muchas direcciones son públicas.
+- Usa el prefijo DHCP/Android real para explorar la **subred /22 completa** (hasta 1022 direcciones útiles), también /23, /24 y prefijos más estrechos. Para redes superiores a /22 limita la exploración al /22 donde está el teléfono, indicado en pantalla.
+- Las pruebas JVM validan los límites 100.64–100.127, octetos inválidos, los 1021 destinos de una /22 excluyendo la IP propia y el alcance de /20, /23 y /24.
+- Se conserva el vínculo del escaneo al transporte Wi-Fi y la exploración TCP paralela. En redes con aislamiento AP/clientes, VPN/CGNAT a nivel operador o filtros de puertos, algunos dispositivos no serán detectables.
+- Esta compatibilidad requiere **una IP Wi-Fi en ese rango**, no una IP de CGNAT pública del operador ni una dirección de otra interfaz distinta de Wi-Fi.
 
 ## Análisis de un equipo y herramientas de experto (v2.6)
 
@@ -103,5 +111,5 @@ python3 scripts/update_oui.py
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v3.1.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v3.2.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
 \n**Instalación de APK debug:** GitHub Actions puede generar firmas de depuración diferentes entre ejecuciones. Si Android indica conflicto de firma al actualizar, desinstala antes la versión antigua (se borrarán sus preferencias locales). Para actualizaciones permanentes sin perder datos, hay que configurar una clave de firma estable y privada.\n
