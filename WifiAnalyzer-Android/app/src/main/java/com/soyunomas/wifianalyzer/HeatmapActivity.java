@@ -1,6 +1,7 @@
 package com.soyunomas.wifianalyzer;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.Intent;
 import android.graphics.*;
@@ -31,7 +32,11 @@ public final class HeatmapActivity extends Activity {
     private final ArrayList<Sample> samples=new ArrayList<>();
     private Bitmap floor;
     private Chart chart;
-    private TextView status;
+    private TextView status, accessPoint, legend;
+    private String fixedBssid="", fixedSsid="";
+    private long lastMeasurementAt;
+    private float radius=0.15f;
+    private int radiusLevel=1;
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);
         getWindow().setStatusBarColor(0xFFF6F8FC);
@@ -54,9 +59,34 @@ public final class HeatmapActivity extends Activity {
         heading.setText("Mapa de cobertura Wi-Fi");heading.setTextColor(INK);heading.setTextSize(23);
         heading.setPadding(5,6,5,8);root.addView(heading);
         TextView help=new TextView(this);help.setTextColor(0xFF66778D);help.setTextSize(13);
-        help.setText("Abre un plano y toca la posición real de cada medición. "+
-            "Se usa el RSSI del punto de acceso actual, no una ubicación GPS.");
+        help.setText("Abre un plano y toca cada lugar donde estés físicamente. "+
+            "Solo se colorean zonas próximas a las mediciones; el resto permanece SIN DATOS. "+
+            "No es un modelo de propagación radioeléctrica.");
         root.addView(help);
+        accessPoint=new TextView(this);
+        accessPoint.setTextColor(INK);accessPoint.setTextSize(12);
+        accessPoint.setPadding(5,12,5,0);
+        accessPoint.setText("Red medida: se fijará en el primer punto (SSID/BSSID).");
+        root.addView(accessPoint);
+        legend=new TextView(this);legend.setTextSize(12);legend.setTextColor(INK);
+        legend.setPadding(5,7,5,0);
+        legend.setText("RSSI: verde ≥ −53 · verde claro −65 · amarillo −78 · rojo ≤ −90 dBm; "+
+            "sin color = SIN DATOS.");
+        root.addView(legend);
+        LinearLayout scale=new LinearLayout(this);
+        int[] stops={-90,-78,-65,-53,-40};
+        for(int dbm:stops){
+            LinearLayout cell=new LinearLayout(this);cell.setOrientation(1);
+            View swatch=new View(this);
+            swatch.setBackgroundColor(CoverageSurface.color(dbm));
+            cell.addView(swatch,new LinearLayout.LayoutParams(-1,8));
+            TextView value=new TextView(this);value.setText(dbm+"");
+            value.setTextSize(10);value.setTextColor(INK);
+            value.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+            cell.addView(value);
+            scale.addView(cell,new LinearLayout.LayoutParams(0,-2,1));
+        }
+        root.addView(scale);
         status=new TextView(this);status.setTextColor(BLUE);status.setTextSize(13);
         status.setPadding(5,14,5,10);status.setText("Sin plano. Sin mediciones.");
         root.addView(status);
@@ -65,10 +95,23 @@ public final class HeatmapActivity extends Activity {
         addButton(row,"Plano",()->open());
         addButton(row,"Deshacer",()->{
             if(!samples.isEmpty())samples.remove(samples.size()-1);
+            if(samples.isEmpty()){fixedBssid="";fixedSsid="";lastMeasurementAt=0;}
             update();
         });
-        addButton(row,"Exportar",()->export());
-        root.addView(row);root.requestApplyInsets();
+        addButton(row,"Radio",()->{
+            radiusLevel=(radiusLevel+1)%3;
+            radius=radiusLevel==0?.09f:radiusLevel==1?.15f:.21f;
+            update();
+        });
+        LinearLayout rowMore=new LinearLayout(this);
+        addButton(rowMore,"Reiniciar",()->new AlertDialog.Builder(this)
+            .setTitle("Borrar mediciones")
+            .setMessage("Se borrarán los puntos de este plano para empezar otra medición.")
+            .setPositiveButton("Borrar",(d,w)->{
+                samples.clear();fixedBssid="";fixedSsid="";lastMeasurementAt=0;update();
+            }).setNegativeButton("Cancelar",null).show());
+        addButton(rowMore,"Exportar",()->export());
+        root.addView(row);root.addView(rowMore);root.requestApplyInsets();
     }
     private void addButton(LinearLayout row,String title,Runnable action){
         Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextColor(BLUE);
@@ -106,7 +149,7 @@ public final class HeatmapActivity extends Activity {
                     resultBitmap=BitmapFactory.decodeStream(in,null,opts);
                 }
                 if(resultBitmap==null)throw new IllegalArgumentException("La imagen está vacía");
-                floor=resultBitmap;samples.clear();update();
+                floor=resultBitmap;samples.clear();fixedBssid="";fixedSsid="";lastMeasurementAt=0;update();
             }catch(Exception e){Toast.makeText(this,"Error al cargar plano: "+e.getMessage(),Toast.LENGTH_LONG).show();}
         }else if(request==202){
             try(OutputStream out=getContentResolver().openOutputStream(uri)){
@@ -126,18 +169,34 @@ public final class HeatmapActivity extends Activity {
         }
     }
     @SuppressWarnings("deprecation")
-    private int rssi(){
+    private WifiInfo currentWifi(){
         WifiManager wm=(WifiManager)getApplicationContext().getSystemService(WIFI_SERVICE);
-        WifiInfo info=wm==null?null:wm.getConnectionInfo();
-        if(info==null||info.getRssi()>=0||info.getRssi()<=-127)return 0;
-        return info.getRssi();
+        return wm==null?null:wm.getConnectionInfo();
     }
+
     private void update(){
-        status.setText(samples.size()+" puntos registrados · "+
-            (samples.size()<3?"necesita al menos tres mediciones para interpolar":
-            "cobertura estimada por interpolación de RSSI"));
+        int min=0,max=0;
+        if(!samples.isEmpty()){
+            min=max=samples.get(0).dbm;
+            for(Sample sample:samples){
+                min=Math.min(min,sample.dbm);
+                max=Math.max(max,sample.dbm);
+            }
+        }
+        String level=radiusLevel==0?"corto":radiusLevel==1?"medio":"amplio";
+        String message=samples.size()+" mediciones locales · radio "+level+
+            (samples.isEmpty()?" · sin mediciones": " · RSSI "+min+"…"+max+" dBm");
+        if(samples.size()>=3 && max-min<=2)
+            message+="\nAviso: las señales son casi iguales; no existe contraste medido.";
+        message+="\nLas áreas no medidas permanecen sin colorear.";
+        status.setText(message);
+        accessPoint.setText(fixedBssid.isEmpty()
+            ?"Red medida: se fijará al tomar el primer punto."
+            :"Red medida: "+fixedSsid+" · "+fixedBssid+
+                "\nNo se mezclan lecturas de distintos BSSID.");
         chart.invalidate();
     }
+
     private final class Chart extends View{
         private final Paint p=new Paint(3);
         private final RectF area=new RectF();
@@ -156,18 +215,24 @@ public final class HeatmapActivity extends Activity {
             }
             p.setColor(0xFFFFFFFF);p.setAlpha(255);
             canvas.drawBitmap(floor,null,area,p);
-            if(samples.size()>=3){
-                int cols=26,rows=26;
+            if(!samples.isEmpty()){
+                // Never extrapolate coverage across unmeasured parts of the floor.
+                int cols=38;
+                int rows=Math.max(16,Math.round(cols*area.height()/Math.max(1f,area.width())));
+                rows=Math.min(70,rows);
                 float cw=area.width()/cols,ch=area.height()/rows;
+                ArrayList<CoverageSurface.Sample> observed=new ArrayList<>(samples.size());
+                for(Sample sample:samples)
+                    observed.add(new CoverageSurface.Sample(sample.x,sample.y,sample.dbm));
+                float aspect=area.width()/Math.max(1f,area.height());
                 for(int y=0;y<rows;y++)for(int x=0;x<cols;x++){
                     float cx=(x+.5f)/cols,cy=(y+.5f)/rows;
-                    double a=0,b=0;
-                    for(Sample sample:samples){
-                        double distance=Math.pow(cx-sample.x,2)+Math.pow(cy-sample.y,2);
-                        double weight=1.0/(0.0007+distance);
-                        a+=weight*sample.dbm;b+=weight;
-                    }
-                    p.setColor(tone((int)Math.round(a/b)));p.setAlpha(90);
+                    CoverageSurface.Estimate estimate=
+                        CoverageSurface.estimate(observed,cx,cy,aspect,radius);
+                    if(estimate==null)continue; // Unknown area: keep the original plan.
+                    p.setColor(CoverageSurface.color(estimate.dbm));
+                    p.setAlpha(Math.max(8,Math.min(160,
+                        Math.round(160f*estimate.confidence))));
                     canvas.drawRect(area.left+x*cw,area.top+y*ch,
                         area.left+(x+1)*cw+.6f,area.top+(y+1)*ch+.6f,p);
                 }
@@ -176,25 +241,59 @@ public final class HeatmapActivity extends Activity {
             for(Sample sample:samples){
                 float x=area.left+sample.x*area.width(),y=area.top+sample.y*area.height();
                 p.setColor(0xFFFFFFFF);canvas.drawCircle(x,y,15,p);
-                p.setColor(tone(sample.dbm));canvas.drawCircle(x,y,11,p);
+                p.setColor(CoverageSurface.color(sample.dbm));canvas.drawCircle(x,y,11,p);
                 p.setColor(INK);p.setTextSize(15);
                 canvas.drawText(sample.dbm+" dBm",x+17,y,p);
             }
         }
         @Override public boolean onTouchEvent(MotionEvent event){
+            if(event.getAction()==MotionEvent.ACTION_DOWN)return true;
             if(event.getAction()!=MotionEvent.ACTION_UP)return true;
+            bounds();
             if(floor==null||!area.contains(event.getX(),event.getY()))return true;
-            int dbm=rssi();
-            if(dbm==0){Toast.makeText(HeatmapActivity.this,"Sin RSSI Wi-Fi válido; comprueba ubicación.",Toast.LENGTH_SHORT).show();return true;}
-            if(samples.size()>=100){Toast.makeText(HeatmapActivity.this,"Máximo 100 mediciones",Toast.LENGTH_SHORT).show();return true;}
-            float x=(event.getX()-area.left)/area.width(),y=(event.getY()-area.top)/area.height();
-            samples.add(new Sample(x,y,dbm));update();return true;
-        }
-        private int tone(int dbm){
-            if(dbm>=-55)return 0xFF238A70;
-            if(dbm>=-68)return 0xFFB8B041;
-            if(dbm>=-80)return 0xFFDA8A34;
-            return 0xFFD25E66;
+            if(samples.size()>=100){
+                Toast.makeText(HeatmapActivity.this,"Máximo 100 mediciones",Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            WifiInfo info=currentWifi();
+            String bssid=info==null?null:info.getBSSID();
+            int dbm=info==null?0:info.getRssi();
+            if(bssid==null||bssid.isEmpty()||bssid.equals("02:00:00:00:00:00")||
+                    dbm>=0||dbm<=-127){
+                Toast.makeText(HeatmapActivity.this,
+                    "No hay RSSI/BSSID fiable; activa Wi-Fi y ubicación precisa.",
+                    Toast.LENGTH_LONG).show();
+                return true;
+            }
+            if(!fixedBssid.isEmpty()&&!fixedBssid.equalsIgnoreCase(bssid)){
+                new AlertDialog.Builder(HeatmapActivity.this)
+                    .setTitle("Has cambiado de punto de acceso")
+                    .setMessage("La medición pertenece al BSSID "+bssid+
+                        ". Este plano mide "+fixedBssid+
+                        ". No se mezclarán las señales. Reinicia las mediciones "+
+                        "para estudiar este nuevo punto de acceso.")
+                    .setPositiveButton("Entendido",null).show();
+                return true;
+            }
+            long now=android.os.SystemClock.elapsedRealtime();
+            if(lastMeasurementAt!=0&&now-lastMeasurementAt<4000){
+                Toast.makeText(HeatmapActivity.this,
+                    "Mueve el móvil al nuevo lugar y espera 4 segundos entre puntos.",
+                    Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            if(fixedBssid.isEmpty()){
+                fixedBssid=bssid;
+                String ssid=info.getSSID();
+                fixedSsid=ssid==null||ssid.equals("<unknown ssid>")?
+                    "SSID desconocido":ssid;
+            }
+            lastMeasurementAt=now;
+            float x=(event.getX()-area.left)/area.width();
+            float y=(event.getY()-area.top)/area.height();
+            samples.add(new Sample(x,y,dbm));
+            update();
+            return true;
         }
     }
 }

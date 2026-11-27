@@ -2,7 +2,7 @@
 
 Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una conexión. **Sin cuenta, telemetría ni rastreadores.** Código independiente de aplicaciones comerciales.
 
-## Funciones implementadas en v4.0
+## Funciones implementadas en v4.1
 
 - Exploración pasiva de redes: SSID, BSSID, RSSI, canal, banda, seguridad, ancho y estándar.
 - Gráficos de ocupación estimada por bandas 2,4 / 5 / 6 GHz y puntuación orientativa de canales.
@@ -23,6 +23,20 @@ Suite Android nativa para estudiar redes Wi-Fi próximas y diagnosticar una cone
 - La asignación de color se conserva entre escaneos y cuando Android recrea la actividad; los BSSID que desaparecen no transfieren su color a otra red durante la sesión.
 - Selecciona una fila de la leyenda para resaltar la curva correspondiente y atenuar las restantes. Los colores distinguen redes, **no son un indicador de calidad o seguridad**.
 - Pruebas JVM verifican 80 BSSID diferentes sin colores duplicados, asignación estable y restauración en el mismo orden.
+
+## NetScope 4.1 — mapa de cobertura Wi-Fi local, sin extrapolación falsa
+
+- **Corrección de raíz:** antes se coloreaba todo el plano mediante interpolación IDW global aunque solo existieran tres lecturas; esto interpretaba áreas sin medir como si tuvieran buena cobertura.
+- El nuevo algoritmo \`CoverageSurface.estimate\` interpola **solo dentro de un radio delimitado de cada observación**. Fuera de esos radios se muestra el plano sin color: **SIN DATOS**. No se inventan estimaciones de cobertura, ni siquiera cuando tres muestras son iguales y fuertes.
+- La distancia se calcula respetando el aspecto del plano. El botón **Radio** alterna entre corto, medio y amplio (9, 15 y 21 % del lado corto); es una distancia en el **plano digital**, no en metros ni un modelo físico de propagación.
+- Los colores responden a un gradiente continuo de RSSI, con escala visible: aproximadamente rojo ≤ −90 dBm, ámbar alrededor de −78, amarillo alrededor de −65 y verdes para señales mejores, sin transformar estos valores en calidad garantizada.
+- Cada punto indica su RSSI numérico. Con valores casi idénticos el mapa avisa de que **no hay contraste medido**; la visualización no puede descubrir problemas inexistentes en la muestra.
+- Se fija el **BSSID real del primer punto** y se rechazan lecturas de otro AP: medir solo el SSID puede mezclar distintos radios bajo una red con repetidores o mesh.
+- Existe una separación mínima de cuatro segundos entre puntos. Es un límite contra capturas accidentales, no una garantía de que Android haya actualizado el RSSI. Camina hasta cada ubicación y espera a que se estabilice la conexión.
+- Controles **Deshacer**, **Reiniciar**, **Radio** y exportación PNG; observaciones locales, sin envío a servidores. Los colores representan observaciones e interpolación local, nunca una medición de espectro ni de la atenuación por paredes.
+- Pruebas JVM verifican que tres muestras intensas no coloreen áreas lejanas, que las ubicaciones medidas conserven sus lecturas, que el radio respete la relación de aspecto y que el gradiente sea continuo.
+
+**Cómo medir de forma útil:** importa un plano a escala, camina físicamente a 10–20 puntos representativos de la vivienda y toca la ubicación correspondiente. Busca habitaciones con RSSI por debajo de −75 dBm, observa el punto de acceso fijado y compara las zonas de los distintos AP en mediciones separadas. Evita interpretar el silencio de datos como mala cobertura.
 
 ## NetScope 4.0 — 20 herramientas adicionales sin root
 
@@ -156,5 +170,5 @@ python3 scripts/update_oui.py
 gradle --no-daemon testDebugUnitTest assembleDebug
 ```
 
-GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v4.0.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
+GitHub Actions ejecuta los tests y publica el APK de depuración en `WifiAnalyzer-Android/NetScope_v4.1.apk` al finalizar correctamente. El APK debug es instalable, pero no está firmado para distribución Play Store; la firma de publicación requiere una clave propia.
 \n**Instalación de APK debug:** GitHub Actions puede generar firmas de depuración diferentes entre ejecuciones. Si Android indica conflicto de firma al actualizar, desinstala antes la versión antigua (se borrarán sus preferencias locales). Para actualizaciones permanentes sin perder datos, hay que configurar una clave de firma estable y privada.\n
